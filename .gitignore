@@ -1,0 +1,9 @@
+.build/
+.swiftpm/
+build/
+*.xcodeproj/xcuserdata/
+DerivedData/
+.DS_Store
+bench/fixtures/
+bench/results/raw/
+PreviewPP.xcodeproj/

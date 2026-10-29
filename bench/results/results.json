@@ -1,0 +1,444 @@
+{
+  "machine": "Apple M6, macOS 27.0.1",
+  "content": [
+    {
+      "variant": "bundled",
+      "file": "small.txt",
+      "plugin": "text",
+      "runtime": "builtin",
+      "processToReadyMs": 131.4,
+      "openToReadyMs": 53.7,
+      "discoveryMs": 0.8,
+      "footprintMB": 28.5,
+      "failures": []
+    },
+    {
+      "variant": "bundled",
+      "file": "medium.log",
+      "plugin": "text",
+      "runtime": "builtin",
+      "processToReadyMs": 132.5,
+      "openToReadyMs": 56,
+      "discoveryMs": 0.8,
+      "footprintMB": 50.6,
+      "failures": []
+    },
+    {
+      "variant": "bundled",
+      "file": "large.log",
+      "plugin": "text",
+      "runtime": "builtin",
+      "processToReadyMs": 147.5,
+      "openToReadyMs": 71.8,
+      "discoveryMs": 0.8,
+      "footprintMB": 207.6,
+      "failures": []
+    },
+    {
+      "variant": "bundled",
+      "file": "small.md",
+      "plugin": "markdown",
+      "runtime": "builtin",
+      "processToReadyMs": 132.7,
+      "openToReadyMs": 54.6,
+      "discoveryMs": 0.8,
+      "footprintMB": 28.6,
+      "failures": []
+    },
+    {
+      "variant": "bundled",
+      "file": "large.md",
+      "plugin": "markdown",
+      "runtime": "builtin",
+      "processToReadyMs": 896.7,
+      "openToReadyMs": 816.9,
+      "discoveryMs": 0.8,
+      "footprintMB": 65.5,
+      "failures": []
+    },
+    {
+      "variant": "bundled",
+      "file": "small.pdf",
+      "plugin": "pdf",
+      "runtime": "builtin",
+      "processToReadyMs": 135.8,
+      "openToReadyMs": 60.2,
+      "discoveryMs": 0.8,
+      "footprintMB": 94.1,
+      "failures": []
+    },
+    {
+      "variant": "bundled",
+      "file": "large.pdf",
+      "plugin": "pdf",
+      "runtime": "builtin",
+      "processToReadyMs": 143.6,
+      "openToReadyMs": 69.2,
+      "discoveryMs": 0.8,
+      "footprintMB": 80.5,
+      "failures": []
+    },
+    {
+      "variant": "bundled",
+      "file": "small.csv",
+      "plugin": "csv",
+      "runtime": "builtin",
+      "processToReadyMs": 124.2,
+      "openToReadyMs": 49.1,
+      "discoveryMs": 0.8,
+      "footprintMB": 34.7,
+      "failures": []
+    },
+    {
+      "variant": "bundled",
+      "file": "large.csv",
+      "plugin": "csv",
+      "runtime": "builtin",
+      "processToReadyMs": 157.5,
+      "openToReadyMs": 82.2,
+      "discoveryMs": 0.8,
+      "footprintMB": 51.8,
+      "failures": []
+    },
+    {
+      "variant": "external",
+      "file": "small.txt",
+      "plugin": "text",
+      "runtime": "bundle",
+      "processToReadyMs": 132.1,
+      "openToReadyMs": 54,
+      "discoveryMs": 2.9,
+      "footprintMB": 28.6,
+      "failures": []
+    },
+    {
+      "variant": "external",
+      "file": "medium.log",
+      "plugin": "text",
+      "runtime": "bundle",
+      "processToReadyMs": 134.5,
+      "openToReadyMs": 56.6,
+      "discoveryMs": 2.9,
+      "footprintMB": 50.7,
+      "failures": []
+    },
+    {
+      "variant": "external",
+      "file": "large.log",
+      "plugin": "text",
+      "runtime": "bundle",
+      "processToReadyMs": 149.4,
+      "openToReadyMs": 71.1,
+      "discoveryMs": 2.9,
+      "footprintMB": 207.6,
+      "failures": []
+    },
+    {
+      "variant": "external",
+      "file": "small.md",
+      "plugin": "markdown",
+      "runtime": "bundle",
+      "processToReadyMs": 135,
+      "openToReadyMs": 55,
+      "discoveryMs": 3,
+      "footprintMB": 28.6,
+      "failures": []
+    },
+    {
+      "variant": "external",
+      "file": "large.md",
+      "plugin": "markdown",
+      "runtime": "bundle",
+      "processToReadyMs": 929.9,
+      "openToReadyMs": 846,
+      "discoveryMs": 3,
+      "footprintMB": 65.5,
+      "failures": []
+    },
+    {
+      "variant": "external",
+      "file": "small.pdf",
+      "plugin": "pdf",
+      "runtime": "bundle",
+      "processToReadyMs": 142.9,
+      "openToReadyMs": 61.1,
+      "discoveryMs": 2.9,
+      "footprintMB": 94,
+      "failures": []
+    },
+    {
+      "variant": "external",
+      "file": "large.pdf",
+      "plugin": "pdf",
+      "runtime": "bundle",
+      "processToReadyMs": 149.4,
+      "openToReadyMs": 69.7,
+      "discoveryMs": 3.1,
+      "footprintMB": 80.6,
+      "failures": []
+    },
+    {
+      "variant": "external",
+      "file": "small.csv",
+      "plugin": "csv",
+      "runtime": "bundle",
+      "processToReadyMs": 129.2,
+      "openToReadyMs": 50.5,
+      "discoveryMs": 3,
+      "footprintMB": 34.8,
+      "failures": []
+    },
+    {
+      "variant": "external",
+      "file": "large.csv",
+      "plugin": "csv",
+      "runtime": "bundle",
+      "processToReadyMs": 163.3,
+      "openToReadyMs": 83.8,
+      "discoveryMs": 2.9,
+      "footprintMB": 51.9,
+      "failures": []
+    },
+    {
+      "variant": "split:csv@bundle",
+      "file": "small.csv",
+      "plugin": "csv@bundle",
+      "runtime": "bundle",
+      "processToReadyMs": 126.3,
+      "openToReadyMs": 50.1,
+      "discoveryMs": 0.8,
+      "footprintMB": 34.6,
+      "failures": []
+    },
+    {
+      "variant": "split:csv@bundle",
+      "file": "large.csv",
+      "plugin": "csv@bundle",
+      "runtime": "bundle",
+      "processToReadyMs": 161.4,
+      "openToReadyMs": 82.8,
+      "discoveryMs": 0.8,
+      "footprintMB": 51.9,
+      "failures": []
+    },
+    {
+      "variant": "split:csv-web",
+      "file": "small.csv",
+      "plugin": "csv-web",
+      "runtime": "web",
+      "processToReadyMs": 220.9,
+      "openToReadyMs": 138,
+      "discoveryMs": 0.8,
+      "footprintMB": 32.2,
+      "failures": []
+    },
+    {
+      "variant": "split:csv-web",
+      "file": "large.csv",
+      "plugin": "csv-web",
+      "runtime": "web",
+      "processToReadyMs": 1145.2,
+      "openToReadyMs": 1059.3,
+      "discoveryMs": 0.8,
+      "footprintMB": 34,
+      "failures": []
+    },
+    {
+      "variant": "split:csv-proc",
+      "file": "small.csv",
+      "plugin": "csv-proc",
+      "runtime": "process",
+      "processToReadyMs": 131.2,
+      "openToReadyMs": 55.5,
+      "discoveryMs": 0.8,
+      "footprintMB": 34.7,
+      "failures": []
+    },
+    {
+      "variant": "split:csv-proc",
+      "file": "large.csv",
+      "plugin": "csv-proc",
+      "runtime": "process",
+      "processToReadyMs": 720.5,
+      "openToReadyMs": 640.1,
+      "discoveryMs": 0.8,
+      "footprintMB": 55.5,
+      "failures": []
+    },
+    {
+      "variant": "bundled+textkit1",
+      "file": "large.log",
+      "plugin": "text",
+      "runtime": "builtin",
+      "processToReadyMs": 176.4,
+      "openToReadyMs": 101.7,
+      "discoveryMs": 0.8,
+      "footprintMB": 206.9,
+      "failures": []
+    },
+    {
+      "variant": "bundled+textkit1",
+      "file": "medium.log",
+      "plugin": "text",
+      "runtime": "builtin",
+      "processToReadyMs": 139.9,
+      "openToReadyMs": 59.4,
+      "discoveryMs": 0.8,
+      "footprintMB": 50,
+      "failures": []
+    }
+  ],
+  "headToHead": [
+    {
+      "app": "Preview",
+      "file": "small.pdf",
+      "windowMs": 375.3,
+      "runs": 5
+    },
+    {
+      "app": "Preview++",
+      "file": "small.pdf",
+      "windowMs": 267.7,
+      "runs": 5
+    },
+    {
+      "app": "Preview",
+      "file": "large.pdf",
+      "windowMs": 627.3,
+      "runs": 3
+    },
+    {
+      "app": "Preview++",
+      "file": "large.pdf",
+      "windowMs": 271.6,
+      "runs": 3
+    },
+    {
+      "app": "TextEdit",
+      "file": "small.txt",
+      "windowMs": 268.5,
+      "runs": 5
+    },
+    {
+      "app": "Preview++",
+      "file": "small.txt",
+      "windowMs": 246.6,
+      "runs": 5
+    },
+    {
+      "app": "TextEdit",
+      "file": "medium.log",
+      "windowMs": 281.1,
+      "runs": 5
+    },
+    {
+      "app": "Preview++",
+      "file": "medium.log",
+      "windowMs": 238.5,
+      "runs": 5
+    },
+    {
+      "app": "TextEdit",
+      "file": "large.log",
+      "windowMs": 434.8,
+      "runs": 3
+    },
+    {
+      "app": "Preview++",
+      "file": "large.log",
+      "windowMs": 255.8,
+      "runs": 3
+    },
+    {
+      "app": "TextEdit",
+      "file": "small.md",
+      "windowMs": 248.1,
+      "runs": 5
+    },
+    {
+      "app": "Preview++",
+      "file": "small.md",
+      "windowMs": 235.1,
+      "runs": 5
+    },
+    {
+      "app": "TextEdit",
+      "file": "large.md",
+      "windowMs": 258.0,
+      "runs": 3
+    },
+    {
+      "app": "Preview++",
+      "file": "large.md",
+      "windowMs": 1002.4,
+      "runs": 3
+    }
+  ],
+  "memory": [
+    {
+      "plugin": "csv",
+      "hostMB": 118.1,
+      "helpersMB": 0.0,
+      "helpers": []
+    },
+    {
+      "plugin": "csv@bundle",
+      "hostMB": 117.8,
+      "helpersMB": 0.0,
+      "helpers": []
+    },
+    {
+      "plugin": "csv-web",
+      "hostMB": 107.8,
+      "helpersMB": 1032.1,
+      "helpers": [
+        "com.apple.WebKit.GPU",
+        "com.apple.WebKit.Networking",
+        "com.apple.WebKit.WebContent"
+      ]
+    },
+    {
+      "plugin": "csv-proc",
+      "hostMB": 121.8,
+      "helpersMB": 44.2,
+      "helpers": [
+        "Python"
+      ]
+    }
+  ],
+  "isolation": [
+    {
+      "plugin": "csv",
+      "command": "simulate-crash",
+      "hostSurvived": false,
+      "detail": "host exited with -5"
+    },
+    {
+      "plugin": "csv@bundle",
+      "command": "simulate-crash",
+      "hostSurvived": false,
+      "detail": "host exited with -5"
+    },
+    {
+      "plugin": "csv-proc",
+      "command": "simulate-crash",
+      "hostSurvived": true,
+      "detail": "The plugin process exited (status 3). The rest of the app is unaffected."
+    },
+    {
+      "plugin": "csv-web",
+      "command": "simulate-hang",
+      "hostSurvived": true,
+      "detail": "host survived simulate-hang"
+    }
+  ],
+  "sizes": {
+    "PreviewPP.app": 1.3,
+    "PreviewPPLean.app": 0.91,
+    "PPCSV.pppplugin": 0.1,
+    "PPMarkdown.pppplugin": 0.15,
+    "PPPDF.pppplugin": 0.07,
+    "PPText.pppplugin": 0.08,
+    "PreviewPPKit.framework": 0.19
+  }
+}

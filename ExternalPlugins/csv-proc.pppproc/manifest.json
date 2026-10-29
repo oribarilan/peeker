@@ -1,0 +1,10 @@
+{
+  "id": "csv-proc",
+  "name": "CSV (process)",
+  "types": ["public.comma-separated-values-text"],
+  "entry": "main.py",
+  "commands": [
+    { "id": "sort", "title": "Sort by First Column", "symbol": "arrow.up.arrow.down" },
+    { "id": "simulate-crash", "title": "Simulate Crash", "symbol": "ant" }
+  ]
+}
