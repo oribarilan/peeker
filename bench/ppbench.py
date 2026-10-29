@@ -224,7 +224,9 @@ def versus_apple(m, file):
     theirs, ours = m.get(f"apple.{file}.{name.lower()}_window"), m.get(f"launch.{file}.content")
     if not (theirs and ours):
         return None
-    verdict = f"{theirs / ours:.1f}× faster" if ours < theirs else f"{ours / theirs:.1f}× slower"
+    ratio = theirs / ours
+    # Within 10% is noise on a single machine, not a win or a loss.
+    verdict = "about the same" if 1 / 1.1 < ratio < 1.1 else f"{ratio:.1f}× faster" if ratio > 1 else f"{1 / ratio:.1f}× slower"
     return name, theirs, ours, verdict
 
 
@@ -238,7 +240,7 @@ def readme_highlights(results):
     for file in HIGHLIGHTS:
         if row := versus_apple(m, file):
             name, theirs, ours, verdict = row
-            lines.append(f"| {DESCRIPTIONS[file]} | {name} {theirs:.0f} ms | {ours:.0f} ms | **{verdict}** |")
+            lines.append(f"| {DESCRIPTIONS[file]} | {name} {theirs:.0f} ms | {ours:.0f} ms | {verdict if verdict == 'about the same' else f'**{verdict}**'} |")
     pdf, photo = m.get("inapp.panel.small.pdf.warm_open"), m.get("inapp.panel.photo.jpg.warm_open")
     if pdf and photo:
         lines += ["", f"Space in Finder shows a PDF in {pdf:.0f} ms and a 12 MP photo in {photo:.0f} ms, with every format "

@@ -7,7 +7,16 @@ The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Ra
 ## Performance
 
 <!-- bench:start -->
-Not measured yet. Ask Claude Code to publish benchmarks (the `publishing-benchmarks` skill), or run `bench/ppbench.py run && bench/ppbench.py publish` on a reference Mac.
+| Opening, app not running | Apple | Preview++ | |
+|---|---|---|---|
+| PDF, 2,000 pages | Preview 661 ms | 305 ms | **2.2× faster** |
+| JPEG, 12 MP | Preview 394 ms | 368 ms | about the same |
+| PNG, 48 MP | Preview 1102 ms | 675 ms | **1.6× faster** |
+| Markdown, 1 KB | TextEdit 286 ms | 285 ms | about the same |
+
+Space in Finder shows a PDF in 14 ms and a 12 MP photo in 125 ms, with every format running in its own plugin process.
+
+Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Preview++ until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
 <!-- bench:end -->
 
 ## Build and run
