@@ -1,31 +1,42 @@
 import AppKit
-import PreviewPPKit
 import Testing
 import UniformTypeIdentifiers
 
 @Suite struct ConfigParsing {
-    @Test func routesDisablesAndKeysAreRead() {
+    @Test func routesDisablesKeysAndQuickLook() {
         let config = Config(parsing: """
             # comment line
-            disable = csv, csv-web
-            open.CSV = csv-proc   # trailing comment
-            key.markdown.toggle-source = cmd+shift+e
+            disable = image
+            open.MD = markdown   # trailing comment
+            key.pdf.highlight = cmd+shift+h
+            quicklook.key = opt+space
+            plugin.idle = 15
             """)
-        #expect(config.disabled == ["csv", "csv-web"])
-        #expect(config.routes == ["csv": "csv-proc"])
-        #expect(config.keys["markdown.toggle-source"] == Shortcut("e", [.command, .shift]))
+        #expect(config.disabled == ["image"])
+        #expect(config.routes == ["md": "markdown"])
+        #expect(config.keys["pdf.highlight"] == Shortcut(key: .character("h"), modifiers: [.command, .shift]))
+        #expect(config.quickLookKey == Shortcut(key: .space, modifiers: [.option]))
+        #expect(config.pluginIdleSeconds == 15)
+    }
+
+    @Test func quickLookDefaultsToSpaceAndCanBeTurnedOff() {
+        #expect(Config().quickLookKey == Shortcut(key: .space))
+        #expect(Config(parsing: "quicklook.key = off").quickLookKey == nil)
     }
 
     @Test func malformedLinesAreSkippedNotFatal() {
-        let config = Config(parsing: "open.md\nkey.text.save = cmd+banana\nopen.md = markdown")
+        let config = Config(parsing: "open.md\nkey.pdf.save = cmd+banana\nplugin.idle = soon\nopen.md = markdown")
         #expect(config.routes == ["md": "markdown"])
         #expect(config.keys.isEmpty)
+        #expect(config.pluginIdleSeconds == 60)
     }
 }
 
 @Suite struct ShortcutParsing {
-    @Test func modifiersAndKey() {
-        #expect(Shortcut(parsing: "ctrl+opt+h") == Shortcut("h", [.control, .option]))
+    @Test func namedKeysMapToTheirKeyCodes() {
+        #expect(Shortcut(parsing: "space")?.keyCode == 49)
+        #expect(Shortcut(parsing: "ctrl+opt+h") == Shortcut(key: .character("h"), modifiers: [.control, .option]))
+        #expect(Shortcut(parsing: "cmd+h")?.keyCode == 4)
     }
 
     @Test func rejectsUnknownTokensAndMissingKey() {
@@ -34,72 +45,70 @@ import UniformTypeIdentifiers
     }
 }
 
-@Suite struct CSVParsing {
-    @Test func quotedFieldsKeepCommasQuotesAndNewlines() {
-        let rows = CSV.parse("name,note\r\n\"Doe, Jane\",\"said \"\"hi\"\"\"\nRoe,\"two\nlines\"")
-        #expect(rows == [["name", "note"], ["Doe, Jane", "said \"hi\""], ["Roe", "two\nlines"]])
-    }
-}
-
-@Suite struct MarkdownTasks {
-    let source = """
-        - [ ] first
-        ```
-        - [ ] inside a code fence
-        ```
-        - [x] second
-        """
-
-    @Test func togglesTheNthTaskOutsideCodeFences() {
-        let toggled = MarkdownRenderer.toggleTask(at: 1, in: source)
-        #expect(toggled.components(separatedBy: "\n") == ["- [ ] first", "```", "- [ ] inside a code fence", "```", "- [ ] second"])
-    }
-
-    @Test func renderedCheckboxesLinkToTheirTaskIndex() {
-        let rendered = MarkdownRenderer.render("- [ ] first\n- [x] second")
-        #expect(rendered.string.contains("☐ first"))
-        #expect(rendered.string.contains("☑ second"))
-        let link = rendered.attribute(.link, at: (rendered.string as NSString).range(of: "☑").location, effectiveRange: nil) as? URL
-        #expect(link?.absoluteString == "ppp-task://1")
-    }
-}
-
 @Suite struct Routing {
-    final class AnyText: Plugin {
-        static let manifest = PluginManifest(id: "any-text", name: "Any Text", fileTypes: [.plainText])
-        func open(_ url: URL, host: any PluginHost) throws -> Viewer { Viewer(content: NSViewController()) }
+    private func entry(_ id: String, _ types: [String]) -> PluginEntry {
+        PluginEntry(manifest: PluginManifest(id: id, name: id, types: types, executable: id), helpers: URL(filePath: "/tmp"))
     }
 
-    final class CSVOnly: Plugin {
-        static let manifest = PluginManifest(id: "csv-only", name: "CSV", fileTypes: [.commaSeparatedText])
-        func open(_ url: URL, host: any PluginHost) throws -> Viewer { Viewer(content: NSViewController()) }
+    private func catalog(_ configText: String) -> PluginCatalog {
+        PluginCatalog(entries: [entry("text", ["public.plain-text"]), entry("markdown", ["net.daringfireball.markdown"]), entry("image", ["public.image"])],
+                      config: Config(parsing: configText))
     }
 
-    private func registry(_ configText: String) -> PluginRegistry {
-        let registry = PluginRegistry(config: Config(parsing: configText))
-        registry.register(AnyText.self, runtime: .builtin)
-        registry.register(CSVOnly.self, runtime: .builtin)
-        return registry
-    }
-
-    private let csv = URL(filePath: "/tmp/report.csv")
+    private let markdownFile = URL(filePath: "/tmp/notes.md")
 
     @Test func exactTypeMatchBeatsSupertypeMatch() {
-        #expect(registry("").candidates(for: csv).map(\.id) == ["csv-only", "any-text"])
-        #expect(registry("").defaultPlugin(for: csv)?.id == "csv-only")
+        #expect(catalog("").candidates(for: markdownFile).map(\.id) == ["markdown", "text"])
+        #expect(catalog("").defaultPlugin(for: markdownFile)?.id == "markdown")
     }
 
     @Test func configRouteOverridesRanking() {
-        #expect(registry("open.csv = any-text").defaultPlugin(for: csv)?.id == "any-text")
+        #expect(catalog("open.md = text").defaultPlugin(for: markdownFile)?.id == "text")
+    }
+
+    @Test func routeToAPluginThatDoesNotSupportTheFileIsIgnored() {
+        #expect(catalog("open.md = image").defaultPlugin(for: markdownFile)?.id == "markdown")
     }
 
     @Test func disabledPluginsAreNeverCandidates() {
-        #expect(registry("disable = csv-only").candidates(for: csv).map(\.id) == ["any-text"])
+        #expect(catalog("disable = markdown").candidates(for: markdownFile).map(\.id) == ["text"])
+        #expect(catalog("disable = markdown, text").defaultPlugin(for: markdownFile) == nil)
     }
 
-    @Test func sameIDInSecondRuntimeIsKeptUnderSuffix() {
-        let registry = registry("")
-        registry.register(CSVOnly.self, runtime: .bundle)
-        #expect(registry.entries.map(\.id) == ["any-text", "csv-only", "csv-only@bundle"])
+    @Test func imagesRouteThroughTypeConformance() {
+        #expect(catalog("").defaultPlugin(for: URL(filePath: "/tmp/photo.heic"))?.id == "image")
+    }
+}
+
+@Suite struct MarkdownTreeConversion {
+    @Test func headingsListsAndTasksCarrySourceLines() {
+        let blocks = MarkdownTree.blocks(from: "# Title\n\n- [ ] open\n- [x] done\n- plain\n")
+        #expect(blocks.count == 2)
+        #expect(blocks[0]["k"] as? String == "h")
+        #expect(blocks[0]["n"] as? Int == 1)
+        let items = blocks[1]["i"] as? [[String: Any]] ?? []
+        #expect(items.map { $0["t"] as? Bool } == [false, true, nil])
+        #expect(items.map { $0["n"] as? Int } == [3, 4, 5])
+        #expect(MarkdownTree.taskCounts(in: blocks) == (done: 1, total: 2))
+    }
+
+    @Test func inlineStylesBecomeSpanBits() {
+        let blocks = MarkdownTree.blocks(from: "Some **bold** and `code` with [a link](https://example.com).")
+        let spans = blocks.first?["s"] as? [[Any]] ?? []
+        let bold = spans.first { $0.first as? String == "bold" }
+        let code = spans.first { $0.first as? String == "code" }
+        let link = spans.first { $0.count > 2 }
+        #expect(bold?[1] as? Int == SpanStyle.strong.rawValue)
+        #expect(code?[1] as? Int == SpanStyle.code.rawValue)
+        #expect(link?[2] as? String == "https://example.com")
+    }
+
+    @Test func togglingATaskEditsOnlyThatLine() throws {
+        let file = FileManager.default.temporaryDirectory.appending(path: "ppp-test-\(UUID().uuidString).md")
+        try "# Plan\n- [ ] first\n- [ ] second\n".write(to: file, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: file) }
+        try MarkdownTree.toggleTask(atLine: 3, inFile: file.path)
+        #expect(try String(contentsOf: file, encoding: .utf8) == "# Plan\n- [ ] first\n- [x] second\n")
+        #expect(throws: PluginFailure.self) { try MarkdownTree.toggleTask(atLine: 1, inFile: file.path) }
     }
 }

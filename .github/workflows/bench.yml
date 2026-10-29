@@ -1,0 +1,40 @@
+name: Benchmark
+
+# Builds the PR and its base on the same runner, measures them interleaved, and fails on clear regressions
+# (worse by more than 15% and 10 ms / 5 MB). README numbers come from a reference Mac, never from here.
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: macos-26
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Unit tests
+        run: scripts/build.sh test
+
+      - name: Benchmark against base
+        run: scripts/bench-ab.sh ${{ github.event.pull_request.base.sha || 'origin/main' }}
+
+      - name: Keep results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-results
+          path: build/bench-ab/
+          if-no-files-found: ignore

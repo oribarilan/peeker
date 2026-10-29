@@ -1,45 +1,47 @@
 # Preview++ (exploration)
 
-An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and commands. Every format, including text, Markdown and PDF, is a plugin. This repo holds the product-fit and feasibility study plus a working POC.
+An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and a quick-look panel on Space. Every format is a plugin running in its own process, so a plugin that crashes or hangs can't take the app down. Plugins come from contributions to this repo; users turn them on and off and choose which file types each one opens.
 
-Start with [REPORT.md](REPORT.md). Raw research is in [research/](research), benchmark output in [bench/results/](bench/results).
+The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Raw research is in [research/](research).
+
+## Performance
+
+<!-- bench:start -->
+Not measured yet. Ask Claude Code to publish benchmarks (the `publishing-benchmarks` skill), or run `bench/ppbench.py run && bench/ppbench.py publish` on a reference Mac.
+<!-- bench:end -->
 
 ## Build and run
 
 Needs Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```sh
-xcodegen generate
-xcodebuild -project PreviewPP.xcodeproj -scheme PreviewPP -configuration Release -derivedDataPath build/dd build
-open -a build/dd/Build/Products/Release/PreviewPP.app path/to/file.md
+scripts/build.sh                     # Release build into build/dd; scripts/build.sh test runs the unit tests
+open build/dd/Build/Products/Release/PreviewPP.app
 ```
 
-Two app targets share the host code. `PreviewPP` compiles the first-party plugins in. `PreviewPPLean` compiles none and loads the same plugins as bundles from `Contents/PlugIns`.
-
-Community plugins load from `~/Library/Application Support/PreviewPP/Plugins`, any `plugins.dir` in the config, or `$PPP_PLUGINS_DIR`. Try the samples with `PPP_PLUGINS_DIR=$PWD/ExternalPlugins`.
+On first launch macOS asks for Accessibility (to see the quick-look key) and, on first use, for permission to control Finder (to read the selection). `scripts/build.sh` signs with your Apple Development certificate when you have one, so those grants survive rebuilds.
 
 ## Config
 
 `~/.config/previewpp/config` (or `$PPP_CONFIG`):
 
 ```
-disable = csv                      # plugin ids to turn off
-open.csv = csv-proc                # default plugin per extension; "Open With" in the toolbar switches per tab
-key.markdown.toggle-source = cmd+shift+e
-plugins.dir = ~/my-plugins
+disable = image                      # plugins to turn off
+open.md = markdown                   # which plugin opens an extension (must support it); "Open With" switches per tab
+key.pdf.highlight = cmd+shift+h      # rebind a plugin command
+quicklook.key = space                # bare key: only in Finder, not while typing; with modifiers: anywhere; "off"
+plugin.idle = 60                     # seconds an unused plugin process stays alive
 ```
 
-## Writing a plugin
+## Plugins
 
-- **Native (Swift):** conform to `PreviewPPKit.Plugin` and return a `Viewer` (content view controller, optional sidebar, commands). See `Sources/Plugins/`.
-- **Web:** a `name.pppweb` folder with `manifest.json` and an HTML entry. The page fetches the opened file from `/__ppp__/file` and posts `{type: "ready"}` to `webkit.messageHandlers.ppp`. See `ExternalPlugins/csv-web.pppweb`.
-- **Process:** a `name.pppproc` folder with `manifest.json` and any executable that speaks newline-delimited JSON on stdio and returns a view tree the host renders natively. See `ExternalPlugins/csv-proc.pppproc`.
+A plugin is an executable in `Plugins/<id>/` plus a `manifest.json` naming the file types it supports. The host starts it on the first matching file, talks newline-delimited JSON over stdin/stdout, and stops it after `plugin.idle` seconds unused. Plugins never draw: they answer with a description of what to show (a Markdown block tree, a PDF, decoded pixels, sidebar panels, commands), and the host renders it with native views. The protocol is documented at the top of `Sources/Shared/Protocol.swift`; `Plugins/markdown` is the fullest example.
 
 ## Benchmarks
 
-```sh
-swift bench/make-fixtures.swift
-swiftc -O bench/winwait.swift -o build/winwait
-bench/run.py                       # quits Preview and TextEdit between runs; refuses to start if they're open
-bench/signing.sh "<codesigning identity>"
-```
+`bench/ppbench.py` serves two purposes:
+
+- **Published numbers.** `bench/ppbench.py run` measures the current build on this Mac (quit Preview and TextEdit first; it relaunches them between runs). `bench/ppbench.py publish` then writes the highlights above and the full results in [BENCHMARKS.md](BENCHMARKS.md). It refuses CI or partial results. In Claude Code, the repo's `publishing-benchmarks` skill runs the whole flow.
+- **Regression gate.** `scripts/bench-ab.sh <base-ref>` builds the base in a git worktree, measures base and head interleaved on the same machine, and fails if any Preview++ metric got worse by more than 15% and 10 ms (5 MB for memory). CI runs exactly that on every pull request (`.github/workflows/bench.yml`).
+
+Fixtures are generated (`bench/make-fixtures.swift`), not committed. `bench/spacebench.swift` times pressing Space in Finder for Quick Look and for Preview++; it needs Accessibility for the app running it, so it stays out of CI.

@@ -1,6 +1,8 @@
 // Generates benchmark inputs in bench/fixtures. Run: swift bench/make-fixtures.swift
 import AppKit
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 
 let dir = URL(filePath: "bench/fixtures")
 try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -57,4 +59,24 @@ func pdf(_ name: String, pages: Int) {
 }
 pdf("small.pdf", pages: 3)
 pdf("large.pdf", pages: 2_000)
+func image(_ name: String, width: Int, height: Int, type: UTType, quality: Double = 0.85) {
+    let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    let colors = [CGColor(red: 0.1, green: 0.3, blue: 0.6, alpha: 1), CGColor(red: 0.9, green: 0.6, blue: 0.3, alpha: 1)] as CFArray
+    context.drawLinearGradient(CGGradient(colorsSpace: nil, colors: colors, locations: nil)!, start: .zero,
+                               end: CGPoint(x: width, y: height), options: [])
+    var seed: UInt64 = 42
+    func next() -> Double { seed = seed &* 6364136223846793005 &+ 1442695040888963407; return Double(seed >> 11) / Double(1 << 53) }
+    for _ in 0..<4000 {
+        context.setFillColor(CGColor(red: next(), green: next(), blue: next(), alpha: 0.35))
+        context.fillEllipse(in: CGRect(x: next() * Double(width), y: next() * Double(height), width: next() * 300, height: next() * 300))
+    }
+    let destination = CGImageDestinationCreateWithURL(dir.appending(path: name) as CFURL, type.identifier as CFString, 1, nil)!
+    CGImageDestinationAddImage(destination, context.makeImage()!, [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary)
+    CGImageDestinationFinalize(destination)
+}
+image("small.png", width: 512, height: 512, type: .png)
+image("photo.jpg", width: 4032, height: 3024, type: .jpeg)
+image("photo.heic", width: 4032, height: 3024, type: .heic)
+image("large.png", width: 8000, height: 6000, type: .png)
 print("fixtures written")

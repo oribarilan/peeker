@@ -2,7 +2,7 @@
 // on-screen document window exists. Same method for every app, so comparisons are fair.
 // Window visibility is not the same as content painted; Preview++ also logs that (PPP_BENCH_OUT).
 //
-// usage: winwait <process-name> <app-path> <file> [timeout-seconds]
+// usage: winwait <window-owner> <app-path> <file> [timeout-seconds] [extra `open` arguments...]
 import CoreGraphics
 import Foundation
 
@@ -27,7 +27,7 @@ func documentWindowVisible() -> Bool {
 let start = DispatchTime.now()
 let open = Process()
 open.executableURL = URL(filePath: "/usr/bin/open")
-open.arguments = ["-F", "-a", app, file]
+open.arguments = ["-F"] + (args.count > 5 ? Array(args[5...]) : []) + ["-a", app, file]
 try open.run()
 while !documentWindowVisible() {
     if Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1e9 > timeout {
