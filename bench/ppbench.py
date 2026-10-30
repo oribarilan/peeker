@@ -52,7 +52,7 @@ GATE_PCT = 0.15
 GATE_FLOOR = {"ms": 10.0, "MB": 5.0}
 SCHEMA = 1
 # No hotkey during benchmarks, so no Accessibility prompt appears.
-CONFIG = Path(tempfile.gettempdir()) / "ppbench-config"
+CONFIG = Path(tempfile.gettempdir()) / "ppbench-config.json"
 
 
 # MARK: Setup
@@ -66,7 +66,7 @@ def ensure_tools():
             subprocess.run(["swiftc", "-O", str(source), "-o", str(binary)], check=True)
     if not all((FIXTURES / f).exists() for f in FILES):
         subprocess.run([str(TOOLS / "make-fixtures")], cwd=ROOT, check=True)
-    CONFIG.write_text("quicklook.key = off\n")
+    CONFIG.write_text('{"quickLook": {"key": "off"}}\n')
 
 
 def apple_app(file):

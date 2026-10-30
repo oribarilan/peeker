@@ -7,6 +7,11 @@ public enum TextPlugin: Plugin {
     public static let name = "Plain Text"
     /// JSON, XML, YAML and TOML don't conform to plain text on macOS, so they're listed on their own.
     public static let fileTypes: [UTType] = [.plainText, .json, .xml, .yaml, UTType("public.toml") ?? UTType(importedAs: "public.toml")]
+    public static let commands = [
+        CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
+        CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),
+        CommandSpec(id: "toggle-wrap", title: "Wrap Lines", symbol: "arrow.turn.down.left", shortcut: "opt+cmd+w"),
+    ]
 
     nonisolated static let readOnlyNote = "Read-only: files over 10 MB open for viewing only."
     nonisolated static let saveAsUTF8 = SaveOffer(id: "utf8", button: "Save as UTF-8", detail: "Some characters can't be represented in the file's encoding.")

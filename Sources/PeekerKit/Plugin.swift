@@ -8,6 +8,9 @@ public protocol Plugin {
     static var name: String { get }
     /// Files conforming to any of these can be routed to this plugin.
     static var fileTypes: [UTType] { get }
+    /// Every command the plugin's documents can offer; a document may offer fewer (a view-only one, say). The config
+    /// checks shortcut settings against this list, and the config schema lists it.
+    static var commands: [CommandSpec] { get }
 
     /// Reads and decodes `url` off the main thread, then builds the document's views. Checks for cancellation
     /// between steps: the host cancels when the tab closes or the quick-look panel moves on.

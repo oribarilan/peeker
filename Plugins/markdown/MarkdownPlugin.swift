@@ -7,6 +7,7 @@ public enum MarkdownPlugin: Plugin {
     public static let id = "markdown"
     public static let name = "Markdown"
     public static let fileTypes = [UTType("net.daringfireball.markdown") ?? UTType(importedAs: "net.daringfireball.markdown")]
+    public static let commands: [CommandSpec] = []
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         MarkdownDocument(url: url, parsed: try await parse(url))

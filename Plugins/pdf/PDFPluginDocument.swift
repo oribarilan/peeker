@@ -36,10 +36,9 @@ final class PDFPluginDocument: PluginDocument {
         return [SidebarPanel(thumbnails, sizing: .fill)] + (InfoPanel.make(info).map { [$0] } ?? [])
     }
 
+    /// Highlighting is an edit, so a view-only document leaves it out.
     var commands: [CommandSpec] {
-        [CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
-         CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-")]
-            + (editable ? [CommandSpec(id: "highlight", title: "Highlight Selection", symbol: "highlighter", shortcut: "ctrl+cmd+h")] : [])
+        editable ? PDFPlugin.commands : PDFPlugin.commands.filter { $0.id != "highlight" }
     }
 
     func perform(_ id: String) -> Bool {

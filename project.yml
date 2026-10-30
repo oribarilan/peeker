@@ -61,6 +61,8 @@ targets:
       path: build/Info-Peeker.plist
       properties:
         CFBundleDisplayName: Peeker
+        # Starts as a menu bar utility; the app switches to a regular one, with a Dock icon, while windows are open.
+        LSUIElement: true
         NSPrincipalClass: NSApplication
         LSApplicationCategoryType: public.app-category.productivity
         NSAppleEventsUsageDescription: Peeker reads which files are selected in Finder so it can show them when you press the quick-look key.

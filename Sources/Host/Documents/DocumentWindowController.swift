@@ -6,7 +6,7 @@ import PeekerKit
 final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, SavePrompts {
     let url: URL
     private let catalog: PluginCatalog
-    private let config: Config
+    private var config: Config
     private let allowsEditing: Bool
     private let recovery: RecoveryStore?
     private let recoveryClipboard: RecoveryClipboard?
@@ -186,6 +186,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     func windowDidBecomeKey(_ notification: Notification) { onBecameKey?(self) }
+
+    /// Takes a newly saved config; Open With switches use it too.
+    func apply(_ config: Config) {
+        self.config = config
+        current?.apply(config)
+    }
 
     func windowWillClose(_ notification: Notification) {
         current?.close()

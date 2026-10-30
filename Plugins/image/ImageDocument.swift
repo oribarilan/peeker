@@ -21,11 +21,7 @@ final class ImageDocument: PluginDocument {
 
     var contentView: NSView { scrollView }
 
-    let commands = [
-        CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
-        CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),
-        CommandSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9"),
-    ]
+    var commands: [CommandSpec] { ImagePlugin.commands }
 
     func perform(_ id: String) -> Bool {
         switch id {

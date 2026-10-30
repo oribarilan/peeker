@@ -8,6 +8,11 @@ public enum ImagePlugin: Plugin {
     public static let id = "image"
     public static let name = "Image"
     public static let fileTypes: [UTType] = [.image]
+    public static let commands = [
+        CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
+        CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),
+        CommandSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9"),
+    ]
     /// Larger decodes would be refused by Core Animation anyway.
     nonisolated static let maxDimension = 16_384
 

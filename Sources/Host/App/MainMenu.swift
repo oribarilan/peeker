@@ -31,8 +31,8 @@ enum MainMenu {
 
         _ = submenu("Peeker", [
             item("About Peeker", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+            item("Settings…", #selector(AppDelegate.showSettings(_:)), ",", target: target),
             .separator(),
-            item("Reload Config", #selector(AppDelegate.reloadConfig(_:)), "r", [.command, .shift], target: target),
             item("Open at Login", #selector(AppDelegate.toggleOpenAtLogin(_:)), target: target),
             .separator(),
             item("Hide Peeker", #selector(NSApplication.hide(_:)), "h"),

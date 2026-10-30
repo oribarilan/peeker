@@ -14,7 +14,7 @@ enum RecoveryResult: Equatable {
 final class DocumentViewController: NSSplitViewController {
     let url: URL
     let entry: PluginEntry
-    private let config: Config
+    private var config: Config
     private let content = HolderViewController()
     private var sidebarItem: NSSplitViewItem?
     /// A document just opened: its sidebar is built after the content is on screen, so it doesn't delay it.
@@ -296,8 +296,20 @@ final class DocumentViewController: NSSplitViewController {
 
     private func setCommands(_ specs: [CommandSpec]) {
         guard specs != commands.map(\.spec) else { return }
-        commands = specs.map { ($0, config.keys["\(entry.id).\($0.id)"] ?? $0.shortcut.flatMap(Shortcut.init(parsing:))) }
+        commands = specs.map(withShortcut)
         onCommandsChanged?(self)
+    }
+
+    /// Takes a newly saved config: command shortcuts change in place.
+    func apply(_ config: Config) {
+        self.config = config
+        commands = commands.map { withShortcut($0.spec) }
+        onCommandsChanged?(self)
+    }
+
+    /// The command with its shortcut: the config's override, else the plugin's default.
+    private func withShortcut(_ spec: CommandSpec) -> (spec: CommandSpec, shortcut: Shortcut?) {
+        (spec, config.keys["\(entry.id).\(spec.id)"] ?? spec.shortcut.flatMap(Shortcut.init(parsing:)))
     }
 
     private func installSidebar(_ panels: [SidebarPanel]) {

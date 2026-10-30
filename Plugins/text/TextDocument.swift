@@ -84,11 +84,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     var note: String? { noteLabel.isHidden ? nil : noteLabel.stringValue }
     var text: String { textView.string }
 
-    let commands = [
-        CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
-        CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),
-        CommandSpec(id: "toggle-wrap", title: "Wrap Lines", symbol: "arrow.turn.down.left", shortcut: "opt+cmd+w"),
-    ]
+    var commands: [CommandSpec] { TextPlugin.commands }
 
     /// Shows the file as it is on disk now, keeping zoom, wrap and the scroll position. A growing log can cross a size
     /// limit, so editability and the note can change too.

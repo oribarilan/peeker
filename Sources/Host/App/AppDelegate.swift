@@ -2,16 +2,15 @@ import AppKit
 import os
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
-    private var config = AppDelegate.loadAtLaunch()
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "config")
-
-    /// A config that can't be read at launch falls back to defaults; the problem goes to the log.
-    private static func loadAtLaunch() -> Config {
-        do { return try Config.load() } catch {
-            log.error("can't read config: \(error.localizedDescription, privacy: .public)")
-            return Config()
-        }
-    }
+    /// The settings in use, re-read whenever the file is saved.
+    private lazy var configStore: ConfigStore = {
+        let store = ConfigStore(plugins: PluginCatalog.builtIn.map { PluginEntry($0) })
+        store.onChange = { [weak self] in self?.configChanged($0) }
+        Self.logProblems(store.problems)
+        return store
+    }()
+    private var config: Config { configStore.config }
 
     private lazy var catalog = PluginCatalog.builtIn(config: config)
     private var windows: [DocumentWindowController] = []
@@ -22,9 +21,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }()
     private lazy var finder = FinderBridge()
     private var hotkey: HotkeyMonitor?
+    /// The key the hotkey monitor was started with; nil when it's off.
+    private var hotkeyShortcut: Shortcut?
     private var trustTimer: Timer?
     private var commandsMenu: NSMenu?
     private var benchRunner: BenchRunner?
+    private var settings: SettingsWindowController?
+    private var menuBarItem: MenuBarItem?
     private var benchStarted = false
     private var recoveryRestored = false
     /// One for the whole app, so recovered texts that land on the clipboard during a launch don't replace each other.
@@ -51,9 +54,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             }
             return
         }
+        menuBarItem = MenuBarItem(target: self)
+        menuBarItem?.show(problems: configStore.problems.count)
         restoreRecoveredDocuments()
         files.forEach(openInWindow)
         startHotkey()
+        do {
+            try ConfigSchema.write(nextTo: Config.defaultURL, plugins: catalog.entries)
+        } catch {
+            Self.log.error("can't write the config schema: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -95,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private func startHotkey() {
         trustTimer?.invalidate()
+        hotkeyShortcut = config.quickLookKey
         guard let shortcut = config.quickLookKey else { return }
         let monitor = HotkeyMonitor(shortcut: shortcut)
         monitor.isPanelVisible = { [weak self] in self?.panel.isVisible == true }
@@ -113,24 +124,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    /// Re-reads the config for documents opened from now on. A file that can't be read leaves the current config in place.
-    @objc func reloadConfig(_ sender: Any?) {
-        let new: Config
-        do { new = try Config.load() } catch {
-            Self.log.error("can't reload config: \(error.localizedDescription, privacy: .public)")
-            let alert = NSAlert()
-            alert.messageText = "Couldn't read the config file"
-            alert.informativeText = "\(error.localizedDescription)\nThe previous settings are still in use."
-            alert.runModal()
-            return
-        }
-        let keyChanged = new.quickLookKey != config.quickLookKey
-        config = new
-        catalog.reload(config: new)
-        guard keyChanged else { return }
+    /// Applies a saved config everywhere: routing for files opened next, the quick-look key, and command shortcuts in
+    /// open windows.
+    private func configChanged(_ store: ConfigStore) {
+        Self.logProblems(store.problems)
+        menuBarItem?.show(problems: store.problems.count)
+        catalog.reload(config: store.config)
+        windows.forEach { $0.apply(store.config) }
+        guard store.config.quickLookKey != hotkeyShortcut else { return }
         hotkey?.stop()
         hotkey = nil
         startHotkey()
+    }
+
+    private static func logProblems(_ problems: [ConfigProblem]) {
+        for problem in problems { log.error("config: \(problem.path, privacy: .public): \(problem.message, privacy: .public)") }
+    }
+
+    private func updatePresence() {
+        Presence.update(documentWindows: windows.count, settingsOpen: settings != nil)
+    }
+
+    @objc func showSettings(_ sender: Any?) {
+        let controller = settings ?? SettingsWindowController(store: configStore)
+        controller.onClose = { [weak self] in
+            self?.settings = nil
+            self?.updatePresence()
+        }
+        settings = controller
+        updatePresence()
+        controller.showWindow(nil)
+        NSApp.activate()
     }
 
     @objc func toggleOpenAtLogin(_ sender: Any?) {
@@ -178,6 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
         guard let entry = plugin(for: url, restoring: record) else {
+            NSApp.activate()  // with no windows open, Peeker isn't the frontmost app
             let alert = NSAlert()
             alert.messageText = "No enabled plugin opens \(url.lastPathComponent)"
             alert.informativeText = "Enable a plugin that supports this file type in your config."
@@ -187,9 +212,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let controller = DocumentWindowController(url: url, catalog: catalog, config: config, allowsEditing: true, recovery: .shared, recoveryClipboard: recoveryClipboard)
         controller.onBecameKey = { [weak self] in if let menu = self?.commandsMenu { MainMenu.rebuildCommands(menu, for: $0) } }
         NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: controller.window, queue: .main) { [weak self, weak controller] _ in
-            MainActor.assumeIsolated { self?.windows.removeAll { $0 === controller } }
+            MainActor.assumeIsolated {
+                self?.windows.removeAll { $0 === controller }
+                self?.updatePresence()
+            }
         }
         windows.append(controller)
+        updatePresence()  // before the window shows, so the menus are there with it
         if let window = controller.window, let current = NSApp.keyWindow, current.tabbingIdentifier == window.tabbingIdentifier {
             current.addTabbedWindow(window, ordered: .above)
             window.makeKeyAndOrderFront(nil)

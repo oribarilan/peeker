@@ -8,6 +8,7 @@ private enum GatedPlugin: Plugin {
     static let id = "gated"
     static let name = "Gated"
     static let fileTypes: [UTType] = [.data]
+    static let commands: [CommandSpec] = []
     static var waiting: CheckedContinuation<Void, Never>?
 
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
@@ -62,6 +63,7 @@ private enum SlowSavePlugin: Plugin {
     static let id = "slow-save"
     static let name = "Slow Save"
     static let fileTypes: [UTType] = [.data]
+    static let commands: [CommandSpec] = []
 
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         SlowSaveDocument()

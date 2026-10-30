@@ -11,6 +11,8 @@ struct PluginEntry {
     let id: String
     let name: String
     let fileTypes: [UTType]
+    /// Every command the plugin can offer, which config shortcuts are checked against.
+    let commands: [CommandSpec]
     let plugin: any Plugin.Type
 
     init(_ plugin: any Plugin.Type) {
@@ -22,6 +24,7 @@ struct PluginEntry {
         self.id = id
         self.name = name
         self.fileTypes = fileTypes
+        commands = plugin.commands
         self.plugin = plugin
     }
 }

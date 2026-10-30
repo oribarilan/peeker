@@ -8,6 +8,11 @@ public enum PDFPlugin: Plugin {
     public static let id = "pdf"
     public static let name = "PDF"
     public static let fileTypes: [UTType] = [.pdf]
+    public static let commands = [
+        CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
+        CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),
+        CommandSpec(id: "highlight", title: "Highlight Selection", symbol: "highlighter", shortcut: "ctrl+cmd+h"),
+    ]
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let info = try await check(url)
