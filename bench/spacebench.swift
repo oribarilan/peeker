@@ -1,5 +1,5 @@
 // Presses Space in Finder on a selected file and times until a preview panel appears, so Finder's own Quick Look
-// and Preview++'s hotkey panel are measured the same way. Needs Accessibility for the app running this (to post
+// and Peeker's hotkey panel are measured the same way. Needs Accessibility for the app running this (to post
 // keys) and Automation for Finder (to select the file).
 //
 // usage: spacebench <file> [runs]       prints one line per run: owner and milliseconds to the new window

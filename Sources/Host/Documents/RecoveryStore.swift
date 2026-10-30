@@ -16,11 +16,11 @@ nonisolated struct RecoveryRecord: Codable, Equatable, Sendable {
 /// write can't land after a later remove; encoding a 10 MB text took about 18 ms, too long for the main thread.
 nonisolated final class RecoveryStore: Sendable {
     let directory: URL
-    private let queue = DispatchQueue(label: "dev.previewpp.recovery")
+    private let queue = DispatchQueue(label: "dev.peeker.recovery")
     static let shared = RecoveryStore(directory: .applicationSupportDirectory
-        .appending(path: Bundle.main.bundleIdentifier ?? "dev.previewpp", directoryHint: .isDirectory)
+        .appending(path: Bundle.main.bundleIdentifier ?? "dev.peeker", directoryHint: .isDirectory)
         .appending(path: "Recovery", directoryHint: .isDirectory))
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "recovery")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "recovery")
 
     init(directory: URL) {
         self.directory = directory

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preview++ benchmark: README numbers on a reference Mac, regression gate in CI.
+"""Peeker benchmark: README numbers on a reference Mac, regression gate in CI.
 
     bench/ppbench.py run [--suite inapp,launch,apple] [--files a.md,b.pdf] [--launches 5] [--out FILE]
     bench/ppbench.py ab --base APP --head APP [--suite inapp,launch] [--launches 7]   exit 1 on regressions
@@ -17,7 +17,7 @@ A file the base build can't open (a format it has no plugin for) shows in `ab` a
 A metric the base has and head lacks (head failed to open the file) counts as a regression.
 
 Gate: a metric regresses when head is both more than 15% and more than 10 ms (5 MB for memory) worse than base.
-Only Preview++'s own measured metrics are gated; derived plugin_startup is reported, not gated. Standard library only.
+Only Peeker's own measured metrics are gated; derived plugin_startup is reported, not gated. Standard library only.
 """
 import argparse
 import datetime
@@ -35,7 +35,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "bench/fixtures"
 TOOLS = ROOT / "build/bench-tools"
-DEFAULT_APP = ROOT / "build/dd/Build/Products/Release/PreviewPP.app"
+DEFAULT_APP = ROOT / "build/dd/Build/Products/Release/Peeker.app"
 REFERENCE = ROOT / "bench/results/reference.json"
 FILES = ["small.md", "large.md", "small.pdf", "large.pdf", "small.png", "photo.jpg", "photo.heic", "large.png", "small.txt", "medium.log", "large.log"]
 TEXTEDIT = ("TextEdit", "/System/Applications/TextEdit.app")
@@ -78,9 +78,9 @@ def sample_inapp(app, file, mode):
     """One launch opening `file` three times: cold app, warm, then warm app with the plugin process stopped first."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp, "out.jsonl")
-        env = {**os.environ, "PPP_CONFIG": str(CONFIG), "PPP_BENCH_OUT": str(out), "PPP_BENCH_MODE": mode, "PPP_BENCH_REPEAT": "3"}
+        env = {**os.environ, "PEEKER_CONFIG": str(CONFIG), "PEEKER_BENCH_OUT": str(out), "PEEKER_BENCH_MODE": mode, "PEEKER_BENCH_REPEAT": "3"}
         try:
-            subprocess.run([str(Path(app) / "Contents/MacOS/PreviewPP"), str(FIXTURES / file)], env=env, capture_output=True, timeout=60)
+            subprocess.run([str(Path(app) / "Contents/MacOS/Peeker"), str(FIXTURES / file)], env=env, capture_output=True, timeout=60)
         except subprocess.TimeoutExpired:
             return {}
         runs = {r.get("run"): r for r in map(json.loads, out.read_text().splitlines())} if out.exists() else {}
@@ -97,19 +97,19 @@ def sample_inapp(app, file, mode):
 
 
 def sample_launch(app, file):
-    """From the `open` command until Preview++ has drawn the content (it writes its record after drawing)."""
-    subprocess.run(["pkill", "-x", "PreviewPP"], capture_output=True)
+    """From the `open` command until Peeker has drawn the content (it writes its record after drawing)."""
+    subprocess.run(["pkill", "-x", "Peeker"], capture_output=True)
     time.sleep(0.8)
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp, "out.jsonl")
         start = time.perf_counter()
-        subprocess.run(["open", "-F", "--env", f"PPP_CONFIG={CONFIG}", "--env", f"PPP_BENCH_OUT={out}", "--env", "PPP_BENCH_MODE=window",
+        subprocess.run(["open", "-F", "--env", f"PEEKER_CONFIG={CONFIG}", "--env", f"PEEKER_BENCH_OUT={out}", "--env", "PEEKER_BENCH_MODE=window",
                         "-a", str(Path(app).resolve()), str(FIXTURES / file)])
         while not (out.exists() and out.read_text().strip()) and time.perf_counter() - start < 20:
             time.sleep(0.001)
         ok = out.exists() and "failure" not in out.read_text()
         elapsed = (time.perf_counter() - start) * 1000
-    subprocess.run(["pkill", "-x", "PreviewPP"], capture_output=True)
+    subprocess.run(["pkill", "-x", "Peeker"], capture_output=True)
     return {f"launch.{file}.content": ("ms", round(elapsed, 1))} if ok else {}
 
 
@@ -212,7 +212,7 @@ def report(markdown):
     print(markdown)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a") as handle:
-            handle.write("## Preview++ benchmark\n\n" + markdown)
+            handle.write("## Peeker benchmark\n\n" + markdown)
 
 
 # MARK: Publishing
@@ -231,7 +231,7 @@ def medians(results):
 
 
 def versus_apple(m, file):
-    """(apple app name, apple window ms, preview++ content ms, verdict) or None."""
+    """(apple app name, apple window ms, peeker content ms, verdict) or None."""
     name = apple_app(file)[0]
     theirs, ours = m.get(f"apple.{file}.{name.lower()}_window"), m.get(f"launch.{file}.content")
     if not (theirs and ours):
@@ -248,7 +248,7 @@ def fmt(value, unit="ms"):
 
 def readme_highlights(results):
     m = medians(results)
-    lines = ["| Opening, app not running | Apple | Preview++ | |", "|---|---|---|---|"]
+    lines = ["| Opening, app not running | Apple | Peeker | |", "|---|---|---|---|"]
     for file in HIGHLIGHTS:
         if row := versus_apple(m, file):
             name, theirs, ours, verdict = row
@@ -257,7 +257,7 @@ def readme_highlights(results):
     if pdf and photo:
         lines += ["", f"Space in Finder shows a PDF in {pdf:.0f} ms and a 12 MP photo in {photo:.0f} ms, with every format "
                       "running in its own plugin process."]
-    lines += ["", f"{results['machine']}, {results['date']}. Apple's apps are timed until their window appears, Preview++ "
+    lines += ["", f"{results['machine']}, {results['date']}. Apple's apps are timed until their window appears, Peeker "
                   "until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md)."]
     return "\n".join(lines)
 
@@ -270,9 +270,9 @@ def benchmarks_page(results):
         f"Measured on {results['machine']} on {results['date']} at commit `{results['commit']}`. Each number is the median "
         f"of {results['launches']} launches after a warm-up launch.", "",
         "## Opening a file with the app not running", "",
-        "From the `open` command. Apple's app is timed until its window appears; its content may arrive later. Preview++ is "
+        "From the `open` command. Apple's app is timed until its window appears; its content may arrive later. Peeker is "
         "timed until its content is drawn. Both are warm launches (not the first after a reboot).", "",
-        "| File | Apple's app | Apple: window | Preview++: content | |", "|---|---|---|---|---|",
+        "| File | Apple's app | Apple: window | Peeker: content | |", "|---|---|---|---|---|",
     ]
     for file in FILES:
         if row := versus_apple(m, file):
@@ -297,7 +297,7 @@ def benchmarks_page(results):
     out += ["", "## Caveats", "",
             "- One machine, warm launches. Cold launches after a reboot are slower for every app.",
             "- Apple's content-drawn time isn't measured (it needs screen recording), so the gap to Apple is likely larger than shown.",
-            "- TextEdit shows Markdown as raw text; Preview++ renders it.",
+            "- TextEdit shows Markdown as raw text; Peeker renders it.",
             "- Plugin memory varies between runs by up to 2× for large files; it isn't a precise number.",
             "", "## Reproducing", "",
             "Quit Preview and TextEdit, then `scripts/build.sh && bench/ppbench.py run && bench/ppbench.py publish`. "
@@ -358,7 +358,7 @@ def publish(results, readme, page):
 # MARK: CLI
 
 def main():
-    parser = argparse.ArgumentParser(description="Preview++ benchmark", formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
+    parser = argparse.ArgumentParser(description="Peeker benchmark", formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser("run", help="measure one build")
     run.add_argument("--app", default=str(DEFAULT_APP))

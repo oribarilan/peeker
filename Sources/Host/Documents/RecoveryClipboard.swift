@@ -7,7 +7,7 @@ final class RecoveryClipboard {
     private let pasteboard: NSPasteboard
     private let store: RecoveryStore
     private var entries: [(path: String, text: String)] = []
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "recovery")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "recovery")
 
     init(pasteboard: NSPasteboard, store: RecoveryStore) {
         self.pasteboard = pasteboard

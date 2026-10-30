@@ -342,7 +342,7 @@ import Testing
     }
 
     private static func temporaryStore() -> RecoveryStore {
-        RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "ppp-recovery-\(UUID().uuidString)"))
+        RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))
     }
 
     private static let entry = TestProducts.entry(id: "text", executable: "text-plugin", types: ["public.plain-text"])

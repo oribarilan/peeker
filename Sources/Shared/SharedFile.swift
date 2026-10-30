@@ -7,7 +7,7 @@ nonisolated struct SharedFileRef: Codable, Sendable, Equatable {
 }
 
 nonisolated enum SharedFile {
-    static let prefix = "ppp-shared-"
+    static let prefix = "peeker-shared-"
     static let maxBytes = 1 << 32
 
     /// Creates a file of `byteCount` bytes, lets `fill` write into it, and leaves the name for the receiver to unlink.

@@ -1,10 +1,12 @@
 # Naming
 
-Status: decided on 2026-10-29: **MegaPeek**. "Preview++" was the working name. A trademark search is still pending (see Next steps).
+Status: decided on 2026-10-30: **Peeker**. It replaced MegaPeek, chosen the day before. "Preview++" was the working name. A trademark search is still pending (see Next steps).
 
 ## Decision
 
-MegaPeek merges the user's two favorites from later rounds, MegaView and PeekaView. "Mega" carries the "on steroids" promise, and "Peek" names the Space-bar preview action without borrowing Apple's "Preview", which sidesteps the takeoff gray zone below. On 2026-10-29 it had 0 GitHub repos, no Homebrew formula or cask, and no Mac or iOS App Store app. Peek on its own was rejected as saturated, but no compound with it collided.
+Peeker is the user's call. It names the Space-bar preview action in one plain word without borrowing Apple's "Preview", which sidesteps the takeoff gray zone below. Checked on 2026-10-30: no Homebrew formula or cask named `peeker`; no Mac App Store app of that name (the closest are "Color Peeker" and "Post Peeker"); 269 GitHub repos have it in their name, none above 44★, and the most-starred ones are unrelated (the largest is [microsoft/peeker](https://github.com/microsoft/peeker), Roslyn analyzers for .NET).
+
+MegaPeek, the previous pick, merged two favorites from later rounds, MegaView and PeekaView. It was clean on GitHub, Homebrew and the App Store as of 2026-10-29.
 
 ## What the name should do
 
@@ -49,8 +51,9 @@ Other clean options: AnyPreview, UltraLook, OmniLook, MaxPreview, Lookbox.
 
 ## Next steps
 
-1. Run a trademark registry search (USPTO, EUIPO) on MegaPeek.
+1. Run a trademark registry search (USPTO, EUIPO) on Peeker.
 2. Create the GitHub repository under the new name and push (the local repo has no remote yet).
-3. Rename the app, bundle ID (`dev.previewpp`), config path (`~/.config/previewpp`) and docs.
+
+The app, bundle ID (`dev.peeker`), config path (`~/.config/peeker`) and current docs were renamed on 2026-10-30. Dated records (REPORT.md, research/, the plugin decision brief, the foundation spec and plan) keep the old name.
 
 Checks used `gh api search/repositories`, `brew search`, and the iTunes Search API (Mac and iOS stores).

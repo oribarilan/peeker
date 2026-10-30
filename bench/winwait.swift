@@ -1,6 +1,6 @@
 // Launches an app on a file through LaunchServices and prints milliseconds until its first
 // on-screen document window exists. Same method for every app, so comparisons are fair.
-// Window visibility is not the same as content painted; Preview++ also logs that (PPP_BENCH_OUT).
+// Window visibility is not the same as content painted; Peeker also logs that (PEEKER_BENCH_OUT).
 //
 // usage: winwait <window-owner> <app-path> <file> [timeout-seconds] [extra `open` arguments...]
 import CoreGraphics

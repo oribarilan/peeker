@@ -10,7 +10,7 @@ final class PDFComponent: Component {
     /// Opaque: PDFKit drops alpha when writing and draws highlights with multiply, so text stays readable and the
     /// highlight looks the same before and after saving.
     private static let highlightColor = RGBA(red: 1, green: 0.8, blue: 0, alpha: 1)
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "components")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "components")
 
     init(url: URL) throws {
         guard let document = PDFDocument(url: url) else { throw CocoaError(.fileReadCorruptFile) }

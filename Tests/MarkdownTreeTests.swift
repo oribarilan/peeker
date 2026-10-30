@@ -27,7 +27,7 @@ import UniformTypeIdentifiers
     }
 
     @Test func togglingATaskEditsOnlyThatLine() throws {
-        let file = FileManager.default.temporaryDirectory.appending(path: "ppp-test-\(UUID().uuidString).md")
+        let file = FileManager.default.temporaryDirectory.appending(path: "peeker-test-\(UUID().uuidString).md")
         try "# Plan\n- [ ] first\n- [ ] second\n".write(to: file, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: file) }
         try MarkdownTree.toggleTask(atLine: 3, inFile: file.path)

@@ -3,7 +3,7 @@ import os
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var config = AppDelegate.loadAtLaunch()
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "config")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "config")
 
     /// A config that can't be read at launch falls back to defaults; the problem goes to the log.
     private static func loadAtLaunch() -> Config {

@@ -1,7 +1,7 @@
 import AppKit
 import os
 
-/// The user's dotfile: `~/.config/previewpp/config`, or `$PPP_CONFIG`.
+/// The user's dotfile: `~/.config/peeker/config`, or `$PEEKER_CONFIG`.
 ///
 ///     # comments start with #
 ///     disable = image                 # plugin ids to turn off
@@ -12,7 +12,7 @@ import os
 ///     quicklook.key = space           # bare key: Finder only, not while typing; with modifiers: anywhere; "off" to disable
 ///     plugin.idle = 60                # seconds an unused plugin process stays alive
 ///
-/// Preview++ > Reload Config re-reads the file. It applies to documents opened afterwards; open ones keep their settings.
+/// Peeker > Reload Config re-reads the file. It applies to documents opened afterwards; open ones keep their settings.
 struct Config {
     var disabled: Set<String> = []
     /// Lowercased file extension -> plugin id. `""` is files with no extension (`open.none`).
@@ -23,8 +23,8 @@ struct Config {
     var pluginIdleSeconds: TimeInterval = 60
 
     static var defaultURL: URL {
-        if let path = ProcessInfo.processInfo.environment["PPP_CONFIG"] { return URL(filePath: path) }
-        return FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config/previewpp/config")
+        if let path = ProcessInfo.processInfo.environment["PEEKER_CONFIG"] { return URL(filePath: path) }
+        return FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config/peeker/config")
     }
 
     /// A missing file means defaults; a file that exists but can't be read throws.
@@ -67,7 +67,7 @@ struct Config {
         }
     }
 
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "config")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "config")
 
     private static func warn(_ message: String) {
         log.warning("\(message, privacy: .public)")

@@ -19,7 +19,7 @@ final class PluginProcess {
         let deadline: Task<Void, Never>
     }
 
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "plugins")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "plugins")
     let entry: PluginEntry
     private let idleSeconds: TimeInterval
     private var process: Process?

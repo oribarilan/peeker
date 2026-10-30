@@ -1,8 +1,8 @@
 import Darwin
 import Foundation
 
-/// POC instrumentation, active when `PPP_BENCH_OUT` is set: the app opens its file argument
-/// `PPP_BENCH_REPEAT` times in a `PPP_BENCH_MODE` ("window" or "panel"), appends one JSON line per open, and quits.
+/// POC instrumentation, active when `PEEKER_BENCH_OUT` is set: the app opens its file argument
+/// `PEEKER_BENCH_REPEAT` times in a `PEEKER_BENCH_MODE` ("window" or "panel"), appends one JSON line per open, and quits.
 struct Bench {
     let output: URL
     let mode: String
@@ -10,8 +10,8 @@ struct Bench {
 
     static let current: Bench? = {
         let env = ProcessInfo.processInfo.environment
-        guard let path = env["PPP_BENCH_OUT"] else { return nil }
-        return Bench(output: URL(filePath: path), mode: env["PPP_BENCH_MODE"] ?? "window", repeats: Int(env["PPP_BENCH_REPEAT"] ?? "") ?? 1)
+        guard let path = env["PEEKER_BENCH_OUT"] else { return nil }
+        return Bench(output: URL(filePath: path), mode: env["PEEKER_BENCH_MODE"] ?? "window", repeats: Int(env["PEEKER_BENCH_REPEAT"] ?? "") ?? 1)
     }()
 
     func record(_ row: [String: Any]) {

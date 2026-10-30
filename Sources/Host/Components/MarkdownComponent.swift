@@ -62,7 +62,7 @@ final class MarkdownComponent: NSObject, Component, NSTextViewDelegate {
 }
 
 enum MarkdownRenderer {
-    static let taskScheme = "ppp-task"
+    static let taskScheme = "peeker-task"
 
     static func render(_ blocks: some Collection<MarkdownBlock>, leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
         var context = Context()

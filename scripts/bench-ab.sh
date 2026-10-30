@@ -8,7 +8,7 @@ root=${0:A:h:h}
 base_ref=${1:?usage: scripts/bench-ab.sh <base-ref>}
 shift
 worktree=$root/build/base-src
-app=build/dd/Build/Products/Release/PreviewPP.app
+app=build/dd/Build/Products/Release/Peeker.app
 
 git -C $root worktree remove --force $worktree 2>/dev/null || true
 git -C $root worktree add --detach --quiet $worktree $base_ref

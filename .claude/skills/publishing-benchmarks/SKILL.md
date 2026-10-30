@@ -1,6 +1,6 @@
 ---
 name: publishing-benchmarks
-description: Use when refreshing Preview++ performance numbers in README.md or BENCHMARKS.md, after performance work lands, before a release, or when asked to "run the benchmark" or "update the numbers".
+description: Use when refreshing Peeker performance numbers in README.md or BENCHMARKS.md, after performance work lands, before a release, or when asked to "run the benchmark" or "update the numbers".
 ---
 
 # Publishing benchmarks
@@ -9,11 +9,11 @@ description: Use when refreshing Preview++ performance numbers in README.md or B
 
 ## Before running
 
-Read-only first: `git status --short`, `pgrep -lx 'Preview|TextEdit|PreviewPP'`, `pmset -g batt | head -1`, `echo "${CI-unset}"`. If `CI` is set, stop: published numbers never come from CI.
+Read-only first: `git status --short`, `pgrep -lx 'Preview|TextEdit|Peeker'`, `pmset -g batt | head -1`, `echo "${CI-unset}"`. If `CI` is set, stop: published numbers never come from CI.
 
 Then one message to the user, and wait:
 
-1. **Apps it will close.** The run refuses to start while Preview or TextEdit is open and quits them, plus Preview++, between launches. Ask the user to save and quit them; never quit them yourself without a yes. (Launches use `open -F`, so their documents aren't reopened during the run.)
+1. **Apps it will close.** The run refuses to start while Preview or TextEdit is open and quits them, plus Peeker, between launches. Ask the user to save and quit them; never quit them yourself without a yes. (Launches use `open -F`, so their documents aren't reopened during the run.)
 2. **Dirty tree.** Uncommitted changes are stamped `<sha>-dirty`. Offer: commit first (recommended, their call), or measure as-is and say so in the hand-back.
 3. **Conditions.** About 15 minutes of flashing windows; the Mac should be idle and on power.
 

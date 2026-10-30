@@ -6,4 +6,4 @@ DerivedData/
 .DS_Store
 bench/fixtures/
 bench/results/raw/
-PreviewPP.xcodeproj/
+Peeker.xcodeproj/

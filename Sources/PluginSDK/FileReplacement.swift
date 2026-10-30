@@ -23,7 +23,7 @@ enum FileReplacement {
             throw PluginFailure("You don't have permission to save “\(name)”.", code: .notWritable)
         }
         let permissions = exists ? try PluginFailure.catching { try files.attributesOfItem(atPath: target.path)[.posixPermissions] } : nil
-        let temporary = directory.appending(path: ".\(target.lastPathComponent).ppp-save-\(UUID().uuidString)")
+        let temporary = directory.appending(path: ".\(target.lastPathComponent).peeker-save-\(UUID().uuidString)")
         let result: URL
         do {
             if exists {

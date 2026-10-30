@@ -51,7 +51,7 @@ final class DocumentViewController: NSSplitViewController {
     private var pluginWasRunning = false
     private var isReady = false
     private var isClosed = false
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "documents")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "documents")
     /// Time from `load()` until the plugin's reply arrived, before the host drew anything.
     private(set) var replyDuration: Duration = .zero
     /// The plugin's commands, each with its shortcut after config overrides.

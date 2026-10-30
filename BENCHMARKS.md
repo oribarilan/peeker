@@ -6,9 +6,9 @@ Measured on Apple M6, macOS 27.0.1 on 2026-10-29 at commit `ff9c632`. Each numbe
 
 ## Opening a file with the app not running
 
-From the `open` command. Apple's app is timed until its window appears; its content may arrive later. Preview++ is timed until its content is drawn. Both are warm launches (not the first after a reboot).
+From the `open` command. Apple's app is timed until its window appears; its content may arrive later. Peeker is timed until its content is drawn. Both are warm launches (not the first after a reboot).
 
-| File | Apple's app | Apple: window | Preview++: content | |
+| File | Apple's app | Apple: window | Peeker: content | |
 |---|---|---|---|---|
 | Markdown, 1 KB | TextEdit | 286 ms | 285 ms | about the same |
 | Markdown, 844 KB | TextEdit | 286 ms | 472 ms | 1.7× slower |
@@ -68,7 +68,7 @@ The app is running; the file opens in a new window.
 
 - One machine, warm launches. Cold launches after a reboot are slower for every app.
 - Apple's content-drawn time isn't measured (it needs screen recording), so the gap to Apple is likely larger than shown.
-- TextEdit shows Markdown as raw text; Preview++ renders it.
+- TextEdit shows Markdown as raw text; Peeker renders it.
 - Plugin memory varies between runs by up to 2× for large files; it isn't a precise number.
 
 ## Reproducing

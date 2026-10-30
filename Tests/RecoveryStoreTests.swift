@@ -2,7 +2,7 @@ import AppKit
 import Testing
 
 @Suite struct RecoveryStoreTests {
-    let directory = FileManager.default.temporaryDirectory.appending(path: "ppp-recovery-\(UUID().uuidString)")
+    let directory = FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)")
     var store: RecoveryStore { RecoveryStore(directory: directory) }
     let record = RecoveryRecord(id: "r1", url: URL(filePath: "/tmp/a.txt"), pluginID: "text", fileModified: Date(timeIntervalSince1970: 1), edits: .text("unsaved"))
 
@@ -68,8 +68,8 @@ import Testing
 
 @Suite struct RecoveryClipboardTests {
     @Test func laterTextsJoinEarlierOnesAndRecordsGoOnlyOnceCopied() throws {
-        let store = RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "ppp-recovery-\(UUID().uuidString)"))
-        let pasteboard = NSPasteboard(name: NSPasteboard.Name("ppp-test-\(UUID().uuidString)"))   // never the user's clipboard
+        let store = RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("peeker-test-\(UUID().uuidString)"))   // never the user's clipboard
         defer { pasteboard.releaseGlobally() }
         let clipboard = RecoveryClipboard(pasteboard: pasteboard, store: store)
         let a = RecoveryRecord(id: "a", url: URL(filePath: "/tmp/a.txt"), pluginID: "text", fileModified: nil, edits: .text("text of a"))
@@ -87,8 +87,8 @@ import Testing
     }
 
     @Test func highlightRecordsAreLeftAlone() throws {
-        let store = RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "ppp-recovery-\(UUID().uuidString)"))
-        let pasteboard = NSPasteboard(name: NSPasteboard.Name("ppp-test-\(UUID().uuidString)"))
+        let store = RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("peeker-test-\(UUID().uuidString)"))
         defer { pasteboard.releaseGlobally() }
         let pdf = RecoveryRecord(id: "p", url: URL(filePath: "/tmp/a.pdf"), pluginID: "pdf", fileModified: nil, edits: .pdfHighlights([]))
         try store.write(pdf)

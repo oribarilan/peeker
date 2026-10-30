@@ -1,4 +1,4 @@
-# Preview++ (exploration)
+# Peeker
 
 An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and a quick-look panel on Space. Every format is a plugin running in its own process, so a plugin that crashes or hangs can't take the app down. Plugins come from contributions to this repo; users turn them on and off and choose which file types each one opens.
 
@@ -7,7 +7,7 @@ The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Ra
 ## Performance
 
 <!-- bench:start -->
-| Opening, app not running | Apple | Preview++ | |
+| Opening, app not running | Apple | Peeker | |
 |---|---|---|---|
 | PDF, 2,000 pages | Preview 661 ms | 305 ms | **2.2× faster** |
 | JPEG, 12 MP | Preview 394 ms | 368 ms | about the same |
@@ -16,7 +16,7 @@ The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Ra
 
 Space in Finder shows a PDF in 14 ms and a 12 MP photo in 125 ms, with every format running in its own plugin process.
 
-Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Preview++ until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
+Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Peeker until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
 <!-- bench:end -->
 
 ## Build and run
@@ -25,21 +25,21 @@ Needs Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```sh
 scripts/build.sh                     # Release build into build/dd; scripts/build.sh test runs the unit tests
-open build/dd/Build/Products/Release/PreviewPP.app
+open build/dd/Build/Products/Release/Peeker.app
 ```
 
 ## Use it every day
 
-1. Build, then copy the app: `cp -R build/dd/Build/Products/Release/PreviewPP.app /Applications/`.
-2. In Finder, select a `.txt` file, press Cmd+I, pick Preview++ under Open With and click Change All. Repeat for `.pdf` and the image types you want. Preview++ stays an alternate handler, so nothing changes until you do this.
+1. Build, then copy the app: `cp -R build/dd/Build/Products/Release/Peeker.app /Applications/`.
+2. In Finder, select a `.txt` file, press Cmd+I, pick Peeker under Open With and click Change All. Repeat for `.pdf` and the image types you want. Peeker stays an alternate handler, so nothing changes until you do this.
 3. Launch it from /Applications. macOS asks for Accessibility (to see the quick-look key) and, on first use of Space, for permission to control Finder (to read the selection). `scripts/build.sh` signs with your Apple Development certificate when you have one, so those grants survive rebuilds.
-4. Choose Preview++ > Open at Login. Space in Finder only works while the app is running.
+4. Choose Peeker > Open at Login. Space in Finder only works while the app is running.
 
 Space on a supported file in Finder opens a panel. Open there moves it into a window, where text files are editable and Cmd+S saves.
 
 ## Config
 
-`~/.config/previewpp/config` (or `$PPP_CONFIG`), read at launch. Preview++ > Reload Config applies changes to documents opened afterwards; a file that can't be read leaves the current settings in place.
+`~/.config/peeker/config` (or `$PEEKER_CONFIG`), read at launch. Peeker > Reload Config applies changes to documents opened afterwards; a file that can't be read leaves the current settings in place.
 
 ```
 disable = image                      # plugins to turn off
@@ -68,6 +68,6 @@ If a plugin crashes or stops answering, the host kills it and keeps the window a
 `bench/ppbench.py` serves two purposes:
 
 - **Published numbers.** `bench/ppbench.py run` measures the current build on this Mac (quit Preview and TextEdit first; it relaunches them between runs). `bench/ppbench.py publish` then writes the highlights above and the full results in [BENCHMARKS.md](BENCHMARKS.md). It refuses CI or partial results. In Claude Code, the repo's `publishing-benchmarks` skill runs the whole flow.
-- **Regression gate.** `scripts/bench-ab.sh <base-ref>` builds the base in a git worktree, measures base and head interleaved on the same machine, and fails if any Preview++ metric got worse by more than 15% and 10 ms (5 MB for memory). CI runs exactly that on every pull request (`.github/workflows/bench.yml`).
+- **Regression gate.** `scripts/bench-ab.sh <base-ref>` builds the base in a git worktree, measures base and head interleaved on the same machine, and fails if any Peeker metric got worse by more than 15% and 10 ms (5 MB for memory). CI runs exactly that on every pull request (`.github/workflows/bench.yml`).
 
-Fixtures are generated (`bench/make-fixtures.swift`), not committed. `bench/spacebench.swift` times pressing Space in Finder for Quick Look and for Preview++; it needs Accessibility for the app running it, so it stays out of CI.
+Fixtures are generated (`bench/make-fixtures.swift`), not committed. `bench/spacebench.swift` times pressing Space in Finder for Quick Look and for Peeker; it needs Accessibility for the app running it, so it stays out of CI.

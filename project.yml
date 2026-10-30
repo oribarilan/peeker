@@ -1,6 +1,6 @@
-name: PreviewPP
+name: Peeker
 options:
-  bundleIdPrefix: dev.previewpp
+  bundleIdPrefix: dev.peeker
   deploymentTarget:
     macOS: "26.0"
   createIntermediateGroups: true
@@ -30,7 +30,7 @@ targetTemplates:
         SKIP_INSTALL: YES
 
 targets:
-  PreviewPP:
+  Peeker:
     type: application
     platform: macOS
     sources:
@@ -52,12 +52,12 @@ targets:
     scheme:
       testTargets: [HostTests]
     info:
-      path: build/Info-PreviewPP.plist
+      path: build/Info-Peeker.plist
       properties:
-        CFBundleDisplayName: Preview++
+        CFBundleDisplayName: Peeker
         NSPrincipalClass: NSApplication
         LSApplicationCategoryType: public.app-category.productivity
-        NSAppleEventsUsageDescription: Preview++ reads which files are selected in Finder so it can show them when you press the quick-look key.
+        NSAppleEventsUsageDescription: Peeker reads which files are selected in Finder so it can show them when you press the quick-look key.
         CFBundleDocumentTypes:
           - CFBundleTypeName: Text
             CFBundleTypeRole: Editor

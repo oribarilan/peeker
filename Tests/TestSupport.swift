@@ -15,7 +15,7 @@ enum TestProducts {
 enum TempFile {
     /// Writes `bytes` to `name` in a fresh temporary directory.
     static func make(_ bytes: Data, name: String = "f.txt") throws -> URL {
-        let directory = FileManager.default.temporaryDirectory.appending(path: "PreviewPPTests-" + UUID().uuidString)
+        let directory = FileManager.default.temporaryDirectory.appending(path: "PeekerTests-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let url = directory.appending(path: name)
         try bytes.write(to: url)

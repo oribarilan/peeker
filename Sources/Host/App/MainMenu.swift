@@ -29,14 +29,14 @@ enum MainMenu {
             return item
         }
 
-        _ = submenu("Preview++", [
-            item("About Preview++", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+        _ = submenu("Peeker", [
+            item("About Peeker", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
             .separator(),
             item("Reload Config", #selector(AppDelegate.reloadConfig(_:)), "r", [.command, .shift], target: target),
             item("Open at Login", #selector(AppDelegate.toggleOpenAtLogin(_:)), target: target),
             .separator(),
-            item("Hide Preview++", #selector(NSApplication.hide(_:)), "h"),
-            item("Quit Preview++", #selector(NSApplication.terminate(_:)), "q"),
+            item("Hide Peeker", #selector(NSApplication.hide(_:)), "h"),
+            item("Quit Peeker", #selector(NSApplication.terminate(_:)), "q"),
         ])
         _ = submenu("File", [
             item("Open…", #selector(AppDelegate.showOpenPanel(_:)), "o", target: target),

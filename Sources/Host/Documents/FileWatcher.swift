@@ -11,7 +11,7 @@ final class FileWatcher {
     private var changePending = false
     private var isStopped = false
     private static let coalescing = 0.2, retryInterval = 0.05, retries = 20, slowRetryInterval = 2.0
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "documents")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "documents")
 
     init(url: URL, onChange: @escaping () -> Void) {
         self.url = url

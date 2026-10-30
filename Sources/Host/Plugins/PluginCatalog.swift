@@ -17,7 +17,7 @@ final class PluginCatalog {
     let entries: [PluginEntry]
     private var config: Config
     private var processes: [String: PluginProcess] = [:]
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "plugins")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "plugins")
 
     init(entries: [PluginEntry], config: Config) {
         self.entries = entries
