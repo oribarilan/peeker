@@ -1,13 +1,16 @@
 import AppKit
-import UniformTypeIdentifiers
 
-/// A format plugin built into the app. The host routes files to it by `fileTypes` and shows the document it opens.
+/// The extension-list entry for files that have none, such as `.zshrc` or `Makefile`.
+public nonisolated let noExtension = "noExtension"
+
+/// A format plugin built into the app. The host routes files to it by extension and shows the document it opens.
 /// A plugin may use only this kit, Apple frameworks and its own packages; never the host or another plugin.
 public protocol Plugin {
     static var id: String { get }
     static var name: String { get }
-    /// Files conforming to any of these can be routed to this plugin.
-    static var fileTypes: [UTType] { get }
+    /// The extensions this plugin opens unless the user's config gives it another list: lowercase, without the dot,
+    /// and `noExtension` for files that have none. No two plugins list the same one.
+    static var defaultExtensions: [String] { get }
     /// Every command the plugin's documents can offer; a document may offer fewer (a view-only one, say). The config
     /// checks shortcut settings against this list, and the config schema lists it.
     static var commands: [CommandSpec] { get }

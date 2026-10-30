@@ -1,13 +1,12 @@
 import AppKit
 import PeekerKit
 import Testing
-import UniformTypeIdentifiers
 
 /// Stands in for every routed plugin; routing never opens anything.
 private enum RoutedPlugin: Plugin {
     static let id = "routed"
     static let name = "Routed"
-    static let fileTypes: [UTType] = []
+    static let defaultExtensions: [String] = []
     static let commands: [CommandSpec] = []
 
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
@@ -16,12 +15,13 @@ private enum RoutedPlugin: Plugin {
 }
 
 @Suite struct Routing {
-    private func entry(_ id: String, _ types: [String]) -> PluginEntry {
-        PluginEntry(id: id, name: id, fileTypes: types.map { UTType($0) ?? UTType(importedAs: $0) }, plugin: RoutedPlugin.self)
+    private func entry(_ id: String, _ extensions: [String]) -> PluginEntry {
+        PluginEntry(id: id, name: id, defaultExtensions: extensions, plugin: RoutedPlugin.self)
     }
 
+    /// In sidebar order.
     private var entries: [PluginEntry] {
-        [entry("text", ["public.plain-text"]), entry("markdown", ["net.daringfireball.markdown"]), entry("image", ["public.image"])]
+        [entry("image", ["png", "heic"]), entry("markdown", ["md", "markdown"]), entry("text", ["txt", "conf", noExtension])]
     }
 
     /// A catalog under the config `json`.
@@ -29,62 +29,75 @@ private enum RoutedPlugin: Plugin {
         PluginCatalog(entries: entries, config: Config.read(Data(json.utf8), plugins: entries).config ?? Config())
     }
 
-    private let markdownFile = URL(filePath: "/tmp/notes.md")
-
-    @Test func exactTypeMatchBeatsSupertypeMatch() {
-        #expect(catalog().candidates(for: markdownFile).map(\.id) == ["markdown", "text"])
-        #expect(catalog().defaultPlugin(for: markdownFile)?.id == "markdown")
+    private func owner(_ path: String, _ catalog: PluginCatalog? = nil) -> String? {
+        (catalog ?? self.catalog()).owner(for: URL(filePath: path))?.id
     }
 
-    @Test func configRouteOverridesRanking() {
-        #expect(catalog(#"{"open": {"md": "text"}}"#).defaultPlugin(for: markdownFile)?.id == "text")
+    @Test func aFileOpensInThePluginThatListsItsExtension() {
+        #expect(owner("/tmp/notes.md") == "markdown")
+        #expect(owner("/tmp/photo.heic") == "image")
+        #expect(owner("/tmp/nginx.conf") == "text")
     }
 
-    @Test func routeToAPluginThatDoesNotSupportTheFileIsIgnored() {
-        #expect(catalog(#"{"open": {"md": "image"}}"#).defaultPlugin(for: markdownFile)?.id == "markdown")
+    @Test func extensionsMatchWithoutRegardToCase() {
+        #expect(owner("/tmp/README.MD") == "markdown")
     }
 
-    @Test func disabledPluginsAreNeverCandidates() {
-        #expect(catalog(#"{"plugins": {"markdown": {"enabled": false}}}"#).candidates(for: markdownFile).map(\.id) == ["text"])
-        #expect(catalog(#"{"plugins": {"markdown": {"enabled": false}, "text": {"enabled": false}}}"#).defaultPlugin(for: markdownFile) == nil)
+    @Test func filesWithNoExtensionMatchNoExtension() throws {
+        #expect(owner("/tmp/Makefile") == "text")
+        let dotfile = try TempFile.make(Data("export A=1\n".utf8), name: ".zshrc")
+        #expect(catalog().owner(for: dotfile)?.id == "text")
     }
 
-    @Test func imagesRouteThroughTypeConformance() {
-        #expect(catalog().defaultPlugin(for: URL(filePath: "/tmp/photo.heic"))?.id == "image")
+    @Test func anExtensionNoPluginListsOpensNowhere() {
+        #expect(owner("/tmp/movie.mp4") == nil)
     }
 
-    @Test func untypedExtensionsUseTheConfigRoute() {
-        #expect(catalog(#"{"open": {"conf": "text"}}"#).defaultPlugin(for: URL(filePath: "/tmp/nginx.conf"))?.id == "text")
-        #expect(catalog().defaultPlugin(for: URL(filePath: "/tmp/nginx.conf")) == nil)
+    @Test func aFolderOpensNowhere() throws {
+        let folder = try TempFile.make(Data(), name: "placeholder").deletingLastPathComponent()
+        #expect(catalog().owner(for: folder) == nil)
     }
 
-    @Test func extensionlessDotfilesUseTheNoneRoute() throws {
-        let file = try TempFile.make(Data("export A=1\n".utf8), name: ".zshrc")   // Finder reports public.data
-        #expect(catalog(#"{"open": {"noExtension": "text"}}"#).defaultPlugin(for: file)?.id == "text")
-        #expect(catalog(#"{"open": {"noExtension": "text"}, "plugins": {"text": {"enabled": false}}}"#).defaultPlugin(for: file) == nil)
+    @Test func aDisabledOwnerOpensNothingAndNoOtherPluginTakesItsFiles() {
+        #expect(owner("/tmp/notes.md", catalog(#"{"plugins": {"markdown": {"enabled": false}}}"#)) == nil)
     }
 
-    @Test func symlinksRouteByTheirTargetsType() throws {
-        let target = try TempFile.make(Data("hello\n".utf8), name: "notes.txt")
+    @Test func symlinksUseTheirTargetsExtension() throws {
+        let target = try TempFile.make(Data("# Notes\n".utf8), name: "notes.md")
         let link = target.deletingLastPathComponent().appending(path: "link.txt")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
-        #expect(catalog().defaultPlugin(for: link)?.id == "text")
+        #expect(catalog().owner(for: link)?.id == "markdown")
     }
 
-    @Test func symlinkedDotfilesUseTheNoneRoute() throws {
+    @Test func aSymlinkToAFileWithNoExtensionMatchesNoExtension() throws {
         let target = try TempFile.make(Data("export A=1\n".utf8), name: "zshrc-target")
-        let link = target.deletingLastPathComponent().appending(path: ".zshrc")
+        let link = target.deletingLastPathComponent().appending(path: "rc.md")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
-        #expect(catalog(#"{"open": {"noExtension": "text"}}"#).defaultPlugin(for: link)?.id == "text")
+        #expect(catalog().owner(for: link)?.id == "text")
     }
 
-    @Test func typedFilesStillIgnoreRoutesToPluginsThatDontSupportThem() {
-        #expect(catalog(#"{"open": {"md": "image"}}"#).defaultPlugin(for: markdownFile)?.id == "markdown")
+    @Test func configListsReplaceTheDefaults() {
+        let moved = catalog(#"{"plugins": {"markdown": {"extensions": ["markdown"]}, "text": {"extensions": ["txt", "md"]}}}"#)
+        #expect(owner("/tmp/notes.md", moved) == "text")
+        #expect(owner("/tmp/notes.markdown", moved) == "markdown")
+        #expect(owner("/tmp/nginx.conf", moved) == nil, "conf left Plain Text's list")
     }
 
-    @Test func reloadAppliesTheNewRoutes() {
-        let catalog = catalog(#"{"open": {"conf": "text"}}"#)
+    @Test func openWithListsTheOwnerFirstThenEveryOtherEnabledPlugin() {
+        let markdownFile = URL(filePath: "/tmp/notes.md")
+        #expect(catalog().openWithChoices(for: markdownFile).map(\.id) == ["markdown", "image", "text"])
+        #expect(catalog().openWithChoices(for: URL(filePath: "/tmp/movie.mp4")).map(\.id) == ["image", "markdown", "text"])
+        #expect(catalog(#"{"plugins": {"image": {"enabled": false}}}"#).openWithChoices(for: markdownFile).map(\.id) == ["markdown", "text"])
+    }
+
+    @Test func reloadAppliesTheNewLists() {
+        let catalog = catalog(#"{"plugins": {"text": {"extensions": []}}}"#)
+        #expect(owner("/tmp/nginx.conf", catalog) == nil)
         catalog.reload(config: Config())
-        #expect(catalog.defaultPlugin(for: URL(filePath: "/tmp/nginx.conf")) == nil)
+        #expect(owner("/tmp/nginx.conf", catalog) == "text")
+    }
+
+    @Test func builtInPluginsAreInSidebarOrder() {
+        #expect(PluginCatalog.builtIn.map { $0.id } == ["image", "pdf", "markdown", "text"])
     }
 }

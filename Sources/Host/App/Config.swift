@@ -1,5 +1,5 @@
 import Foundation
-import UniformTypeIdentifiers
+import PeekerKit
 
 /// The user's settings, from `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Every key is optional:
 ///
@@ -8,17 +8,40 @@ import UniformTypeIdentifiers
 ///       "quickLook": { "key": "space" },          // bare key: Finder only, not while typing; with modifiers: anywhere; "off"
 ///       "plugins": {
 ///         "image": { "enabled": false },
+///         "text": { "extensions": ["txt", "md", "noExtension"] },   // replaces the plugin's default list
 ///         "pdf": { "commands": { "highlight": { "shortcut": "cmd+shift+h" } } }
-///       },
-///       "open": { "md": "markdown", "conf": "text", "noExtension": "text" }
+///       }
 ///     }
 struct Config {
     var disabled: Set<String> = []
-    /// Lowercased file extension -> plugin id. `""` is files with no extension (`open.noExtension`).
-    var routes: [String: String] = [:]
+    /// Plugin id -> the extensions the config gives it in place of its default list: lowercase, no dot.
+    var extensions: [String: [String]] = [:]
     /// "pluginID.commandID" -> shortcut override.
     var keys: [String: Shortcut] = [:]
     var quickLookKey: Shortcut? = Shortcut(key: .space)
+
+    /// Which plugin opens each extension (or `noExtension`), from every plugin's configured or default list, taken in
+    /// `plugins` order. An extension in more than one list stays with the plugin whose default list has it, or else
+    /// the first; each other list loses it, with a problem. A disabled plugin keeps its extensions, so turning it off
+    /// hands nothing to another plugin.
+    func owners(of plugins: [PluginEntry]) -> (owners: [String: String], problems: [ConfigProblem]) {
+        var owners: [String: PluginEntry] = [:]
+        var problems: [ConfigProblem] = []
+        for plugin in plugins {
+            for ext in extensions[plugin.id] ?? plugin.defaultExtensions {
+                guard let holder = owners[ext], holder.id != plugin.id else {
+                    owners[ext] = plugin
+                    continue
+                }
+                let pluginIsDefault = plugin.defaultExtensions.contains(ext) && !holder.defaultExtensions.contains(ext)
+                let (winner, loser) = pluginIsDefault ? (plugin, holder) : (holder, plugin)
+                owners[ext] = winner
+                problems.append(ConfigProblem(path: "plugins.\(loser.id).extensions",
+                                              message: "“\(ext)” belongs to the \(winner.name) plugin, so \(loser.name) doesn't open it."))
+            }
+        }
+        return (owners.mapValues(\.id), problems)
+    }
 
     static var defaultURL: URL {
         if let path = ProcessInfo.processInfo.environment["PEEKER_CONFIG"] { return URL(filePath: path) }
@@ -53,7 +76,7 @@ struct Config {
         }
         var reader = ConfigReader(plugins: plugins)
         reader.read(sections)
-        return ConfigReading(config: reader.config, problems: reader.problems)
+        return ConfigReading(config: reader.config, problems: reader.problems + reader.config.owners(of: plugins).problems)
     }
 }
 
@@ -87,7 +110,6 @@ private struct ConfigReader {
             case "$schema": break
             case "quickLook": if let settings = object(value, at: key) { readQuickLook(settings) }
             case "plugins": if let entries = object(value, at: key) { readPlugins(entries) }
-            case "open": if let routes = object(value, at: key) { readRoutes(routes) }
             default: unknown(key)
             }
         }
@@ -116,6 +138,8 @@ private struct ConfigReader {
                 switch key {
                 case "enabled":
                     if let enabled = bool(value, at: "\(path).enabled"), !enabled { config.disabled.insert(id) }
+                case "extensions":
+                    readExtensions(value, of: plugin, at: "\(path).extensions")
                 case "commands":
                     if let commands = object(value, at: "\(path).commands") { readCommands(commands, of: plugin, at: "\(path).commands") }
                 default:
@@ -143,23 +167,32 @@ private struct ConfigReader {
         }
     }
 
-    private mutating func readRoutes(_ routes: [String: JSONValue]) {
-        for (key, value) in sorted(routes) {
-            let path = "open.\(key)"
-            guard let id = string(value, at: path) else { continue }
-            guard let plugin = plugins.first(where: { $0.id == id }) else {
-                problem(path, "There's no plugin “\(id)”. Plugins: \(plugins.map(\.id).sorted().joined(separator: ", ")).")
-                continue
-            }
-            let ext = key == "noExtension" ? "" : key.lowercased()
-            // Files macOS has no real type for may go to any plugin; a typed file only to one that can open its type.
-            if let type = UTType(filenameExtension: ext), !ext.isEmpty, !type.isDynamic, type != .data,
-               !plugin.fileTypes.contains(where: { type.conforms(to: $0) }) {
-                problem(path, "The \(plugin.name) plugin can't open .\(ext) files, so this route never applies.")
-                continue
-            }
-            config.routes[ext] = id
+    private mutating func readExtensions(_ value: JSONValue, of plugin: PluginEntry, at path: String) {
+        guard case .array(let items) = value else {
+            problem(path, "Should be a list of extensions, in brackets.")
+            return
         }
+        var list: [String] = []
+        for item in items {
+            guard case .string(let text) = item else {
+                problem(path, "Each extension should be text, in quotes.")
+                continue
+            }
+            guard let ext = Self.listEntry(text) else {
+                problem(path, "“\(text)” isn't an extension. Write one like md, without the dot, or noExtension.")
+                continue
+            }
+            if !list.contains(ext) { list.append(ext) }
+        }
+        config.extensions[plugin.id] = list
+    }
+
+    /// `text` as a list entry: lowercased, with one leading dot dropped. Nil when it's empty or has a dot, slash or space.
+    private static func listEntry(_ text: String) -> String? {
+        if text == noExtension { return text }
+        let bare = text.hasPrefix(".") ? text.dropFirst() : Substring(text)
+        guard !bare.isEmpty, !bare.contains(where: { $0 == "." || $0 == "/" || $0.isWhitespace }) else { return nil }
+        return bare.lowercased()
     }
 
     // MARK: Values

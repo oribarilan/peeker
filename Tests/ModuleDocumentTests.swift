@@ -1,13 +1,12 @@
 import AppKit
 import PeekerKit
 import Testing
-import UniformTypeIdentifiers
 
 /// A plugin whose open waits until the test calls `release()`.
 private enum GatedPlugin: Plugin {
     static let id = "gated"
     static let name = "Gated"
-    static let fileTypes: [UTType] = [.data]
+    static let defaultExtensions: [String] = []
     static let commands: [CommandSpec] = []
     static var waiting: CheckedContinuation<Void, Never>?
 
@@ -62,7 +61,7 @@ private final class StubDocument: PluginDocument {
 private enum SlowSavePlugin: Plugin {
     static let id = "slow-save"
     static let name = "Slow Save"
-    static let fileTypes: [UTType] = [.data]
+    static let defaultExtensions: [String] = []
     static let commands: [CommandSpec] = []
 
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {

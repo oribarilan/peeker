@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Peeker is an open-source replacement for Preview.app on macOS 26+, written in Swift and AppKit. The app is a host; each format (text, Markdown, PDF, images) is a built-in plugin the user can turn off or route file types to.
+Peeker is an open-source replacement for Preview.app on macOS 26+, written in Swift and AppKit. The app is a host; each format (text, Markdown, PDF, images) is a built-in plugin the user can turn off or give other file extensions.
 
 ## This repository is public
 
@@ -37,7 +37,7 @@ Generated files stay out of git: `build/`, `Peeker.xcodeproj/` (XcodeGen output)
 Sources/Host/        the app: App/, Plugins/ (catalog and routing), Documents/ (save, recovery, file watching),
                      Components/ (sidebar and containers), QuickLook/ (Space panel), Bench/
 Sources/PeekerKit/   what plugins may use: the plugin contract, safe file writes, the info sidebar panel
-Plugins/<id>/        one plugin each: <Id>Plugin.swift (entry point and file types) and its document views
+Plugins/<id>/        one plugin each: <Id>Plugin.swift (entry point and default extensions) and its document views
 Tests/               Swift Testing suites
 bench/, scripts/     benchmark and build scripts
 decisions/           decision records

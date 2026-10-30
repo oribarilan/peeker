@@ -27,7 +27,7 @@ final class BenchRunner {
             NSApp.terminate(nil)
             return
         }
-        guard let entry = catalog.defaultPlugin(for: url) else {
+        guard let entry = catalog.owner(for: url) else {
             bench.record(["file": url.lastPathComponent, "failure": "no plugin"])
             NSApp.terminate(nil)
             return

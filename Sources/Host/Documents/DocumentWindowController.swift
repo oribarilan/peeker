@@ -95,7 +95,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     @objc private func reopenWith(_ sender: NSPopUpButton) {
-        let candidates = catalog.candidates(for: url)
+        let candidates = catalog.openWithChoices(for: url)
         guard candidates.indices.contains(sender.indexOfSelectedItem) else { return }
         let entry = candidates[sender.indexOfSelectedItem]
         Task {
@@ -223,7 +223,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let item = NSToolbarItem(itemIdentifier: identifier)
         if identifier == Self.openWith {
             let popup = NSPopUpButton(frame: .zero, pullsDown: false)
-            let candidates = catalog.candidates(for: url)
+            let candidates = catalog.openWithChoices(for: url)
             popup.addItems(withTitles: candidates.map(\.name))
             if let index = candidates.firstIndex(where: { $0.id == current?.entry.id }) { popup.selectItem(at: index) }
             popup.target = self

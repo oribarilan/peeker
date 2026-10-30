@@ -2,12 +2,11 @@ import AppKit
 import CoreGraphics
 import PDFKit
 import PeekerKit
-import UniformTypeIdentifiers
 
 public enum PDFPlugin: Plugin {
     public static let id = "pdf"
     public static let name = "PDF"
-    public static let fileTypes: [UTType] = [.pdf]
+    public static let defaultExtensions = ["pdf"]
     public static let commands = [
         CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
         CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),

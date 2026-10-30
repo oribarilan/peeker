@@ -7,7 +7,13 @@ import UniformTypeIdentifiers
 public enum ImagePlugin: Plugin {
     public static let id = "image"
     public static let name = "Image"
-    public static let fileTypes: [UTType] = [.image]
+    /// The common formats ImageIO decodes, and camera RAW. Not SVG: ImageIO can't draw it.
+    public static let defaultExtensions = [
+        "png", "jpg", "jpeg", "jpe", "heic", "heif", "hif", "avif", "gif", "tif", "tiff", "webp", "bmp", "ico", "icns",
+        "jxl", "jp2", "psd", "exr",
+        "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "raf", "orf", "rw2", "rwl", "pef", "srw", "erf",
+        "raw", "3fr", "iiq",
+    ]
     public static let commands = [
         CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
         CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),

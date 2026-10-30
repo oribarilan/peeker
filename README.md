@@ -1,6 +1,6 @@
 # Peeker
 
-An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and a quick-look panel on Space. Every format is a plugin, a Swift module built into the app that owns its views and its file reading and writing. Plugins come from contributions to this repo; users turn them on and off and choose which file types each one opens.
+An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and a quick-look panel on Space. Every format is a plugin, a Swift module built into the app that owns its views and its file reading and writing. Plugins come from contributions to this repo; users turn them on and off and choose which file extensions each one opens.
 
 The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Raw research is in [research/](research).
 
@@ -47,15 +47,17 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Every key
   "quickLook": { "key": "space" },
   "plugins": {
     "image": { "enabled": false },
+    "markdown": { "extensions": ["markdown", "mdown"] },
+    "text": { "extensions": ["txt", "md", "conf", "noExtension"] },
     "pdf": { "commands": { "highlight": { "shortcut": "cmd+shift+h" } } }
-  },
-  "open": { "md": "markdown", "conf": "text", "noExtension": "text" }
+  }
 }
 ```
 
 - `quickLook.key`: a bare key works only in Finder and not while typing; one with modifiers works anywhere; `"off"` turns the panel off.
-- `plugins.<id>.enabled`: `false` turns a plugin off. `plugins.<id>.commands.<command>.shortcut` rebinds a command.
-- `open.<extension>`: which plugin opens files with that extension. For a type macOS knows, the plugin must support it. Extensions macOS has no type for (`.conf`) and files with no extension (`noExtension`, for `.zshrc`) go only to the plugin named here. Open With switches per tab.
+- `plugins.<id>.enabled`: `false` turns a plugin off. Its files then open nowhere; no other plugin takes them.
+- `plugins.<id>.extensions`: every extension the plugin opens, without the dot, replacing its default list (`schema.json` lists each default). `noExtension` matches files with none, such as `.zshrc` and `Makefile`, and is on Plain Text's list. An extension belongs to one plugin: listed twice, it stays with the plugin that has it by default (above, `md` moves to Plain Text because Markdown's list drops it). Open With in a window can still pick any enabled plugin for one tab.
+- `plugins.<id>.commands.<command>.shortcut` rebinds a command.
 
 Peeker writes `schema.json` next to the config at launch, so editors that read `$schema` autocomplete and check the keys. A key it doesn't know or a value it can't use is skipped and listed under Settings > Config file, and the menu bar icon shows a red dot until it's fixed; a file that isn't valid JSON changes nothing. Settings > Open in Editor creates the file when there's none.
 
@@ -63,12 +65,12 @@ Peeker lives in the menu bar while no files are open and gets a Dock icon and me
 
 ## Plugins
 
-A plugin is a Swift module in `Plugins/<id>/`. Its entry type conforms to `Plugin` in `Sources/PeekerKit/Plugin.swift`: it names the file types it supports and opens a file into a `PluginDocument`, which provides the content view, sidebar panels and commands, and handles edits, saving and reloading. Plugins read and decode off the main thread, and the plugin that owns a format writes it, so it also owns the encoding and line endings. A plugin can import only `PeekerKit`, Apple frameworks and its own packages; `scripts/build.sh test` checks that.
+A plugin is a Swift module in `Plugins/<id>/`. Its entry type conforms to `Plugin` in `Sources/PeekerKit/Plugin.swift`: it lists the file extensions it opens by default and opens a file into a `PluginDocument`, which provides the content view, sidebar panels and commands, and handles edits, saving and reloading. Plugins read and decode off the main thread, and the plugin that owns a format writes it, so it also owns the encoding and line endings. A plugin can import only `PeekerKit`, Apple frameworks and its own packages; `scripts/build.sh test` checks that.
 
-- `Plugins/text` opens plain text, JSON, XML, YAML and TOML, plus untyped files the config routes to it (`open.conf`, `open.noExtension`). Edits keep the file's encoding and line endings. Files over 10 MB open read-only, and files over 16 MB show only their first 16 MB (4 MB when a line is over 1 MB, which text layout handles slowly). Saving asks first if the file changed on disk or was deleted since you opened it.
+- `Plugins/text` opens plain text, logs, CSV, JSON, XML, YAML, TOML, config files, common source code and files with no extension. Edits keep the file's encoding and line endings. Files over 10 MB open read-only, and files over 16 MB show only their first 16 MB (4 MB when a line is over 1 MB, which text layout handles slowly). Saving asks first if the file changed on disk or was deleted since you opened it.
 - `Plugins/pdf` shows pages with thumbnails and saves highlights through Cmd+S as standard annotations that Preview can read.
 - `Plugins/markdown` renders Markdown with an outline; ticking a task checkbox writes the file at once.
-- `Plugins/image` shows images fitted to the window, with zoom and the photo's details.
+- `Plugins/image` shows the common image formats and camera RAW (not SVG) fitted to the window, with zoom and the photo's details.
 
 Unsaved edits are copied to `~/Library/Application Support/<bundle id>/Recovery/` two seconds after the last change. After a crash or force quit, the next launch reopens them; if the file is gone, the text goes to the clipboard.
 

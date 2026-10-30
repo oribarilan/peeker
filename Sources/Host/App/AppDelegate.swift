@@ -168,7 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func quickLookFinderSelection() {
-        guard let url = finder.selection().first, let entry = catalog.defaultPlugin(for: url) else {
+        guard let url = finder.selection().first, let entry = catalog.owner(for: url) else {
             hotkey?.passKeyToFinder()
             return
         }
@@ -177,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private func followFinderSelection() {
         guard panel.isVisible, let url = finder.selection().first, url != panel.url else { return }
-        guard let entry = catalog.defaultPlugin(for: url) else {
+        guard let entry = catalog.owner(for: url) else {
             panel.dismiss()
             return
         }
@@ -205,7 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             NSApp.activate()  // with no windows open, Peeker isn't the frontmost app
             let alert = NSAlert()
             alert.messageText = "No enabled plugin opens \(url.lastPathComponent)"
-            alert.informativeText = "Enable a plugin that supports this file type in your config."
+            alert.informativeText = "Add its extension to a plugin's extensions in your config, or turn on the plugin that has it."
             alert.runModal()
             return
         }
@@ -229,10 +229,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
     }
 
-    /// The record's plugin if it's still enabled and supports the file, else the default one.
+    /// The record's plugin if it's still enabled (Open With may have picked any), else the file's owner.
     private func plugin(for url: URL, restoring record: RecoveryRecord?) -> PluginEntry? {
-        let recordedPlugin = record.flatMap { record in catalog.candidates(for: url).first { $0.id == record.pluginID } }
-        return recordedPlugin ?? catalog.defaultPlugin(for: url)
+        let recordedPlugin = record.flatMap { record in catalog.enabled.first { $0.id == record.pluginID } }
+        return recordedPlugin ?? catalog.owner(for: url)
     }
 
     // MARK: Crash recovery

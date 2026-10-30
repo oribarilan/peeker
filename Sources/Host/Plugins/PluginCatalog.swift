@@ -4,43 +4,45 @@ import PeekerKit
 import PeekerMarkdown
 import PeekerPDF
 import PeekerText
-import UniformTypeIdentifiers
 
 /// One plugin as the host knows it before opening anything with it.
 struct PluginEntry {
     let id: String
     let name: String
-    let fileTypes: [UTType]
+    let defaultExtensions: [String]
     /// Every command the plugin can offer, which config shortcuts are checked against.
     let commands: [CommandSpec]
     let plugin: any Plugin.Type
 
     init(_ plugin: any Plugin.Type) {
-        self.init(id: plugin.id, name: plugin.name, fileTypes: plugin.fileTypes, plugin: plugin)
+        self.init(id: plugin.id, name: plugin.name, defaultExtensions: plugin.defaultExtensions, plugin: plugin)
     }
 
-    /// For tests that route by made-up ids and types.
-    init(id: String, name: String, fileTypes: [UTType], plugin: any Plugin.Type) {
+    /// For tests that route by made-up ids and extensions.
+    init(id: String, name: String, defaultExtensions: [String], plugin: any Plugin.Type) {
         self.id = id
         self.name = name
-        self.fileTypes = fileTypes
+        self.defaultExtensions = defaultExtensions
         commands = plugin.commands
         self.plugin = plugin
     }
 }
 
-/// Every plugin built into the app, and the user's enable/disable and routing choices.
+/// Every plugin built into the app, and the user's choices of which are on and which extensions each opens.
 final class PluginCatalog {
     let entries: [PluginEntry]
     private var config: Config
+    /// Extension (or `noExtension`) -> id of the plugin that opens it.
+    private var owners: [String: String]
 
     init(entries: [PluginEntry], config: Config) {
         self.entries = entries
         self.config = config
+        owners = config.owners(of: entries).owners
     }
 
-    /// The plugins built into the app.
-    static let builtIn: [any Plugin.Type] = [ImagePlugin.self, MarkdownPlugin.self, PDFPlugin.self, TextPlugin.self]
+    /// The plugins built into the app, in sidebar order.
+    static let builtIn: [any Plugin.Type] = [ImagePlugin.self, PDFPlugin.self, MarkdownPlugin.self, TextPlugin.self]
 
     static func builtIn(config: Config) -> PluginCatalog {
         PluginCatalog(entries: builtIn.map(PluginEntry.init), config: config)
@@ -49,35 +51,21 @@ final class PluginCatalog {
     /// Applies a re-read config.
     func reload(config: Config) {
         self.config = config
+        owners = config.owners(of: entries).owners
     }
 
     var enabled: [PluginEntry] { entries.filter { !config.disabled.contains($0.id) } }
 
-    /// Enabled plugins that support `url`, best first: exact type matches before supertype matches.
-    /// Files macOS has no real type for (dynamic types, or plain `public.data`) go only to the plugin the config routes them to.
-    func candidates(for url: URL) -> [PluginEntry] {
-        guard let type = Self.contentType(of: url) else { return [] }
-        if type.isDynamic || type == .data {
-            return routedPlugin(for: url).map { [$0] } ?? []
-        }
-        let exact = enabled.filter { $0.fileTypes.contains(type) }
-        let conforming = enabled.filter { entry in !entry.fileTypes.contains(type) && entry.fileTypes.contains { type.conforms(to: $0) } }
-        return exact + conforming
-    }
-
-    /// The config route for the extension wins, but only if that plugin is enabled and supports the file.
-    func defaultPlugin(for url: URL) -> PluginEntry? {
-        let candidates = candidates(for: url)
-        if let routed = routedPlugin(for: url), let entry = candidates.first(where: { $0.id == routed.id }) {
-            return entry
-        }
-        return candidates.first
-    }
-
-    /// The enabled plugin the config names for this file's extension (`""` for none), whether or not it supports the file.
-    private func routedPlugin(for url: URL) -> PluginEntry? {
-        guard let id = config.routes[url.pathExtension.lowercased()] else { return nil }
+    /// The plugin that opens `url`: the one whose list has its extension, if it's enabled. Nil for a folder.
+    func owner(for url: URL) -> PluginEntry? {
+        guard let key = Self.listEntry(for: url), let id = owners[key] else { return nil }
         return enabled.first { $0.id == id }
+    }
+
+    /// What Open With offers for `url`: its owner first, then every other enabled plugin.
+    func openWithChoices(for url: URL) -> [PluginEntry] {
+        let owner = owner(for: url)
+        return (owner.map { [$0] } ?? []) + enabled.filter { $0.id != owner?.id }
     }
 
     /// A recovery record's edits as plain text, from the plugin that wrote them; nil when they have none.
@@ -85,8 +73,12 @@ final class PluginCatalog {
         entries.first { $0.id == record.pluginID }?.plugin.recoveryText(from: record.editsData)
     }
 
-    /// A symlink's type is `public.symlink`, so the type comes from the file it points to.
-    static func contentType(of url: URL) -> UTType? {
-        (try? url.resolvingSymlinksInPath().resourceValues(forKeys: [.contentTypeKey]).contentType) ?? UTType(filenameExtension: url.pathExtension)
+    /// The list entry `url` matches: the lowercased extension of the file it points to, or `noExtension`. Nil for a
+    /// folder, which no plugin opens.
+    private static func listEntry(for url: URL) -> String? {
+        let target = url.resolvingSymlinksInPath()
+        if (try? target.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true { return nil }
+        let ext = target.pathExtension.lowercased()
+        return ext.isEmpty ? noExtension : ext
     }
 }

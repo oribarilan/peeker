@@ -1,12 +1,11 @@
 import Foundation
 import Markdown
 import PeekerKit
-import UniformTypeIdentifiers
 
 public enum MarkdownPlugin: Plugin {
     public static let id = "markdown"
     public static let name = "Markdown"
-    public static let fileTypes = [UTType("net.daringfireball.markdown") ?? UTType(importedAs: "net.daringfireball.markdown")]
+    public static let defaultExtensions = ["md", "markdown", "mdown"]
     public static let commands: [CommandSpec] = []
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {

@@ -24,6 +24,19 @@ import Testing
         #expect(Set((plugins["properties"] as? [String: Any])?.keys ?? [:].keys) == ["pdf", "text"])
     }
 
+    @Test func eachPluginsExtensionsDefaultToItsList() throws {
+        let plugins = try #require(properties(try schema(), "plugins")?["properties"] as? [String: Any])
+        for plugin in self.plugins {
+            let extensions = try #require(properties(plugins[plugin.id] as? [String: Any], "extensions"))
+            #expect(extensions["type"] as? String == "array")
+            #expect(extensions["default"] as? [String] == plugin.defaultExtensions)
+        }
+    }
+
+    @Test func theOldOpenSectionIsGone() throws {
+        #expect(properties(try schema(), "open") == nil)
+    }
+
     @Test func refusesKeysItDoesNotDescribe() throws {
         let schema = try schema()
         #expect(schema["additionalProperties"] as? Bool == false)
@@ -32,12 +45,12 @@ import Testing
     }
 
     @Test func writesNextToTheConfigOnlyWhenItChanges() throws {
-        let config = try TempFile.make(Data(#"{"open": {}}"#.utf8), name: "config.json")
+        let config = try TempFile.make(Data("{}".utf8), name: "config.json")
         let schemaFile = config.deletingLastPathComponent().appending(path: "schema.json")
         #expect(try ConfigSchema.write(nextTo: config, plugins: plugins))
         #expect(FileManager.default.fileExists(atPath: schemaFile.path))
         #expect(try !ConfigSchema.write(nextTo: config, plugins: plugins), "unchanged, so no second write")
-        #expect(try Data(contentsOf: config) == Data(#"{"open": {}}"#.utf8))
+        #expect(try Data(contentsOf: config) == Data("{}".utf8))
     }
 
     @Test func writesNothingWithoutAConfigFolder() throws {
