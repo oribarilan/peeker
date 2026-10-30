@@ -1,0 +1,41 @@
+schema: spec-driven
+
+context: |
+  Peeker is an open-source replacement for Preview.app on macOS 26+, in Swift and AppKit. AGENTS.md has the
+  build, test, benchmark and git rules; REPORT.md, decisions/ and research/ hold the background study.
+
+  Milestone: Peeker replaces Preview for the maintainer's daily use (text, Markdown, PDF, images).
+
+  Direction (decided 2026-10-30, not yet built):
+  - A plugin is an in-app code module for its file types that users can turn on or off. It owns a fast view
+    mode and a full editor (Edit mode in the same tab), plus reading and writing its files. The host owns
+    windows, tabs, routing, toggles, the Space panel, menus, and the plumbing for save prompts and crash
+    recovery. Plugins never share with each other; shared UI pieces come in by composition. Each plugin owns
+    its own viewer, and a small host contract keeps common behavior consistent (zoom, find, scroll position,
+    info sidebar, first-paint timing).
+  - A crash in plugin code may quit the app; unsaved edits must come back on relaunch.
+
+  Roadmap, in order. Each change gets its own interview before its proposal is written.
+  1. Move plugins from separate processes into in-app modules with view and edit modes. Space stays under
+     20 ms warm. Rewrite the AGENTS.md architecture rules and record the reversal of
+     decisions/plugin-architecture.html.
+  2. JSON config: ~/.config/peeker/config.json with sections per area and per plugin, and a schema.json the
+     app regenerates so editors autocomplete. Edits apply live (also for editors that save by renaming), and
+     Reload Config goes away. Problems show in the app (first problem plus a count): invalid JSON applies
+     nothing, and a bad value keeps the old one. Missing keys use defaults. A symlinked file stays a symlink.
+     BetterCmdTab and Tinycast are the references (clone into .refs/); both are GPL-family, so borrow ideas
+     only, never code.
+  3. Settings window, modeled on Tinycast's: sidebar of panes. The config file stays the only store: the
+     window reads it, writes changes back, and shows file edits live. Each plugin gets its own pane under a
+     Plugins group, with content the plugin provides; the host supplies shared rows (on/off, file types,
+     command shortcuts) by composition. A Permissions pane shows live status with Grant Access / Open buttons
+     for Accessibility and Finder automation, plus default-app status per format (Make Default) and Open at
+     Login.
+  4. PDF fill, sign and annotate. Saved as standard PDF annotations that stay editable in other apps;
+     signatures stored by the PDF plugin.
+  Later: PDF page operations, image editing.
+
+  Open questions:
+  - Text-based formats. Plain text, logs, source, structured data (JSON, YAML, XML), CSV and Markdown differ a
+    lot, and how they split into plugins (and what each one's view and edit modes are) is undecided. Needs its
+    own interview. specs/text and specs/markdown describe current behavior only and haven't been reviewed.

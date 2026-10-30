@@ -12,7 +12,7 @@ Everything that leaves your machine is public at <https://github.com/oribarilan/
 - **Licenses.** A new dependency or copied snippet must have a license compatible with the project's.
 - **Write for strangers.** Commit messages, comments and docs are read by people with none of your context. No session notes, agent chatter or internal shorthand.
 
-Generated files stay out of git: `build/`, `Peeker.xcodeproj/` (XcodeGen output), `bench/fixtures/` and `bench/results/raw/`. Agent scratch folders such as `.superpowers/` stay local.
+Generated files stay out of git: `build/`, `Peeker.xcodeproj/` (XcodeGen output), `bench/fixtures/` and `bench/results/raw/`. Agent scratch folders such as `.superpowers/`, and reference clones of other projects in `.refs/`, stay local.
 
 ## Core principles
 
@@ -28,7 +28,7 @@ Generated files stay out of git: `build/`, `Peeker.xcodeproj/` (XcodeGen output)
 - **Plugins never draw.** A plugin runs as its own process (`Contents/Helpers/<id>-plugin`) and answers with a description of what to show; the host renders it with native views. A plugin crash or hang must never take the app down or lose unsaved edits.
 - **The protocol is typed.** Messages are defined in `Sources/Shared/Protocol.swift`, and the comment at its top documents them. No `[String: Any]` in protocol or plugin code.
 - **The plugin that owns a format writes it.** Saving sends the edited content to the plugin, which keeps the file's encoding, line endings and permissions.
-- **Speed is a feature.** Opening must beat Preview and TextEdit head to head. The Space panel targets under 20 ms warm, and the margin is thin, so measure before adding work to the open path.
+- **Speed is a feature.** Opening must beat Preview and TextEdit head to head. The Space panel must be at least as fast as Finder's Quick Look on every file, so measure before adding work to the open path.
 
 ## Code layout
 
@@ -40,8 +40,13 @@ Sources/PluginSDK/   plugin main loop and safe file replacement
 Plugins/<id>/        one plugin each: <Id>Plugin.swift, main.swift, manifest.json (supported file types)
 Tests/               Swift Testing suites; Tests/TestPlugin misbehaves on purpose (crash, hang, garbage)
 bench/, scripts/     benchmark and build scripts
-decisions/, docs/    decision records, design specs and plans
+decisions/           decision records
+openspec/            specs of current behavior, changes in progress, roadmap (config.yaml), known gaps
 ```
+
+## Specs and planning
+
+Planning runs through [OpenSpec](https://github.com/Fission-AI/OpenSpec). `openspec/specs/` describes what the app does today, one folder per capability; `openspec/config.yaml` holds the product direction and the roadmap; `openspec/gaps.md` lists what the specs found missing. New work starts as a change: interview the maintainer first (the `grill-me` skill), then `/opsx:propose` writes the proposal, delta specs, design and tasks, `/opsx:apply` implements them, and `/opsx:archive` folds the deltas into the specs. While applying, use the superpowers skills for test-first work, debugging and verification, but not their brainstorming, spec or plan documents. Run `openspec validate --all` before handing work back.
 
 ## Build and test
 
