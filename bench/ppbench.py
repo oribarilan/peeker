@@ -6,18 +6,25 @@
     bench/ppbench.py compare BASE.json HEAD.json                                         exit 1 on regressions
     bench/ppbench.py check [RESULTS.json]                                                missing or noisy metrics
     bench/ppbench.py publish [RESULTS.json]                                              README highlights + BENCHMARKS.md
+    bench/ppbench.py space [--app APP] [--runs 5]                                        Space: Quick Look vs Peeker
 
 Suites (all open real windows; nothing needs extra permissions):
-    inapp   inside the app, per file, in the quick-look panel and a window: warm open, open with a cold plugin
-            process, plugin startup cost, plugin memory
+    inapp   inside the app, per file, in the quick-look panel and a window: warm open, app memory
     launch  from `open` (app not running) until the content is drawn
     apple   Preview / TextEdit launch-to-window, for the README only (quits those apps between runs)
+
+`space` presses Space in Finder on every fixture, first with Finder's Quick Look, then with Peeker running, and
+times both until a panel appears. It needs Accessibility for the terminal (to press keys) and for Peeker (to see
+the key), so it isn't part of `run`, `ab` or CI.
 
 A file the base build can't open (a format it has no plugin for) shows in `ab` and `compare` as new, not compared.
 A metric the base has and head lacks (head failed to open the file) counts as a regression.
 
 Gate: a metric regresses when head is both more than 15% and more than 10 ms (5 MB for memory) worse than base.
-Only Peeker's own measured metrics are gated; derived plugin_startup is reported, not gated. Standard library only.
+Only Peeker's own metrics are gated; Apple's are reported, not gated. Memory measured two different ways is shown
+but not gated: a build from before plugins moved into the app reports host plus plugin process, which leaves out
+the decoded images the host read from a shared file, so it can't be held against the app's footprint. Once both
+builds have in-app plugins, memory is gated again. Standard library only.
 """
 import argparse
 import datetime
@@ -75,25 +82,26 @@ def refuse_if_running(*apps):
 # MARK: Samples (one launch each)
 
 def sample_inapp(app, file, mode):
-    """One launch opening `file` three times: cold app, warm, then warm app with the plugin process stopped first."""
+    """One launch opening `file` twice: a cold app, then a warm one, which is what gets measured."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp, "out.jsonl")
-        env = {**os.environ, "PEEKER_CONFIG": str(CONFIG), "PEEKER_BENCH_OUT": str(out), "PEEKER_BENCH_MODE": mode, "PEEKER_BENCH_REPEAT": "3"}
+        env = {**os.environ, "PEEKER_CONFIG": str(CONFIG), "PEEKER_BENCH_OUT": str(out), "PEEKER_BENCH_MODE": mode, "PEEKER_BENCH_REPEAT": "2"}
         try:
             subprocess.run([str(Path(app) / "Contents/MacOS/Peeker"), str(FIXTURES / file)], env=env, capture_output=True, timeout=60)
         except subprocess.TimeoutExpired:
             return {}
         runs = {r.get("run"): r for r in map(json.loads, out.read_text().splitlines())} if out.exists() else {}
-    if not {1, 2} <= runs.keys() or any("failure" in r for r in runs.values()):
+    if 1 not in runs or any("failure" in r for r in runs.values()):
         return {}
-    warm, cold = runs[1], runs[2]
+    warm = runs[1]
     key = f"inapp.{mode}.{file}"
-    return {
-        f"{key}.warm_open": ("ms", warm["openToReadyMs"]),
-        f"{key}.cold_plugin_open": ("ms", cold["openToReadyMs"]),
-        f"{key}.plugin_startup": ("ms", round(cold["replyMs"] - warm["replyMs"], 1)),
-        f"{key}.plugin_memory": ("MB", round(warm["pluginFootprintMB"], 1)),
-    }
+    if "appFootprintMB" in warm:
+        memory = ("MB", round(warm["appFootprintMB"], 1), "app")
+    else:
+        # A build from before plugins moved into the app: host plus plugin process. The host showed decoded images
+        # from a shared file, which a footprint doesn't count, so this sum isn't comparable with the app's footprint.
+        memory = ("MB", round(warm["hostFootprintMB"] + (warm.get("pluginFootprintMB") or 0), 1), "host+plugin")
+    return {f"{key}.warm_open": ("ms", warm["openToReadyMs"]), f"{key}.app_memory": memory}
 
 
 def sample_launch(app, file):
@@ -151,8 +159,11 @@ def collect(apps, suites, files, launches):
         for i in range(launches):
             order = list(apps.items()) if i % 2 == 0 else list(reversed(apps.items()))
             for name, app in order:
-                for metric, (unit, value) in sampler(app).items():
-                    results[name].setdefault(metric, {"unit": unit, "samples": []})["samples"].append(value)
+                for metric, (unit, value, *basis) in sampler(app).items():
+                    entry = results[name].setdefault(metric, {"unit": unit, "samples": []})
+                    entry["samples"].append(value)
+                    if basis:
+                        entry["basis"] = basis[0]
     return results
 
 
@@ -176,8 +187,7 @@ def document(metrics, app, launches):
 # MARK: Gate
 
 def gated(metric_id):
-    # plugin_startup is cold minus warm reply time, two noisy samples whose difference flips sign; cold_plugin_open stays gated.
-    return not metric_id.startswith("apple.") and not metric_id.endswith(".plugin_startup")
+    return not metric_id.startswith("apple.")
 
 
 def compare(base, head):
@@ -192,6 +202,10 @@ def compare(base, head):
             continue
         if not b:
             rows.append(f"| `{metric_id}` | – | {h['median']} {h['unit']} | | new, not compared |")
+            continue
+        if b.get("basis") != h.get("basis"):
+            rows.append(f"| `{metric_id}` | {b['median']} {b['unit']} | {h['median']} {h['unit']} | | "
+                        f"not comparable (base measured {b.get('basis')}, head {h.get('basis')}), not gated |")
             continue
         unit, delta = h["unit"], h["median"] - b["median"]
         pct = delta / b["median"] if b["median"] else 0
@@ -255,8 +269,7 @@ def readme_highlights(results):
             lines.append(f"| {DESCRIPTIONS[file]} | {name} {theirs:.0f} ms | {ours:.0f} ms | {verdict if verdict == 'about the same' else f'**{verdict}**'} |")
     pdf, photo = m.get("inapp.panel.small.pdf.warm_open"), m.get("inapp.panel.photo.jpg.warm_open")
     if pdf and photo:
-        lines += ["", f"Space in Finder shows a PDF in {pdf:.0f} ms and a 12 MP photo in {photo:.0f} ms, with every format "
-                      "running in its own plugin process."]
+        lines += ["", f"Space in Finder shows a PDF in {pdf:.0f} ms and a 12 MP photo in {photo:.0f} ms."]
     lines += ["", f"{results['machine']}, {results['date']}. Apple's apps are timed until their window appears, Peeker "
                   "until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md)."]
     return "\n".join(lines)
@@ -278,27 +291,18 @@ def benchmarks_page(results):
         if row := versus_apple(m, file):
             name, theirs, ours, verdict = row
             out.append(f"| {DESCRIPTIONS[file]} | {name} | {theirs:.0f} ms | {ours:.0f} ms | {verdict} |")
-    for mode, title, intro in (
-        ("panel", "Quick look panel (Space in Finder)", "The app is running. *Plugin running*: its process is already up. "
-         "*Plugin started on demand*: the process was stopped first, as after a minute idle."),
-        ("window", "Document window", "The app is running; the file opens in a new window."),
-    ):
-        out += ["", f"## {title}", "", intro, "", "| File | Plugin running | Plugin started on demand |", "|---|---|---|"]
-        for file in FILES:
-            out.append(f"| {DESCRIPTIONS[file]} | {fmt(m.get(f'inapp.{mode}.{file}.warm_open'))} | "
-                       f"{fmt(m.get(f'inapp.{mode}.{file}.cold_plugin_open'))} |")
-    out += ["", "## Plugin processes", "",
-            "*Startup cost*: how much longer the plugin's reply takes when its process has to start first. "
-            "*Memory*: the plugin process's footprint with the file open.", "",
-            "| File | Startup cost | Memory |", "|---|---|---|"]
+    out += ["", "## Inside the app", "",
+            "The app is already running. *Space*: the quick look panel in Finder. *Window*: the file opens in a new "
+            "window. *Memory*: the app's footprint with the file open in the panel.", "",
+            "| File | Space | Window | Memory |", "|---|---|---|---|"]
     for file in FILES:
-        out.append(f"| {DESCRIPTIONS[file]} | {fmt(m.get(f'inapp.panel.{file}.plugin_startup'))} | "
-                   f"{fmt(m.get(f'inapp.panel.{file}.plugin_memory'), 'MB')} |")
+        out.append(f"| {DESCRIPTIONS[file]} | {fmt(m.get(f'inapp.panel.{file}.warm_open'))} | "
+                   f"{fmt(m.get(f'inapp.window.{file}.warm_open'))} | {fmt(m.get(f'inapp.panel.{file}.app_memory'), 'MB')} |")
     out += ["", "## Caveats", "",
             "- One machine, warm launches. Cold launches after a reboot are slower for every app.",
             "- Apple's content-drawn time isn't measured (it needs screen recording), so the gap to Apple is likely larger than shown.",
             "- TextEdit shows Markdown as raw text; Peeker renders it.",
-            "- Plugin memory varies between runs by up to 2× for large files; it isn't a precise number.",
+            "- Memory varies between runs for large files; it isn't a precise number.",
             "", "## Reproducing", "",
             "Quit Preview and TextEdit, then `scripts/build.sh && bench/ppbench.py run && bench/ppbench.py publish`. "
             "Raw samples are in `bench/results/reference.json`.", ""]
@@ -313,8 +317,8 @@ def missing_metrics(results):
 
 def noisy_metrics(results):
     """Published timing metrics where at least two launches ran over 1.3× the median and 15 ms above it. One outlier
-    is fine (the median absorbs it); a cluster means background load skewed the run. Derived metrics (startup cost,
-    cold-plugin opens) and memory vary by nature and aren't checked."""
+    is fine (the median absorbs it); a cluster means background load skewed the run. Memory varies by nature and
+    isn't checked."""
     out = []
     for metric_id, metric in results["metrics"].items():
         if not (metric_id.startswith(("launch.", "apple.")) or metric_id.endswith(".warm_open")):
@@ -355,6 +359,45 @@ def publish(results, readme, page):
     page.write_text(benchmarks_page(results))
 
 
+# MARK: Space vs Quick Look
+
+def space(app, runs):
+    """Prints, per fixture, the median time until a panel appears after Space in Finder: Quick Look's, then Peeker's."""
+    tool, source = TOOLS / "spacebench", ROOT / "bench/spacebench.swift"
+    if not tool.exists() or tool.stat().st_mtime < source.stat().st_mtime:
+        subprocess.run(["swiftc", "-O", str(source), "-o", str(tool)], check=True)
+
+    def measure(is_expected):
+        medians = {}
+        for file in FILES:
+            lines = subprocess.run([str(tool), str(FIXTURES / file), str(runs)], capture_output=True, text=True).stdout.splitlines()
+            if lines and lines[0].startswith("not trusted"):
+                sys.exit(lines[0])
+            times = [float(ms) for owner, ms in (line.split("\t") for line in lines if "\t" in line) if is_expected(owner)]
+            medians[file] = statistics.median(times) if len(times) == runs else None
+        return medians
+
+    subprocess.run(["pkill", "-x", "Peeker"], capture_output=True)
+    time.sleep(0.8)
+    quicklook = measure(lambda owner: owner != "Peeker")
+    config = Path(tempfile.gettempdir()) / "ppbench-space-config"
+    config.write_text("quicklook.key = space\n")
+    subprocess.run(["open", "-F", "--env", f"PEEKER_CONFIG={config}", "-a", str(Path(app).resolve())], check=True)
+    time.sleep(3)
+    peeker = measure(lambda owner: owner == "Peeker")
+    subprocess.run(["pkill", "-x", "Peeker"], capture_output=True)
+
+    print("| File | Quick Look | Peeker | |", "|---|---|---|---|", sep="\n")
+    for file in FILES:
+        theirs, ours = quicklook[file], peeker[file]
+        if theirs is None or ours is None:
+            verdict = "not measured (a run timed out or the wrong panel opened)"
+        else:
+            ratio = theirs / ours
+            verdict = "about the same" if 1 / 1.1 < ratio < 1.1 else f"{ratio:.1f}× faster" if ratio > 1 else f"**{1 / ratio:.1f}× slower**"
+        print(f"| {DESCRIPTIONS[file]} | {fmt(theirs)} | {fmt(ours)} | {verdict} |")
+
+
 # MARK: CLI
 
 def main():
@@ -379,6 +422,9 @@ def main():
     chk.add_argument("results", nargs="?", default=str(REFERENCE))
     pub = sub.add_parser("publish", help="write README highlights and BENCHMARKS.md from results")
     pub.add_argument("results", nargs="?", default=str(REFERENCE))
+    spc = sub.add_parser("space", help="time Space in Finder: Quick Look vs Peeker (needs Accessibility)")
+    spc.add_argument("--app", default=str(DEFAULT_APP))
+    spc.add_argument("--runs", type=int, default=5)
     args = parser.parse_args()
 
     if args.command == "compare":
@@ -387,6 +433,10 @@ def main():
         sys.exit(1 if regressions else 0)
     if args.command == "check":
         sys.exit(0 if check(json.loads(Path(args.results).read_text())) else 1)
+    if args.command == "space":
+        ensure_tools()
+        space(args.app, args.runs)
+        return
     if args.command == "publish":
         publish(json.loads(Path(args.results).read_text()), ROOT / "README.md", ROOT / "BENCHMARKS.md")
         print("updated README.md and BENCHMARKS.md")

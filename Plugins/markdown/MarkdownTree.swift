@@ -1,9 +1,10 @@
 import Foundation
 import Markdown
+import PeekerKit
 
-/// Converts swift-markdown's AST into the block tree the host lays out. Lines are 1-based source lines, used for
+/// Converts swift-markdown's AST into the block tree the view lays out. Lines are 1-based source lines, used for
 /// outline anchors and task toggling.
-enum MarkdownTree {
+nonisolated enum MarkdownTree {
     static func blocks(from source: String) -> [MarkdownBlock] {
         Document(parsing: source).children.compactMap(block)
     }
@@ -40,14 +41,15 @@ enum MarkdownTree {
     }
 
     /// Flips the task checkbox on a 1-based source line and saves the file.
-    static func toggleTask(atLine line: Int, inFile path: String) throws(PluginFailure) {
-        var lines = try PluginFailure.catching { try String(contentsOfFile: path, encoding: .utf8) }.components(separatedBy: "\n")
+    static func toggleTask(atLine line: Int, inFile path: String) throws(PluginError) {
+        var lines = try PluginError.catching { try String(contentsOfFile: path, encoding: .utf8) }.components(separatedBy: "\n")
         guard lines.indices.contains(line - 1),
               let match = lines[line - 1].prefixMatch(of: /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/) else {
-            throw PluginFailure("no task on line \(line)")
+            throw PluginError("Line \(line) has no task to tick. The file may have changed.")
         }
         lines[line - 1].replaceSubrange(match.range, with: "\(match.1)[\(match.2 == " " ? "x" : " ")]")
-        try FileReplacement.replaceContents(ofFileAt: path, with: Data(lines.joined(separator: "\n").utf8))
+        let data = Data(lines.joined(separator: "\n").utf8)
+        try FileReplacement.replaceContents(ofFileAt: path, with: data)
     }
 
     private static func block(_ markup: Markup) -> MarkdownBlock? {

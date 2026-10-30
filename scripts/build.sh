@@ -1,9 +1,10 @@
 #!/bin/zsh
 # Builds Peeker (Release, this Mac's architecture). Signs with your first "Apple Development" identity when you
 # have one, so macOS keeps the Accessibility and Automation permissions across rebuilds (ad-hoc signatures change
-# every build). Full log: build/build.log.
+# every build). Full log: build/build.log. `scripts/build.sh test` also checks that plugins import only what they may.
 set -uo pipefail
 cd ${0:A:h:h}
+if [[ ${1:-} == test ]]; then scripts/check-plugin-imports.sh || exit 1; fi
 identity=$(security find-identity -v -p codesigning | grep -m1 -o '"Apple Development: [^"]*"' | tr -d '"')
 xcodegen generate --quiet
 mkdir -p build

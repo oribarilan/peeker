@@ -1,66 +1,62 @@
+import AppKit
 import CoreGraphics
-import Foundation
 import PDFKit
+import PeekerKit
+import UniformTypeIdentifiers
 
-/// Opens with CoreGraphics, which is faster to start than PDFKit. PDFKit only writes highlights when saving.
-final class PDFPlugin: PluginHandler {
-    private var paths: [DocumentID: String] = [:]
+public enum PDFPlugin: Plugin {
+    public static let id = "pdf"
+    public static let name = "PDF"
+    public static let fileTypes: [UTType] = [.pdf]
 
-    func open(_ doc: DocumentID, path: String, maxPixels: Int) throws(PluginFailure) -> Reply {
-        guard let document = CGPDFDocument(URL(filePath: path) as CFURL) else { throw PluginFailure("This file isn't a readable PDF.") }
-        guard document.isUnlocked else { throw PluginFailure("This PDF is password protected.") }
-        // Parse the first page here, so a file that crashes the PDF parser takes down this process before the host opens it.
-        if let page = document.page(at: 1),
-           let context = CGContext(data: nil, width: 48, height: 48, bitsPerComponent: 8, bytesPerRow: 0,
-                                   space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue) {
-            context.concatenate(page.getDrawingTransform(.cropBox, rect: CGRect(x: 0, y: 0, width: 48, height: 48), rotate: 0, preserveAspectRatio: true))
-            context.drawPDFPage(page)
-        }
+    public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
+        let info = try await check(url)
+        guard let document = PDFDocument(url: url) else { throw PluginError("This file isn't a readable PDF.") }
+        return PDFPluginDocument(url: url, document: document, info: info, editable: context.allowsEditing)
+    }
 
+    /// Checks with CoreGraphics, which starts faster than PDFKit, that `url` is a readable, unlocked PDF, and reads
+    /// what the info panel shows.
+    @concurrent nonisolated static func check(_ url: URL) async throws(PluginError) -> [InfoRow] {
+        guard let document = CGPDFDocument(url as CFURL) else { throw PluginError("This file isn't a readable PDF.") }
+        guard document.isUnlocked else { throw PluginError("This PDF is password protected.") }
         var major: Int32 = 0, minor: Int32 = 0
         document.getVersion(majorVersion: &major, minorVersion: &minor)
         var info = [InfoRow(label: "Pages", value: document.numberOfPages.formatted()), InfoRow(label: "PDF version", value: "\(major).\(minor)")]
         for (key, label) in [("Title", "Title"), ("Author", "Author"), ("Creator", "Created with")] {
-            if let value = Self.string(document.info, key), !value.isEmpty { info.append(InfoRow(label: label, value: value)) }
+            if let value = string(document.info, key), !value.isEmpty { info.append(InfoRow(label: label, value: value)) }
         }
         if document.isEncrypted { info.append(InfoRow(label: "Encrypted", value: "Yes")) }
-        paths[doc] = path
-        return Reply(view: .pdf(path: path), sidebar: [.thumbnails, .info(info)], commands: [
-            CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", verb: "zoom-in"),
-            CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", verb: "zoom-out"),
-            CommandSpec(id: "highlight", title: "Highlight Selection", symbol: "highlighter", shortcut: "ctrl+cmd+h", verb: "highlight"),
-        ])
+        return info
     }
 
-    /// Adds the highlights the host sends to the file on disk.
-    func save(_ doc: DocumentID, _ payload: SavePayload) throws(PluginFailure) -> Reply {
-        guard case .pdfHighlights(let highlights) = payload else { throw PluginFailure("The PDF plugin can only save highlights.") }
-        guard let path = paths[doc] else { throw PluginFailure("unknown document") }
+    /// Adds `highlights` to the file at `path` as standard highlight annotations. Writes nothing if any of them
+    /// can't be saved. Loads its own copy of the file, so it's safe off the main thread.
+    @concurrent nonisolated static func write(_ highlights: [Highlight], to path: String) async throws(PluginError) {
         let name = URL(filePath: path).lastPathComponent
-        guard let document = PDFDocument(url: URL(filePath: path)) else { throw PluginFailure("“\(name)” is no longer a readable PDF.") }
-        guard !document.isLocked else { throw PluginFailure("This PDF is password protected.") }
+        guard let document = PDFDocument(url: URL(filePath: path)) else { throw PluginError("“\(name)” is no longer a readable PDF.") }
+        guard !document.isLocked else { throw PluginError("This PDF is password protected.") }
         for highlight in highlights {
             guard (0..<document.pageCount).contains(highlight.page), let page = document.page(at: highlight.page) else {
-                throw PluginFailure("Can't save a highlight on page \(highlight.page + 1): “\(name)” has \(document.pageCount) pages.")
+                throw PluginError("Can't save a highlight on page \(highlight.page + 1): “\(name)” has \(document.pageCount) pages.")
             }
             guard highlight.isSavable(onPageWithMediaBox: page.bounds(for: .mediaBox)) else {
-                throw PluginFailure("Can't save a highlight on page \(highlight.page + 1): its position or color is invalid.")
+                throw PluginError("Can't save a highlight on page \(highlight.page + 1): its position or color is invalid.")
             }
-            let color = highlight.color
-            let annotation = PDFAnnotation(bounds: highlight.rect, forType: .highlight, withProperties: nil)
-            annotation.color = NSColor(srgbRed: color.red, green: color.green, blue: color.blue, alpha: color.alpha)
-            page.addAnnotation(annotation)
+            page.addAnnotation(annotation(for: highlight))
         }
-        guard let data = document.dataRepresentation() else { throw PluginFailure("“\(name)” couldn't be written as a PDF.") }
+        guard let data = document.dataRepresentation() else { throw PluginError("“\(name)” couldn't be written as a PDF.") }
         try FileReplacement.replaceContents(ofFileAt: path, with: data)
-        return Reply()
     }
 
-    func close(_ doc: DocumentID) {
-        paths[doc] = nil
+    nonisolated static func annotation(for highlight: Highlight) -> PDFAnnotation {
+        let annotation = PDFAnnotation(bounds: highlight.rect, forType: .highlight, withProperties: nil)
+        let color = highlight.color
+        annotation.color = NSColor(srgbRed: color.red, green: color.green, blue: color.blue, alpha: color.alpha)
+        return annotation
     }
 
-    private static func string(_ dictionary: CGPDFDictionaryRef?, _ key: String) -> String? {
+    private nonisolated static func string(_ dictionary: CGPDFDictionaryRef?, _ key: String) -> String? {
         guard let dictionary else { return nil }
         var value: CGPDFStringRef?
         guard CGPDFDictionaryGetString(dictionary, key, &value), let value else { return nil }

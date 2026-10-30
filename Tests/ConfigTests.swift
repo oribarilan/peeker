@@ -10,13 +10,18 @@ import UniformTypeIdentifiers
             open.MD = markdown   # trailing comment
             key.pdf.highlight = cmd+shift+h
             quicklook.key = opt+space
-            plugin.idle = 15
             """)
         #expect(config.disabled == ["image"])
         #expect(config.routes == ["md": "markdown"])
         #expect(config.keys["pdf.highlight"] == Shortcut(key: .character("h"), modifiers: [.command, .shift]))
         #expect(config.quickLookKey == Shortcut(key: .space, modifiers: [.option]))
-        #expect(config.pluginIdleSeconds == 15)
+    }
+
+    /// Plugins no longer run as processes, so `plugin.idle` is an unknown key: logged and skipped.
+    @Test func retiredPluginIdleKeyIsSkipped() {
+        let config = Config(parsing: "plugin.idle = 15\nopen.md = markdown")
+        #expect(config.routes == ["md": "markdown"])
+        #expect(config.unknownKeys == ["plugin.idle"])
     }
 
     @Test func noneRouteIsTheEmptyExtension() {
@@ -36,10 +41,9 @@ import UniformTypeIdentifiers
     }
 
     @Test func malformedLinesAreSkippedNotFatal() {
-        let config = Config(parsing: "open.md\nkey.pdf.save = cmd+banana\nplugin.idle = soon\nopen.md = markdown")
+        let config = Config(parsing: "open.md\nkey.pdf.save = cmd+banana\nopen.md = markdown")
         #expect(config.routes == ["md": "markdown"])
         #expect(config.keys.isEmpty)
-        #expect(config.pluginIdleSeconds == 60)
     }
 }
 

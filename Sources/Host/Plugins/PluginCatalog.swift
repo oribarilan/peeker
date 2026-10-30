@@ -1,51 +1,49 @@
 import Foundation
-import os
+import PeekerImage
+import PeekerKit
+import PeekerMarkdown
+import PeekerPDF
+import PeekerText
 import UniformTypeIdentifiers
 
-/// One plugin as the host knows it before (and without) starting it.
+/// One plugin as the host knows it before opening anything with it.
 struct PluginEntry {
-    let manifest: PluginManifest
-    /// Where plugin executables live: the app's Contents/Helpers, which code signing covers.
-    let helpers: URL
-    var id: String { manifest.id }
-    var fileTypes: [UTType] { manifest.types.map { UTType($0) ?? UTType(importedAs: $0) } }
-    var executable: URL { helpers.appending(path: manifest.executable) }
+    let id: String
+    let name: String
+    let fileTypes: [UTType]
+    let plugin: any Plugin.Type
+
+    init(_ plugin: any Plugin.Type) {
+        self.init(id: plugin.id, name: plugin.name, fileTypes: plugin.fileTypes, plugin: plugin)
+    }
+
+    /// For tests that route by made-up ids and types.
+    init(id: String, name: String, fileTypes: [UTType], plugin: any Plugin.Type) {
+        self.id = id
+        self.name = name
+        self.fileTypes = fileTypes
+        self.plugin = plugin
+    }
 }
 
-/// Every shipped plugin, the user's enable/disable and routing choices, and the plugin processes (started on demand).
+/// Every plugin built into the app, and the user's enable/disable and routing choices.
 final class PluginCatalog {
     let entries: [PluginEntry]
     private var config: Config
-    private var processes: [String: PluginProcess] = [:]
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "plugins")
 
     init(entries: [PluginEntry], config: Config) {
         self.entries = entries
         self.config = config
     }
 
-    /// Reads `Resources/Plugins/<id>/manifest.json` from the app bundle.
-    static func load(from bundle: Bundle, config: Config) -> PluginCatalog {
-        let manifests = bundle.resourceURL!.appending(path: "Plugins")
-        let helpers = bundle.bundleURL.appending(path: "Contents/Helpers")
-        let folders: [URL]
-        do { folders = try FileManager.default.contentsOfDirectory(at: manifests, includingPropertiesForKeys: nil) } catch {
-            log.error("can't list plugins in \(manifests.path, privacy: .public): \(error, privacy: .public)")
-            folders = []
-        }
-        let entries = folders.sorted { $0.lastPathComponent < $1.lastPathComponent }.compactMap { folder -> PluginEntry? in
-            do {
-                let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(contentsOf: folder.appending(path: "manifest.json")))
-                return PluginEntry(manifest: manifest, helpers: helpers)
-            } catch {
-                log.warning("skipping \(folder.lastPathComponent, privacy: .public): \(error, privacy: .public)")
-                return nil
-            }
-        }
-        return PluginCatalog(entries: entries, config: config)
+    /// The plugins built into the app.
+    static let builtIn: [any Plugin.Type] = [ImagePlugin.self, MarkdownPlugin.self, PDFPlugin.self, TextPlugin.self]
+
+    static func builtIn(config: Config) -> PluginCatalog {
+        PluginCatalog(entries: builtIn.map(PluginEntry.init), config: config)
     }
 
-    /// Applies a re-read config. Running plugin processes keep their idle timeout; new ones use the new value.
+    /// Applies a re-read config.
     func reload(config: Config) {
         self.config = config
     }
@@ -79,11 +77,9 @@ final class PluginCatalog {
         return enabled.first { $0.id == id }
     }
 
-    func process(for entry: PluginEntry) -> PluginProcess {
-        if let existing = processes[entry.id] { return existing }
-        let process = PluginProcess(entry: entry, idleSeconds: config.pluginIdleSeconds)
-        processes[entry.id] = process
-        return process
+    /// A recovery record's edits as plain text, from the plugin that wrote them; nil when they have none.
+    func recoveryText(_ record: RecoveryRecord) -> String? {
+        entries.first { $0.id == record.pluginID }?.plugin.recoveryText(from: record.editsData)
     }
 
     /// A symlink's type is `public.symlink`, so the type comes from the file it points to.

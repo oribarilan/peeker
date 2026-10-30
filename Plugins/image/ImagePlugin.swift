@@ -1,31 +1,56 @@
+import CoreGraphics
 import Foundation
 import ImageIO
+import PeekerKit
 import UniformTypeIdentifiers
 
-/// Decodes in this process and hands the host finished pixels, so a malformed image can only crash the plugin.
-final class ImagePlugin: PluginHandler {
-    func open(_ doc: DocumentID, path: String, maxPixels: Int) throws(PluginFailure) -> Reply {
-        let url = URL(filePath: path)
+public enum ImagePlugin: Plugin {
+    public static let id = "image"
+    public static let name = "Image"
+    public static let fileTypes: [UTType] = [.image]
+    /// Larger decodes would be refused by Core Animation anyway.
+    nonisolated static let maxDimension = 16_384
+
+    public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
+        let decoded = try await decode(url, maxPixels: context.maxPixels)
+        return ImageDocument(image: decoded.image, info: decoded.info)
+    }
+
+    struct Decoded: Sendable {
+        let image: CGImage
+        let info: [InfoRow]
+    }
+
+    /// Decodes the first image, upright and at most `maxPixels` on its longer side, into premultiplied sRGB, the
+    /// layout Core Animation draws without converting on the main thread.
+    @concurrent nonisolated static func decode(_ url: URL, maxPixels: Int) async throws(PluginError) -> Decoded {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
-              CGImageSourceGetCount(source) > 0 else { throw PluginFailure("This file isn't a readable image.") }
-        let maxPixels = min(maxPixels, SharedBitmap.maxDimension)
+              CGImageSourceGetCount(source) > 0 else { throw PluginError("This file isn't a readable image.") }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxPixels,
+            kCGImageSourceThumbnailMaxPixelSize: min(maxPixels, maxDimension),
             kCGImageSourceShouldCacheImmediately: true,
         ]
-        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
-            throw PluginFailure("This image couldn't be decoded.")
+        guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            throw PluginError("This image couldn't be decoded.")
         }
-        return Reply(view: .bitmap(try SharedBitmap.write(image)), sidebar: [.info(info(source, url))], commands: [
-            CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", verb: "zoom-in"),
-            CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", verb: "zoom-out"),
-            CommandSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", verb: "zoom-fit"),
-        ])
+        if Task.isCancelled { throw PluginError.cancelled }
+        return Decoded(image: try displayReady(thumbnail), info: info(source, url))
     }
 
-    private func info(_ source: CGImageSource, _ url: URL) -> [InfoRow] {
+    private nonisolated static func displayReady(_ image: CGImage) throws(PluginError) -> CGImage {
+        let info = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        guard let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: info) else {
+            throw PluginError("This image couldn't be decoded.")
+        }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        guard let converted = context.makeImage() else { throw PluginError("This image couldn't be decoded.") }
+        return converted
+    }
+
+    private nonisolated static func info(_ source: CGImageSource, _ url: URL) -> [InfoRow] {
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
         var rows: [InfoRow] = []
         if let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int {

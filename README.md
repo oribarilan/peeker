@@ -1,6 +1,6 @@
 # Peeker
 
-An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and a quick-look panel on Space. Every format is a plugin running in its own process, so a plugin that crashes or hangs can't take the app down. Plugins come from contributions to this repo; users turn them on and off and choose which file types each one opens.
+An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and a quick-look panel on Space. Every format is a plugin, a Swift module built into the app that owns its views and its file reading and writing. Plugins come from contributions to this repo; users turn them on and off and choose which file types each one opens.
 
 The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Raw research is in [research/](research).
 
@@ -14,7 +14,7 @@ The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Ra
 | PNG, 48 MP | Preview 1102 ms | 675 ms | **1.6× faster** |
 | Markdown, 1 KB | TextEdit 286 ms | 285 ms | about the same |
 
-Space in Finder shows a PDF in 14 ms and a 12 MP photo in 125 ms, with every format running in its own plugin process.
+Space in Finder shows a PDF in 14 ms and a 12 MP photo in 125 ms.
 
 Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Peeker until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
 <!-- bench:end -->
@@ -48,20 +48,18 @@ open.conf = text                     # extensions macOS has no type for (.conf) 
 open.none = text                     # same, for files with no extension (.zshrc, .env)
 key.pdf.highlight = cmd+shift+h      # rebind a plugin command
 quicklook.key = space                # bare key: only in Finder, not while typing; with modifiers: anywhere; "off"
-plugin.idle = 60                     # seconds an unused plugin process stays alive
 ```
 
 ## Plugins
 
-A plugin is an executable in `Plugins/<id>/` plus a `manifest.json` naming the file types it supports. The host starts it on the first matching file, talks newline-delimited JSON over stdin/stdout, and stops it after `plugin.idle` seconds unused. Plugins never draw: they answer with a description of what to show (a Markdown block tree, a PDF, decoded pixels, text, sidebar panels, commands), and the host renders it with native views.
-
-Messages are typed. The host sends `open`, `command` and `save`; the plugin replies with the matching result or an error. `save` carries the edited content (text, or PDF highlights) and the plugin writes the file itself, so a plugin that owns a format also owns its encoding and line endings. The protocol is documented at the top of `Sources/Shared/Protocol.swift`.
+A plugin is a Swift module in `Plugins/<id>/`. Its entry type conforms to `Plugin` in `Sources/PeekerKit/Plugin.swift`: it names the file types it supports and opens a file into a `PluginDocument`, which provides the content view, sidebar panels and commands, and handles edits, saving and reloading. Plugins read and decode off the main thread, and the plugin that owns a format writes it, so it also owns the encoding and line endings. A plugin can import only `PeekerKit`, Apple frameworks and its own packages; `scripts/build.sh test` checks that.
 
 - `Plugins/text` opens plain text, JSON, XML, YAML and TOML, plus untyped files the config routes to it (`open.conf`, `open.none`). Edits keep the file's encoding and line endings. Files over 10 MB open read-only, and files over 16 MB show only their first 16 MB (4 MB when a line is over 1 MB, which text layout handles slowly). Saving asks first if the file changed on disk or was deleted since you opened it.
-- `Plugins/pdf` saves highlights through Cmd+S.
-- `Plugins/markdown` is the fullest example of a viewer plugin.
+- `Plugins/pdf` shows pages with thumbnails and saves highlights through Cmd+S as standard annotations that Preview can read.
+- `Plugins/markdown` renders Markdown with an outline; ticking a task checkbox writes the file at once.
+- `Plugins/image` shows images fitted to the window, with zoom and the photo's details.
 
-If a plugin crashes or stops answering, the host kills it and keeps the window and any unsaved edits. Unsaved edits are also copied to `~/Library/Application Support/<bundle id>/Recovery/` two seconds after the last change. After a force quit or crash, the next launch reopens them; if the file is gone, the text goes to the clipboard.
+Unsaved edits are copied to `~/Library/Application Support/<bundle id>/Recovery/` two seconds after the last change. After a crash or force quit, the next launch reopens them; if the file is gone, the text goes to the clipboard.
 
 ## Benchmarks
 

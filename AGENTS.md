@@ -21,24 +21,24 @@ Generated files stay out of git: `build/`, `Peeker.xcodeproj/` (XcodeGen output)
 - **Keep it simple.** Write the least code that works: reuse what's here, then the standard library and Apple frameworks, then an existing dependency. If you pick a more complex path, say why.
 - **Don't repeat yourself, but don't abstract early.** Wait for the third copy before extracting.
 - **One job per file.** Most files are under 300 lines; split a file that grows past about 500.
-- **Security.** Validate everything that crosses a process or file boundary: plugin replies, shared memory files, config, the files users open. Never weaken the safe-write path in `Sources/PluginSDK/FileReplacement.swift`.
+- **Security.** Validate everything that comes from a file: config, recovery records, the files users open. Never weaken the safe-write path in `Sources/PeekerKit/FileReplacement.swift`.
 
 ## Architecture rules
 
-- **Plugins never draw.** A plugin runs as its own process (`Contents/Helpers/<id>-plugin`) and answers with a description of what to show; the host renders it with native views. A plugin crash or hang must never take the app down or lose unsaved edits.
-- **The protocol is typed.** Messages are defined in `Sources/Shared/Protocol.swift`, and the comment at its top documents them. No `[String: Any]` in protocol or plugin code.
-- **The plugin that owns a format writes it.** Saving sends the edited content to the plugin, which keeps the file's encoding, line endings and permissions.
+- **Plugins are modules.** Each plugin is a Swift module in `Plugins/<id>/`, built into the app. It owns its views and reads and writes its own files. It may import only `PeekerKit`, Apple frameworks and its declared packages, and `scripts/build.sh test` checks that. Code two plugins need goes into `PeekerKit`, never from one plugin into another.
+- **The host knows no formats.** Windows, tabs, routing, on/off toggles, the Space panel, menus, save prompts and crash recovery live in the host. Anything specific to a format lives in its plugin. The contract is `Sources/PeekerKit/Plugin.swift`.
+- **Slow work stays off the main thread.** Plugins read, decode and save off the main thread, and the host cancels an open when its tab closes. A crash in plugin code quits the app, so unsaved edits must always be in the recovery copy.
+- **The plugin that owns a format writes it.** Saving hands the plugin its own unsaved edits, and it writes the file through `FileReplacement`, keeping the encoding, line endings and permissions.
 - **Speed is a feature.** Opening must beat Preview and TextEdit head to head. The Space panel must be at least as fast as Finder's Quick Look on every file, so measure before adding work to the open path.
 
 ## Code layout
 
 ```
-Sources/Host/        the app: App/, Plugins/ (catalog, process), Documents/ (save, recovery, file watching),
-                     Components/ (native views per content type), QuickLook/ (Space panel), Bench/
-Sources/Shared/      protocol types shared by host and plugins
-Sources/PluginSDK/   plugin main loop and safe file replacement
-Plugins/<id>/        one plugin each: <Id>Plugin.swift, main.swift, manifest.json (supported file types)
-Tests/               Swift Testing suites; Tests/TestPlugin misbehaves on purpose (crash, hang, garbage)
+Sources/Host/        the app: App/, Plugins/ (catalog and routing), Documents/ (save, recovery, file watching),
+                     Components/ (sidebar and containers), QuickLook/ (Space panel), Bench/
+Sources/PeekerKit/   what plugins may use: the plugin contract, safe file writes, the info sidebar panel
+Plugins/<id>/        one plugin each: <Id>Plugin.swift (entry point and file types) and its document views
+Tests/               Swift Testing suites
 bench/, scripts/     benchmark and build scripts
 decisions/           decision records
 openspec/            specs of current behavior, changes in progress, roadmap (config.yaml), known gaps

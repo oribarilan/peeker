@@ -1,23 +1,15 @@
 import AppKit
 import Foundation
+import PeekerKit
+@testable import PeekerText
 import Testing
 
 @Suite(.serialized) struct TextSaveIntegrationTests {
-    @Test func openThroughTheRealPluginDeliversTheText() async throws {
-        let file = try TempFile.make(Data("one\ntwo\n".utf8))
-        let process = PluginProcess(entry: Self.entry, idleSeconds: 5)
-        let reply = try await process.request(.open(path: file.path, maxPixels: 0), doc: "d", timeout: PluginTimeout.open)
-        guard case .text(let shared) = reply.view else { Issue.record("not text"); return }
-        #expect(try SharedFile.withMapped(shared.file) { String(decoding: $0, as: UTF8.self) } == "one\ntwo\n")
-        #expect(shared.editable)
-    }
-
     @Test func saveWritesThroughThePluginAndClearsEditedState() async throws {
         let file = try TempFile.make(Data("a\r\nb\r\n".utf8))
         let (document, _) = await open(file)
         defer { document.close() }
-        let component = try #require(document.component)
-        component.restore(.text("x\ny\n"))
+        try Self.type("x\ny\n", in: document)
         #expect(document.isEdited)
         #expect(await document.save(prompts: StubPrompts()) == .saved)
         #expect(try Data(contentsOf: file) == Data("x\r\ny\r\n".utf8))
@@ -28,7 +20,7 @@ import Testing
         let file = try TempFile.make(Data("mine\n".utf8))
         let (document, _) = await open(file)
         defer { document.close() }
-        try #require(document.component).restore(.text("edited\n"))
+        try Self.type("edited\n", in: document)
         try Data("theirs\n".utf8).write(to: file)
         try FileManager.default.setAttributes([.modificationDate: Date.now.addingTimeInterval(10)], ofItemAtPath: file.path)
         let prompts = StubPrompts()
@@ -43,7 +35,7 @@ import Testing
         let file = try TempFile.make(Data("mine\n".utf8))
         let (document, _) = await open(file)
         defer { document.close() }
-        try #require(document.component).restore(.text("edited\n"))
+        try Self.type("edited\n", in: document)
         try FileManager.default.removeItem(at: file)
         let prompts = StubPrompts()
         prompts.recreate = false
@@ -60,42 +52,12 @@ import Testing
         let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))   // "café" in Windows-1252
         let (document, _) = await open(file)
         defer { document.close() }
-        try #require(document.component).restore(.text("🙂"))
+        try Self.type("🙂", in: document)
         let prompts = StubPrompts()
         prompts.utf8 = true
         #expect(await document.save(prompts: prompts) == .saved)
         #expect(prompts.asked == ["utf8"])
         #expect(try Data(contentsOf: file) == Data("🙂".utf8))
-    }
-
-    @Test func pluginCrashDuringSaveKeepsTheEdits() async throws {
-        // The test plugin aborts when it receives the save, so the crash lands while the save is in flight.
-        let file = try TempFile.make(Data("mine\n".utf8), name: "crash-on-save.txt")
-        let (document, _) = await open(file, entry: TestProducts.entry(id: "test", executable: "test-plugin", types: []))
-        defer { document.close() }
-        let component = try #require(document.component)
-        component.restore(.text("edited\n"))
-        let outcome = await document.save(prompts: StubPrompts())
-        guard case .failed = outcome else { Issue.record("expected a failure, got \(outcome)"); return }
-        #expect(component.pendingEdits() == .text("edited\n"))
-        #expect(document.component === component)
-        #expect(document.isEdited)
-        #expect(try Data(contentsOf: file) == Data("mine\n".utf8))
-    }
-
-    @Test func pluginCrashWithUnsavedEditsKeepsThemAndTheNextSaveWorks() async throws {
-        let file = try TempFile.make(Data("mine\n".utf8))
-        let (document, process) = await open(file)
-        defer { document.close() }
-        let component = try #require(document.component)
-        component.restore(.text("edited\n"))
-        kill(try #require(process.pid), SIGKILL)
-        try await waitUntil(seconds: 2) { !process.isRunning }   // the host has handled the crash
-        #expect(document.component === component)
-        #expect(document.isEdited)
-        #expect(await document.save(prompts: StubPrompts()) == .saved)
-        #expect(try Data(contentsOf: file) == Data("edited\n".utf8))
-        #expect(!document.isEdited)
     }
 
     @Test func reloadsWhenTheFileChangesWithoutEdits() async throws {
@@ -111,7 +73,7 @@ import Testing
         let file = try TempFile.make(Data("one\n".utf8))
         let (document, _) = await open(file)
         defer { document.close() }
-        try #require(document.component).restore(.text("mine\n"))
+        try Self.type("mine\n", in: document)
         try Data("theirs\n".utf8).write(to: file, options: .atomic)
         try await Task.sleep(for: .milliseconds(700))   // past the watcher's 200 ms coalescing and a reload
         #expect(Self.text(of: document) == "mine\n")
@@ -130,7 +92,7 @@ import Testing
         try Data("theirs\n".utf8).write(to: file)
         try FileManager.default.setAttributes([.modificationDate: Date.now.addingTimeInterval(10)], ofItemAtPath: file.path)
         document.reloadIfChangedOnDisk()
-        try #require(document.component).restore(.text("mine\n"))   // same main-actor turn: before the reply
+        try Self.type("mine\n", in: document)   // same main-actor turn: before the reply
         try await Task.sleep(for: .milliseconds(300))
         #expect(Self.text(of: document) == "mine\n")
         let prompts = StubPrompts()
@@ -144,24 +106,22 @@ import Testing
         let file = try TempFile.make(Data("one\n".utf8))
         let (document, _) = await open(file)
         defer { document.close() }
-        let component = try #require(document.component)
-        component.restore(.text("mine\n"))
+        try Self.type("mine\n", in: document)
         document.discardEdits()
         #expect(!document.isEdited)
-        #expect(component.pendingEdits() == nil)
+        #expect(Self.pending(document) == nil)
         #expect(Self.text(of: document) == "one\n")
     }
 
     @Test func viewOnlyDocumentHasNoEdits() async throws {
         let file = try TempFile.make(Data("one\n".utf8))
-        let process = PluginProcess(entry: Self.entry, idleSeconds: 5)
-        let document = DocumentViewController(url: file, entry: Self.entry, process: process, config: Config(), allowsEditing: false, recovery: nil)
+        let document = DocumentViewController(url: file, entry: Self.entry, config: Config(), allowsEditing: false, recovery: nil)
         defer { document.close() }
         document.loadViewIfNeeded()
         await document.load()
-        let text = try #require(document.component as? TextComponent)
+        let text = try #require(Self.textDocument(document))
         #expect(!text.isEditable)
-        #expect(text.pendingEdits() == nil)
+        #expect(text.unsavedEdits() == nil)
     }
 
     // MARK: Crash recovery
@@ -171,13 +131,13 @@ import Testing
         let store = Self.temporaryStore()
         let (document, _) = await open(file, recovery: store)
         defer { document.close() }
-        try #require(document.component).restore(.text("mine\n"))
+        try Self.type("mine\n", in: document)
         try await Task.sleep(for: .milliseconds(1500))
         #expect(store.all().isEmpty, "the journal waits 2 s after the last edit")
         try await Task.sleep(for: .milliseconds(1000))
         let record = try #require(store.all().first)
         #expect(store.all().count == 1)
-        #expect(record.url == file && record.pluginID == "text" && record.edits == .text("mine\n"))
+        #expect(record.url == file && record.pluginID == "text" && record.text == "mine\n")
         let modified = try #require(try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date)
         #expect(abs(try #require(record.fileModified).timeIntervalSince(modified)) < 0.001)
         #expect(await document.save(prompts: StubPrompts()) == .saved)
@@ -189,14 +149,13 @@ import Testing
         let store = Self.temporaryStore()
         let (document, _) = await open(file, recovery: store)
         defer { document.close() }
-        let component = try #require(document.component)
-        component.restore(.text("a\n"))
+        try Self.type("a\n", in: document)
         try await Task.sleep(for: .milliseconds(1500))
-        component.restore(.text("ab\n"))
+        try Self.type("ab\n", in: document)
         try await Task.sleep(for: .milliseconds(1000))
         #expect(store.all().isEmpty)
         try await waitUntil(seconds: 2) { !store.all().isEmpty }
-        #expect(store.all().map(\.edits) == [.text("ab\n")])
+        #expect(store.all().map(\.text) == ["ab\n"])
     }
 
     @Test func restoredRecordShowsItsEditsMarksEditedAndDontSaveRemovesIt() async throws {
@@ -205,7 +164,7 @@ import Testing
         let id = UUID().uuidString
         let (document, _) = await open(file, recovery: store, recoveryID: id)
         defer { document.close() }
-        let record = RecoveryRecord(id: id, url: file, pluginID: "text", fileModified: document.knownModification, edits: .text("recovered\n"))
+        let record = RecoveryRecord(id: id, url: file, pluginID: "text", fileModified: document.knownModification, text: "recovered\n")
         try store.write(record)
         document.restore(record)
         #expect(Self.text(of: document) == "recovered\n")
@@ -221,7 +180,7 @@ import Testing
         let id = UUID().uuidString
         let (document, _) = await open(file, recovery: store, recoveryID: id)
         defer { document.close() }
-        let record = RecoveryRecord(id: id, url: file, pluginID: "text", fileModified: document.knownModification, edits: .text("recovered\n"))
+        let record = RecoveryRecord(id: id, url: file, pluginID: "text", fileModified: document.knownModification, text: "recovered\n")
         try store.write(record)
         document.restore(record)
         let prompts = StubPrompts()
@@ -235,7 +194,7 @@ import Testing
     @Test func recoveredEditsForAChangedFileAskBeforeOverwriting() async throws {
         let file = try TempFile.make(Data("theirs\n".utf8))
         let store = Self.temporaryStore()
-        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: Date(timeIntervalSince1970: 1), edits: .text("mine\n"))
+        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: Date(timeIntervalSince1970: 1), text: "mine\n")
         let (document, _) = await open(file, recovery: store, recoveryID: record.id)
         defer { document.close() }
         var results: [RecoveryResult] = []
@@ -252,8 +211,7 @@ import Testing
         let file = try TempFile.make(Data("one\n".utf8))
         let store = Self.temporaryStore()
         let (document, _) = await open(file, recovery: store)
-        let component = try #require(document.component)
-        component.restore(.text("mine\n"))
+        try Self.type("mine\n", in: document)
         document.discardEdits()
         document.close()
         try await Task.sleep(for: .milliseconds(2300))
@@ -264,7 +222,7 @@ import Testing
     @Test func readOnlyDocumentRejectsRecoveredTextAndKeepsTheRecord() async throws {
         let file = try TempFile.make(Data(repeating: UInt8(ascii: "a"), count: 10 * 1_048_576 + 1))
         let store = Self.temporaryStore()
-        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: nil, edits: .text("mine\n"))
+        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: nil, text: "mine\n")
         try store.write(record)
         let (document, _) = await open(file, recovery: store, recoveryID: record.id)
         var results: [RecoveryResult] = []
@@ -280,7 +238,7 @@ import Testing
     @Test func recoveredTextMatchingTheFileRemovesTheRecord() async throws {
         let file = try TempFile.make(Data("one\n".utf8))
         let store = Self.temporaryStore()
-        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: nil, edits: .text("one\n"))
+        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: nil, text: "one\n")
         try store.write(record)
         let (document, _) = await open(file, recovery: store, recoveryID: record.id)
         defer { document.close() }
@@ -296,13 +254,12 @@ import Testing
         let file = try TempFile.make(Data("one\n".utf8))
         let modified = try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date
         let store = Self.temporaryStore()
-        let process = PluginProcess(entry: Self.entry, idleSeconds: 5)
-        let document = DocumentViewController(url: file, entry: Self.entry, process: process, config: Config(), allowsEditing: true, recovery: store)
+        let document = DocumentViewController(url: file, entry: Self.entry, config: Config(), allowsEditing: true, recovery: store)
         defer { document.close() }
         var results: [RecoveryResult] = []
         document.onRecovery = { results.append($1) }
         document.loadViewIfNeeded()
-        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: modified, edits: .text("recovered\n"))
+        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: modified, text: "recovered\n")
         document.restore(record)
         await document.load()
         #expect(Self.text(of: document) == "recovered\n")
@@ -313,10 +270,9 @@ import Testing
     @Test func closingBeforeTheRestoredFileShowsKeepsTheRecord() async throws {
         let file = try TempFile.make(Data("one\n".utf8))
         let store = Self.temporaryStore()
-        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: nil, edits: .text("recovered\n"))
+        let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: nil, text: "recovered\n")
         try store.write(record)
-        let process = PluginProcess(entry: Self.entry, idleSeconds: 5)
-        let document = DocumentViewController(url: file, entry: Self.entry, process: process, config: Config(), allowsEditing: true, recovery: store, recoveryID: record.id)
+        let document = DocumentViewController(url: file, entry: Self.entry, config: Config(), allowsEditing: true, recovery: store, recoveryID: record.id)
         document.loadViewIfNeeded()
         document.restore(record)
         document.close()
@@ -329,37 +285,47 @@ import Testing
         let id = UUID().uuidString
         let (document, _) = await open(file, recovery: store, recoveryID: id)
         defer { document.close() }
-        let component = try #require(document.component)
-        component.restore(.text("first\n"))
-        try store.write(RecoveryRecord(id: id, url: file, pluginID: "text", fileModified: nil, edits: .text("first\n")))
+        try Self.type("first\n", in: document)
+        try store.write(RecoveryRecord(id: id, url: file, pluginID: "text", fileModified: nil, text: "first\n"))
         // Runs until the save waits for the plugin, so the next edit lands while it's in flight.
         let save = Task.immediate { await document.save(prompts: StubPrompts()) }
-        component.restore(.text("second\n"))
+        try Self.type("second\n", in: document)
         #expect(await save.value == .saved)
         #expect(try Data(contentsOf: file) == Data("first\n".utf8))
         #expect(document.isEdited)
-        #expect(store.all().map(\.edits) == [.text("second\n")])
+        #expect(store.all().map(\.text) == ["second\n"])
     }
 
     private static func temporaryStore() -> RecoveryStore {
         RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))
     }
 
-    private static let entry = TestProducts.entry(id: "text", executable: "text-plugin", types: ["public.plain-text"])
+    private static let entry = PluginEntry(TextPlugin.self)
 
-    /// An editable document window's controller on `file`, loaded through the real text plugin.
-    private func open(_ file: URL, entry: PluginEntry = Self.entry, recovery: RecoveryStore? = nil, recoveryID: String = UUID().uuidString) async -> (DocumentViewController, PluginProcess) {
-        // A save to a plugin that just died writes to a closed pipe; the app ignores SIGPIPE the same way.
-        signal(SIGPIPE, SIG_IGN)
-        let process = PluginProcess(entry: entry, idleSeconds: 5)
-        let document = DocumentViewController(url: file, entry: entry, process: process, config: Config(), allowsEditing: true, recovery: recovery, recoveryID: recoveryID)
+    /// An editable document window's controller on `file`, loaded through the text plugin.
+    private func open(_ file: URL, recovery: RecoveryStore? = nil, recoveryID: String = UUID().uuidString) async -> (DocumentViewController, TextDocument?) {
+        let document = DocumentViewController(url: file, entry: Self.entry, config: Config(), allowsEditing: true, recovery: recovery, recoveryID: recoveryID)
         document.loadViewIfNeeded()
         await document.load()
-        return (document, process)
+        return (document, Self.textDocument(document))
+    }
+
+    private static func textDocument(_ document: DocumentViewController) -> TextDocument? {
+        document.pluginDocument as? TextDocument
     }
 
     private static func text(of document: DocumentViewController) -> String? {
-        ((document.component as? TextComponent)?.focusView as? NSTextView)?.string
+        textDocument(document)?.text
+    }
+
+    /// Replaces the whole text, as typing would.
+    private static func type(_ text: String, in document: DocumentViewController) throws {
+        let edits = try JSONEncoder().encode(TextEdits.text(text))
+        #expect(try #require(textDocument(document)).restore(encoded: edits))
+    }
+
+    private static func pending(_ document: DocumentViewController) -> String? {
+        (textDocument(document)?.unsavedEdits()?.value as? TextEdits)?.text
     }
 }
 
@@ -375,8 +341,8 @@ final class StubPrompts: SavePrompts {
         return overwrite
     }
 
-    func confirmSaveAsUTF8(reason: String) async -> Bool {
-        asked.append("utf8")
+    func confirm(_ offer: SaveOffer, reason: String) async -> Bool {
+        asked.append(offer.id)
         return utf8
     }
 

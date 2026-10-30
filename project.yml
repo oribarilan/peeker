@@ -22,33 +22,39 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
 targetTemplates:
-  Plugin:
-    type: tool
+  # An in-app plugin: a static framework that sees only PeekerKit. Testable, because the unit tests check plugin
+  # internals and run against the Release build.
+  ModulePlugin:
+    type: framework.static
     platform: macOS
     settings:
       base:
-        SKIP_INSTALL: YES
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_TESTABILITY: YES
+    dependencies:
+      - target: PeekerKit
 
 targets:
+  # Shared by the host and plugins: the plugin contract, safe file writes, shared sidebar views.
+  PeekerKit:
+    type: framework.static
+    platform: macOS
+    sources: [Sources/PeekerKit]
+    settings: { base: { GENERATE_INFOPLIST_FILE: YES } }
+
   Peeker:
     type: application
     platform: macOS
     sources:
       - Sources/Host
-      - Sources/Shared
-      - path: Plugins/markdown/manifest.json
-        buildPhase: { copyFiles: { destination: resources, subpath: Plugins/markdown } }
-      - path: Plugins/pdf/manifest.json
-        buildPhase: { copyFiles: { destination: resources, subpath: Plugins/pdf } }
-      - path: Plugins/image/manifest.json
-        buildPhase: { copyFiles: { destination: resources, subpath: Plugins/image } }
-      - path: Plugins/text/manifest.json
-        buildPhase: { copyFiles: { destination: resources, subpath: Plugins/text } }
     dependencies:
-      - { target: MarkdownPlugin, embed: true, codeSign: true, copy: { destination: wrapper, subpath: Contents/Helpers } }
-      - { target: PDFPlugin, embed: true, codeSign: true, copy: { destination: wrapper, subpath: Contents/Helpers } }
-      - { target: ImagePlugin, embed: true, codeSign: true, copy: { destination: wrapper, subpath: Contents/Helpers } }
-      - { target: TextPlugin, embed: true, codeSign: true, copy: { destination: wrapper, subpath: Contents/Helpers } }
+      # Static frameworks are linked into the app binary; there's nothing to embed.
+      - { target: PeekerKit, embed: false }
+      - { target: PeekerImage, embed: false }
+      - { target: PeekerMarkdown, embed: false }
+      - package: Markdown
+      - { target: PeekerPDF, embed: false }
+      - { target: PeekerText, embed: false }
     scheme:
       testTargets: [HostTests]
     info:
@@ -79,74 +85,38 @@ targets:
               public.filename-extension: [md, markdown, mdown]
               public.mime-type: [text/markdown]
 
-  MarkdownPlugin:
-    templates: [Plugin]
-    sources:
-      - path: Plugins/markdown
-        excludes: [manifest.json]
-      - Sources/Shared
-      - Sources/PluginSDK
-    settings: { base: { PRODUCT_NAME: markdown-plugin } }
+  PeekerMarkdown:
+    templates: [ModulePlugin]
+    sources: [Plugins/markdown]
     dependencies:
       - package: Markdown
 
-  PDFPlugin:
-    templates: [Plugin]
-    sources:
-      - path: Plugins/pdf
-        excludes: [manifest.json]
-      - Sources/Shared
-      - Sources/PluginSDK
-    settings: { base: { PRODUCT_NAME: pdf-plugin } }
+  PeekerPDF:
+    templates: [ModulePlugin]
+    sources: [Plugins/pdf]
 
-  ImagePlugin:
-    templates: [Plugin]
-    sources:
-      - path: Plugins/image
-        excludes: [manifest.json]
-      - Sources/Shared
-      - Sources/PluginSDK
-    settings: { base: { PRODUCT_NAME: image-plugin } }
+  PeekerImage:
+    templates: [ModulePlugin]
+    sources: [Plugins/image]
 
-  TextPlugin:
-    templates: [Plugin]
-    sources:
-      - path: Plugins/text
-        excludes: [manifest.json]
-      - Sources/Shared
-      - Sources/PluginSDK
-    settings: { base: { PRODUCT_NAME: text-plugin } }
-
-  # Misbehaves on request (crash, hang, garbage); HostTests runs it to test plugin process handling.
-  TestPlugin:
-    templates: [Plugin]
-    sources:
-      - Tests/TestPlugin
-      - Sources/Shared
-      - Sources/PluginSDK
-    settings: { base: { PRODUCT_NAME: test-plugin } }
+  PeekerText:
+    templates: [ModulePlugin]
+    sources: [Plugins/text]
 
   HostTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - path: Tests
-        excludes: [TestPlugin]
-      - Sources/Shared
       - path: Sources/Host
         excludes: [App/main.swift]
-      - path: Plugins/markdown
-        excludes: [main.swift, manifest.json]
-      - path: Plugins/text
-        excludes: [main.swift, manifest.json]
-      - path: Plugins/pdf
-        excludes: [main.swift, manifest.json]
-      - path: Sources/PluginSDK
     dependencies:
+      - target: PeekerKit
+      - target: PeekerImage
+      - target: PeekerPDF
+      - target: PeekerMarkdown
+      - target: PeekerText
       - package: Markdown
-      - { target: TestPlugin, link: false, embed: false }
-      - { target: TextPlugin, link: false, embed: false }
-      - { target: PDFPlugin, link: false, embed: false }
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

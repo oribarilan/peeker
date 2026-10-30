@@ -1,16 +1,6 @@
 import CoreText
 import Foundation
-
-/// Executables built next to the test bundle, such as `test-plugin`.
-enum TestProducts {
-    static let helpers = Bundle(for: BundleMarker.self).bundleURL.deletingLastPathComponent()
-
-    static func entry(id: String, executable: String, types: [String]) -> PluginEntry {
-        PluginEntry(manifest: PluginManifest(id: id, name: id, types: types, executable: executable), helpers: helpers)
-    }
-
-    private final class BundleMarker {}
-}
+@testable import PeekerText
 
 enum TempFile {
     /// Writes `bytes` to `name` in a fresh temporary directory.
@@ -49,4 +39,14 @@ func waitUntil(seconds: Double, _ condition: () -> Bool) async throws {
         guard ContinuousClock.now < deadline else { throw TimedOut() }
         try await Task.sleep(for: .milliseconds(20))
     }
+}
+
+/// Recovery records holding the text plugin's edits.
+extension RecoveryRecord {
+    init(id: String, url: URL, pluginID: String, fileModified: Date?, text: String) {
+        // Text always encodes, so a failure here is a broken test.
+        try! self.init(id: id, url: url, pluginID: pluginID, fileModified: fileModified, edits: JSONEncoder().encode(TextEdits.text(text)))
+    }
+
+    var text: String? { TextPlugin.recoveryText(from: editsData) }
 }

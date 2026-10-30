@@ -237,6 +237,7 @@
       </header>
       <main>
         <section class="hero" id="decision" aria-labelledby="decision-title">
+          <p class="lede" role="note"><strong>Superseded on 2026-10-30</strong> by <a href="in-app-plugins.md">In-app plugins</a>: plugins became Swift modules built into the app. This brief is kept as history.</p>
           <p class="eyebrow">Decision brief · Preview++ plugin architecture</p>
           <h1 id="decision-title">Isolate every plugin, and let a speed test pick between app extensions and processes</h1>
           <p class="lede">Prefer B, every plugin as an ExtensionKit app extension embedded in the app, <strong>if a prototype shows a PDF and a text file opening at least as fast as Preview and TextEdit</strong>. It is the only option that can meet all five Musts: plugins draw full native UI in their own process, contributors add them through the repo, and the app keeps library validation on. Its open question is speed, which nobody has measured. If B is too slow, choose A, every plugin a separate process driving the app's native views. A is fast by estimate but leaves the app's own renderers (PDFKit, the text view) inside the app, which you'd have to accept or fix by moving rendering into a separate process. C is out for core formats because text would open about 70 ms slower than TextEdit. BASE fails the Must you set that even core plugins can't crash the app.</p>

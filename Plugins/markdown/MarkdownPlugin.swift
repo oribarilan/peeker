@@ -1,36 +1,34 @@
 import Foundation
+import Markdown
+import PeekerKit
+import UniformTypeIdentifiers
 
-final class MarkdownPlugin: PluginHandler {
-    private var paths: [DocumentID: String] = [:]
+public enum MarkdownPlugin: Plugin {
+    public static let id = "markdown"
+    public static let name = "Markdown"
+    public static let fileTypes = [UTType("net.daringfireball.markdown") ?? UTType(importedAs: "net.daringfireball.markdown")]
 
-    func open(_ doc: DocumentID, path: String, maxPixels: Int) throws(PluginFailure) -> Reply {
-        paths[doc] = path
-        return try render(path)
+    public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
+        MarkdownDocument(url: url, parsed: try await parse(url))
     }
 
-    func command(_ doc: DocumentID, id: String, args: [String: Int]) throws(PluginFailure) -> Reply {
-        guard let path = paths[doc] else { throw PluginFailure("unknown document") }
-        switch id {
-        case "toggle-task":
-            guard let line = args["line"] else { throw PluginFailure("toggle-task needs a line") }
-            try MarkdownTree.toggleTask(atLine: line, inFile: path)
-            return try render(path)
-        default:
-            throw PluginFailure("unknown command \(id)")
-        }
+    struct Parsed: Sendable {
+        let blocks: [MarkdownBlock]
+        let outline: [OutlineItem]
+        let info: [InfoRow]
     }
 
-    func close(_ doc: DocumentID) {
-        paths[doc] = nil
-    }
-
-    private func render(_ path: String) throws(PluginFailure) -> Reply {
-        let source = try PluginFailure.catching { try String(contentsOfFile: path, encoding: .utf8) }
+    /// Reads and parses the file off the main thread.
+    @concurrent nonisolated static func parse(_ url: URL) async throws(PluginError) -> Parsed {
+        let source = try PluginError.catching { try String(contentsOf: url, encoding: .utf8) }
         let blocks = MarkdownTree.blocks(from: source)
         let tasks = MarkdownTree.taskCounts(in: blocks)
-        let words = source.split { $0.isWhitespace }.count
-        var info = [InfoRow(label: "Words", value: words.formatted())]
+        var info = [InfoRow(label: "Words", value: source.split { $0.isWhitespace }.count.formatted())]
         if tasks.total > 0 { info.append(InfoRow(label: "Tasks", value: "\(tasks.done) of \(tasks.total) done")) }
-        return Reply(view: .markdown(blocks), sidebar: [.outline(MarkdownTree.outline(of: blocks)), .info(info)])
+        return Parsed(blocks: blocks, outline: MarkdownTree.outline(of: blocks), info: info)
+    }
+
+    @concurrent nonisolated static func toggleTask(atLine line: Int, in url: URL) async throws(PluginError) {
+        try MarkdownTree.toggleTask(atLine: line, inFile: url.path)
     }
 }

@@ -1,1 +1,0 @@
-PluginMain.run(MarkdownPlugin())

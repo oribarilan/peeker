@@ -1,6 +1,7 @@
 import Foundation
+import PeekerKit
 
-enum LineEnding: String, Sendable {
+nonisolated enum LineEnding: String, Sendable {
     case lf = "LF", crlf = "CRLF", cr = "CR"
 
     fileprivate var bytes: [UInt8] {
@@ -13,13 +14,13 @@ enum LineEnding: String, Sendable {
 }
 
 /// How a file's text was stored, so a save can write it back the same way.
-struct TextFormat: Equatable, Sendable {
+nonisolated struct TextFormat: Equatable, Sendable {
     let encoding: String.Encoding
     let hasBOM: Bool
     let lineEnding: LineEnding
 }
 
-enum TextLimits {
+nonisolated enum TextLimits {
     /// Larger files open read-only.
     static let editableBytes = 10 * 1_048_576
     /// Larger texts show only their first part, which keeps the app's memory near 100 MB for a 90 MB log and
@@ -31,20 +32,20 @@ enum TextLimits {
     static let longLineDisplayBytes = 4 * 1_048_576
 }
 
-enum TextCodec {
-    static let notText = PluginFailure("This doesn't look like a text file.", code: .notText)
+nonisolated enum TextCodec {
+    static let notText = PluginError("This doesn't look like a text file.", code: .notText)
 
     private static let utf8BOM: [UInt8] = [0xEF, 0xBB, 0xBF]
     private static let utf16LEBOM: [UInt8] = [0xFF, 0xFE]
     private static let utf16BEBOM: [UInt8] = [0xFE, 0xFF]
 
-    static func decode(_ data: Data) throws(PluginFailure) -> (text: String, format: TextFormat) {
+    static func decode(_ data: Data) throws(PluginError) -> (text: String, format: TextFormat) {
         let (text, encoding, hasBOM) = try decodeText(data)
         return (text, TextFormat(encoding: encoding, hasBOM: hasBOM, lineEnding: breaks(in: text).dominant))
     }
 
     /// Writes every line break as the format's ending. Throws `.cannotEncode` rather than substituting characters.
-    static func encode(_ text: String, as format: TextFormat) throws(PluginFailure) -> Data {
+    static func encode(_ text: String, as format: TextFormat) throws(PluginError) -> Data {
         let normalized = normalizingBreaks(text, to: format.lineEnding)
         var data = Data()
         if format.hasBOM { data.append(contentsOf: bom(for: format.encoding)) }
@@ -52,7 +53,7 @@ enum TextCodec {
             data.append(contentsOf: normalized)
         } else {
             guard let encoded = String(decoding: normalized, as: UTF8.self).data(using: format.encoding, allowLossyConversion: false) else {
-                throw PluginFailure("Some characters can't be represented in \(String.localizedName(of: format.encoding)).", code: .cannotEncode)
+                throw PluginError("Some characters can't be represented in \(String.localizedName(of: format.encoding)).", code: .cannotEncode)
             }
             data.append(encoded)
         }
@@ -65,7 +66,7 @@ enum TextCodec {
         return counts.crlf + counts.lf + counts.cr + (counts.endsWithBreak || text.isEmpty ? 0 : 1)
     }
 
-    private static func decodeText(_ data: Data) throws(PluginFailure) -> (String, String.Encoding, hasBOM: Bool) {
+    private static func decodeText(_ data: Data) throws(PluginError) -> (String, String.Encoding, hasBOM: Bool) {
         if data.starts(with: utf8BOM) {
             guard let text = String(validating: data.dropFirst(utf8BOM.count), as: UTF8.self) else { throw notText }
             return (text, .utf8, true)

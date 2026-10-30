@@ -1,10 +1,22 @@
 import AppKit
+import PeekerKit
 import Testing
 import UniformTypeIdentifiers
 
+/// Stands in for every routed plugin; routing never opens anything.
+private enum RoutedPlugin: Plugin {
+    static let id = "routed"
+    static let name = "Routed"
+    static let fileTypes: [UTType] = []
+
+    static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
+        throw PluginError("not used")
+    }
+}
+
 @Suite struct Routing {
     private func entry(_ id: String, _ types: [String]) -> PluginEntry {
-        PluginEntry(manifest: PluginManifest(id: id, name: id, types: types, executable: id), helpers: URL(filePath: "/tmp"))
+        PluginEntry(id: id, name: id, fileTypes: types.map { UTType($0) ?? UTType(importedAs: $0) }, plugin: RoutedPlugin.self)
     }
 
     private func catalog(_ configText: String) -> PluginCatalog {

@@ -1,4 +1,5 @@
 import AppKit
+import PeekerKit
 
 /// A document window (tabbed). Owns the chrome: "Open With" and the plugin's commands in the toolbar, and the save
 /// prompts as sheets.
@@ -39,7 +40,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     /// Opens the file with `entry`. With a recovery record, its edits are applied once the file is showing.
     func show(with entry: PluginEntry, restoring record: RecoveryRecord? = nil) {
         current?.close()
-        let document = DocumentViewController(url: url, entry: entry, process: catalog.process(for: entry), config: config,
+        let document = DocumentViewController(url: url, entry: entry, config: config,
                                               allowsEditing: allowsEditing, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString)
         document.onCommandsChanged = { [weak self] _ in
             self?.rebuildToolbar()
@@ -49,7 +50,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         // Before loading, so closing the window while the file opens keeps the record for the next launch.
         if let record { document.restore(record) }
         self.current = document
-        window?.subtitle = entry.manifest.name
+        window?.subtitle = entry.name
         if let window {
             let frame = window.frame
             window.contentViewController = document
@@ -70,14 +71,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         case .restored(fileChangedSince: true):
             message = "“\(name)” changed on disk after these edits were made. Saving will replace the newer version."
         case .rejected(let record):
-            switch record.edits {
-            case .text:
+            if catalog.recoveryText(record) != nil {
                 // The record stays when the clipboard refuses the text; the clipboard logs it.
                 guard recoveryClipboard?.add([record]) == true else { return }
                 message = "“\(name)” can't be edited in this view, so your unsaved text was copied to the clipboard."
-            case .pdfHighlights:
-                // The record stays, so the highlights come back when the file opens where they can be shown.
-                message = "“\(name)” can't take back its unsaved highlights in this view."
+            } else {
+                // The record stays, so the changes come back when the file opens where they can be shown.
+                message = "“\(name)” can't take back its unsaved changes in this view."
             }
         }
         Task {
@@ -163,8 +163,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         await confirm("“\(name)” no longer exists on disk.", "Saving will create it again.", button: "Save")
     }
 
-    func confirmSaveAsUTF8(reason: String) async -> Bool {
-        await confirm(reason, "Some characters can't be represented in the file's encoding.", button: "Save as UTF-8")
+    func confirm(_ offer: SaveOffer, reason: String) async -> Bool {
+        await confirm(reason, offer.detail, button: offer.button)
     }
 
     private func confirm(_ message: String, _ detail: String, button: String) async -> Bool {
@@ -218,7 +218,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         if identifier == Self.openWith {
             let popup = NSPopUpButton(frame: .zero, pullsDown: false)
             let candidates = catalog.candidates(for: url)
-            popup.addItems(withTitles: candidates.map(\.manifest.name))
+            popup.addItems(withTitles: candidates.map(\.name))
             if let index = candidates.firstIndex(where: { $0.id == current?.entry.id }) { popup.selectItem(at: index) }
             popup.target = self
             popup.action = #selector(reopenWith(_:))

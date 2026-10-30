@@ -1,5 +1,6 @@
 import AppKit
 import os
+import PeekerKit
 
 /// What became of recovered edits once the document had content to apply them to.
 enum RecoveryResult: Equatable {
@@ -13,17 +14,17 @@ enum RecoveryResult: Equatable {
 final class DocumentViewController: NSSplitViewController {
     let url: URL
     let entry: PluginEntry
-    private let process: PluginProcess
     private let config: Config
-    private let docID = UUID().uuidString
     private let content = HolderViewController()
     private var sidebarItem: NSSplitViewItem?
-    /// Panels from the first reply, installed after the content is on screen so they don't delay it.
-    private var pendingSidebar: [Panel]?
+    /// A document just opened: its sidebar is built after the content is on screen, so it doesn't delay it.
+    private var sidebarPending = false
     /// Document windows edit; the quick-look panel and the benchmark only view.
     private let allowsEditing: Bool
-    /// Readable so tests can drive edits.
-    private(set) var component: Component?
+    /// The open in progress, cancelled when the document closes.
+    private var openTask: Task<Void, Never>?
+    /// What the plugin opened; nil while opening and after a failure. Readable so tests can drive edits.
+    private(set) var pluginDocument: (any PluginDocument)?
     private(set) var isEdited = false {
         didSet {
             guard isEdited != oldValue else { return }
@@ -32,13 +33,13 @@ final class DocumentViewController: NSSplitViewController {
         }
     }
     private(set) var isSaving = false
+    /// The save in progress; a second save waits for it instead of writing at the same time.
+    private var runningSave: Task<SaveOutcome, Never>?
     /// Counts edits, so a save can tell whether the user typed while it was in flight.
     private var editCount = 0
     /// The file's modification date when it was last loaded or saved here (for recovered edits, when they were made).
     /// A different date means someone else wrote it.
     private(set) var knownModification: Date?
-    /// The plugin lost this document (it crashed while there were edits), so a save must open it there again first.
-    private var pluginNeedsReopen = false
     private var watcher: FileWatcher?
     /// Where unsaved edits are journaled for crash recovery; nil for view-only documents.
     private var recovery: RecoveryStore?
@@ -48,26 +49,24 @@ final class DocumentViewController: NSSplitViewController {
     private var unappliedRecord: RecoveryRecord?
     private static let journalDelay = 2.0
     private var opened = ContinuousClock.now
-    private var pluginWasRunning = false
     private var isReady = false
     private var isClosed = false
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "documents")
-    /// Time from `load()` until the plugin's reply arrived, before the host drew anything.
-    private(set) var replyDuration: Duration = .zero
+    /// Time from `load()` until the plugin finished opening, before anything was drawn.
+    private(set) var openDuration: Duration = .zero
     /// The plugin's commands, each with its shortcut after config overrides.
     private(set) var commands: [(spec: CommandSpec, shortcut: Shortcut?)] = []
 
-    /// First content on screen: time since `load()`, and whether the plugin process was already running.
-    var onReady: ((DocumentViewController, Duration, Bool) -> Void)?
+    /// First content on screen, with the time since `load()`.
+    var onReady: ((DocumentViewController, Duration) -> Void)?
     var onFailure: ((DocumentViewController, String) -> Void)?
     var onCommandsChanged: ((DocumentViewController) -> Void)?
     var onEditedChanged: ((DocumentViewController) -> Void)?
     var onRecovery: ((DocumentViewController, RecoveryResult) -> Void)?
 
-    init(url: URL, entry: PluginEntry, process: PluginProcess, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString) {
+    init(url: URL, entry: PluginEntry, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString) {
         self.url = url
         self.entry = entry
-        self.process = process
         self.config = config
         self.allowsEditing = allowsEditing
         self.recovery = recovery
@@ -88,29 +87,40 @@ final class DocumentViewController: NSSplitViewController {
         return Int(screens.max() ?? 2048)
     }
 
-    /// Opens the file in the plugin. Returns once the content or the failure view is showing.
+    /// Opens the file with the plugin. Returns once the content or the failure view is showing; a document closed
+    /// meanwhile gets nothing.
     func load() async {
         opened = .now
         isReady = false
-        pluginWasRunning = process.isRunning
-        knownModification = Self.modificationDate(of: url)
-        process.attach(docID) { [weak self] message in self?.fail(message) }
-        // Applied in the reply callback rather than after an await, so the content is drawn without waiting a turn.
-        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
-            process.send(.open(path: url.path, maxPixels: Self.maxPixels), doc: docID, timeout: PluginTimeout.open) { [self] result in
-                replyDuration = .now - opened
-                handle(result)
-                done.resume()
+        openTask?.cancel()
+        let plugin = entry.plugin, url = url
+        let context = OpenContext(maxPixels: Self.maxPixels, allowsEditing: allowsEditing)
+        // The result is shown inside the task, in the same main-actor turn the plugin returns in. Awaiting the task
+        // and showing afterwards would take one more turn, which can land after a display pass and delay first paint.
+        let task = Task.immediate { [weak self] in
+            let result: Result<any PluginDocument, PluginError>
+            do throws(PluginError) {
+                result = .success(try await plugin.open(url, context: context))
+            } catch {
+                result = .failure(error)
+            }
+            guard let self, !isClosed, !Task.isCancelled else { return }
+            openTask = nil
+            openDuration = .now - opened
+            switch result {
+            case .success(let document):
+                knownModification = Self.modificationDate(of: url)
+                show(document)
+            case .failure(let error):
+                fail(error.message)
             }
         }
+        openTask = task
+        await task.value
     }
 
     func run(_ spec: CommandSpec) {
-        if let verb = spec.verb {
-            if component?.perform(verb) != true { NSSound.beep() }
-            return
-        }
-        send(command: spec.id, args: [:])
+        if pluginDocument?.perform(spec.id) != true { NSSound.beep() }
     }
 
     /// Without edits the recovery record goes; with edits (closed without the prompt) or recovered edits still waiting
@@ -120,14 +130,28 @@ final class DocumentViewController: NSSplitViewController {
         isClosed = true
         watcher?.stop()
         watcher = nil
-        process.notifyClose(docID)
-        process.detach(docID)
+        openTask?.cancel()
+        openTask = nil
     }
 
-    /// Sends the pending edits to the plugin, which writes the file. On anything but `.saved` the edits stay pending.
+    /// Has the plugin write the pending edits. On anything but `.saved` the edits stay pending. While a save is
+    /// running, a second one waits for it and then saves whatever changed since.
     func save(prompts: any SavePrompts) async -> SaveOutcome {
-        guard !isSaving else { return .cancelled }
-        guard let component, let edits = component.pendingEdits() else {
+        while let running = runningSave {
+            let outcome = await running.value
+            if runningSave == running { runningSave = nil }
+            guard outcome == .saved else { return outcome }
+        }
+        // Immediate, so the edits are captured now: anything typed after this call stays pending.
+        let task = Task.immediate { await performSave(prompts: prompts) }
+        runningSave = task
+        let outcome = await task.value
+        if runningSave == task { runningSave = nil }
+        return outcome
+    }
+
+    private func performSave(prompts: any SavePrompts) async -> SaveOutcome {
+        guard let document = pluginDocument, let edits = document.unsavedEdits() else {
             // Edited, then changed back: nothing differs from what was loaded.
             isEdited = false
             journal()
@@ -145,33 +169,27 @@ final class DocumentViewController: NSSplitViewController {
             break
         }
         let editsAtSave = editCount
-        do throws(PluginFailure) {
-            // Not running means it crashed since the open: attached documents keep a healthy plugin alive.
-            if pluginNeedsReopen || !process.isRunning { try await reopenInPlugin() }
-            let reply: Reply
+        do throws(PluginError) {
             do {
-                reply = try await requestSave(edits, convertToUTF8: false)
-            } catch where error.code == .cannotEncode {
-                guard await prompts.confirmSaveAsUTF8(reason: error.message) else { return .cancelled }
-                reply = try await requestSave(edits, convertToUTF8: true)
+                try await document.save(edits, accepting: nil)
+            } catch let error where error.offer != nil {
+                guard let offer = error.offer, await prompts.confirm(offer, reason: error.message) else { return .cancelled }
+                try await document.save(edits, accepting: offer)
             }
-            component.didSave(edits)
-            knownModification = Self.modificationDate(of: url)
-            isEdited = editCount != editsAtSave
-            journal()  // removes the record, or keeps only edits made during the save
-            if let panels = reply.sidebar, !isClosed { installSidebar(panels) }
-            return .saved
         } catch {
-            // The plugin may have lost the document's state (a crash or timeout); opening it again is cheap.
-            pluginNeedsReopen = true
             Self.log.error("\(self.entry.id, privacy: .public): saving \(self.url.lastPathComponent, privacy: .private) failed: \(error.message, privacy: .private)")
             return .failed(error.message)
         }
+        knownModification = Self.modificationDate(of: url)
+        isEdited = editCount != editsAtSave
+        journal()  // removes the record, or keeps only edits made during the save
+        if !isClosed { installSidebar(document.sidebar) }
+        return .saved
     }
 
-    /// "Don't Save": goes back to the text as last loaded or saved.
+    /// "Don't Save": goes back to the file as last loaded or saved.
     func discardEdits() {
-        component?.revertEdits()
+        pluginDocument?.revertEdits()
         isEdited = false
         journal()
         reloadIfChangedOnDisk()
@@ -186,17 +204,17 @@ final class DocumentViewController: NSSplitViewController {
     }
 
     private func applyRecoveredEdits() {
-        guard let record = unappliedRecord, let component, !isClosed else { return }
+        guard let record = unappliedRecord, let document = pluginDocument, !isClosed else { return }
         unappliedRecord = nil
-        component.restore(record.edits)
-        if component.pendingEdits() != nil {
+        let accepted = document.restore(encoded: record.editsData)
+        if document.unsavedEdits() != nil {
             let changedSince = knownModification != record.fileModified
             // Saving then asks before replacing a file that changed since the edits were made.
             knownModification = record.fileModified
             didEdit()
             onRecovery?(self, .restored(fileChangedSince: changedSince))
-        } else if (component as? TextComponent)?.isEditable == true {
-            // An editable text view reports no edits only when the recovered text matches the file.
+        } else if accepted {
+            // Taken, yet nothing differs: the recovered edits match the file.
             isEdited = false
             journal()
         } else {
@@ -210,11 +228,11 @@ final class DocumentViewController: NSSplitViewController {
         pendingJournal?.cancel()
         pendingJournal = nil
         guard let recovery else { return }
-        guard isEdited, let edits = component?.pendingEdits() else {
+        guard isEdited, let edits = pluginDocument?.unsavedEdits() else {
             recovery.remove(id: recoveryID)
             return
         }
-        recovery.writeInBackground(RecoveryRecord(id: recoveryID, url: url, pluginID: entry.id, fileModified: knownModification, edits: edits))
+        recovery.writeInBackground(id: recoveryID, url: url, pluginID: entry.id, fileModified: knownModification, edits: edits)
     }
 
     /// Journals `journalDelay` after the last edit; each edit restarts the delay.
@@ -224,28 +242,6 @@ final class DocumentViewController: NSSplitViewController {
         let work = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.journal() } }
         pendingJournal = work
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.journalDelay, execute: work)
-    }
-
-    private func requestSave(_ edits: Edits, convertToUTF8: Bool) async throws(PluginFailure) -> Reply {
-        let payload: SavePayload
-        switch edits {
-        case .text(let text): payload = .text(try SharedFile.create(Data(text.utf8)), convertToUTF8: convertToUTF8)
-        case .pdfHighlights(let highlights): payload = .pdfHighlights(highlights)
-        }
-        do {
-            return try await process.request(.save(payload), doc: docID, timeout: PluginTimeout.save)
-        } catch {
-            // The plugin unlinks the file once it maps it; if it never got that far, the file is still there.
-            if case .text(let ref, _) = payload { SharedFile.discard(ref) }
-            throw error
-        }
-    }
-
-    /// Opens the file in the plugin again without touching what's on screen, so it has the state a save needs.
-    private func reopenInPlugin() async throws(PluginFailure) {
-        let reply = try await process.request(.open(path: url.path, maxPixels: Self.maxPixels), doc: docID, timeout: PluginTimeout.open)
-        reply.view?.sharedFile.map(SharedFile.discard)
-        pluginNeedsReopen = false
     }
 
     private func didEdit() {
@@ -260,14 +256,22 @@ final class DocumentViewController: NSSplitViewController {
         guard !isEdited, !isSaving, !isClosed, isReady else { return }
         let modified = Self.modificationDate(of: url)
         guard modified != knownModification else { return }
-        process.send(.open(path: url.path, maxPixels: Self.maxPixels), doc: docID, timeout: PluginTimeout.open) { [weak self] result in
-            // Edits that started while the reload was in flight win. The known date stays old, so saving still asks.
-            guard let self, !isEdited else {
-                if case .success(let reply) = result { reply.view?.sharedFile.map(SharedFile.discard) }
-                return
-            }
-            if case .success = result { knownModification = modified }
-            handle(result)
+        Task.immediate { await reload(modified: modified) }
+    }
+
+    /// Has the document re-read its file in place, or opens the file again when it can't.
+    private func reload(modified: Date?) async {
+        guard let document = pluginDocument else { return await load() }
+        do throws(PluginError) {
+            let reloaded = try await document.reload()
+            // Edits made while the reload ran win; the known date stays old, so saving still asks.
+            guard !isClosed, pluginDocument === document, !isEdited else { return }
+            guard reloaded else { return await load() }
+            knownModification = modified
+            installSidebar(document.sidebar)
+        } catch {
+            guard !isClosed, pluginDocument === document else { return }
+            fail(error.message)
         }
     }
 
@@ -279,100 +283,28 @@ final class DocumentViewController: NSSplitViewController {
         return Date(timeIntervalSince1970: TimeInterval(time.tv_sec) + TimeInterval(time.tv_nsec) / 1_000_000_000)
     }
 
-    private func send(command: String, args: [String: Int]) {
-        Task {
-            do throws(PluginFailure) {
-                handle(.success(try await process.request(.command(id: command, args: args), doc: docID, timeout: PluginTimeout.command)))
-            } catch {
-                handle(.failure(error))
-            }
-        }
-    }
-
-    private func handle(_ result: Result<Reply, PluginFailure>) {
-        guard !isClosed else {
-            if case .success(let reply) = result { reply.view?.sharedFile.map(SharedFile.discard) }
-            return
-        }
-        switch result {
-        case .failure(let failure): fail(failure.message)
-        case .success(let reply): apply(reply)
-        }
-    }
-
-    private func apply(_ reply: Reply) {
-        do {
-            if let view = reply.view {
-                // A reply that arrives after the user started editing must not replace the edits, nor its sidebar.
-                guard !isEdited else {
-                    view.sharedFile.map(SharedFile.discard)
-                    return
-                }
-                try install(view)
-            }
-        } catch {
-            reply.view?.sharedFile.map(SharedFile.discard)
-            Self.log.error("\(self.entry.id, privacy: .public): can't show view: \(error, privacy: .public)")
-            fail("The \(entry.manifest.name) plugin sent something the app can't show.")
-            return
-        }
-        if let panels = reply.sidebar {
-            if isReady { installSidebar(panels) } else { pendingSidebar = panels }
-        }
-        if let specs = reply.commands, specs != commands.map(\.spec) {
-            commands = specs.map { ($0, config.keys["\(entry.id).\($0.id)"] ?? $0.shortcut.flatMap(Shortcut.init(parsing:))) }
-            onCommandsChanged?(self)
-        }
+    private func show(_ document: any PluginDocument) {
+        pluginDocument = document
+        document.onEdit = { [weak self] in self?.didEdit() }
+        content.show(document.contentView)
+        if let focus = document.focusView { view.window?.makeFirstResponder(focus) }
+        if isReady { installSidebar(document.sidebar) } else { sidebarPending = true }
+        setCommands(document.commands)
         markReady()
         applyRecoveredEdits()
     }
 
-    private func install(_ view: View) throws {
-        switch view {
-        case .markdown(let blocks):
-            if let markdown = component as? MarkdownComponent {
-                markdown.update(blocks: blocks)
-                return
-            }
-            let markdown = MarkdownComponent(blocks: blocks)
-            markdown.onToggleTask = { [weak self] line in self?.send(command: "toggle-task", args: ["line": line]) }
-            setComponent(markdown)
-        case .pdf(let path):
-            // A plugin may only point the host at the file it was asked to open.
-            guard URL(filePath: path).standardizedFileURL == url.standardizedFileURL else { throw CocoaError(.fileReadNoPermission) }
-            setComponent(try PDFComponent(url: url))
-        case .bitmap(let bitmap):
-            setComponent(try BitmapComponent(bitmap: bitmap))
-        case .text(let shared):
-            let text = try SharedFile.withMapped(shared.file) { String(decoding: $0, as: UTF8.self) }
-            let editable = allowsEditing && shared.editable
-            let current = component as? TextComponent
-            // A new view only when a reload crosses a size limit (editability or the note bar comes or goes);
-            // a growing log's note just changes its size.
-            if let current, current.isEditable == editable, (current.note == nil) == (shared.note == nil) {
-                current.update(text: text)
-                if let note = shared.note { current.setNote(note) }
-                return
-            }
-            let replacement = TextComponent(text: text, editable: editable, note: shared.note)
-            setComponent(replacement)
-            if let current { replacement.takeViewState(from: current) }
-        }
+    private func setCommands(_ specs: [CommandSpec]) {
+        guard specs != commands.map(\.spec) else { return }
+        commands = specs.map { ($0, config.keys["\(entry.id).\($0.id)"] ?? $0.shortcut.flatMap(Shortcut.init(parsing:))) }
+        onCommandsChanged?(self)
     }
 
-    private func setComponent(_ new: Component) {
-        component = new
-        new.onEdit = { [weak self] in self?.didEdit() }
-        content.show(new.view)
-        if let focus = new.focusView { view.window?.makeFirstResponder(focus) }
-    }
-
-    private func installSidebar(_ panels: [Panel]) {
-        pendingSidebar = nil
+    private func installSidebar(_ panels: [SidebarPanel]) {
+        sidebarPending = false
         if let sidebarItem { removeSplitViewItem(sidebarItem) }
         sidebarItem = nil
-        let onAnchor: (Int) -> Void = { [weak self] line in (self?.component as? MarkdownComponent)?.scroll(toLine: line) }
-        guard let view = Sidebar.make(panels, component: component, onAnchor: onAnchor) else { return }
+        guard let view = Sidebar.make(panels) else { return }
         let holder = HolderViewController()
         holder.loadViewIfNeeded()
         holder.show(view)
@@ -390,12 +322,13 @@ final class DocumentViewController: NSSplitViewController {
         isReady = true
         view.window?.displayIfNeeded()
         DispatchQueue.main.async {
-            self.onReady?(self, .now - self.opened, self.pluginWasRunning)
+            self.onReady?(self, .now - self.opened)
             self.startWatching()  // after the timing: watching isn't part of showing the file
+            self.reloadIfChangedOnDisk()  // a change made before the watcher started
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak self] in
-            guard let self, !isClosed, let panels = pendingSidebar else { return }
-            installSidebar(panels)
+            guard let self, !isClosed, sidebarPending, let document = pluginDocument else { return }
+            installSidebar(document.sidebar)
         }
     }
 
@@ -405,14 +338,13 @@ final class DocumentViewController: NSSplitViewController {
     }
 
     private func fail(_ message: String) {
-        if isEdited, component != nil {
-            // The edits stay on screen so they can still be saved; the plugin no longer knows this document.
-            pluginNeedsReopen = true
+        if isEdited, pluginDocument != nil {
+            // A reload failed, but the edits on screen can still be saved.
             Self.log.error("\(self.entry.id, privacy: .public): \(self.url.lastPathComponent, privacy: .private): \(message, privacy: .private); keeping unsaved edits")
             return
         }
-        component = nil
-        pendingSidebar = nil
+        pluginDocument = nil
+        sidebarPending = false
         let label = NSTextField(wrappingLabelWithString: message)
         label.alignment = .center
         label.textColor = .secondaryLabelColor
@@ -435,7 +367,6 @@ final class DocumentViewController: NSSplitViewController {
     }
 
     @objc private func reopen() {
-        process.detach(docID)
         Task.immediate { await load() }
     }
 }

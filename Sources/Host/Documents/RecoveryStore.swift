@@ -1,14 +1,69 @@
 import Foundation
 import os
+import PeekerKit
 
 /// A document's unsaved edits, journaled so they survive a crash of the app. `fileModified` is the file's date when
-/// the edits were made, so a relaunch can tell whether someone changed the file since.
+/// the edits were made, so a relaunch can tell whether someone changed the file since. The edits are the plugin's own
+/// JSON, kept as JSON inside the record (not as an opaque string), so records written before plugins moved into the
+/// app read the same way.
 nonisolated struct RecoveryRecord: Codable, Equatable, Sendable {
     let id: String
     let url: URL
     let pluginID: String
     let fileModified: Date?
-    let edits: Edits
+    private let editsJSON: JSONValue
+
+    private enum CodingKeys: String, CodingKey {
+        case id, url, pluginID, fileModified
+        case editsJSON = "edits"
+    }
+
+    /// Fails when `edits` isn't JSON.
+    init(id: String, url: URL, pluginID: String, fileModified: Date?, edits: Data) throws {
+        self.id = id
+        self.url = url
+        self.pluginID = pluginID
+        self.fileModified = fileModified
+        editsJSON = try JSONDecoder().decode(JSONValue.self, from: edits)
+    }
+
+    /// The plugin's encoded edits, for it to restore.
+    var editsData: Data {
+        // Can't fail: a decoded JSONValue holds only finite numbers, which is the only thing JSONEncoder refuses.
+        (try? JSONEncoder().encode(editsJSON)) ?? Data()
+    }
+}
+
+/// Any JSON value, decoded without knowing its shape.
+nonisolated enum JSONValue: Codable, Equatable, Sendable {
+    case null
+    case bool(Bool)
+    case number(Double)
+    case string(String)
+    case array([JSONValue])
+    case object([String: JSONValue])
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() { self = .null }
+        else if let value = try? container.decode(Bool.self) { self = .bool(value) }
+        else if let value = try? container.decode(Double.self) { self = .number(value) }
+        else if let value = try? container.decode(String.self) { self = .string(value) }
+        else if let value = try? container.decode([JSONValue].self) { self = .array(value) }
+        else { self = .object(try container.decode([String: JSONValue].self)) }
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .null: try container.encodeNil()
+        case .bool(let value): try container.encode(value)
+        case .number(let value): try container.encode(value)
+        case .string(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .object(let value): try container.encode(value)
+        }
+    }
 }
 
 /// Recovery records, one JSON file `<id>.json` each, in a directory only the user can read (records hold private
@@ -36,6 +91,18 @@ nonisolated final class RecoveryStore: Sendable {
         queue.async { [self] in
             do { try writeNow(record) } catch {
                 Self.log.error("can't write recovery record \(record.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    /// Encodes `edits` and writes their record on the store's queue, so neither runs on the main thread. A failure goes
+    /// to the log.
+    func writeInBackground(id: String, url: URL, pluginID: String, fileModified: Date?, edits: UnsavedEdits) {
+        queue.async { [self] in
+            do {
+                try writeNow(try RecoveryRecord(id: id, url: url, pluginID: pluginID, fileModified: fileModified, edits: edits.encoded()))
+            } catch {
+                Self.log.error("can't write recovery record \(id, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
     }

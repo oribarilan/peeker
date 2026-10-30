@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
-    private lazy var catalog = PluginCatalog.load(from: .main, config: config)
+    private lazy var catalog = PluginCatalog.builtIn(config: config)
     private var windows: [DocumentWindowController] = []
     private lazy var panel: QuickLookPanel = {
         let panel = QuickLookPanel()
@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var benchStarted = false
     private var recoveryRestored = false
     /// One for the whole app, so recovered texts that land on the clipboard during a launch don't replace each other.
-    private lazy var recoveryClipboard = RecoveryClipboard(pasteboard: .general, store: .shared)
+    private lazy var recoveryClipboard = RecoveryClipboard(pasteboard: .general, store: .shared) { [weak self] in self?.catalog.recoveryText($0) }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         let menu = MainMenu.make(target: self)
@@ -161,7 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func showInPanel(_ url: URL, entry: PluginEntry) {
-        let document = DocumentViewController(url: url, entry: entry, process: catalog.process(for: entry), config: config, allowsEditing: false, recovery: nil)
+        let document = DocumentViewController(url: url, entry: entry, config: config, allowsEditing: false, recovery: nil)
         panel.show(document)
     }
 
@@ -228,14 +228,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             // Without its file or an enabled plugin for it, the record can't go back into a window; kept, it would
             // come back every launch.
             let name = "“\(record.url.lastPathComponent)”"
-            switch record.edits {
-            case .text:
+            if catalog.recoveryText(record) != nil {
                 if exists { unopenableText.append(record) } else { missingText.append(record) }
-            case .pdfHighlights:
+            } else {
                 store.remove(id: record.id)
                 let alert = NSAlert()
-                alert.messageText = exists ? "No enabled plugin opens \(name). Its unsaved highlights couldn't be restored."
-                                           : "\(name) no longer exists. Its unsaved highlights couldn't be restored."
+                alert.messageText = exists ? "No enabled plugin opens \(name). Its unsaved changes couldn't be restored."
+                                           : "\(name) no longer exists. Its unsaved changes couldn't be restored."
                 alert.runModal()
             }
         }

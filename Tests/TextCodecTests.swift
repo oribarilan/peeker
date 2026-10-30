@@ -1,4 +1,6 @@
 import Foundation
+import PeekerKit
+@testable import PeekerText
 import Testing
 
 @Suite struct TextCodecTests {
@@ -25,7 +27,7 @@ import Testing
     }
 
     @Test func nulBytesMeanNotText() {
-        #expect(throws: PluginFailure("This doesn't look like a text file.", code: .notText)) { try TextCodec.decode(Data([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00])) }
+        #expect(throws: PluginError("This doesn't look like a text file.", code: .notText)) { try TextCodec.decode(Data([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00])) }
     }
 
     @Test func uniformFilesRoundTripByteForByte() throws {
@@ -49,7 +51,7 @@ import Testing
 
     @Test func unrepresentableCharactersThrowCannotEncode() {
         let format = TextFormat(encoding: .windowsCP1252, hasBOM: false, lineEnding: .lf)
-        let error = #expect(throws: PluginFailure.self) { try TextCodec.encode("smile 🙂", as: format) }
+        let error = #expect(throws: PluginError.self) { try TextCodec.encode("smile 🙂", as: format) }
         #expect(error?.code == .cannotEncode)
     }
 }

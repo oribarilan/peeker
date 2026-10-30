@@ -6,20 +6,22 @@ import os
 final class RecoveryClipboard {
     private let pasteboard: NSPasteboard
     private let store: RecoveryStore
+    /// A record's edits as plain text, from its plugin; nil when they have none.
+    private let text: (RecoveryRecord) -> String?
     private var entries: [(path: String, text: String)] = []
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "recovery")
 
-    init(pasteboard: NSPasteboard, store: RecoveryStore) {
+    init(pasteboard: NSPasteboard, store: RecoveryStore, text: @escaping (RecoveryRecord) -> String?) {
         self.pasteboard = pasteboard
         self.store = store
+        self.text = text
     }
 
-    /// Adds the text records' text and writes everything collected so far in one write, each text under its file's path
+    /// Adds the text of records that have one and writes everything collected so far in one write, each text under its file's path
     /// when there are several. The records are removed only once the write succeeded; false when it didn't.
     func add(_ records: [RecoveryRecord]) -> Bool {
         let added = records.compactMap { record -> (id: String, path: String, text: String)? in
-            guard case .text(let text) = record.edits else { return nil }
-            return (record.id, record.url.path, text)
+            text(record).map { (record.id, record.url.path, $0) }
         }
         guard !added.isEmpty else { return true }
         let all = entries + added.map { ($0.path, $0.text) }

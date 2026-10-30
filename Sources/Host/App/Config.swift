@@ -10,7 +10,6 @@ import os
 ///     open.none = text                # same, for files with no extension (.zshrc, .env)
 ///     key.pdf.highlight = cmd+shift+h # rebind a plugin command
 ///     quicklook.key = space           # bare key: Finder only, not while typing; with modifiers: anywhere; "off" to disable
-///     plugin.idle = 60                # seconds an unused plugin process stays alive
 ///
 /// Peeker > Reload Config re-reads the file. It applies to documents opened afterwards; open ones keep their settings.
 struct Config {
@@ -20,7 +19,8 @@ struct Config {
     /// "pluginID.commandID" -> shortcut override.
     var keys: [String: Shortcut] = [:]
     var quickLookKey: Shortcut? = Shortcut(key: .space)
-    var pluginIdleSeconds: TimeInterval = 60
+    /// Keys the file has that the app doesn't know, in file order. Each is logged and skipped.
+    private(set) var unknownKeys: [String] = []
 
     static var defaultURL: URL {
         if let path = ProcessInfo.processInfo.environment["PEEKER_CONFIG"] { return URL(filePath: path) }
@@ -52,9 +52,6 @@ struct Config {
                 if value == "off" { quickLookKey = nil }
                 else if let shortcut = Shortcut(parsing: value) { quickLookKey = shortcut }
                 else { Self.warn("line \(number + 1): can't parse key '\(value)'") }
-            case "plugin.idle":
-                if let seconds = TimeInterval(value), seconds >= 0 { pluginIdleSeconds = seconds }
-                else { Self.warn("line \(number + 1): plugin.idle needs seconds") }
             case _ where key.hasPrefix("open."):
                 let ext = String(key.dropFirst(5)).lowercased()
                 routes[ext == "none" ? "" : ext] = value
@@ -62,6 +59,7 @@ struct Config {
                 if let shortcut = Shortcut(parsing: value) { keys[String(key.dropFirst(4))] = shortcut }
                 else { Self.warn("line \(number + 1): can't parse shortcut '\(value)'") }
             default:
+                unknownKeys.append(key)
                 Self.warn("line \(number + 1): unknown key '\(key)'")
             }
         }
