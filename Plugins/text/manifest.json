@@ -1,0 +1,1 @@
+{ "id": "text", "name": "Plain Text", "types": ["public.plain-text", "public.json", "public.xml", "public.yaml", "public.toml"], "executable": "text-plugin" }

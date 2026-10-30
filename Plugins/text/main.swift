@@ -1,0 +1,1 @@
+PluginMain.run(TextPlugin())

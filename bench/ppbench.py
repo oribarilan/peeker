@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Preview++ benchmark: README numbers on a reference Mac, regression gate in CI.
 
-    bench/ppbench.py run [--suite inapp,launch,apple] [--launches 5] [--out FILE]
+    bench/ppbench.py run [--suite inapp,launch,apple] [--files a.md,b.pdf] [--launches 5] [--out FILE]
     bench/ppbench.py ab --base APP --head APP [--suite inapp,launch] [--launches 7]   exit 1 on regressions
     bench/ppbench.py compare BASE.json HEAD.json                                         exit 1 on regressions
     bench/ppbench.py check [RESULTS.json]                                                missing or noisy metrics
@@ -13,8 +13,11 @@ Suites (all open real windows; nothing needs extra permissions):
     launch  from `open` (app not running) until the content is drawn
     apple   Preview / TextEdit launch-to-window, for the README only (quits those apps between runs)
 
+A file the base build can't open (a format it has no plugin for) shows in `ab` and `compare` as new, not compared.
+A metric the base has and head lacks (head failed to open the file) counts as a regression.
+
 Gate: a metric regresses when head is both more than 15% and more than 10 ms (5 MB for memory) worse than base.
-Only Preview++'s own metrics are gated. Standard library only.
+Only Preview++'s own measured metrics are gated; derived plugin_startup is reported, not gated. Standard library only.
 """
 import argparse
 import datetime
@@ -33,8 +36,10 @@ ROOT = Path(__file__).resolve().parent.parent
 FIXTURES = ROOT / "bench/fixtures"
 TOOLS = ROOT / "build/bench-tools"
 DEFAULT_APP = ROOT / "build/dd/Build/Products/Release/PreviewPP.app"
-FILES = ["small.md", "large.md", "small.pdf", "large.pdf", "small.png", "photo.jpg", "photo.heic", "large.png"]
-APPLE = {"md": ("TextEdit", "/System/Applications/TextEdit.app")}
+REFERENCE = ROOT / "bench/results/reference.json"
+FILES = ["small.md", "large.md", "small.pdf", "large.pdf", "small.png", "photo.jpg", "photo.heic", "large.png", "small.txt", "medium.log", "large.log"]
+TEXTEDIT = ("TextEdit", "/System/Applications/TextEdit.app")
+APPLE = {"md": TEXTEDIT, "txt": TEXTEDIT, "log": TEXTEDIT}
 APPLE_DEFAULT = ("Preview", "/System/Applications/Preview.app")
 GATE_PCT = 0.15
 GATE_FLOOR = {"ms": 10.0, "MB": 5.0}
@@ -119,10 +124,10 @@ def sample_apple(file):
     return {} if out in ("", "timeout") else {f"apple.{file}.{name.lower()}_window": ("ms", float(out))}
 
 
-def cases(suites):
+def cases(suites, files):
     """(label, sampler) pairs; each sampler takes an app path and returns {metric: (unit, value)} for one launch."""
     out = []
-    for file in FILES:
+    for file in files:
         if "inapp" in suites:
             for mode in ("panel", "window"):
                 out.append((f"inapp {mode} {file}", lambda app, f=file, m=mode: sample_inapp(app, f, m)))
@@ -135,11 +140,11 @@ def cases(suites):
 
 # MARK: Collection
 
-def collect(apps, suites, launches):
+def collect(apps, suites, files, launches):
     """Runs every case `launches` times per app after a warm-up. With two apps, launches alternate between them in
     flipping order, so drift on a shared CI machine hits base and head equally."""
     results = {name: {} for name in apps}
-    for label, sampler in cases(suites):
+    for label, sampler in cases(suites, files):
         print(f"  {label}", file=sys.stderr, flush=True)
         for app in apps.values():
             sampler(app)  # warm-up, discarded
@@ -171,7 +176,8 @@ def document(metrics, app, launches):
 # MARK: Gate
 
 def gated(metric_id):
-    return not metric_id.startswith("apple.")
+    # plugin_startup is cold minus warm reply time, two noisy samples whose difference flips sign; cold_plugin_open stays gated.
+    return not metric_id.startswith("apple.") and not metric_id.endswith(".plugin_startup")
 
 
 def compare(base, head):
@@ -179,8 +185,13 @@ def compare(base, head):
     rows, regressions = [], 0
     for metric_id in sorted(set(base["metrics"]) | set(head["metrics"])):
         b, h = base["metrics"].get(metric_id), head["metrics"].get(metric_id)
-        if not b or not h:
-            rows.append(f"| `{metric_id}` | {b and b['median']} | {h and h['median']} | | {'new' if h else 'removed'} |")
+        if not h:
+            # Head stopped producing it, such as a fixture it no longer opens: that's a failure, not a skip.
+            rows.append(f"| `{metric_id}` | {b['median']} {b['unit']} | – | | {'**missing in head**' if gated(metric_id) else 'missing in head (not gated)'} |")
+            regressions += gated(metric_id)
+            continue
+        if not b:
+            rows.append(f"| `{metric_id}` | – | {h['median']} {h['unit']} | | new, not compared |")
             continue
         unit, delta = h["unit"], h["median"] - b["median"]
         pct = delta / b["median"] if b["median"] else 0
@@ -211,6 +222,7 @@ HIGHLIGHTS = ["large.pdf", "photo.jpg", "large.png", "small.md"]
 DESCRIPTIONS = {
     "small.md": "Markdown, 1 KB", "large.md": "Markdown, 844 KB", "small.pdf": "PDF, 3 pages", "large.pdf": "PDF, 2,000 pages",
     "small.png": "PNG, 512×512", "photo.jpg": "JPEG, 12 MP", "photo.heic": "HEIC, 12 MP", "large.png": "PNG, 48 MP",
+    "small.txt": "Text, 10 KB", "medium.log": "Log, 11 MB", "large.log": "Log, 86 MB",
 }
 
 
@@ -351,8 +363,9 @@ def main():
     run = sub.add_parser("run", help="measure one build")
     run.add_argument("--app", default=str(DEFAULT_APP))
     run.add_argument("--suite", default="inapp,launch,apple")
+    run.add_argument("--files", default=",".join(FILES), help="comma-separated subset of the fixtures")
     run.add_argument("--launches", type=int, default=5)
-    run.add_argument("--out", default=str(ROOT / "bench/results/reference.json"))
+    run.add_argument("--out", default=str(REFERENCE))
     ab = sub.add_parser("ab", help="measure base and head interleaved, then gate")
     ab.add_argument("--base", required=True)
     ab.add_argument("--head", required=True)
@@ -363,9 +376,9 @@ def main():
     cmp.add_argument("base")
     cmp.add_argument("head")
     chk = sub.add_parser("check", help="report missing or noisy metrics")
-    chk.add_argument("results", nargs="?", default=str(ROOT / "bench/results/reference.json"))
+    chk.add_argument("results", nargs="?", default=str(REFERENCE))
     pub = sub.add_parser("publish", help="write README highlights and BENCHMARKS.md from results")
-    pub.add_argument("results", nargs="?", default=str(ROOT / "bench/results/reference.json"))
+    pub.add_argument("results", nargs="?", default=str(REFERENCE))
     args = parser.parse_args()
 
     if args.command == "compare":
@@ -380,16 +393,21 @@ def main():
         return
 
     suites = set(args.suite.split(","))
+    files = args.files.split(",") if args.command == "run" else FILES
+    if unknown := [f for f in files if f not in FILES]:
+        sys.exit(f"unknown files: {', '.join(unknown)}; choose from {', '.join(FILES)}")
+    if args.command == "run" and set(files) != set(FILES) and Path(args.out).resolve() == REFERENCE.resolve():
+        sys.exit("a --files subset would overwrite the reference results; pass --out")
     if "apple" in suites:
         refuse_if_running("Preview", "TextEdit")
     ensure_tools()
     if args.command == "run":
-        results = document(collect({"head": args.app}, suites, args.launches)["head"], args.app, args.launches)
+        results = document(collect({"head": args.app}, suites, files, args.launches)["head"], args.app, args.launches)
         Path(args.out).parent.mkdir(parents=True, exist_ok=True)
         Path(args.out).write_text(json.dumps(results, indent=2) + "\n")
         print(f"wrote {args.out}")
     else:
-        collected = collect({"base": args.base, "head": args.head}, suites, args.launches)
+        collected = collect({"base": args.base, "head": args.head}, suites, files, args.launches)
         out = Path(args.out_dir)
         out.mkdir(parents=True, exist_ok=True)
         docs = {name: document(collected[name], app, args.launches) for name, app in (("base", args.base), ("head", args.head))}

@@ -42,10 +42,13 @@ targets:
         buildPhase: { copyFiles: { destination: resources, subpath: Plugins/pdf } }
       - path: Plugins/image/manifest.json
         buildPhase: { copyFiles: { destination: resources, subpath: Plugins/image } }
+      - path: Plugins/text/manifest.json
+        buildPhase: { copyFiles: { destination: resources, subpath: Plugins/text } }
     dependencies:
       - { target: MarkdownPlugin, embed: true, codeSign: true, copy: { destination: wrapper, subpath: Contents/Helpers } }
       - { target: PDFPlugin, embed: true, codeSign: true, copy: { destination: wrapper, subpath: Contents/Helpers } }
       - { target: ImagePlugin, embed: true, codeSign: true, copy: { destination: wrapper, subpath: Contents/Helpers } }
+      - { target: TextPlugin, embed: true, codeSign: true, copy: { destination: wrapper, subpath: Contents/Helpers } }
     scheme:
       testTargets: [HostTests]
     info:
@@ -56,10 +59,18 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         NSAppleEventsUsageDescription: Preview++ reads which files are selected in Finder so it can show them when you press the quick-look key.
         CFBundleDocumentTypes:
+          - CFBundleTypeName: Text
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.plain-text, public.json, public.xml, public.yaml, public.toml]
+          - CFBundleTypeName: PDF
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.adobe.pdf]
           - CFBundleTypeName: Document
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate
-            LSItemContentTypes: [com.adobe.pdf, net.daringfireball.markdown, public.image]
+            LSItemContentTypes: [net.daringfireball.markdown, public.image]
         UTImportedTypeDeclarations:
           - UTTypeIdentifier: net.daringfireball.markdown
             UTTypeDescription: Markdown
@@ -97,19 +108,45 @@ targets:
       - Sources/PluginSDK
     settings: { base: { PRODUCT_NAME: image-plugin } }
 
+  TextPlugin:
+    templates: [Plugin]
+    sources:
+      - path: Plugins/text
+        excludes: [manifest.json]
+      - Sources/Shared
+      - Sources/PluginSDK
+    settings: { base: { PRODUCT_NAME: text-plugin } }
+
+  # Misbehaves on request (crash, hang, garbage); HostTests runs it to test plugin process handling.
+  TestPlugin:
+    templates: [Plugin]
+    sources:
+      - Tests/TestPlugin
+      - Sources/Shared
+      - Sources/PluginSDK
+    settings: { base: { PRODUCT_NAME: test-plugin } }
+
   HostTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - Tests
+      - path: Tests
+        excludes: [TestPlugin]
       - Sources/Shared
       - path: Sources/Host
-        excludes: [main.swift]
+        excludes: [App/main.swift]
       - path: Plugins/markdown
+        excludes: [main.swift, manifest.json]
+      - path: Plugins/text
+        excludes: [main.swift, manifest.json]
+      - path: Plugins/pdf
         excludes: [main.swift, manifest.json]
       - path: Sources/PluginSDK
     dependencies:
       - package: Markdown
+      - { target: TestPlugin, link: false, embed: false }
+      - { target: TextPlugin, link: false, embed: false }
+      - { target: PDFPlugin, link: false, embed: false }
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES

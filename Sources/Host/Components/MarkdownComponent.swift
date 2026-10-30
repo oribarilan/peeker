@@ -7,7 +7,7 @@ final class MarkdownComponent: NSObject, Component, NSTextViewDelegate {
     private var anchors: [Int: Int] = [:]
     var onToggleTask: ((Int) -> Void)?
 
-    init(blocks: [[String: Any]]) {
+    init(blocks: [MarkdownBlock]) {
         super.init()
         textView.isEditable = false
         textView.delegate = self
@@ -18,12 +18,13 @@ final class MarkdownComponent: NSObject, Component, NSTextViewDelegate {
     }
 
     var view: NSView { scrollView }
+    var focusView: NSView? { textView }
 
     /// Blocks drawn before the first paint; the rest are appended on the next run loop turn, the way Preview
     /// shows the first pages of a long PDF before the rest.
     private static let firstPaintBlocks = 150
 
-    func update(blocks: [[String: Any]]) {
+    func update(blocks: [MarkdownBlock]) {
         let visible = scrollView.contentView.bounds.origin
         let head = MarkdownRenderer.render(blocks.prefix(Self.firstPaintBlocks))
         anchors = head.anchors
@@ -63,7 +64,7 @@ final class MarkdownComponent: NSObject, Component, NSTextViewDelegate {
 enum MarkdownRenderer {
     static let taskScheme = "ppp-task"
 
-    static func render(_ blocks: some Collection<[String: Any]>, leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
+    static func render(_ blocks: some Collection<MarkdownBlock>, leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
         var context = Context()
         if leadingBreak { context.out.append(NSAttributedString(string: "\n")) }
         for block in blocks { context.render(block, indent: 0) }
@@ -97,61 +98,56 @@ enum MarkdownRenderer {
         private static let mono = NSFont.monospacedSystemFont(ofSize: 12.5, weight: .regular)
         private static let headingSizes: [CGFloat] = [26, 21, 18, 16, 14, 13]
 
-        mutating func render(_ block: [String: Any], indent: CGFloat, prefix: NSAttributedString? = nil) {
-            switch block["k"] as? String {
-            case "h":
-                let level = min(max(block["l"] as? Int ?? 1, 1), 6)
-                anchors[block["n"] as? Int ?? 0] = out.length
+        mutating func render(_ block: MarkdownBlock, indent: CGFloat, prefix: NSAttributedString? = nil) {
+            switch block {
+            case .heading(let level, let spans, let line):
+                let level = min(max(level, 1), 6)
+                anchors[line] = out.length
                 let font = NSFont.systemFont(ofSize: Self.headingSizes[level - 1], weight: .bold)
-                paragraph(spans: block["s"], font: font, indent: indent, before: level <= 2 ? 14 : 8, prefix: prefix)
-            case "p":
-                paragraph(spans: block["s"], font: Self.body, indent: indent, before: 0, prefix: prefix)
-            case "ul", "ol":
-                let ordered = block["k"] as? String == "ol"
-                let start = block["start"] as? Int ?? 1
-                for (index, item) in (block["i"] as? [[String: Any]] ?? []).enumerated() {
+                paragraph(spans, font: font, indent: indent, before: level <= 2 ? 14 : 8, prefix: prefix)
+            case .paragraph(let spans):
+                paragraph(spans, font: Self.body, indent: indent, before: 0, prefix: prefix)
+            case .list(let ordered, let start, let items):
+                for (index, item) in items.enumerated() {
                     listItem(item, marker: ordered ? "\(start + index)." : "•", indent: indent)
                 }
-            case "code":
+            case .code(let text, _):
                 let style = paragraphStyle(indent: indent + 12, before: 4)
                 style.paragraphSpacing = 10
-                let code = (block["x"] as? String ?? "").trimmingCharacters(in: .newlines)
+                let code = text.trimmingCharacters(in: .newlines)
                 out.append(NSAttributedString(string: code + "\n", attributes: [
                     .font: Self.mono, .foregroundColor: NSColor.labelColor, .backgroundColor: NSColor.quaternarySystemFill, .paragraphStyle: style,
                 ]))
-            case "q":
+            case .quote(let children):
                 let start = out.length
-                for child in block["c"] as? [[String: Any]] ?? [] { render(child, indent: indent + 18) }
+                for child in children { render(child, indent: indent + 18) }
                 out.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: NSRange(location: start, length: out.length - start))
-            case "hr":
+            case .rule:
                 out.append(NSAttributedString(string: String(repeating: "─", count: 24) + "\n", attributes: [
                     .foregroundColor: NSColor.separatorColor, .paragraphStyle: paragraphStyle(indent: indent, before: 6),
                 ]))
-            case "table":
-                table(block["rows"] as? [[Any]] ?? [], indent: indent)
-            default:
-                break
+            case .table(let rows):
+                table(rows, indent: indent)
             }
         }
 
-        private mutating func listItem(_ item: [String: Any], marker: String, indent: CGFloat) {
+        private mutating func listItem(_ item: ListItem, marker: String, indent: CGFloat) {
             let prefix = NSMutableAttributedString(string: marker + "\t", attributes: [.font: Self.body, .foregroundColor: NSColor.secondaryLabelColor])
-            if let checked = item["t"] as? Bool {
+            if let checked = item.checked {
                 prefix.setAttributedString(NSAttributedString(string: (checked ? "☑" : "☐") + "\t", attributes: [
-                    .font: NSFont.systemFont(ofSize: 15), .link: URL(string: "\(taskScheme)://\(item["n"] as? Int ?? 0)")!,
+                    .font: NSFont.systemFont(ofSize: 15), .link: URL(string: "\(taskScheme)://\(item.line)")!,
                 ]))
             }
-            let children = item["c"] as? [[String: Any]] ?? []
-            guard let first = children.first else {
+            guard let first = item.blocks.first else {
                 out.append(prefix)
                 out.append(NSAttributedString(string: "\n"))
                 return
             }
             render(first, indent: indent + 22, prefix: prefix)
-            for child in children.dropFirst() { render(child, indent: indent + 22) }
+            for child in item.blocks.dropFirst() { render(child, indent: indent + 22) }
         }
 
-        private mutating func paragraph(spans: Any?, font: NSFont, indent: CGFloat, before: CGFloat, prefix: NSAttributedString?) {
+        private mutating func paragraph(_ spans: [Span], font: NSFont, indent: CGFloat, before: CGFloat, prefix: NSAttributedString?) {
             let start = out.length
             let style = paragraphStyle(indent: indent, before: before)
             if let prefix {
@@ -159,12 +155,12 @@ enum MarkdownRenderer {
                 style.tabStops = [NSTextTab(textAlignment: .left, location: indent)]
                 out.append(prefix)
             }
-            appendSpans(spans as? [[Any]] ?? [], font: font)
+            appendSpans(spans, font: font)
             out.append(NSAttributedString(string: "\n"))
             out.addAttribute(.paragraphStyle, value: style, range: NSRange(location: start, length: out.length - start))
         }
 
-        private mutating func table(_ rows: [[Any]], indent: CGFloat) {
+        private mutating func table(_ rows: [[[Span]]], indent: CGFloat) {
             let columns = rows.map(\.count).max() ?? 0
             let style = paragraphStyle(indent: indent, before: 2)
             style.tabStops = (1..<max(columns, 1)).map { NSTextTab(textAlignment: .left, location: indent + CGFloat($0) * 150) }
@@ -172,25 +168,23 @@ enum MarkdownRenderer {
                 let start = out.length
                 for (column, cell) in row.enumerated() {
                     if column > 0 { out.append(NSAttributedString(string: "\t")) }
-                    appendSpans(cell as? [[Any]] ?? [], font: index == 0 ? .systemFont(ofSize: 13, weight: .semibold) : .systemFont(ofSize: 13))
+                    appendSpans(cell, font: index == 0 ? .systemFont(ofSize: 13, weight: .semibold) : .systemFont(ofSize: 13))
                 }
                 out.append(NSAttributedString(string: "\n"))
                 out.addAttribute(.paragraphStyle, value: style, range: NSRange(location: start, length: out.length - start))
             }
         }
 
-        private func appendSpans(_ spans: [[Any]], font: NSFont) {
+        private func appendSpans(_ spans: [Span], font: NSFont) {
             for span in spans {
-                guard let text = span.first as? String else { continue }
-                let style = SpanStyle(rawValue: span.count > 1 ? span[1] as? Int ?? 0 : 0)
                 var attributes: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.labelColor]
-                let spanFont = MarkdownRenderer.font(font, style)
+                let style = span.style
                 if style.contains(.code) { attributes[.backgroundColor] = NSColor.quaternarySystemFill }
                 if style.contains(.strikethrough) { attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
                 if style.contains(.image) { attributes[.foregroundColor] = NSColor.secondaryLabelColor }
-                if span.count > 2, let link = span[2] as? String, let url = URL(string: link) { attributes[.link] = url }
-                attributes[.font] = spanFont
-                out.append(NSAttributedString(string: style.contains(.image) ? "[\(text)]" : text, attributes: attributes))
+                if let link = span.link, let url = URL(string: link) { attributes[.link] = url }
+                attributes[.font] = MarkdownRenderer.font(font, style)
+                out.append(NSAttributedString(string: style.contains(.image) ? "[\(span.text)]" : span.text, attributes: attributes))
             }
         }
 

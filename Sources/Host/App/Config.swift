@@ -1,16 +1,21 @@
 import AppKit
+import os
 
 /// The user's dotfile: `~/.config/previewpp/config`, or `$PPP_CONFIG`.
 ///
 ///     # comments start with #
 ///     disable = image                 # plugin ids to turn off
-///     open.md = markdown              # default plugin per file extension (must support it)
+///     open.md = markdown              # default plugin per file extension; for a type macOS knows, it must support it
+///     open.conf = text                # extensions macOS has no type for go only to the plugin you name; no other is offered
+///     open.none = text                # same, for files with no extension (.zshrc, .env)
 ///     key.pdf.highlight = cmd+shift+h # rebind a plugin command
 ///     quicklook.key = space           # bare key: Finder only, not while typing; with modifiers: anywhere; "off" to disable
 ///     plugin.idle = 60                # seconds an unused plugin process stays alive
+///
+/// Preview++ > Reload Config re-reads the file. It applies to documents opened afterwards; open ones keep their settings.
 struct Config {
     var disabled: Set<String> = []
-    /// Lowercased file extension -> plugin id.
+    /// Lowercased file extension -> plugin id. `""` is files with no extension (`open.none`).
     var routes: [String: String] = [:]
     /// "pluginID.commandID" -> shortcut override.
     var keys: [String: Shortcut] = [:]
@@ -22,9 +27,10 @@ struct Config {
         return FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config/previewpp/config")
     }
 
-    static func load(from url: URL = defaultURL) -> Config {
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return Config() }
-        return Config(parsing: text)
+    /// A missing file means defaults; a file that exists but can't be read throws.
+    static func load(from url: URL = defaultURL) throws -> Config {
+        guard FileManager.default.fileExists(atPath: url.path) else { return Config() }
+        return Config(parsing: try String(contentsOf: url, encoding: .utf8))
     }
 
     init() {}
@@ -50,7 +56,8 @@ struct Config {
                 if let seconds = TimeInterval(value), seconds >= 0 { pluginIdleSeconds = seconds }
                 else { Self.warn("line \(number + 1): plugin.idle needs seconds") }
             case _ where key.hasPrefix("open."):
-                routes[String(key.dropFirst(5)).lowercased()] = value
+                let ext = String(key.dropFirst(5)).lowercased()
+                routes[ext == "none" ? "" : ext] = value
             case _ where key.hasPrefix("key."):
                 if let shortcut = Shortcut(parsing: value) { keys[String(key.dropFirst(4))] = shortcut }
                 else { Self.warn("line \(number + 1): can't parse shortcut '\(value)'") }
@@ -60,8 +67,10 @@ struct Config {
         }
     }
 
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.previewpp", category: "config")
+
     private static func warn(_ message: String) {
-        FileHandle.standardError.write(Data("config: \(message)\n".utf8))
+        log.warning("\(message, privacy: .public)")
     }
 }
 

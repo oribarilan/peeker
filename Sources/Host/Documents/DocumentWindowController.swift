@@ -1,0 +1,239 @@
+import AppKit
+
+/// A document window (tabbed). Owns the chrome: "Open With" and the plugin's commands in the toolbar, and the save
+/// prompts as sheets.
+final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, SavePrompts {
+    let url: URL
+    private let catalog: PluginCatalog
+    private let config: Config
+    private let allowsEditing: Bool
+    private let recovery: RecoveryStore?
+    private let recoveryClipboard: RecoveryClipboard?
+    private(set) var current: DocumentViewController?
+    /// Called for every new document view controller (first open and "Open With" switches).
+    var onDocument: ((DocumentViewController) -> Void)?
+    var onBecameKey: ((DocumentWindowController) -> Void)?
+
+    init(url: URL, catalog: PluginCatalog, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?) {
+        self.url = url
+        self.catalog = catalog
+        self.config = config
+        self.allowsEditing = allowsEditing
+        self.recovery = recovery
+        self.recoveryClipboard = recoveryClipboard
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                              backing: .buffered, defer: false)
+        window.tabbingIdentifier = "document"
+        window.tabbingMode = .preferred
+        window.title = url.lastPathComponent
+        window.representedURL = url
+        window.isReleasedWhenClosed = false
+        window.setFrameAutosaveName("DocumentWindow")
+        super.init(window: window)
+        window.delegate = self
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// Opens the file with `entry`. With a recovery record, its edits are applied once the file is showing.
+    func show(with entry: PluginEntry, restoring record: RecoveryRecord? = nil) {
+        current?.close()
+        let document = DocumentViewController(url: url, entry: entry, process: catalog.process(for: entry), config: config,
+                                              allowsEditing: allowsEditing, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString)
+        document.onCommandsChanged = { [weak self] _ in
+            self?.rebuildToolbar()
+            if let self, self.window?.isKeyWindow == true { self.onBecameKey?(self) }
+        }
+        document.onRecovery = { [weak self] _, result in self?.report(result) }
+        // Before loading, so closing the window while the file opens keeps the record for the next launch.
+        if let record { document.restore(record) }
+        self.current = document
+        window?.subtitle = entry.manifest.name
+        if let window {
+            let frame = window.frame
+            window.contentViewController = document
+            window.setFrame(frame, display: false)
+        }
+        onDocument?(document)
+        rebuildToolbar()
+        Task.immediate { await document.load() }
+    }
+
+    /// Tells the user when recovered edits went onto a newer file, or couldn't be applied in this view.
+    private func report(_ result: RecoveryResult) {
+        let name = url.lastPathComponent
+        let message: String
+        switch result {
+        case .restored(fileChangedSince: false):
+            return
+        case .restored(fileChangedSince: true):
+            message = "“\(name)” changed on disk after these edits were made. Saving will replace the newer version."
+        case .rejected(let record):
+            switch record.edits {
+            case .text:
+                // The record stays when the clipboard refuses the text; the clipboard logs it.
+                guard recoveryClipboard?.add([record]) == true else { return }
+                message = "“\(name)” can't be edited in this view, so your unsaved text was copied to the clipboard."
+            case .pdfHighlights:
+                // The record stays, so the highlights come back when the file opens where they can be shown.
+                message = "“\(name)” can't take back its unsaved highlights in this view."
+            }
+        }
+        Task {
+            guard let window else { return }
+            let alert = NSAlert()
+            alert.messageText = message
+            _ = await alert.beginSheetModal(for: window)
+        }
+    }
+
+    @objc func runCommand(_ sender: Any?) {
+        let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSToolbarItem)?.tag ?? -1
+        guard let document = current, document.commands.indices.contains(tag) else { return }
+        document.run(document.commands[tag].spec)
+    }
+
+    @objc private func reopenWith(_ sender: NSPopUpButton) {
+        let candidates = catalog.candidates(for: url)
+        guard candidates.indices.contains(sender.indexOfSelectedItem) else { return }
+        let entry = candidates[sender.indexOfSelectedItem]
+        Task {
+            guard await resolveUnsavedEdits() else {
+                if let index = candidates.firstIndex(where: { $0.id == current?.entry.id }) { sender.selectItem(at: index) }
+                return
+            }
+            show(with: entry)
+        }
+    }
+
+    // MARK: Saving
+
+    @objc func saveDocument(_ sender: Any?) {
+        guard let document = current else { return }
+        Task { _ = await save(document) }
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        guard menuItem.action == #selector(saveDocument(_:)) else { return true }
+        return current?.isEdited == true && current?.isSaving == false
+    }
+
+    /// Asks Save / Don't Save / Cancel when the document has unsaved edits. True when the caller may close or replace it.
+    func resolveUnsavedEdits() async -> Bool {
+        guard let document = current, document.isEdited else { return true }
+        guard let window, window.attachedSheet == nil else { return false }
+        let alert = NSAlert()
+        alert.messageText = "Save changes to “\(url.lastPathComponent)”?"
+        alert.informativeText = "Your changes will be lost if you don't save them."
+        alert.addButton(withTitle: "Save")
+        let dontSave = alert.addButton(withTitle: "Don't Save")
+        dontSave.keyEquivalent = "d"
+        dontSave.keyEquivalentModifierMask = .command
+        alert.addButton(withTitle: "Cancel")
+        switch await alert.beginSheetModal(for: window) {
+        case .alertFirstButtonReturn:
+            return await save(document)
+        case .alertSecondButtonReturn:
+            document.discardEdits()
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Saves, showing an alert if the save fails. True once the edits are on disk.
+    private func save(_ document: DocumentViewController) async -> Bool {
+        switch await document.save(prompts: self) {
+        case .saved: return true
+        case .cancelled: return false
+        case .failed(let message):
+            let alert = NSAlert()
+            alert.messageText = message
+            if let window { _ = await alert.beginSheetModal(for: window) }
+            return false
+        }
+    }
+
+    func confirmOverwriteNewerFile(named name: String) async -> Bool {
+        await confirm("“\(name)” changed on disk since you opened it.", "Saving will replace the newer version.", button: "Save Anyway")
+    }
+
+    func confirmRecreateMissingFile(named name: String) async -> Bool {
+        await confirm("“\(name)” no longer exists on disk.", "Saving will create it again.", button: "Save")
+    }
+
+    func confirmSaveAsUTF8(reason: String) async -> Bool {
+        await confirm(reason, "Some characters can't be represented in the file's encoding.", button: "Save as UTF-8")
+    }
+
+    private func confirm(_ message: String, _ detail: String, button: String) async -> Bool {
+        guard let window else { return false }
+        let alert = NSAlert()
+        alert.messageText = message
+        alert.informativeText = detail
+        alert.addButton(withTitle: button)
+        alert.addButton(withTitle: "Cancel")
+        return await alert.beginSheetModal(for: window) == .alertFirstButtonReturn
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard current?.isEdited == true else { return true }
+        Task {
+            if await resolveUnsavedEdits() { sender.close() }
+        }
+        return false
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) { onBecameKey?(self) }
+
+    func windowWillClose(_ notification: Notification) {
+        current?.close()
+        current = nil
+    }
+
+    // MARK: Toolbar
+
+    private static let openWith = NSToolbarItem.Identifier("openWith")
+
+    private func rebuildToolbar() {
+        // A fresh identifier per rebuild: toolbars sharing an identifier sync their items across windows.
+        let toolbar = NSToolbar(identifier: "doc-\(UUID().uuidString)")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        window?.toolbar = toolbar
+        window?.toolbarStyle = .unified
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [Self.openWith, .flexibleSpace] + (current?.commands.indices.map { NSToolbarItem.Identifier("command.\($0)") } ?? [])
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        if identifier == Self.openWith {
+            let popup = NSPopUpButton(frame: .zero, pullsDown: false)
+            let candidates = catalog.candidates(for: url)
+            popup.addItems(withTitles: candidates.map(\.manifest.name))
+            if let index = candidates.firstIndex(where: { $0.id == current?.entry.id }) { popup.selectItem(at: index) }
+            popup.target = self
+            popup.action = #selector(reopenWith(_:))
+            item.view = popup
+            item.label = "Open With"
+            return item
+        }
+        guard let document = current, let index = Int(identifier.rawValue.dropFirst("command.".count)), document.commands.indices.contains(index) else { return nil }
+        let spec = document.commands[index].spec
+        item.label = spec.title
+        item.toolTip = spec.title
+        item.image = spec.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: spec.title) }
+        item.tag = index
+        item.target = self
+        item.action = #selector(runCommand(_:))
+        return item
+    }
+}

@@ -32,8 +32,6 @@ final class HotkeyMonitor {
         self.shortcut = shortcut
     }
 
-    static var isTrusted: Bool { AXIsProcessTrusted() }
-
     static func requestTrust() {
         _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
     }
@@ -60,6 +58,14 @@ final class HotkeyMonitor {
         CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         return true
+    }
+
+    /// Removes the event tap. Safe to call when it isn't running.
+    func stop() {
+        guard let tap else { return }
+        CGEvent.tapEnable(tap: tap, enable: false)
+        CFMachPortInvalidate(tap)
+        self.tap = nil
     }
 
     /// Hands the key to Finder after all, for files no plugin supports, so Quick Look still works for them.
@@ -134,33 +140,5 @@ final class HotkeyMonitor {
         var role: CFTypeRef?
         AXUIElementCopyAttributeValue(focused as! AXUIElement, kAXRoleAttribute as CFString, &role)
         return ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role as? String ?? "")
-    }
-}
-
-/// Reads Finder's selection over Apple Events (needs the Automation permission for Finder).
-final class FinderBridge {
-    private let script: NSAppleScript?
-
-    init() {
-        let source = """
-            tell application "Finder" to set picked to selection as alias list
-            set paths to ""
-            repeat with f in picked
-                set paths to paths & POSIX path of f & linefeed
-            end repeat
-            return paths
-            """
-        script = NSAppleScript(source: source)
-        var error: NSDictionary?
-        script?.compileAndReturnError(&error)
-    }
-
-    func selection() -> [URL] {
-        var error: NSDictionary?
-        guard let result = script?.executeAndReturnError(&error) else {
-            FileHandle.standardError.write(Data("finder: \(error?[NSAppleScript.errorMessage] ?? "no selection")\n".utf8))
-            return []
-        }
-        return (result.stringValue ?? "").split(separator: "\n").map { URL(filePath: String($0)) }
     }
 }

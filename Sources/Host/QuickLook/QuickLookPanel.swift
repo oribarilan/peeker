@@ -41,7 +41,7 @@ final class QuickLookPanel: NSPanel {
         contentViewController = document
         setFrame(frame, display: false)
         orderFrontRegardless()
-        document.load()
+        Task.immediate { await document.load() }
     }
 
     func dismiss() {
