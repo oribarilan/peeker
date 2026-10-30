@@ -7,3 +7,4 @@ DerivedData/
 bench/fixtures/
 bench/results/raw/
 Peeker.xcodeproj/
+.superpowers/
