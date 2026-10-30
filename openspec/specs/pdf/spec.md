@@ -8,12 +8,17 @@ The PDF plugin: open PDFs faster than Preview, read them with thumbnails and zoo
 
 ### Requirement: Opens PDFs quickly and safely
 
-The plugin SHALL open PDF files and check them in its own process first, parsing the first page there, so a file that crashes the PDF parser takes down the plugin rather than the app. A file that isn't a readable PDF SHALL show "This file isn't a readable PDF." in its tab, and a password-protected PDF SHALL show "This PDF is password protected."
+The plugin SHALL open PDF files without stalling the app, checking that the file is a readable PDF before showing it. A file that isn't a readable PDF SHALL show "This file isn't a readable PDF." in its tab, and a password-protected PDF SHALL show "This PDF is password protected."
 
 #### Scenario: Locked PDF
 
 - **WHEN** the user opens a password-protected PDF
 - **THEN** the tab says the PDF is password protected
+
+#### Scenario: Not a PDF
+
+- **WHEN** the user opens a text file renamed to `.pdf`
+- **THEN** the tab says the file isn't a readable PDF, and the app keeps running
 
 ### Requirement: Shows pages in a continuous native view
 

@@ -61,14 +61,19 @@ Before writing, a save SHALL check the file on disk. If it changed since it was 
 - **WHEN** the user saves after the file was deleted
 - **THEN** a sheet says the file no longer exists, offering to save and create it again
 
-### Requirement: A failed save keeps the edits
+### Requirement: Failed or unfinished saves keep the edits
 
-A save that fails for any reason, including the plugin crashing or timing out, SHALL show why in a sheet and leave the edits on screen and pending, so the user can retry or copy them out.
+A save that fails for any reason SHALL show why in a sheet and leave the edits on screen and pending, so the user can retry or copy them out. A save that hasn't finished SHALL NOT trap the window: closing it SHALL still ask about the unsaved edits, and the file SHALL end up either fully written or untouched.
 
-#### Scenario: Plugin crashes during save
+#### Scenario: Write fails
 
-- **WHEN** the plugin crashes while writing
-- **THEN** the window shows the failure, the edits stay, and a later Cmd+S can still save them
+- **WHEN** the save can't write because the file's folder was deleted
+- **THEN** the window shows the failure, the edits stay, and a later Cmd+S can still save them once the folder is back
+
+#### Scenario: Closing during a slow save
+
+- **WHEN** the user closes a window while its save is still writing to a slow network drive
+- **THEN** the close asks Save, Don't Save or Cancel as usual, and the file is never left half written
 
 ### Requirement: Unsaved edits are never discarded without asking
 

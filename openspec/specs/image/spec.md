@@ -6,9 +6,9 @@ The Image plugin: show photos and other images faster than Preview, fitted to th
 
 ## Requirements
 
-### Requirement: Decodes images outside the app
+### Requirement: Decodes images at screen size
 
-The plugin SHALL open every image type macOS can decode (PNG, JPEG, HEIC, TIFF, GIF and the rest of `public.image`), decoding in its own process and handing the host finished pixels, so a malformed image can crash only the plugin. It SHALL decode the first image in the file, at no more pixels than the largest connected screen needs, applying the file's orientation. A file that can't be read or decoded SHALL show an error in its tab.
+The plugin SHALL open every image type macOS can decode (PNG, JPEG, HEIC, TIFF, GIF and the rest of `public.image`), decoding off the main thread. It SHALL decode the first image in the file, at no more pixels than the largest connected screen needs, applying the file's orientation. A file that can't be read or decoded SHALL show an error in its tab.
 
 #### Scenario: Photo taken in portrait
 
@@ -18,7 +18,7 @@ The plugin SHALL open every image type macOS can decode (PNG, JPEG, HEIC, TIFF, 
 #### Scenario: Corrupt image
 
 - **WHEN** the user opens a file named `.png` that isn't a readable image
-- **THEN** the tab says the file isn't a readable image, and the app keeps running
+- **THEN** the tab says the file isn't a readable image
 
 ### Requirement: Shows the image fitted, with zoom
 
