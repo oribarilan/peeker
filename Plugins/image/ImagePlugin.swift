@@ -18,19 +18,41 @@ public enum ImagePlugin: Plugin {
         CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
         CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),
         CommandSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9"),
+        // A single key, kept for Crop alone: other letters stay free for markup tools.
+        CommandSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true),
+        CommandSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
     ]
     /// Larger decodes would be refused by Core Animation anyway.
     nonisolated static let maxDimension = 16_384
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let decoded = try await decode(url, maxPixels: context.maxPixels)
-        return ImageDocument(image: decoded.image, printSize: decoded.printSize, info: decoded.info)
+        return ImageDocument(url: url, decoded: decoded, editable: context.allowsEditing)
+    }
+
+    /// Formats ImageIO writes without losing what Peeker shows: no layers, no floating point, no camera RAW.
+    nonisolated static let editableTypes: Set<String> = [
+        UTType.jpeg.identifier, UTType.png.identifier, UTType.gif.identifier, UTType.tiff.identifier, UTType.heic.identifier,
+        "public.avif", UTType.bmp.identifier, "public.jpeg-2000",
+    ]
+    /// Above this the full decode and a working copy could take more than a gigabyte.
+    nonisolated static let maxEditablePixels = 100_000_000
+
+    /// Why an image can't be edited, or nil when it can.
+    nonisolated static func uneditableReason(type: String, frames: Int, pixels: Int, isFloat: Bool) -> String? {
+        if !editableTypes.contains(type) || isFloat { return "Peeker can't save this format." }
+        if frames > 1 { return "This image has several frames." }
+        if pixels > maxEditablePixels { return "This image is too large to edit." }
+        return nil
     }
 
     struct Decoded: Sendable {
         let image: CGImage
         /// The full image's size in points, upright: pixels at its resolution, or 72 per inch when it states none.
         let printSize: CGSize
+        /// The full image's size in pixels, upright.
+        let pixelSize: CGSize
+        let uneditableReason: String?
         let info: [InfoRow]
     }
 
@@ -39,6 +61,9 @@ public enum ImagePlugin: Plugin {
     @concurrent nonisolated static func decode(_ url: URL, maxPixels: Int) async throws(PluginError) -> Decoded {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               CGImageSourceGetCount(source) > 0 else { throw PluginError("This file isn't a readable image.") }
+        // Before the thumbnail: otherwise ImageIO ignores a PNG's orientation tag when the PNG has other EXIF too,
+        // and the window would show it unturned while saving turns it.
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
@@ -49,8 +74,15 @@ public enum ImagePlugin: Plugin {
             throw PluginError("This image couldn't be decoded.")
         }
         if Task.isCancelled { throw PluginError.cancelled }
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
-        return Decoded(image: try displayReady(thumbnail), printSize: printSize(properties, decoded: thumbnail), info: info(properties, source, url))
+        let printSize = printSize(properties, decoded: thumbnail)
+        let width = properties[kCGImagePropertyPixelWidth] as? Int ?? thumbnail.width
+        let height = properties[kCGImagePropertyPixelHeight] as? Int ?? thumbnail.height
+        let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
+        let reason = uneditableReason(type: CGImageSourceGetType(source).map { $0 as String } ?? "", frames: CGImageSourceGetCount(source),
+                                      pixels: width * height, isFloat: properties[kCGImagePropertyIsFloat] as? Bool ?? false)
+        return Decoded(image: try displayReady(thumbnail), printSize: printSize,
+                       pixelSize: turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height),
+                       uneditableReason: reason, info: info(properties, source, url))
     }
 
     private nonisolated static func printSize(_ properties: [CFString: Any], decoded: CGImage) -> CGSize {

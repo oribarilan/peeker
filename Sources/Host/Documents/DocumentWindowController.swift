@@ -14,6 +14,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     /// Called for every new document view controller (first open and "Open With" switches).
     var onDocument: ((DocumentViewController) -> Void)?
     var onBecameKey: ((DocumentWindowController) -> Void)?
+    private var keyMonitor: Any?
 
     init(url: URL, catalog: PluginCatalog, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?) {
         self.url = url
@@ -33,6 +34,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         window.setFrameAutosaveName("DocumentWindow")
         super.init(window: window)
         window.delegate = self
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.handleSingleKey(event) == true ? nil : event
+        }
+    }
+
+    /// Runs an edit tool whose shortcut is a single key, such as C for Crop: only in Edit mode, and never while a
+    /// text field or text view has the keyboard. True when it ran one.
+    func handleSingleKey(_ event: NSEvent) -> Bool {
+        guard event.window === window, let document = current, document.isEditing, !(window?.firstResponder is NSText),
+              let pressed = Shortcut(event: event), pressed.isSingleKey,
+              let command = document.commands.first(where: { $0.spec.isEditTool && $0.shortcut == pressed }) else { return false }
+        document.run(command.spec)
+        return true
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -259,6 +273,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     func windowWillClose(_ notification: Notification) {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
         current?.close()
         current = nil
     }

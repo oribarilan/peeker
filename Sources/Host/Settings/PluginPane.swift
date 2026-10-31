@@ -46,7 +46,7 @@ struct PluginPane: View {
         let current = store.config.keys[key] ?? defaultShortcut
         return LabeledContent(command.title) {
             HStack(alignment: .firstTextBaseline) {
-                KeyRecorder(shortcut: current, rules: .command,
+                KeyRecorder(shortcut: current, rules: command.isEditTool ? .editTool : .command,
                             conflict: { shortcutConflict($0, command: command.id, plugin: plugin, config: store.config, menu: menuShortcuts(in: NSApp.mainMenu ?? NSMenu())) },
                             onRecord: { shortcut in model.save { $0.keys[key] = shortcut } },
                             onRecordingChange: { model.onRecordingChange?($0) })

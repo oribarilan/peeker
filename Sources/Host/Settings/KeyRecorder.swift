@@ -7,6 +7,8 @@ enum KeyRecorderRules {
     case quickLook
     /// A plugin command: always with Command, Option or Control.
     case command
+    /// An edit tool: like a command, or a single letter or digit, which works only in Edit mode.
+    case editTool
 
     /// Why `shortcut` isn't allowed here, or nil when it is. Shift alone doesn't count as a modifier, since it only
     /// types a capital letter.
@@ -18,6 +20,10 @@ enum KeyRecorderRules {
             return "Use Space alone, or add Command, Option or Control."
         case .command:
             return hasModifier ? nil : "Add Command, Option or Control."
+        case .editTool:
+            if hasModifier { return nil }
+            if case .character = shortcut.key { return nil }
+            return "Use a letter or digit, or add Command, Option or Control."
         }
     }
 }

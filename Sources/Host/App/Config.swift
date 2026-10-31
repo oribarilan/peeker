@@ -170,8 +170,16 @@ private struct ConfigReader {
             for (key, value) in sorted(settings) {
                 guard key == "shortcut" else { unknown("\(path).\(key)"); continue }
                 guard let text = string(value, at: "\(path).shortcut") else { continue }
-                if let shortcut = Shortcut(parsing: text) { config.keys["\(plugin.id).\(command)"] = shortcut }
-                else { problem("\(path).shortcut", "“\(text)” isn't a shortcut Peeker understands. Use one like cmd+shift+h.") }
+                guard let shortcut = Shortcut(parsing: text) else {
+                    problem("\(path).shortcut", "“\(text)” isn't a shortcut Peeker understands. Use one like cmd+shift+h.")
+                    continue
+                }
+                let isEditTool = plugin.commands.first { $0.id == command }?.isEditTool == true
+                if let refusal = (isEditTool ? KeyRecorderRules.editTool : .command).refusal(for: shortcut) {
+                    problem("\(path).shortcut", "“\(text)” can't be used here. \(refusal)")
+                } else {
+                    config.keys["\(plugin.id).\(command)"] = shortcut
+                }
             }
         }
     }

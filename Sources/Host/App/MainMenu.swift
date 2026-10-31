@@ -12,8 +12,12 @@ enum MainMenu {
             menu.addItem(.separator())
         }
         for (index, command) in (controller.current?.commands ?? []).enumerated() {
-            let item = NSMenuItem(title: command.spec.title, action: #selector(DocumentWindowController.runCommand(_:)), keyEquivalent: command.shortcut?.keyEquivalent ?? "")
-            item.keyEquivalentModifierMask = command.shortcut?.modifiers ?? []
+            // A single key would swallow that letter in text fields as a menu key equivalent, so the window runs it
+            // instead (in Edit mode only) and the title shows it.
+            let single = command.shortcut.flatMap { $0.isSingleKey ? $0 : nil }
+            let title = single.map { "\(command.spec.title) (\(KeyRecorder.display($0)))" } ?? command.spec.title
+            let item = NSMenuItem(title: title, action: #selector(DocumentWindowController.runCommand(_:)), keyEquivalent: single == nil ? command.shortcut?.keyEquivalent ?? "" : "")
+            item.keyEquivalentModifierMask = single == nil ? command.shortcut?.modifiers ?? [] : []
             item.tag = index
             item.target = controller
             menu.addItem(item)

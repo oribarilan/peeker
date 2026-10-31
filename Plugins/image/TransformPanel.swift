@@ -1,0 +1,153 @@
+import AppKit
+
+/// The Rotate & Resize popover: rotate and flip buttons that L, R, H and V also press, and width and height fields
+/// in pixels or percent with an aspect lock. Each press, and each Apply, is one edit.
+final class TransformPanel: NSObject, NSPopoverDelegate, NSTextFieldDelegate {
+    let popover = NSPopover()
+    let view: TransformView
+    private let width = NSTextField()
+    private let height = NSTextField()
+    private let unit = NSPopUpButton()
+    private let lock = NSButton(checkboxWithTitle: "Keep proportions", target: nil, action: nil)
+    /// The image's size in pixels now; read when the fields fill in and on Apply.
+    private let currentSize: () -> CGSize
+    private let onEdit: (ImageEdit) -> Void
+    var onClose: (() -> Void)?
+
+    enum Unit: Int { case pixels, percent }
+    enum Side { case width, height }
+
+    init(currentSize: @escaping () -> CGSize, onEdit: @escaping (ImageEdit) -> Void) {
+        self.currentSize = currentSize
+        self.onEdit = onEdit
+        view = TransformView()
+        super.init()
+        let turns: [(String, String, String, ImageEdit)] = [
+            ("rotate.left", "Rotate Left (L)", "l", .rotate(by: -90)),
+            ("rotate.right", "Rotate Right (R)", "r", .rotate(by: 90)),
+            ("arrow.left.and.right.righttriangle.left.righttriangle.right", "Flip Horizontally (H)", "h", .flip(horizontal: true)),
+            ("arrow.up.and.down.righttriangle.up.righttriangle.down", "Flip Vertically (V)", "v", .flip(horizontal: false)),
+        ]
+        var buttons: [NSView] = []
+        for (index, turn) in turns.enumerated() {
+            let button = NSButton(image: NSImage(systemSymbolName: turn.0, accessibilityDescription: turn.1) ?? NSImage(), target: self, action: #selector(turn(_:)))
+            button.tag = index
+            button.toolTip = turn.1
+            button.bezelStyle = .smallSquare
+            buttons.append(button)
+            view.keys[Character(turn.2)] = { [weak self] in self?.onEdit(turn.3) }
+        }
+        for field in [width, height] {
+            field.delegate = self
+            field.alignment = .right
+            field.widthAnchor.constraint(equalToConstant: 64).isActive = true
+        }
+        width.setAccessibilityLabel("Width")
+        height.setAccessibilityLabel("Height")
+        unit.addItems(withTitles: ["pixels", "percent"])
+        unit.target = self
+        unit.action = #selector(unitChanged(_:))
+        lock.state = .on
+        let apply = NSButton(title: "Apply", target: self, action: #selector(applySize(_:)))
+        apply.keyEquivalent = "\r"
+        let sizeRow = NSStackView(views: [width, NSTextField(labelWithString: "×"), height, unit])
+        let applyRow = NSStackView(views: [lock, apply])
+        let stack = NSStackView(views: [NSStackView(views: buttons), sizeRow, applyRow])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: view.topAnchor), stack.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor), stack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+        ])
+        let controller = NSViewController()
+        controller.view = view
+        popover.contentViewController = controller
+        popover.behavior = .transient
+        popover.delegate = self
+        fillSize()
+    }
+
+    /// Shows the panel hanging from the top of `view`, with the keyboard on its buttons.
+    func show(below view: NSView) {
+        fillSize()
+        popover.show(relativeTo: NSRect(x: view.bounds.midX, y: view.isFlipped ? 0 : view.bounds.maxY - 1, width: 1, height: 1),
+                     of: view, preferredEdge: view.isFlipped ? .maxY : .minY)
+        self.view.window?.makeFirstResponder(self.view)
+    }
+
+    func popoverDidClose(_ notification: Notification) { onClose?() }
+
+    /// The pixel size the fields ask for. With the lock on, the side not edited follows the edited one.
+    static func targetSize(width: Double, height: Double, unit: Unit, lock: Bool, edited: Side, current: CGSize) -> (width: Int, height: Int)? {
+        guard current.width > 0, current.height > 0, width.isFinite, height.isFinite else { return nil }
+        var w = unit == .percent ? current.width * width / 100 : width
+        var h = unit == .percent ? current.height * height / 100 : height
+        if lock {
+            if edited == .width { h = w * current.height / current.width } else { w = h * current.width / current.height }
+        }
+        let result = (width: Int(w.rounded()), height: Int(h.rounded()))
+        return ImageEdit.resize(width: result.width, height: result.height).isValid ? result : nil
+    }
+
+    private var lastEdited = Side.width
+
+    @objc private func turn(_ sender: NSButton) {
+        view.keys[Array("lrhv")[sender.tag]]?()
+        fillSize()
+    }
+
+    @objc private func unitChanged(_ sender: Any?) { fillSize() }
+
+    @objc func applySize(_ sender: Any?) {
+        guard let size = Self.targetSize(width: width.doubleValue, height: height.doubleValue, unit: Unit(rawValue: unit.indexOfSelectedItem) ?? .pixels,
+                                         lock: lock.state == .on, edited: lastEdited, current: currentSize()) else { return NSSound.beep() }
+        if CGSize(width: size.width, height: size.height) != currentSize() { onEdit(.resize(width: size.width, height: size.height)) }
+        fillSize()
+    }
+
+    func controlTextDidChange(_ notification: Notification) {
+        lastEdited = (notification.object as? NSTextField) === height ? .height : .width
+        guard lock.state == .on, let size = Self.targetSize(width: width.doubleValue, height: height.doubleValue,
+                                                            unit: Unit(rawValue: unit.indexOfSelectedItem) ?? .pixels, lock: true,
+                                                            edited: lastEdited, current: currentSize()) else { return }
+        let percent = unit.indexOfSelectedItem == Unit.percent.rawValue
+        let current = currentSize()
+        if lastEdited == .width {
+            height.stringValue = percent ? format(Double(size.height) / current.height * 100) : "\(size.height)"
+        } else {
+            width.stringValue = percent ? format(Double(size.width) / current.width * 100) : "\(size.width)"
+        }
+    }
+
+    /// Puts the image's current size in the fields.
+    private func fillSize() {
+        let size = currentSize()
+        if unit.indexOfSelectedItem == Unit.percent.rawValue {
+            width.stringValue = "100"
+            height.stringValue = "100"
+        } else {
+            width.stringValue = "\(Int(size.width))"
+            height.stringValue = "\(Int(size.height))"
+        }
+    }
+
+    private func format(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(0...1)).grouping(.never)) }
+}
+
+/// The panel's content: takes the keyboard so L, R, H and V press the turn buttons; a focused field gets typing.
+final class TransformView: NSView {
+    var keys: [Character: () -> Void] = [:]
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        guard event.modifierFlags.intersection([.command, .option, .control]).isEmpty,
+              let character = event.charactersIgnoringModifiers?.lowercased().first, let action = keys[character] else {
+            return super.keyDown(with: event)
+        }
+        action()
+    }
+}

@@ -51,7 +51,9 @@ context: |
   4. PDF page operations (decided 2026-10-31; openspec/changes/pdf-page-operations): rotate, delete and reorder
      pages in Edit mode, from the thumbnails, the Commands menu and the toolbar; saved like other edits, with
      Undo reaching past saves. Inserting, extracting and blank pages wait.
-  Later: image editing.
+  5. Image editing (decided 2026-10-31; openspec/changes/image-editing): Edit mode for images with crop (C),
+     and a Rotate & Resize panel (Cmd+R; L, R, H, V inside); saved in place at full resolution with metadata,
+     lossless when only turned. Single letters stay free for markup tools later; markup itself waits.
 
   Open questions:
   - Text-based formats. Plain text, logs, source, structured data (JSON, YAML, XML), CSV and Markdown differ a

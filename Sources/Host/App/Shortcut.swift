@@ -63,6 +63,9 @@ struct Shortcut: Equatable {
         return (names.filter { modifiers.contains($0.0) }.map(\.1) + [keyName]).joined(separator: "+")
     }
 
+    /// A key without Command, Option or Control, which only edit tools may use.
+    var isSingleKey: Bool { modifiers.intersection([.command, .option, .control]).isEmpty }
+
     /// For menu items.
     var keyEquivalent: String {
         switch key {
