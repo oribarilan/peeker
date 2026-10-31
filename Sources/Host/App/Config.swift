@@ -43,6 +43,15 @@ struct Config {
         return (owners.mapValues(\.id), problems)
     }
 
+    /// `text` as an extension-list entry: lowercased, with one leading dot dropped, or `noExtension` as is. Nil when
+    /// it's empty or has a dot, slash or space.
+    static func extensionEntry(_ text: String) -> String? {
+        if text == noExtension { return text }
+        let bare = text.hasPrefix(".") ? text.dropFirst() : Substring(text)
+        guard !bare.isEmpty, !bare.contains(where: { $0 == "." || $0 == "/" || $0.isWhitespace }) else { return nil }
+        return bare.lowercased()
+    }
+
     static var defaultURL: URL {
         if let path = ProcessInfo.processInfo.environment["PEEKER_CONFIG"] { return URL(filePath: path) }
         return FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config/peeker/config.json")
@@ -178,21 +187,13 @@ private struct ConfigReader {
                 problem(path, "Each extension should be text, in quotes.")
                 continue
             }
-            guard let ext = Self.listEntry(text) else {
+            guard let ext = Config.extensionEntry(text) else {
                 problem(path, "“\(text)” isn't an extension. Write one like md, without the dot, or noExtension.")
                 continue
             }
             if !list.contains(ext) { list.append(ext) }
         }
         config.extensions[plugin.id] = list
-    }
-
-    /// `text` as a list entry: lowercased, with one leading dot dropped. Nil when it's empty or has a dot, slash or space.
-    private static func listEntry(_ text: String) -> String? {
-        if text == noExtension { return text }
-        let bare = text.hasPrefix(".") ? text.dropFirst() : Substring(text)
-        guard !bare.isEmpty, !bare.contains(where: { $0 == "." || $0 == "/" || $0.isWhitespace }) else { return nil }
-        return bare.lowercased()
     }
 
     // MARK: Values

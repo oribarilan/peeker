@@ -21,7 +21,7 @@ context: |
   reload and schema.json, a first Settings window with the config's problems, a menu bar icon, and a Dock icon
   only while windows are open) and extension-lists (2026-10-30: each plugin has a default list of extensions,
   plugins.<id>.extensions replaces it, one plugin per extension, Plain Text owns files with no extension).
-  1. Settings window, modeled on Tinycast's (decided 2026-10-30). The config file stays the only store. Only a
+  1. Settings window (openspec/changes/settings-window), modeled on Tinycast's (decided 2026-10-30). The config file stays the only store. Only a
      change made in the window rewrites it: every setting, defaults included, with sorted keys; while the
      file isn't valid JSON the controls lock, and bad keys are dropped on rewrite. Panes: General (the
      quick-look key, as a recorder that accepts bare Space, or Off); one pane per plugin (on/off, its

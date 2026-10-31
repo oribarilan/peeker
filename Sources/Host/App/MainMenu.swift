@@ -33,8 +33,6 @@ enum MainMenu {
             item("About Peeker", #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
             item("Settings…", #selector(AppDelegate.showSettings(_:)), ",", target: target),
             .separator(),
-            item("Open at Login", #selector(AppDelegate.toggleOpenAtLogin(_:)), target: target),
-            .separator(),
             item("Hide Peeker", #selector(NSApplication.hide(_:)), "h"),
             item("Quit Peeker", #selector(NSApplication.terminate(_:)), "q"),
         ])

@@ -1,6 +1,6 @@
 ---
 name: run-peeker
-description: Use when asked to run, launch, try or demo Peeker, to check a change in the real app rather than in unit tests, or to capture screenshots or a screen recording of its flows as evidence (Space in Finder, Open With, the menu bar icon, config problems).
+description: Use when asked to run, launch, try or demo Peeker, to check a change in the real app rather than in unit tests, or to capture screenshots or a screen recording of its flows as evidence (Space in Finder, Open With, the menu bar icon, config problems, Settings).
 ---
 
 # Run Peeker
@@ -43,6 +43,8 @@ It takes over the keyboard and Finder for about a minute, so the screen must be 
 | `drive choose Peeker "Plain Text"` | pick an item in the front window's Open With pop-up |
 | `drive menu Peeker File Close` | press a menu item |
 | `drive menuextra Peeker [item]` | print the menu bar icon's menu, or press an item |
+| `drive frame Peeker AXTextField` | the screen frame of the first element with that role (and label) |
+| `drive click Peeker <x> <y>` / `drive type Peeker <text>` / `drive drag Peeker <x y>...` | mouse and keys, sent only while Peeker is in front |
 
 Launch the app yourself with `open --env PEEKER_CONFIG=<scratch config> -a <Peeker.app> [file]`. A full-screen capture is `screencapture -x out.png`, and a recording is `screencapture -v -V <seconds> -x -k -C out.mov`, then `avconvert --preset Preset1920x1080 --source out.mov --output out.mp4`.
 
@@ -50,5 +52,5 @@ Launch the app yourself with `open --env PEEKER_CONFIG=<scratch config> -a <Peek
 
 - **A locked screen blocks everything visual.** Screenshots come back black, `screencapture -l` fails, Accessibility reports no windows, and keys go to the lock screen. Check `drive locked` first; only the routing check runs while locked.
 - The terminal running the scripts needs Accessibility (keys, the Accessibility tree) and Screen Recording (captures), and the first `drive select` asks to let it automate Finder.
-- Peeker itself needs Accessibility for Space to reach it. Without it, every Space goes to Finder's Quick Look and the first two checks fail with `QuickLookUIService`. The build is signed with a team ID, so the permission survives rebuilds.
+- Peeker itself needs Accessibility for Space to reach it. Without it, every Space goes to Finder's Quick Look and the first two checks fail with `Quick Look`. To confirm, list the system's event taps (`CGGetEventTapList`): a Peeker with Accessibility has one. The build is signed with a team ID, so the permission survives rebuilds.
 - A bare Space only reaches Peeker while Finder is frontmost and no text field has focus, which is why the script selects files through Finder first.

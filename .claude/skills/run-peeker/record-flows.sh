@@ -1,13 +1,14 @@
 #!/bin/bash
-# Records the user-facing routing flows as evidence: Space in Finder on files Peeker opens and on files it leaves to
-# Quick Look, Open With in a document window, and a config clash in the menu bar icon. Writes screenshots, a screen
-# recording and results.txt (one ok/FAIL line per check) to build/evidence/<time>/.
+# Records the user-facing flows as evidence: Space in Finder on files Peeker opens and on files it leaves to Quick
+# Look, Open With in a document window, a config clash in the menu bar icon, and changes made in Settings. Writes
+# screenshots, a screen recording and results.txt (one ok/FAIL line per check) to build/evidence/<time>/.
 #
 # Takes over the keyboard and Finder for about a minute: the screen must be unlocked and left alone.
 # usage: record-flows.sh [path/to/Peeker.app]
 set -u
 cd "$(git rev-parse --show-toplevel)"
 APP=${1:-build/dd/Build/Products/Release/Peeker.app}
+APP="$(cd "$(dirname "$APP")" && pwd)/$(basename "$APP")"  # open -a needs an absolute path
 TOOLS=build/run-tools
 DRIVE=$TOOLS/drive
 mkdir -p "$TOOLS"
@@ -32,7 +33,12 @@ sleep 1
 open --env PEEKER_CONFIG="$CONFIG" -a "$APP"
 sleep 2
 
-screencapture -v -V 120 -x -k -C "$OUT/flows.mov" &
+# One big Finder window behind everything, so frames show Finder and Peeker rather than whatever else is open.
+"$DRIVE" select "$F/notes.md"
+osascript -e 'tell application "Finder" to set bounds of front Finder window to (bounds of window of desktop)' >/dev/null 2>&1
+osascript -e 'tell application "Finder" to set b to bounds of front Finder window' -e 'tell application "Finder" to set bounds of front Finder window to {item 1 of b, (item 2 of b) + 30, item 3 of b, item 4 of b}' >/dev/null 2>&1
+sleep 1
+screencapture -v -V 180 -x -k -C "$OUT/flows.mov" &
 RECORDER=$!
 sleep 1
 
@@ -41,11 +47,14 @@ space() {
     local name=$1 file=$2 want=$3
     "$DRIVE" select "$file"
     sleep 1.2
-    local before; before=$("$DRIVE" windows | awk '{print $1}')
+    "$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
     "$DRIVE" key space
     sleep 1.5
-    local owner; owner=$("$DRIVE" windows | awk -v before="$before" 'BEGIN { split(before, b, "\n"); for (i in b) seen[b[i]] = 1 }
-        !($1 in seen) && $2 != "Window" { print $2; exit }')
+    # Peeker's panel belongs to Peeker; Finder's Quick Look is a Finder window above the normal layer (macOS 27 gives
+    # it no title; older versions titled it with the file's name).
+    local owner; owner=$("$DRIVE" windows | awk -v name="$(basename "$file")" 'NR == FNR { seen[$1] = 1; next }
+        !($1 in seen) && $2 == "Peeker" { print "Peeker"; exit }
+        !($1 in seen) && $2 == "Finder" && ($4 != 0 || substr($0, length($0) - length(name) + 1) == name) { print "Quick Look"; exit }' "$OUT/.before" -)
     screencapture -x "$OUT/$name.png"
     check "Space on $(basename "$file")" "${owner:-nothing}" "$want"
     "$DRIVE" key escape
@@ -54,8 +63,8 @@ space() {
 
 space 1-space-markdown "$F/notes.md" Peeker
 space 2-space-dotfile "$F/.zshrc" Peeker
-space 3-space-mp4 "$F/movie.mp4" QuickLookUIService
-space 4-space-folder "$F/folder" QuickLookUIService
+space 3-space-mp4 "$F/movie.mp4" "Quick Look"
+space 4-space-folder "$F/folder" "Quick Look"
 
 # Open With in a document window: Markdown, then Plain Text, then Image (which can't read it and says so).
 open -a "$APP" "$F/notes.md"
@@ -79,6 +88,39 @@ sleep 2
 menu=$(DRIVE_HOLD=2.5 "$DRIVE" menuextra Peeker)
 wait $!
 check "Clash shows in the menu bar icon" "$(echo "$menu" | grep -o 'Config has 1 problem' | head -1)" "Config has 1 problem"
+
+# Settings: open it from the menu bar icon, change things, and check config.json after each change.
+echo '{}' > "$CONFIG"
+sleep 1.5
+cfg() { python3 -c 'import json, sys; c = json.load(open(sys.argv[1])); print(eval(sys.argv[2]))' "$CONFIG" "$1" 2>/dev/null || echo "unreadable"; }
+"$DRIVE" menuextra Peeker "Settings…"
+sleep 1.5
+"$DRIVE" shot Peeker "$OUT/9-settings-general.png"
+"$DRIVE" row Peeker Image && sleep 0.8
+"$DRIVE" press Peeker "Open files with Image" && sleep 1
+check "Turning Image off writes enabled false" "$(cfg "c['plugins']['image']['enabled']")" False
+"$DRIVE" shot Peeker "$OUT/10-settings-image-off.png"
+"$DRIVE" press Peeker "Open files with Image" && sleep 1
+check "Turning it back on" "$(cfg "c['plugins']['image']['enabled']")" True
+"$DRIVE" row Peeker "Plain Text" && sleep 0.8
+# Setting the field's text through Accessibility doesn't reach SwiftUI's binding, so focus it and type.
+"$DRIVE" fill Peeker "Add an extension" "" && sleep 0.3 && "$DRIVE" type Peeker md && sleep 0.5
+"$DRIVE" press Peeker Add && sleep 1
+"$DRIVE" shot Peeker "$OUT/11-settings-move-md.png"
+"$DRIVE" press Peeker "Move to Plain Text"; sleep 1
+check "Move takes md from Markdown to Plain Text" "$(cfg "'md' in c['plugins']['text']['extensions'] and 'md' not in c['plugins']['markdown']['extensions']")" True
+"$DRIVE" press Peeker "Reset to Defaults" && sleep 1
+check "Reset gives md back to Markdown" "$(cfg "'md' in c['plugins']['markdown']['extensions'] and 'md' not in c['plugins']['text']['extensions']")" True
+"$DRIVE" row Peeker Permissions && sleep 2
+"$DRIVE" shot Peeker "$OUT/12-settings-permissions.png"
+"$DRIVE" row Peeker General && sleep 0.8
+printf '{"plugins": ' > "$CONFIG"
+sleep 1.5
+check "Broken JSON locks the switches" "$("$DRIVE" enabled Peeker "Quick look panel")" false
+"$DRIVE" shot Peeker "$OUT/13-settings-locked.png"
+echo '{}' > "$CONFIG"
+sleep 1.5
+check "Fixing the file unlocks them" "$("$DRIVE" enabled Peeker "Quick look panel")" true
 
 echo '{}' > "$CONFIG"
 osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1

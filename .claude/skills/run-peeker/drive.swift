@@ -11,6 +11,14 @@
 //        drive choose <process> <item>             pick <item> in the front window's toolbar pop-up (Open With)
 //        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close"
 //        drive menuextra <process> [item]          open the process's menu bar icon menu and print it, or press <item>
+//        drive row <process> <title>               select the sidebar row titled <title> in the front window
+//        drive press <process> <label>             press the control (button, switch) labeled <label> in any window
+//        drive fill <process> <label> <text>       focus the field with that placeholder or label and set its text
+//        drive enabled <process> <label>           print whether the control labeled <label> is enabled
+//        drive frame <process> <role> [label]      print the screen frame (x y width height) of the first such element
+//        drive click <process> <x> <y> [count]     click at a screen point, only while <process> is in front
+//        drive type <process> <text>               type <text>, only while <process> is in front
+//        drive drag <process> <x y>...             press at the first point, drag through the rest, release at the last
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -66,11 +74,57 @@ func selectInFinder(_ path: String) {
     NSAppleScript(source: """
         tell application "Finder"
             activate
-            reveal (POSIX file "\(escaped)" as alias)
-            select (POSIX file "\(escaped)" as alias)
+            set picked to (POSIX file "\(escaped)" as alias)
+            -- Reuse the front window when it already shows the folder, rather than opening one per file.
+            if (count of Finder windows) > 0 and ((target of front Finder window) as alias) is ((container of picked) as alias) then
+                select picked
+            else
+                reveal picked
+                select picked
+            end if
         end tell
         """)?.executeAndReturnError(&error)
     if let error { fail("finder: \(error[NSAppleScript.errorMessage] ?? error)") }
+}
+
+/// Clicks and keys go to whichever app is in front, so they're sent only when it's the one under test.
+func requireFront(_ process: String) {
+    let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "nothing"
+    if front != process { fail("\(process) isn't in front (\(front) is): not sending input") }
+}
+
+func click(at point: CGPoint, count: Int) {
+    let source = CGEventSource(stateID: .hidSystemState)
+    for index in 1...count {
+        for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+            let event = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left)
+            event?.setIntegerValueField(.mouseEventClickState, value: Int64(index))
+            event?.post(tap: .cghidEventTap)
+            usleep(30_000)
+        }
+    }
+}
+
+func drag(through points: [CGPoint]) {
+    let source = CGEventSource(stateID: .hidSystemState)
+    for (index, point) in points.enumerated() {
+        let type: CGEventType = index == 0 ? .leftMouseDown : index == points.count - 1 ? .leftMouseUp : .leftMouseDragged
+        CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
+        usleep(16_000)
+    }
+}
+
+func type(_ text: String) {
+    let source = CGEventSource(stateID: .hidSystemState)
+    for character in text.utf16 {
+        for down in [true, false] {
+            let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down)
+            var unit = character
+            event?.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
+            event?.post(tap: .cghidEventTap)
+            usleep(15_000)
+        }
+    }
 }
 
 // MARK: Accessibility
@@ -121,25 +175,48 @@ func find(_ element: AXUIElement, depth: Int = 0, where match: (AXUIElement) -> 
 
 func press(_ element: AXUIElement, _ action: String = kAXPressAction) {
     let result = AXUIElementPerformAction(element, action as CFString)
-    if result != .success { fail("\(action) failed: \(result.rawValue)") }
+    // A button that closes its sheet is gone by the time the call returns, which reports an error after it worked.
+    if result != .success && result != .cannotComplete && result != .actionUnsupported { fail("\(action) failed: \(result.rawValue)") }
 }
 
 /// Opens a menu-owning element, then presses the item titled `item` inside it, or prints the menu when `item` is nil.
 func pick(in owner: AXUIElement, item: String?) {
-    press(owner)
+    // A menu tracks modally, so the press reports "cannot complete" even though the menu opened; don't wait on it.
+    AXUIElementSetMessagingTimeout(owner, 0.5)
+    let result = AXUIElementPerformAction(owner, kAXPressAction as CFString)
+    if result != .success && result != .cannotComplete { fail("press failed: \(result.rawValue)") }
     usleep(400_000)
     guard let item else {
         dump(owner, depth: 0, max: 4)
         // DRIVE_HOLD=<seconds> keeps the menu open, for a screenshot taken meanwhile.
         usleep(UInt32((Double(ProcessInfo.processInfo.environment["DRIVE_HOLD"] ?? "") ?? 0) * 1_000_000))
-        press(owner, kAXCancelAction)
+        press(keyCodes["escape"]!)
         return
     }
     guard let found = find(owner, where: { role($0) == kAXMenuItemRole && label($0) == item }) else {
-        AXUIElementPerformAction(owner, kAXCancelAction as CFString)
+        press(keyCodes["escape"]!)
         fail("no item “\(item)”")
     }
     press(found)
+}
+
+/// The first button, switch, checkbox or menu button labeled `title` in any of the process's windows.
+func control(_ process: String, _ title: String) -> AXUIElement? {
+    let roles: Set<String> = [kAXButtonRole, kAXCheckBoxRole, "AXSwitch", kAXMenuButtonRole, kAXRadioButtonRole]
+    let isControl = { (element: AXUIElement) in roles.contains(role(element)) }
+    return axWindows(application(process)).lazy.compactMap { window in
+        find(window, where: { isControl($0) && label($0) == title }) ?? controlAfterText(title, in: window, isControl: isControl)
+    }.first
+}
+
+/// A form row's control whose label is a separate text, as SwiftUI lays out a `Toggle` in a grouped `Form`: the first
+/// control after the text in the same parent.
+func controlAfterText(_ title: String, in root: AXUIElement, isControl: (AXUIElement) -> Bool) -> AXUIElement? {
+    guard let text = find(root, where: { role($0) == kAXStaticTextRole && (attr($0, kAXValueAttribute) as String?) == title }),
+          let parent: AXUIElement = attr(text, kAXParentAttribute) else { return nil }
+    let siblings = children(parent)
+    guard let index = siblings.firstIndex(where: { CFEqual($0, text) }) else { return nil }
+    return siblings[(index + 1)...].first(where: isControl)
 }
 
 // MARK: Commands
@@ -181,6 +258,48 @@ case "menu":
 case "menuextra":
     guard let extras: AXUIElement = attr(application(arg(1)), "AXExtrasMenuBar"), let icon = children(extras).first else { fail("no menu bar icon") }
     pick(in: icon, item: args.count > 2 ? args[2] : nil)
+case "row":
+    guard let window = axWindows(application(arg(1))).first,
+          let row = find(window, where: { role($0) == kAXRowRole && find($0, where: { label($0) == arg(2) || (attr($0, kAXValueAttribute) as String?) == arg(2) }) != nil })
+    else { fail("no sidebar row “\(arg(2))”") }
+    let result = AXUIElementSetAttributeValue(row, kAXSelectedAttribute as CFString, kCFBooleanTrue)
+    if result != .success { fail("can't select “\(arg(2))”: \(result.rawValue)") }
+case "press":
+    guard let control = control(arg(1), arg(2)) else { fail("no control “\(arg(2))”") }
+    press(control)
+case "fill":
+    let isField = { (element: AXUIElement) in role(element) == kAXTextFieldRole }
+    guard let field = axWindows(application(arg(1))).lazy.compactMap({ window in
+        find(window, where: { isField($0) && ((attr($0, kAXPlaceholderValueAttribute) as String?) == arg(2) || label($0) == arg(2)) })
+            ?? controlAfterText(arg(2), in: window, isControl: isField)
+    }).first
+    else { fail("no field “\(arg(2))”") }
+    // Sets the text only: a Return key would go to whichever app is in front, which may not be this one.
+    AXUIElementSetAttributeValue(field, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+    AXUIElementSetAttributeValue(field, kAXValueAttribute as CFString, arg(3) as CFString)
+case "enabled":
+    guard let control = control(arg(1), arg(2)) else { fail("no control “\(arg(2))”") }
+    print((attr(control, kAXEnabledAttribute) as Bool?) ?? false)
+case "frame":
+    let wanted = args.count > 3 ? args[3] : nil
+    guard let window = axWindows(application(arg(1))).first,
+          let element = find(window, where: { role($0) == arg(2) && (wanted == nil || label($0).contains(wanted!)) }) else { fail("no \(arg(2)) \(wanted ?? "")") }
+    var origin = CGPoint.zero, size = CGSize.zero
+    if let value: AXValue = attr(element, kAXPositionAttribute) { AXValueGetValue(value, .cgPoint, &origin) }
+    if let value: AXValue = attr(element, kAXSizeAttribute) { AXValueGetValue(value, .cgSize, &size) }
+    print(Int(origin.x), Int(origin.y), Int(size.width), Int(size.height))
+case "click":
+    requireFront(arg(1))
+    guard let x = Double(arg(2)), let y = Double(arg(3)) else { fail("click needs numbers") }
+    click(at: CGPoint(x: x, y: y), count: args.count > 4 ? Int(args[4]) ?? 1 : 1)
+case "type":
+    requireFront(arg(1))
+    type(arg(2))
+case "drag":
+    requireFront(arg(1))
+    let numbers = args.dropFirst(2).compactMap(Double.init)
+    guard numbers.count >= 4, numbers.count.isMultiple(of: 2) else { fail("drag needs at least two x y points") }
+    drag(through: stride(from: 0, to: numbers.count, by: 2).map { CGPoint(x: numbers[$0], y: numbers[$0 + 1]) })
 default:
-    fail("usage: drive locked|windows|shot|select|key|tree|choose|menu|menuextra ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|key|tree|choose|menu|menuextra|row|press|fill|enabled|frame|click|type|drag ...; see the top of drive.swift")
 }

@@ -7,7 +7,7 @@ private enum StubPDF: Plugin {
     static let id = "pdf"
     static let name = "PDF"
     static let defaultExtensions = ["pdf"]
-    static let commands = [CommandSpec(id: "zoom-in", title: "Zoom In"), CommandSpec(id: "highlight", title: "Highlight")]
+    static let commands = [CommandSpec(id: "zoom-in", title: "Zoom In", shortcut: "cmd+="), CommandSpec(id: "highlight", title: "Highlight")]
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { throw PluginError("not used") }
 }
 
@@ -181,5 +181,110 @@ private func config(_ json: String) throws -> Config {
     @Test func aDisabledPluginKeepsItsExtensions() throws {
         let config = try config(#"{"plugins": {"markdown": {"enabled": false}}}"#)
         #expect(config.owners(of: plugins).owners["md"] == "markdown")
+    }
+}
+
+@Suite struct ConfigRendering {
+    private func rendered(_ config: Config) -> String { String(decoding: config.json(plugins: plugins), as: UTF8.self) }
+
+    private func object(_ config: Config) throws -> [String: Any] {
+        try #require(try JSONSerialization.jsonObject(with: config.json(plugins: plugins)) as? [String: Any])
+    }
+
+    @Test func defaultsWriteEverySetting() throws {
+        let root = try object(Config())
+        #expect(root["$schema"] as? String == "schema.json")
+        #expect((root["quickLook"] as? [String: Any])?["key"] as? String == "space")
+        let pluginSettings = try #require(root["plugins"] as? [String: [String: Any]])
+        #expect(pluginSettings.keys.sorted() == ["markdown", "pdf", "text"])
+        #expect(pluginSettings["markdown"]?["enabled"] as? Bool == true)
+        #expect(pluginSettings["markdown"]?["extensions"] as? [String] == ["md", "markdown"])
+        #expect(pluginSettings["text"]?["extensions"] as? [String] == ["txt", "noExtension"])
+        // A command's default shortcut is written; one with no shortcut is left out.
+        #expect((pluginSettings["pdf"]?["commands"] as? [String: [String: String]]) == ["zoom-in": ["shortcut": "cmd+="]])
+    }
+
+    @Test func readingTheRenderingGivesBackTheSameSettings() throws {
+        let original = try config("""
+            {"quickLook": {"key": "off"},
+             "plugins": {"text": {"enabled": false, "extensions": ["txt", "log"]},
+                         "pdf": {"commands": {"highlight": {"shortcut": "cmd+shift+h"}}}}}
+            """)
+        let reading = read(rendered(original))
+        #expect(reading.problems.isEmpty)
+        let back = try #require(reading.config)
+        #expect(back.quickLookKey == nil)
+        #expect(back.disabled == ["text"])
+        #expect(back.extensions["text"] == ["txt", "log"])
+        #expect(back.keys["pdf.highlight"] == Shortcut(key: .character("h"), modifiers: [.command, .shift]))
+        #expect(rendered(back) == rendered(original), "rendering is stable")
+    }
+
+    @Test func keysComeOutSortedWithATrailingNewline() {
+        let text = rendered(Config())
+        #expect(text.hasSuffix("}\n"))
+        let order = ["\"$schema\"", "\"plugins\"", "\"quickLook\""].compactMap { text.range(of: $0)?.lowerBound }
+        #expect(order.count == 3 && order == order.sorted())
+    }
+
+    @Test func anExtensionAnotherPluginKeepsIsLeftOut() throws {
+        let clash = try config(#"{"plugins": {"text": {"extensions": ["txt", "md"]}}}"#)
+        let root = try object(clash)
+        let pluginSettings = try #require(root["plugins"] as? [String: [String: Any]])
+        #expect(pluginSettings["text"]?["extensions"] as? [String] == ["txt"])
+        #expect(read(rendered(clash)).problems.isEmpty)
+    }
+}
+
+@Suite struct ConfigEditing {
+    private var markdown: PluginEntry { plugins[1] }
+    private var text: PluginEntry { plugins[2] }
+
+    @Test func extensionEntriesAreCheckedLikeTheConfigs() {
+        #expect(Config.extensionEntry(".Rst") == "rst")
+        #expect(Config.extensionEntry("noExtension") == noExtension)
+        #expect(Config.extensionEntry("tar.gz") == nil)
+        #expect(Config.extensionEntry("") == nil)
+        #expect(Config.extensionEntry("a b") == nil)
+    }
+
+    @Test func addingAndRemovingChangeOnlyThatPlugin() {
+        var config = Config()
+        config.addExtension("rst", to: text, among: plugins)
+        #expect(config.effectiveExtensions(of: text, among: plugins) == ["txt", noExtension, "rst"])
+        config.addExtension("rst", to: text, among: plugins)
+        #expect(config.effectiveExtensions(of: text, among: plugins) == ["txt", noExtension, "rst"], "adding twice changes nothing")
+        config.removeExtension("txt", from: text, among: plugins)
+        #expect(config.effectiveExtensions(of: text, among: plugins) == [noExtension, "rst"])
+        #expect(config.effectiveExtensions(of: markdown, among: plugins) == ["md", "markdown"])
+    }
+
+    @Test func movingTakesTheExtensionFromItsOwner() {
+        var config = Config()
+        #expect(config.owner(of: "md", among: plugins)?.id == "markdown")
+        config.moveExtension("md", to: text, among: plugins)
+        #expect(config.owner(of: "md", among: plugins)?.id == "text")
+        #expect(config.effectiveExtensions(of: markdown, among: plugins) == ["markdown"])
+        #expect(config.owners(of: plugins).problems.isEmpty)
+    }
+
+    @Test func resettingAPluginGivesBackExtensionsItTookFromAnother() throws {
+        var config = Config()
+        config.moveExtension("md", to: text, among: plugins)
+        // As saved, Markdown's list no longer has md.
+        config = try #require(read(String(decoding: config.json(plugins: plugins), as: UTF8.self)).config)
+        config.resetExtensions(of: text, among: plugins)
+        #expect(config.owner(of: "md", among: plugins)?.id == "markdown")
+        #expect(config.effectiveExtensions(of: text, among: plugins) == ["txt", noExtension])
+    }
+
+    @Test func resettingBringsBackTheDefaultsEvenFromAnotherPlugin() throws {
+        var config = Config()
+        config.moveExtension("md", to: text, among: plugins)
+        config.resetExtensions(of: markdown, among: plugins)
+        #expect(config.owner(of: "md", among: plugins)?.id == "markdown")
+        #expect(config.effectiveExtensions(of: text, among: plugins) == ["txt", noExtension])
+        let back = try #require(read(String(decoding: config.json(plugins: plugins), as: UTF8.self)).config)
+        #expect(back.owners(of: plugins).problems.isEmpty)
     }
 }

@@ -33,13 +33,13 @@ open build/dd/Build/Products/Release/Peeker.app
 1. Build, then copy the app: `cp -R build/dd/Build/Products/Release/Peeker.app /Applications/`.
 2. In Finder, select a `.txt` file, press Cmd+I, pick Peeker under Open With and click Change All. Repeat for `.pdf` and the image types you want. Peeker stays an alternate handler, so nothing changes until you do this.
 3. Launch it from /Applications. macOS asks for Accessibility (to see the quick-look key) and, on first use of Space, for permission to control Finder (to read the selection). `scripts/build.sh` signs with your Apple Development certificate when you have one, so those grants survive rebuilds.
-4. Choose Open at Login from Peeker's menu bar icon. Space in Finder only works while the app is running.
+4. Turn on Open at Login in Settings > Permissions (or from Peeker's menu bar icon). Space in Finder only works while the app is running; the same pane shows whether Peeker has the permissions it needs.
 
 Space on a supported file in Finder opens a panel. Open there moves it into a window, where text files are editable and Cmd+S saves.
 
 ## Config
 
-Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Every key is optional, and a missing one keeps its default. Saving the file applies it at once, open windows included; there's nothing to reload.
+Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change them in the Settings window (from the menu bar icon, or Cmd+,) or edit the file by hand. Every key is optional, and a missing one keeps its default. Saving the file applies it at once, open windows included; there's nothing to reload.
 
 ```json
 {
@@ -60,6 +60,8 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Every key
 - `plugins.<id>.commands.<command>.shortcut` rebinds a command.
 
 Peeker writes `schema.json` next to the config at launch, so editors that read `$schema` autocomplete and check the keys. A key it doesn't know or a value it can't use is skipped and listed under Settings > Config file, and the menu bar icon shows a red dot until it's fixed; a file that isn't valid JSON changes nothing. Settings > Open in Editor creates the file when there's none.
+
+Peeker never writes `config.json` on its own. A change made in the Settings window rewrites the whole file: every setting, defaults included, with sorted keys, so hand formatting and keys Peeker doesn't know are dropped then. A symlinked config stays a symlink. While the file isn't valid JSON, Settings locks until it's fixed.
 
 Peeker lives in the menu bar while no files are open and gets a Dock icon and menus while they are.
 

@@ -23,7 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var hotkey: HotkeyMonitor?
     /// The key the hotkey monitor was started with; nil when it's off.
     private var hotkeyShortcut: Shortcut?
-    private var trustTimer: Timer?
+    private let accessibility = AccessibilityStatus()
+    private var askedForTrust = false
     private var commandsMenu: NSMenu?
     private var benchRunner: BenchRunner?
     private var settings: SettingsWindowController?
@@ -55,7 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
         menuBarItem = MenuBarItem(target: self)
-        menuBarItem?.show(problems: configStore.problems.count)
+        accessibility.onChange = { [weak self] in self?.accessibilityChanged() }
         restoreRecoveredDocuments()
         files.forEach(openInWindow)
         startHotkey()
@@ -104,8 +105,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // MARK: Quick look
 
     private func startHotkey() {
-        trustTimer?.invalidate()
         hotkeyShortcut = config.quickLookKey
+        accessibility.watch(config.quickLookKey != nil)
+        updateMenuBar()
         guard let shortcut = config.quickLookKey else { return }
         let monitor = HotkeyMonitor(shortcut: shortcut)
         monitor.isPanelVisible = { [weak self] in self?.panel.isVisible == true }
@@ -113,22 +115,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         monitor.onDismiss = { [weak self] in self?.panel.dismiss() }
         monitor.onSelectionMayHaveChanged = { [weak self] in self?.followFinderSelection() }
         hotkey = monitor
-        if monitor.start() { return }
-        // Until Accessibility is granted the tap can't be created; ask once, then retry quietly.
-        HotkeyMonitor.requestTrust()
-        trustTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self, self.hotkey?.start() == true else { return }
-                self.trustTimer?.invalidate()
-            }
+        // Until Accessibility is granted the tap can't be created: ask once per launch, and start it when the
+        // permission shows up (accessibilityChanged).
+        if !monitor.start(), !askedForTrust {
+            askedForTrust = true
+            HotkeyMonitor.requestTrust()
         }
+    }
+
+    private func accessibilityChanged() {
+        if accessibility.isTrusted { hotkey?.start() }
+        updateMenuBar()
+    }
+
+    private func updateMenuBar() {
+        menuBarItem?.show(MenuBarItem.State(problems: configStore.problems.count, needsAccessibility: accessibility.isMissing))
     }
 
     /// Applies a saved config everywhere: routing for files opened next, the quick-look key, and command shortcuts in
     /// open windows.
     private func configChanged(_ store: ConfigStore) {
         Self.logProblems(store.problems)
-        menuBarItem?.show(problems: store.problems.count)
+        updateMenuBar()
         catalog.reload(config: store.config)
         windows.forEach { $0.apply(store.config) }
         guard store.config.quickLookKey != hotkeyShortcut else { return }
@@ -145,27 +153,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Presence.update(documentWindows: windows.count, settingsOpen: settings != nil)
     }
 
-    @objc func showSettings(_ sender: Any?) {
-        let controller = settings ?? SettingsWindowController(store: configStore)
-        controller.onClose = { [weak self] in
-            self?.settings = nil
-            self?.updatePresence()
-        }
+    @objc func showSettings(_ sender: Any?) { showSettings(pane: nil) }
+    @objc func showConfigFileSettings(_ sender: Any?) { showSettings(pane: .configFile) }
+    @objc func showPermissionsSettings(_ sender: Any?) { showSettings(pane: .permissions) }
+
+    /// Opens Settings, or brings it forward, on `pane` (or where it was).
+    private func showSettings(pane: SettingsPane?) {
+        let controller = settings ?? makeSettings()
+        if let pane { controller.select(pane) }
         settings = controller
         updatePresence()
         controller.showWindow(nil)
         NSApp.activate()
     }
 
-    @objc func toggleOpenAtLogin(_ sender: Any?) {
-        do { try LoginItem.toggle() } catch {
-            Self.log.error("can't change Open at Login: \(error.localizedDescription, privacy: .public)")
-            let alert = NSAlert()
-            alert.messageText = "Couldn't change Open at Login"
-            alert.informativeText = error.localizedDescription
-            alert.runModal()
+    private func makeSettings() -> SettingsWindowController {
+        let model = SettingsModel(store: configStore, accessibility: accessibility)
+        // While a recorder listens, the current quick-look key must reach it rather than open the panel.
+        model.onRecordingChange = { [weak self] recording in
+            if recording { self?.hotkey?.stop() } else { self?.hotkey?.start() }
         }
+        let controller = SettingsWindowController(model: model)
+        controller.onClose = { [weak self] in
+            self?.settings = nil
+            self?.updatePresence()
+        }
+        return controller
     }
+
+    @objc func toggleOpenAtLogin(_ sender: Any?) { LoginItem.toggleReportingErrors() }
 
     private func quickLookFinderSelection() {
         guard let url = finder.selection().first, let entry = catalog.owner(for: url) else {
