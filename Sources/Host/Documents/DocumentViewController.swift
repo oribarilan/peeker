@@ -411,28 +411,12 @@ final class DocumentViewController: NSSplitViewController {
         sidebarPending = false
         isEditing = false
         setCommands([])  // the failure view has nothing to run
-        let label = NSTextField(wrappingLabelWithString: message)
-        label.alignment = .center
-        label.textColor = .secondaryLabelColor
-        let retry = NSButton(title: "Reopen", target: self, action: #selector(reopen))
-        let stack = NSStackView(views: [label, retry])
-        stack.orientation = .vertical
-        stack.alignment = .centerX
-        let container = NSView()
-        container.addSubview(stack)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            stack.widthAnchor.constraint(lessThanOrEqualTo: container.widthAnchor, constant: -40),
-        ])
-        content.show(container)
+        content.show(FailureView(message: message) { [weak self] in
+            guard let self else { return }
+            Task.immediate { await self.load() }
+        })
         if let sidebarItem { removeSplitViewItem(sidebarItem) }
         sidebarItem = nil
         onFailure?(self, message)
-    }
-
-    @objc private func reopen() {
-        Task.immediate { await load() }
     }
 }
