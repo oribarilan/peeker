@@ -178,6 +178,16 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(document.edits == [.rotate(by: 90), .rotate(by: 90), .flip(horizontal: true), .flip(horizontal: false), .rotate(by: -90)])
     }
 
+    /// The size fields must follow a key turn as they follow a button: stale fields would resize to 400 × 800.
+    @Test func applyAfterAKeyTurnKeepsTheTurnedSize() async throws {
+        let (document, window) = try await shown()
+        defer { window.close() }
+        let panel = document.transform
+        panel.view.keyDown(with: key("r", code: 15, window: window))
+        panel.applySize(nil)
+        #expect(document.edits == [.rotate(by: 90)])
+    }
+
     @Test func sizesFollowTheLockAndUnit() {
         let current = CGSize(width: 400, height: 200)
         #expect(TransformPanel.targetSize(width: 50, height: 100, unit: .percent, lock: true, edited: .width, current: current)! == (200, 100))
