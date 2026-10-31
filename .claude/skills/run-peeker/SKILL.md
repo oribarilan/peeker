@@ -1,52 +1,47 @@
 ---
 name: run-peeker
-description: Use when asked to run, launch, try or demo Peeker, to check a change in the real app rather than in unit tests, or to capture screenshots or a screen recording of its flows as evidence (Space in Finder, Open With, the menu bar icon, config problems, Settings, PDF Edit mode).
+description: Use when asked to run, launch, try or demo Peeker, to check a change in the real app rather than in unit tests, to run the screen tests, or to capture screenshots or a screen recording of its flows as evidence (Space in Finder, Open With, the menu bar icon, config problems, Settings, PDF Edit mode).
 ---
 
 # Run Peeker
 
-Unit tests (`scripts/build.sh test`) check the parts. This skill checks the built app the way a user meets it. Build first with `scripts/build.sh`; the app lands in `build/dd/Build/Products/Release/Peeker.app`.
+Unit tests (`scripts/build.sh test`) check the parts. The screen tests check the built app the way a user meets it. They drive the real app, so they need the maintainer's go: an unlocked screen nobody touches for a few minutes.
 
-## 1. Routing check (works with the screen locked)
-
-```sh
-scripts/screen/e2e-routing.sh
-```
-
-Launches the app once per case in benchmark mode (`PEEKER_BENCH_OUT`), which opens a synthetic file through the real catalog and config, in a window and in the Space panel, and records which plugin opened it. It covers default lists, a dotfile, `Makefile`, a symlink, `.mp4` and a folder (no plugin), a config that moves `md` to Plain Text, a disabled plugin, and a clash. It needs no permissions. Add a line to `CASES` when routing changes. Quit any running Peeker first.
-
-## 2. Flows on screen, with evidence
+## The suite
 
 ```sh
-scripts/screen/record-flows.sh
+scripts/screen-test.sh                 # build, then routing and every flow
+scripts/screen-test.sh pdf-edit        # only the flows named: routing, flows, pdf-edit
+scripts/screen-test.sh --record        # also save a video of each flow (slower)
+scripts/screen-test.sh --no-build      # test the app already built
 ```
 
-Records the flows a user sees and writes everything to `build/evidence/<time>/` (gitignored):
+It runs every flow even after one fails, prints each flow's ok and FAIL counts, and exits non-zero when a check failed or a flow didn't finish (the reason is on its line). Evidence goes to `build/evidence/run-<time>/<flow>/` (gitignored): `output.txt`, `results.txt`, screenshots, and with `--record` a video. Without video the whole suite takes about three minutes. Read a failure's screenshots and `output.txt` before rerunning; a check that fails once and passes later is a bug to find, in the app or in the flow.
 
-- `results.txt`: one `ok` or `FAIL` line per check, so it's a test, not only a recording.
-- `1-…8-*.png`: Space on a Markdown file and a dotfile (Peeker's panel), on an `.mp4` and a folder (Finder's Quick Look), a document window switched through Open With (Markdown, Plain Text, Image), and the menu bar icon reporting a config clash.
-- `9-…13-*.png`: Settings, where each change is checked in `config.json`: Image off (Space on an image goes to Quick Look) and on, `md` added with Return and moved to Plain Text, Reset from either pane, the quick-look key recorded as Option-Space (which then opens the panel, and records rather than opens while recording), Off, a new Highlight shortcut used in an open PDF, Permissions, and the controls locking while the file is broken JSON.
-- `flows.mp4`: the whole run as a 1080p screen recording.
+When a change is user-facing, add or update a step in a flow, with a `check` for what the user should see.
 
-It takes over the keyboard and Finder for about four minutes, so the screen must be unlocked and nobody should touch it; it refuses to start on a locked screen. It runs Peeker with a throwaway config through `PEEKER_CONFIG` and a throwaway crash-recovery folder through `PEEKER_RECOVERY`, so the user's own `~/.config/peeker/config.json` and recovery records are never read or written, and quits the app at the end. Share the PNGs and the MP4 with the user when they asked to see the flows.
+## The flows
 
-## 3. PDF editing flow
+`scripts/screen/` holds them, with `common.sh` (their shared setup), `drive.swift` and `pdf-tool.swift`. Each also runs on its own, into `build/evidence/<flow>-<time>/`.
 
-```sh
-scripts/screen/pdf-edit-flow.sh
-```
+- **routing** (`e2e-routing.sh`): launches the app once per case in benchmark mode (`PEEKER_BENCH_OUT`), which opens a synthetic file through the real catalog and config, in a window and in the Space panel, and records which plugin opened it. It covers default lists, a dotfile, `Makefile`, a symlink, `.mp4` and a folder (no plugin), a config that moves `md` to Plain Text, a disabled plugin, and a clash. It needs no permissions and works with the screen locked. Add a line to `CASES` when routing changes.
+- **flows** (`record-flows.sh`, about two minutes): Space on a Markdown file and a dotfile (Peeker's panel), on an `.mp4` and a folder (Finder's Quick Look); a document window switched through Open With; the menu bar icon reporting a config clash; Settings, where each change is checked in `config.json`: Image off and on, `md` moved to Plain Text and Reset, the quick-look key recorder and Off, a new Highlight shortcut used in an open PDF, one recorder listening at a time, Permissions, and the controls locking while the file is broken JSON.
+- **pdf-edit** (`pdf-edit-flow.sh`, about 15 seconds): makes a one-page form, checks the read view hides the tools and ignores typing into a field, then in Edit mode types a name, ticks a checkbox, adds a text box, draws and places a signature twice, and saves; `pdf-tool inspect` then reads the saved file. It finds the Name field through Accessibility and places everything relative to it, so a change to the form means changing the offsets.
 
-Makes a one-page form (`pdf-tool form`), opens it, and checks Edit mode the way a user meets it: the read view hides the tools and ignores typing into a field, Edit Mode shows them, a typed name and a ticked checkbox, a text box on the Date line, a drawn signature placed, then placed again with Use Last Signature, and Save. `pdf-tool inspect` then reads the saved file, and the checks want the field values, one free-text and two ink annotations named `peeker-…`. Evidence goes to `build/evidence/pdf-<time>/`: `results.txt`, screenshots of each step, `saved.txt` and `pdf-flow.mp4`. It finds the Name field through Accessibility and places everything relative to it, so a change to the form means changing the offsets. Like the other flow it takes over the mouse and keyboard; clicks and keys go out only while Peeker is in front.
+Every flow runs Peeker with a throwaway config through `PEEKER_CONFIG` and a throwaway crash-recovery folder through `PEEKER_RECOVERY`, so the user's own config and recovery records are never read or written. It drives and quits only the build under test.
 
 ## Driving by hand
 
-`drive.swift` does the pieces, for flows the script doesn't cover. Build it once: `swiftc -O scripts/screen/drive.swift -o build/run-tools/drive`. Its commands are listed at the top of the file. Keys, clicks and typing go out only while the named app is in front, as in `drive keys Finder space`.
+`drive.swift` does the pieces; its commands are listed at the top of the file. Build it with `swiftc -O scripts/screen/drive.swift -o build/run-tools/drive` (the flows do this themselves). Keys, clicks and typing go out only while the named app is in front, as in `drive keys Finder space`. Wait on state rather than time: `drive wait Peeker window form.pdf`, `drive wait Peeker sheet --gone`, `drive wait Peeker control "Text Box"`. `drive focus Peeker` shows where the keyboard is when typing doesn't arrive.
 
 Launch the app yourself with `open --env PEEKER_CONFIG=<scratch config> --env PEEKER_RECOVERY=<scratch folder> -a <Peeker.app> [file]`; both apply only when the app isn't running yet. A full-screen capture is `screencapture -x out.png`, and a recording is `screencapture -v -V <seconds> -x -k -C out.mov`, then `avconvert --preset Preset1920x1080 --source out.mov --output out.mp4`.
 
 ## Requirements and traps
 
-- **A locked screen blocks everything visual.** Screenshots come back black, `screencapture -l` fails, Accessibility reports no windows, and keys go to the lock screen. Check `drive locked` first; only the routing check runs while locked.
-- The terminal running the scripts needs Accessibility (keys, the Accessibility tree) and Screen Recording (captures), and the first `drive select` asks to let it automate Finder.
-- Peeker itself needs Accessibility for Space to reach it. Without it, every Space goes to Finder's Quick Look and the first two checks fail with `Quick Look`. To confirm, list the system's event taps (`CGGetEventTapList`): a Peeker with Accessibility has one. The build is signed with a team ID, so the permission survives rebuilds.
-- A bare Space only reaches Peeker while Finder is frontmost and no text field has focus, which is why the script selects files through Finder first.
+- **A locked screen blocks everything visual.** Screenshots come back black, Accessibility reports no windows, and keys go to the lock screen. The flows refuse to start then; only routing runs while locked.
+- **Another copy of Peeker** (an installed one) makes the flows refuse to start, so the user's windows are never touched. Quit it first.
+- The terminal running the tests needs Accessibility (keys, the Accessibility tree) and Screen Recording (captures), and the first `drive select` asks to let it automate Finder.
+- Peeker itself needs Accessibility for Space to reach it. Without it, every Space goes to Finder's Quick Look and the Space checks fail with `Quick Look`. The build is signed with a team ID, so the permission survives rebuilds.
+- A bare Space only reaches Peeker while Finder is frontmost and no text field has focus, which is why the flows select files through Finder first.
+- **Modifier keys.** A synthetic key event's flags leave its modifiers set in the system's state; `drive keys` releases them afterwards, and `drive type`, `click` and `drag` send no modifiers. Any other tool that posts key events must do the same, or later typing arrives as shortcuts.
+- **Stopping a run.** Ctrl-C (or SIGTERM) stops a flow: it answers Don't Save, quits the build under test and kills the recorder, losing that video, since `screencapture` can't stop early and keep its file. A flow started with `&` from another script ignores SIGINT, so use SIGTERM there.

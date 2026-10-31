@@ -39,7 +39,7 @@ Sources/Host/        the app: App/, Plugins/ (catalog and routing), Documents/ (
 Sources/PeekerKit/   what plugins may use: the plugin contract, safe file writes, the info sidebar panel
 Plugins/<id>/        one plugin each: <Id>Plugin.swift (entry point and default extensions) and its document views
 Tests/               Swift Testing suites
-bench/, scripts/     benchmark and build scripts
+bench/, scripts/     benchmark, build and screen-test scripts (scripts/screen/)
 decisions/           decision records
 openspec/            specs of current behavior, changes in progress, roadmap (config.yaml), known gaps
 ```
@@ -59,6 +59,12 @@ open build/dd/Build/Products/Release/Peeker.app
 ```
 
 Fix new warnings before you finish; the build is currently warning-free. Write tests with Swift Testing, next to the existing suites in `Tests/`. For bugs, add a failing test first.
+
+## Screen tests
+
+`scripts/screen-test.sh` builds the app and runs the screen tests: the routing check and flows that drive the real app through Finder, menus, Settings and Edit mode, checking each step. It needs an unlocked screen left alone for about three minutes, and Accessibility and Screen Recording for the terminal. The flows live in `scripts/screen/`, and the `run-peeker` skill explains them.
+
+Run it before a release and after changes to the host UI or a plugin's views. Agents ask the maintainer before starting it, since it takes over the mouse and keyboard. A user-facing change adds or updates a step in a flow, or its commit or pull request says why not.
 
 ## Benchmarks
 
