@@ -15,7 +15,7 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Missing next to Preview
 
-- **PDF:** one highlight color. Other apps' highlights can't be removed (Peeker's own can, in Edit mode). A password-protected PDF opens view-only.
+- **PDF:** one highlight color. Other apps' highlights can't be removed (Peeker's own can, in Edit mode). A password-protected PDF opens view-only. A turned page's thumbnail stays upright (the page and the saved file are turned): PDFKit's thumbnail view ignores page rotation, even in a file opened fresh, so showing it means replacing that view with our own, drag, multiple selection and the page menu included (found 2026-10-31 by the `pdf-pages` screen flow).
 - **Images:** zooming in on a large photo (and Actual Size on one) shows upscaled screen pixels because decoding stops at screen size; a multi-page TIFF shows only its first page.
 - **Markdown:** images show as their alt text; relative links such as `other.md` most likely do nothing (untested); no editing except Open With > Plain Text.
 
