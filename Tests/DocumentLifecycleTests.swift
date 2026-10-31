@@ -150,3 +150,19 @@ private final class StubDocument: PluginDocument {
         #expect(told == 1)
     }
 }
+
+@Suite(.serialized) struct DocumentWindowClosing {
+    /// The app keeps a list of open windows; a closed one must leave it.
+    @Test func closingTheWindowTellsItsOwner() async throws {
+        Stub.reset()
+        let file = try TempFile.make(Data("x".utf8), name: "f.stub")
+        let entry = PluginEntry(Stub.self)
+        let controller = DocumentWindowController(url: file, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(),
+                                                  allowsEditing: true, recovery: nil, recoveryClipboard: nil)
+        controller.show(with: entry)
+        var closed: DocumentWindowController?
+        controller.onClose = { closed = $0 }
+        controller.close()
+        #expect(closed === controller)
+    }
+}

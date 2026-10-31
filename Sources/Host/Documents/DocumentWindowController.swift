@@ -14,6 +14,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     /// Called for every new document view controller (first open and "Open With" switches).
     var onDocument: ((DocumentViewController) -> Void)?
     var onBecameKey: ((DocumentWindowController) -> Void)?
+    var onClose: ((DocumentWindowController) -> Void)?
     private var keyMonitor: Any?
 
     init(url: URL, catalog: PluginCatalog, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?) {
@@ -277,6 +278,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         keyMonitor = nil
         current?.close()
         current = nil
+        onClose?(self)
     }
 
     // MARK: Toolbar

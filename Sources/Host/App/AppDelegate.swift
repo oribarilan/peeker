@@ -227,11 +227,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         let controller = DocumentWindowController(url: url, catalog: catalog, config: config, allowsEditing: true, recovery: .shared, recoveryClipboard: recoveryClipboard)
         controller.onBecameKey = { [weak self] in if let menu = self?.commandsMenu { MainMenu.rebuildCommands(menu, for: $0) } }
-        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: controller.window, queue: .main) { [weak self, weak controller] _ in
-            MainActor.assumeIsolated {
-                self?.windows.removeAll { $0 === controller }
-                self?.updatePresence()
-            }
+        controller.onClose = { [weak self] closed in
+            self?.windows.removeAll { $0 === closed }
+            self?.updatePresence()
         }
         windows.append(controller)
         updatePresence()  // before the window shows, so the menus are there with it
