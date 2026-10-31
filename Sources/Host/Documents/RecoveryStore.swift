@@ -40,9 +40,15 @@ nonisolated struct RecoveryRecord: Codable, Equatable, Sendable {
 nonisolated final class RecoveryStore: Sendable {
     let directory: URL
     private let queue = DispatchQueue(label: "dev.peeker.recovery")
-    static let shared = RecoveryStore(directory: .applicationSupportDirectory
-        .appending(path: Bundle.main.bundleIdentifier ?? "dev.peeker", directoryHint: .isDirectory)
-        .appending(path: "Recovery", directoryHint: .isDirectory))
+    static let shared = RecoveryStore(directory: directory(environment: ProcessInfo.processInfo.environment))
+
+    /// `$PEEKER_RECOVERY` when set, so test runs keep their records apart; else the app's Application Support folder.
+    static func directory(environment: [String: String]) -> URL {
+        if let path = environment["PEEKER_RECOVERY"], !path.isEmpty { return URL(filePath: path, directoryHint: .isDirectory) }
+        return URL.applicationSupportDirectory
+            .appending(path: Bundle.main.bundleIdentifier ?? "dev.peeker", directoryHint: .isDirectory)
+            .appending(path: "Recovery", directoryHint: .isDirectory)
+    }
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "recovery")
 
     init(directory: URL) {

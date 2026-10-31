@@ -98,6 +98,27 @@ private func text(of record: RecoveryRecord) -> String? {
     }
 }
 
+@Suite struct RecoveryFolder {
+    /// Screen tests point PEEKER_RECOVERY at their own folder, so a killed run never leaves a record the user's
+    /// Peeker would restore.
+    @Test func peekerRecoveryMovesTheStore() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)")
+        let store = RecoveryStore(directory: RecoveryStore.directory(environment: ["PEEKER_RECOVERY": folder.path]))
+        let saved = try record("r1", #"{"text":"unsaved"}"#)
+        try store.write(saved)
+        #expect(FileManager.default.fileExists(atPath: folder.appending(path: "r1.json").path))
+        #expect(store.all() == [saved])
+    }
+
+    @Test func withoutItTheStoreIsInApplicationSupport() {
+        for environment in [[:], ["PEEKER_RECOVERY": ""]] {
+            let directory = RecoveryStore.directory(environment: environment)
+            #expect(directory.lastPathComponent == "Recovery")
+            #expect(directory.path.contains("/Library/Application Support/"))
+        }
+    }
+}
+
 @Suite struct RecoveryClipboardTests {
     @Test func laterTextsJoinEarlierOnesAndRecordsGoOnlyOnceCopied() throws {
         let store = RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))

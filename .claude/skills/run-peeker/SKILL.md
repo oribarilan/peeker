@@ -28,7 +28,7 @@ Records the flows a user sees and writes everything to `build/evidence/<time>/` 
 - `9-…13-*.png`: Settings, where each change is checked in `config.json`: Image off (Space on an image goes to Quick Look) and on, `md` added with Return and moved to Plain Text, Reset from either pane, the quick-look key recorded as Option-Space (which then opens the panel, and records rather than opens while recording), Off, a new Highlight shortcut used in an open PDF, Permissions, and the controls locking while the file is broken JSON.
 - `flows.mp4`: the whole run as a 1080p screen recording.
 
-It takes over the keyboard and Finder for about four minutes, so the screen must be unlocked and nobody should touch it; it refuses to start on a locked screen. It runs Peeker with a throwaway config through `PEEKER_CONFIG`, so the user's own `~/.config/peeker/config.json` is never read or written, and quits the app at the end. Share the PNGs and the MP4 with the user when they asked to see the flows.
+It takes over the keyboard and Finder for about four minutes, so the screen must be unlocked and nobody should touch it; it refuses to start on a locked screen. It runs Peeker with a throwaway config through `PEEKER_CONFIG` and a throwaway crash-recovery folder through `PEEKER_RECOVERY`, so the user's own `~/.config/peeker/config.json` and recovery records are never read or written, and quits the app at the end. Share the PNGs and the MP4 with the user when they asked to see the flows.
 
 ## 3. PDF editing flow
 
@@ -42,7 +42,7 @@ Makes a one-page form (`pdf-tool form`), opens it, and checks Edit mode the way 
 
 `drive.swift` does the pieces, for flows the script doesn't cover. Build it once: `swiftc -O .claude/skills/run-peeker/drive.swift -o build/run-tools/drive`. Its commands are listed at the top of the file. Keys, clicks and typing go out only while the named app is in front, as in `drive keys Finder space`.
 
-Launch the app yourself with `open --env PEEKER_CONFIG=<scratch config> -a <Peeker.app> [file]`. A full-screen capture is `screencapture -x out.png`, and a recording is `screencapture -v -V <seconds> -x -k -C out.mov`, then `avconvert --preset Preset1920x1080 --source out.mov --output out.mp4`.
+Launch the app yourself with `open --env PEEKER_CONFIG=<scratch config> --env PEEKER_RECOVERY=<scratch folder> -a <Peeker.app> [file]`; both apply only when the app isn't running yet. A full-screen capture is `screencapture -x out.png`, and a recording is `screencapture -v -V <seconds> -x -k -C out.mov`, then `avconvert --preset Preset1920x1080 --source out.mov --output out.mp4`.
 
 ## Requirements and traps
 
