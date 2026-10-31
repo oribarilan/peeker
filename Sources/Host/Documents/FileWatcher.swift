@@ -5,16 +5,25 @@ import os
 /// 200 ms. An atomic save replaces the file, so after a delete or rename it reopens the path, retrying for up to 1 s
 /// and then every 2 s, so a file that comes back later is picked up too. Call `stop()` when done.
 final class FileWatcher {
+    /// The delays, in seconds; tests use shorter ones.
+    struct Timing {
+        var coalescing = 0.2
+        var retryInterval = 0.05
+        var retries = 20
+        var slowRetryInterval = 2.0
+    }
+
     private let url: URL
+    private let timing: Timing
     private let onChange: () -> Void
     private var source: DispatchSourceFileSystemObject?
     private var changePending = false
     private var isStopped = false
-    private static let coalescing = 0.2, retryInterval = 0.05, retries = 20, slowRetryInterval = 2.0
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "documents")
 
-    init(url: URL, onChange: @escaping () -> Void) {
+    init(url: URL, timing: Timing = Timing(), onChange: @escaping () -> Void) {
         self.url = url
+        self.timing = timing
         self.onChange = onChange
         watch(attempt: 0, isReplacement: false)
     }
@@ -30,10 +39,10 @@ final class FileWatcher {
         let fd = open(url.path, O_EVTONLY)
         guard fd >= 0 else {
             let code = errno
-            if attempt == Self.retries {
-                Self.log.info("\(self.url.path, privacy: .private) is gone: \(String(cString: strerror(code)), privacy: .public); checking every 2 s")
+            if attempt == timing.retries {
+                Self.log.info("\(self.url.path, privacy: .private) is gone: \(String(cString: strerror(code)), privacy: .public); checking every \(self.timing.slowRetryInterval, privacy: .public) s")
             }
-            let delay = attempt < Self.retries ? Self.retryInterval : Self.slowRetryInterval
+            let delay = attempt < timing.retries ? timing.retryInterval : timing.slowRetryInterval
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.watch(attempt: attempt + 1, isReplacement: isReplacement)
             }
@@ -64,7 +73,7 @@ final class FileWatcher {
     private func scheduleChange() {
         guard !changePending else { return }
         changePending = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.coalescing) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + timing.coalescing) { [weak self] in
             guard let self else { return }
             changePending = false
             if !isStopped { onChange() }

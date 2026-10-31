@@ -16,13 +16,14 @@ final class RecoveryJournal {
     private let pluginID: String
     private let contents: () -> Contents?
     private var pending: DispatchWorkItem?
-    private static let delay = 2.0
+    private let delay: TimeInterval
 
-    init(store: RecoveryStore, id: String, url: URL, pluginID: String, contents: @escaping () -> Contents?) {
+    init(store: RecoveryStore, id: String, url: URL, pluginID: String, delay: TimeInterval = 2, contents: @escaping () -> Contents?) {
         self.store = store
         self.id = id
         self.url = url
         self.pluginID = pluginID
+        self.delay = delay
         self.contents = contents
     }
 
@@ -38,6 +39,6 @@ final class RecoveryJournal {
         pending?.cancel()
         let work = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.write() } }
         pending = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.delay, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 }

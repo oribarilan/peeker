@@ -57,9 +57,9 @@ func offscreenWindow(holding view: NSView, width: CGFloat = 700, height: CGFloat
 
 /// A document view controller on `url`, opened through `plugin`, with its content (or the failure view) showing.
 func loadedDocument(_ url: URL, with plugin: any Plugin.Type, allowsEditing: Bool = true, recovery: RecoveryStore? = nil,
-                    recoveryID: String = UUID().uuidString) async -> DocumentViewController {
+                    recoveryID: String = UUID().uuidString, journalDelay: TimeInterval = 2) async -> DocumentViewController {
     let document = DocumentViewController(url: url, entry: PluginEntry(plugin), config: Config(), allowsEditing: allowsEditing,
-                                          recovery: recovery, recoveryID: recoveryID)
+                                          recovery: recovery, recoveryID: recoveryID, journalDelay: journalDelay)
     document.loadViewIfNeeded()
     await document.load()
     return document

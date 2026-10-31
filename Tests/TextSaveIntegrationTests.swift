@@ -124,15 +124,14 @@ import Testing
 
     // MARK: Crash recovery
 
-    @Test func editsAreJournaledAfterTwoSecondsAndClearedOnSave() async throws {
+    @Test func editsAreJournaledAfterADelayAndClearedOnSave() async throws {
         let file = try TempFile.make(Data("one\n".utf8))
         let store = Self.temporaryStore()
-        let (document, _) = await open(file, recovery: store)
+        let (document, _) = await open(file, recovery: store, journalDelay: Self.journalDelay)
         defer { document.close() }
         try Self.type("mine\n", in: document)
-        try await Task.sleep(for: .milliseconds(1500))
-        #expect(store.all().isEmpty, "the journal waits 2 s after the last edit")
-        try await Task.sleep(for: .milliseconds(1000))
+        #expect(store.all().isEmpty, "the journal waits after the last edit")
+        try await waitUntil(seconds: 2) { !store.all().isEmpty }
         let record = try #require(store.all().first)
         #expect(store.all().count == 1)
         #expect(record.url == file && record.pluginID == "text" && record.text == "mine\n")
@@ -145,12 +144,12 @@ import Testing
     @Test func eachEditRestartsTheJournalDelay() async throws {
         let file = try TempFile.make(Data("one\n".utf8))
         let store = Self.temporaryStore()
-        let (document, _) = await open(file, recovery: store)
+        let (document, _) = await open(file, recovery: store, journalDelay: Self.journalDelay)
         defer { document.close() }
         try Self.type("a\n", in: document)
-        try await Task.sleep(for: .milliseconds(1500))
+        try await Task.sleep(for: .milliseconds(300))
         try Self.type("ab\n", in: document)
-        try await Task.sleep(for: .milliseconds(1000))
+        try await Task.sleep(for: .milliseconds(300))  // past the first edit's delay, not the second's
         #expect(store.all().isEmpty)
         try await waitUntil(seconds: 2) { !store.all().isEmpty }
         #expect(store.all().map(\.text) == ["ab\n"])
@@ -208,11 +207,11 @@ import Testing
     @Test func closingWithoutEditsLeavesNoRecord() async throws {
         let file = try TempFile.make(Data("one\n".utf8))
         let store = Self.temporaryStore()
-        let (document, _) = await open(file, recovery: store)
+        let (document, _) = await open(file, recovery: store, journalDelay: Self.journalDelay)
         try Self.type("mine\n", in: document)
         document.discardEdits()
         document.close()
-        try await Task.sleep(for: .milliseconds(2300))
+        try await Task.sleep(for: .milliseconds(800))  // past the delay
         #expect(store.all().isEmpty)
     }
 
@@ -294,6 +293,9 @@ import Testing
         #expect(store.all().map(\.text) == ["second\n"])
     }
 
+    /// In place of the 2 s a window uses; the tests check what happens before and after it, not its length.
+    private static let journalDelay = 0.5
+
     private static func temporaryStore() -> RecoveryStore {
         RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))
     }
@@ -301,8 +303,9 @@ import Testing
     private static let entry = PluginEntry(TextPlugin.self)
 
     /// An editable document window's controller on `file`, loaded through the text plugin.
-    private func open(_ file: URL, recovery: RecoveryStore? = nil, recoveryID: String = UUID().uuidString) async -> (DocumentViewController, TextDocument?) {
-        let document = await loadedDocument(file, with: TextPlugin.self, recovery: recovery, recoveryID: recoveryID)
+    private func open(_ file: URL, recovery: RecoveryStore? = nil, recoveryID: String = UUID().uuidString,
+                      journalDelay: TimeInterval = 2) async -> (DocumentViewController, TextDocument?) {
+        let document = await loadedDocument(file, with: TextPlugin.self, recovery: recovery, recoveryID: recoveryID, journalDelay: journalDelay)
         return (document, Self.textDocument(document))
     }
 

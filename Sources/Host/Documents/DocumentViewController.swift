@@ -66,13 +66,15 @@ final class DocumentViewController: NSSplitViewController {
     /// Edit mode was asked for but the document can't be edited; the string says why.
     var onEditRefused: ((DocumentViewController, String) -> Void)?
 
-    init(url: URL, entry: PluginEntry, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString) {
+    /// `journalDelay` is how long after the last edit the recovery copy is written.
+    init(url: URL, entry: PluginEntry, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString,
+         journalDelay: TimeInterval = 2) {
         self.url = url
         self.entry = entry
         self.config = config
         self.allowsEditing = allowsEditing
         super.init(nibName: nil, bundle: nil)
-        journal = recovery.map { RecoveryJournal(store: $0, id: recoveryID, url: url, pluginID: entry.id) { [weak self] in self?.journalContents } }
+        journal = recovery.map { RecoveryJournal(store: $0, id: recoveryID, url: url, pluginID: entry.id, delay: journalDelay) { [weak self] in self?.journalContents } }
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
