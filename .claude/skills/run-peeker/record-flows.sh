@@ -50,10 +50,12 @@ sleep 1
 space() {
     local name=$1 file=$2 want=$3
     "$DRIVE" select "$file"
-    sleep 1.2
+    sleep 2.5  # Finder answers the select script first; Space too soon can find it busy
+    # What had the keyboard when Space was pressed, kept for a failed check.
+    local state; state="front $(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null), focus $(osascript -e 'tell application "System Events" to tell process "Finder" to get role of (value of attribute "AXFocusedUIElement")' 2>/dev/null)"
     "$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
     "$DRIVE" key space
-    sleep 1.5
+    sleep 3
     # Peeker's panel belongs to Peeker; Finder's Quick Look is a Finder window above the normal layer (macOS 27 gives
     # it no title; older versions titled it with the file's name).
     local owner; owner=$("$DRIVE" windows | awk -v name="$(basename "$file")" 'NR == FNR { seen[$1] = 1; next }
@@ -61,6 +63,7 @@ space() {
         !($1 in seen) && $2 == "Finder" && ($4 != 0 || substr($0, length($0) - length(name) + 1) == name) { print "Quick Look"; exit }' "$OUT/.before" -)
     screencapture -x "$OUT/$name.png"
     check "Space on $(basename "$file")" "${owner:-nothing}" "$want"
+    [ "${owner:-nothing}" = "$want" ] || echo "      ($state)" | tee -a "$RESULTS"
     "$DRIVE" key escape
     sleep 1
 }
