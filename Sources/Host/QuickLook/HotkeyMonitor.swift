@@ -79,46 +79,62 @@ final class HotkeyMonitor {
         }
     }
 
+    /// What to do with a key.
+    enum Decision: Equatable {
+        /// Let it through.
+        case pass
+        /// Let it through to Finder, then refresh the panel for the selection it moves to.
+        case followSelection
+        /// Swallow the key-up of a key swallowed on the way down.
+        case swallowKeyUp
+        /// Swallow a held key, so it doesn't type or reopen the panel.
+        case swallowRepeat
+        case trigger
+        case dismiss
+    }
+
+    /// The decision for `key`, given what's on screen. `typing` is asked only when a bare key could open the panel,
+    /// since it costs an Accessibility call.
+    static func decide(_ key: KeyEvent, shortcut: Shortcut, panelVisible: Bool, finderInFront: Bool, typing: () -> Bool,
+                       swallowedKeyUp: Int64?) -> Decision {
+        guard !key.isOwn else { return .pass }
+        if key.type == .keyUp { return key.keyCode == swallowedKeyUp ? .swallowKeyUp : .pass }
+        let modifiers = key.flags.intersection([.maskCommand, .maskShift, .maskAlternate, .maskControl])
+        if panelVisible, finderInFront, modifiers.isEmpty {
+            if key.keyCode == 53 { return .dismiss }  // Escape
+            if (123...126).contains(key.keyCode) { return .followSelection }  // arrows
+        }
+        guard key.keyCode == shortcut.keyCode, modifiers == cgFlags(shortcut.modifiers) else { return .pass }
+        if key.isRepeat { return panelVisible ? .swallowRepeat : .pass }
+        if shortcut.modifiers.isEmpty, !finderInFront || typing() { return .pass }
+        return panelVisible ? .dismiss : .trigger
+    }
+
     private func shouldSwallow(_ key: KeyEvent) -> Bool {
         if key.type == .tapDisabledByTimeout || key.type == .tapDisabledByUserInput {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return false
         }
-        guard !key.isOwn else { return false }
-
-        if key.type == .keyUp {
-            guard key.keyCode == swallowedKeyUp else { return false }
+        let decision = Self.decide(key, shortcut: shortcut, panelVisible: isPanelVisible(),
+                                   finderInFront: NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder",
+                                   typing: Self.isTextInputFocused, swallowedKeyUp: swallowedKeyUp)
+        switch decision {
+        case .pass:
+            return false
+        case .followSelection:
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) { self.onSelectionMayHaveChanged?() }
+            return false
+        case .swallowKeyUp:
             swallowedKeyUp = nil
             return true
+        case .swallowRepeat:
+            return true
+        case .trigger, .dismiss:
+            swallowedKeyUp = key.keyCode
+            let action = decision == .trigger ? onTrigger : onDismiss
+            DispatchQueue.main.async { action?() }
+            return true
         }
-
-        let modifiers = key.flags.intersection([.maskCommand, .maskShift, .maskAlternate, .maskControl])
-        let finderIsFrontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder"
-
-        if isPanelVisible(), finderIsFrontmost, modifiers.isEmpty {
-            if key.keyCode == 53 {  // Escape
-                swallowedKeyUp = key.keyCode
-                DispatchQueue.main.async { self.onDismiss?() }
-                return true
-            }
-            if (123...126).contains(key.keyCode) {  // arrows: let Finder move its selection, then follow it
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) { self.onSelectionMayHaveChanged?() }
-                return false
-            }
-        }
-
-        guard key.keyCode == shortcut.keyCode, modifiers == Self.cgFlags(shortcut.modifiers) else { return false }
-        if key.isRepeat { return isPanelVisible() }
-        if shortcut.modifiers.isEmpty {
-            guard finderIsFrontmost, !Self.isTextInputFocused() else { return false }
-        }
-        swallowedKeyUp = key.keyCode
-        if isPanelVisible() {
-            DispatchQueue.main.async { self.onDismiss?() }
-        } else {
-            DispatchQueue.main.async { self.onTrigger?() }
-        }
-        return true
     }
 
     private static func cgFlags(_ modifiers: NSEvent.ModifierFlags) -> CGEventFlags {
