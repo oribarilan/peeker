@@ -68,7 +68,7 @@ sleep 0.5
 "$DRIVE" click Peeker $(at 0 200)  # the Date: line
 sleep 0.5
 "$DRIVE" type Peeker "31 Oct 2026"
-"$DRIVE" type Peeker "" && "$DRIVE" key escape
+"$DRIVE" keys Peeker escape
 sleep 0.5
 "$DRIVE" shot Peeker "$OUT/3-filled.png"
 

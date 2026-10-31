@@ -54,7 +54,7 @@ space() {
     # What had the keyboard when Space was pressed, kept for a failed check.
     local state; state="front $(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null), focus $(osascript -e 'tell application "System Events" to tell process "Finder" to get role of (value of attribute "AXFocusedUIElement")' 2>/dev/null)"
     "$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
-    "$DRIVE" key space
+    "$DRIVE" keys Finder space
     sleep 3
     # Peeker's panel belongs to Peeker; Finder's Quick Look is a Finder window above the normal layer (macOS 27 gives
     # it no title; older versions titled it with the file's name).
@@ -64,7 +64,7 @@ space() {
     screencapture -x "$OUT/$name.png"
     check "Space on $(basename "$file")" "${owner:-nothing}" "$want"
     [ "${owner:-nothing}" = "$want" ] || echo "      ($state)" | tee -a "$RESULTS"
-    "$DRIVE" key escape
+    "$DRIVE" keys Finder escape  # the panel never takes focus, so Finder stays in front
     sleep 1
 }
 
@@ -143,7 +143,7 @@ sleep 1.2
 "$DRIVE" keys Finder opt+space && sleep 1.5
 check "Option-Space opens Peeker's panel" "$("$DRIVE" windows | awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen) && $2 == "Peeker" { print "Peeker"; exit }' "$OUT/.before" -)" Peeker
 screencapture -x "$OUT/12a-option-space.png"
-"$DRIVE" key escape && sleep 1
+"$DRIVE" keys Finder escape && sleep 1
 front
 "$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
 "$DRIVE" press Peeker "Shortcut ⌥Space, click to record" && sleep 0.5 && "$DRIVE" keys Peeker opt+space && sleep 1.5

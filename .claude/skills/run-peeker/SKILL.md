@@ -40,20 +40,7 @@ Makes a one-page form (`pdf-tool form`), opens it, and checks Edit mode the way 
 
 ## Driving by hand
 
-`drive.swift` does the pieces, for flows the script doesn't cover. Build it once: `swiftc -O .claude/skills/run-peeker/drive.swift -o build/run-tools/drive`.
-
-| Command | Does |
-|---|---|
-| `drive locked` | `yes` and exit 0 when the screen is locked |
-| `drive windows [owner]` | on-screen windows: id, owner, size, title |
-| `drive shot <owner> <out.png> [title]` | screenshot of one window |
-| `drive select <path>` / `drive key space` | select a file in Finder, press a key |
-| `drive tree <process>` | the Accessibility tree: roles, titles, values |
-| `drive choose Peeker "Plain Text"` | pick an item in the front window's Open With pop-up |
-| `drive menu Peeker File Close` | press a menu item |
-| `drive menuextra Peeker [item]` | print the menu bar icon's menu, or press an item |
-| `drive frame Peeker AXTextField` | the screen frame of the first element with that role (and label) |
-| `drive click Peeker <x> <y>` / `drive type Peeker <text>` / `drive drag Peeker <x y>...` | mouse and keys, sent only while Peeker is in front |
+`drive.swift` does the pieces, for flows the script doesn't cover. Build it once: `swiftc -O .claude/skills/run-peeker/drive.swift -o build/run-tools/drive`. Its commands are listed at the top of the file. Keys, clicks and typing go out only while the named app is in front, as in `drive keys Finder space`.
 
 Launch the app yourself with `open --env PEEKER_CONFIG=<scratch config> -a <Peeker.app> [file]`. A full-screen capture is `screencapture -x out.png`, and a recording is `screencapture -v -V <seconds> -x -k -C out.mov`, then `avconvert --preset Preset1920x1080 --source out.mov --output out.mp4`.
 

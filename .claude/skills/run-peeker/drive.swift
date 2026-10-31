@@ -6,7 +6,6 @@
 //        drive windows [owner]                     on-screen windows: id, owner, layer, size, title
 //        drive shot <owner> <out.png> [title]      screenshot of the owner's largest window (or the one with that title)
 //        drive select <path>                       activate Finder and select <path>
-//        drive key <space|escape|down|up|return>   press a key, as the keyboard would
 //        drive tree <process> [depth]              print the Accessibility tree of the process's windows
 //        drive choose <process> <item>             pick <item> in the front window's toolbar pop-up (Open With)
 //        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close"
@@ -59,8 +58,6 @@ func run(_ path: String, _ arguments: [String]) -> Int32 {
 }
 
 // MARK: Keyboard and Finder
-
-let keyCodes: [String: CGKeyCode] = ["space": 49, "escape": 53, "down": 125, "up": 126, "return": 36]
 
 func press(_ keyCode: CGKeyCode) {
     for down in [true, false] {
@@ -222,11 +219,11 @@ func pick(in owner: AXUIElement, item: String?) {
         dump(owner, depth: 0, max: 4)
         // DRIVE_HOLD=<seconds> keeps the menu open, for a screenshot taken meanwhile.
         usleep(UInt32((Double(ProcessInfo.processInfo.environment["DRIVE_HOLD"] ?? "") ?? 0) * 1_000_000))
-        press(keyCodes["escape"]!)
+        press(comboKeys["escape"]!)
         return
     }
     guard let found = find(owner, where: { role($0) == kAXMenuItemRole && label($0) == item }) else {
-        press(keyCodes["escape"]!)
+        press(comboKeys["escape"]!)
         fail("no item “\(item)”")
     }
     press(found)
@@ -272,9 +269,6 @@ case "shot":
     exit(run("/usr/sbin/screencapture", ["-x", "-o", "-l\(window.id)", arg(2)]))
 case "select":
     selectInFinder(arg(1))
-case "key":
-    guard let code = keyCodes[arg(1)] else { fail("keys: \(keyCodes.keys.sorted().joined(separator: ", "))") }
-    press(code)
 case "tree":
     let app = application(arg(1))
     for window in axWindows(app) { dump(window, depth: 0, max: args.count > 2 ? Int(args[2]) ?? 12 : 12) }
@@ -339,5 +333,5 @@ case "drag":
     guard numbers.count >= 4, numbers.count.isMultiple(of: 2) else { fail("drag needs at least two x y points") }
     drag(through: stride(from: 0, to: numbers.count, by: 2).map { CGPoint(x: numbers[$0], y: numbers[$0 + 1]) })
 default:
-    fail("usage: drive locked|windows|shot|select|key|tree|choose|menu|menuextra|row|press|fill|enabled|frame|click|type|keys|drag ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|click|type|keys|drag ...; see the top of drive.swift")
 }
