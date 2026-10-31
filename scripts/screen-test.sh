@@ -26,7 +26,7 @@ for arg in "$@"; do
     --record) record=1 ;;
     --no-build) build=0 ;;
     -*) sed -n '2,10s/^# \{0,1\}//p' "$0"; exit 2 ;;
-    *) script "$arg" >/dev/null || { echo "no flow “$arg”; the flows are: ${all[*]}"; exit 2; }; chosen+=("$arg") ;;
+    *) script "$arg" >/dev/null || { echo "no flow “${arg}”; the flows are: ${all[*]}"; exit 2; }; chosen+=("$arg") ;;
     esac
 done
 [ ${#chosen[@]} -gt 0 ] || chosen=("${all[@]}")
