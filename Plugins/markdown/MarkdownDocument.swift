@@ -7,6 +7,8 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private let scrollView = NSTextView.scrollableTextView()
     private var textView: NSTextView { scrollView.documentView as! NSTextView }
     private var anchors: [Int: Int] = [:]
+    /// Counts renders, so a tail scheduled by an older one is dropped.
+    private var renders = 0
     private(set) var outline: [OutlineItem] = []
     private(set) var info: [InfoRow] = []
 
@@ -62,6 +64,8 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private static let firstPaintBlocks = 150
 
     private func update(blocks: [MarkdownBlock]) {
+        renders += 1
+        let render = renders
         let visible = scrollView.contentView.bounds.origin
         let head = MarkdownRenderer.render(blocks.prefix(Self.firstPaintBlocks))
         anchors = head.anchors
@@ -71,7 +75,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
         let offset = head.text.length
         // One frame later, so the first screen is drawn and shown before the rest is laid out.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak self] in
-            guard let self else { return }
+            guard let self, renders == render else { return }
             let tail = MarkdownRenderer.render(blocks.dropFirst(Self.firstPaintBlocks), leadingBreak: true)
             self.textView.textStorage?.append(tail.text)
             for (line, location) in tail.anchors { self.anchors[line] = location + offset }

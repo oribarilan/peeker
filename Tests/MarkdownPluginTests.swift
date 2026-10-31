@@ -80,6 +80,18 @@ import UniformTypeIdentifiers
         #expect(document.renderedText.contains("new words"))
     }
 
+    /// A long file draws its tail a frame after its head; a tail from an older render must not land on a newer one.
+    @Test func twoQuickRendersOfALongFileShowItOnce() async throws {
+        let (_, document) = try await open((1...300).map { "Paragraph \($0)." }.joined(separator: "\n\n"))
+        try await Task.sleep(for: .milliseconds(100))
+        let once = document.renderedText
+        #expect(once.contains("Paragraph 300."))
+        #expect(try await document.reload())
+        #expect(try await document.reload())
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(document.renderedText == once)
+    }
+
     @Test func textThatIsNotUTF8IsRefused() async throws {
         let file = try TempFile.make(Data([0xFF, 0xFE, 0x00, 0xD8]), name: "f.md")
         await #expect(throws: PluginError.self) {
