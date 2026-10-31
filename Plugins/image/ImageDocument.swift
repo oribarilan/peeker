@@ -30,12 +30,8 @@ final class ImageDocument: PluginDocument {
         transformPanel = panel
         return panel
     }
-    let isAnimated: Bool
-    private(set) var isPaused = false
-    /// The frame shown, so a paused animation resumes from it.
-    private(set) var frameIndex = 0
-    /// Tells the running animation from one replaced by a pause and resume.
-    private var animationRun = 0
+    /// Nil for a still image.
+    let animation: AnimationPlayer?
     /// Undo for the edits since the last save; a save clears it, since a crop's pixels are then gone from the file.
     private(set) lazy var undoManager = UndoManager()
 
@@ -56,37 +52,7 @@ final class ImageDocument: PluginDocument {
         scrollView.hasHorizontalScroller = true
         scrollView.drawsBackground = false
         canvas.autoresizingMask = [.width, .height]
-        isAnimated = decoded.isAnimated
-        if isAnimated {
-            canvas.onClick = { [weak self] in self?.toggleAnimation() }
-            play(from: 0)
-        }
-    }
-
-    // MARK: Animation
-
-    /// Pauses a playing animation on its frame, or plays a paused one on from there.
-    func toggleAnimation() {
-        guard isAnimated else { return }
-        isPaused.toggle()
-        if !isPaused { play(from: frameIndex) }
-    }
-
-    /// Plays the file's frames with its own timing and loop count, from frame `start`.
-    private func play(from start: Int) {
-        animationRun += 1
-        let run = animationRun
-        let status = CGAnimateImageAtURLWithBlock(url as CFURL, [kCGImageAnimationStartIndex: start] as CFDictionary) { [weak self] index, image, stop in
-            MainActor.assumeIsolated {
-                guard let self, self.animationRun == run, !self.isPaused else {
-                    stop.pointee = true
-                    return
-                }
-                self.frameIndex = index
-                self.canvas.image = image
-            }
-        }
-        if status != noErr { isPaused = true }
+        animation = decoded.isAnimated ? AnimationPlayer(url: url, canvas: canvas) : nil
     }
 
     var contentView: NSView { scrollView }

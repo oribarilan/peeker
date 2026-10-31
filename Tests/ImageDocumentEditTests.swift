@@ -299,16 +299,16 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
 
     @Test func framesPlayAndAClickPausesAndResumes() async throws {
         let document = try await open(try gif())
-        #expect(document.isAnimated)
-        let first = document.frameIndex
-        try await waitUntil(seconds: 3) { document.frameIndex != first }
-        document.toggleAnimation()
-        #expect(document.isPaused)
-        let paused = document.frameIndex
+        let animation = try #require(document.animation)
+        let first = animation.frameIndex
+        try await waitUntil(seconds: 3) { animation.frameIndex != first }
+        animation.toggle()
+        #expect(animation.isPaused)
+        let paused = animation.frameIndex
         try await Task.sleep(for: .milliseconds(300))
-        #expect(document.frameIndex == paused)
-        document.toggleAnimation()
-        try await waitUntil(seconds: 3) { document.frameIndex != paused }
+        #expect(animation.frameIndex == paused)
+        animation.toggle()
+        try await waitUntil(seconds: 3) { animation.frameIndex != paused }
     }
 
     @Test func aTwoPageTIFFIsNotAnimated() async throws {
@@ -316,6 +316,6 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.tiff.identifier as CFString, 2, nil))
         for _ in 0..<2 { CGImageDestinationAddImage(destination, try cornerImage(), nil) }
         #expect(CGImageDestinationFinalize(destination))
-        #expect(!(try await open(url)).isAnimated)
+        #expect(try await open(url).animation == nil)
     }
 }
