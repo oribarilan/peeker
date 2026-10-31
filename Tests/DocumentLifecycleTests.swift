@@ -1,5 +1,6 @@
 import AppKit
 import PeekerKit
+@testable import PeekerText
 import Testing
 
 /// Shows a file's text. Tests set the hooks they need before opening.
@@ -153,5 +154,58 @@ private final class StubDocument: PluginDocument {
         controller.onClose = { closed = $0 }
         controller.close()
         #expect(closed === controller)
+    }
+
+    /// A text window with "mine" typed over the file's "x", asking `answer` about unsaved edits and counting the asks.
+    private func editedWindow(answering answer: DocumentWindowController.UnsavedChoice) async throws -> (DocumentWindowController, URL, () -> Int) {
+        let controller = try await documentWindow(for: TextPlugin.self, name: "f.txt")
+        var asked = 0
+        controller.askToSave = { _ in
+            asked += 1
+            return answer
+        }
+        try #require(controller.current).type("mine")
+        return (controller, controller.url, { asked })
+    }
+
+    private func closed(_ controller: DocumentWindowController) async throws -> Bool {
+        var closed = false
+        controller.onClose = { _ in closed = true }
+        let window = try #require(controller.window)
+        if controller.windowShouldClose(window) { window.close() }
+        try await Task.sleep(for: .milliseconds(100))  // the answer arrives on a later turn
+        return closed
+    }
+
+    @Test func saveWritesTheEditsThenCloses() async throws {
+        let (controller, file, asked) = try await editedWindow(answering: .save)
+        #expect(try await closed(controller))
+        #expect(asked() == 1)
+        #expect(try String(contentsOf: file, encoding: .utf8) == "mine")
+    }
+
+    @Test func dontSaveDropsTheEditsThenCloses() async throws {
+        let (controller, file, _) = try await editedWindow(answering: .discard)
+        #expect(try await closed(controller))
+        #expect(try String(contentsOf: file, encoding: .utf8) == "x")
+    }
+
+    @Test func cancelKeepsTheWindowAndItsEdits() async throws {
+        let (controller, file, _) = try await editedWindow(answering: .cancel)
+        defer { controller.close() }
+        #expect(try await !closed(controller))
+        #expect(controller.current?.isEdited == true)
+        #expect(try String(contentsOf: file, encoding: .utf8) == "x")
+    }
+
+    @Test func aWindowWithoutEditsClosesWithoutAsking() async throws {
+        let controller = try await documentWindow(for: TextPlugin.self, name: "f.txt")
+        var asked = false
+        controller.askToSave = { _ in
+            asked = true
+            return .cancel
+        }
+        #expect(try await closed(controller))
+        #expect(!asked)
     }
 }

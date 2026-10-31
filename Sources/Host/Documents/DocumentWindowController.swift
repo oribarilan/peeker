@@ -15,6 +15,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     var onDocument: ((DocumentViewController) -> Void)?
     var onBecameKey: ((DocumentWindowController) -> Void)?
     var onClose: ((DocumentWindowController) -> Void)?
+
+    enum UnsavedChoice { case save, discard, cancel }
+    /// Asks Save, Don't Save or Cancel about unsaved edits, as a sheet on the window. Tests answer directly.
+    var askToSave: (DocumentWindowController) async -> UnsavedChoice = { await $0.askToSaveInSheet() }
     private var keyMonitor: Any?
 
     init(url: URL, catalog: PluginCatalog, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?) {
@@ -202,6 +206,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         finishTyping()
         guard let document = current, document.isEdited else { return true }
         guard let window, window.attachedSheet == nil else { return false }
+        switch await askToSave(self) {
+        case .save:
+            return await save(document)
+        case .discard:
+            document.discardEdits()
+            return true
+        case .cancel:
+            return false
+        }
+    }
+
+    private func askToSaveInSheet() async -> UnsavedChoice {
+        guard let window else { return .cancel }
         let alert = NSAlert()
         alert.messageText = "Save changes to “\(url.lastPathComponent)”?"
         alert.informativeText = "Your changes will be lost if you don't save them."
@@ -211,13 +228,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         dontSave.keyEquivalentModifierMask = .command
         alert.addButton(withTitle: "Cancel")
         switch await alert.beginSheetModal(for: window) {
-        case .alertFirstButtonReturn:
-            return await save(document)
-        case .alertSecondButtonReturn:
-            document.discardEdits()
-            return true
-        default:
-            return false
+        case .alertFirstButtonReturn: return .save
+        case .alertSecondButtonReturn: return .discard
+        default: return .cancel
         }
     }
 
