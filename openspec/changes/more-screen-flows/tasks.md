@@ -12,7 +12,7 @@
 
 ## 3. Image editing flow
 
-- [ ] 3.1 Write `scripts/screen/image-edit-flow.sh`: a 400 × 200 PNG in Edit mode, crop, Rotate & Resize with R (check the fields swap), Width 100 with the lock on, Apply, save; check the saved pixel size and the info panel's Dimensions against the fields, and that Cmd+W closes without a sheet; verify it passes on its own
+- [x] 3.1 Write `scripts/screen/image-edit-flow.sh`: a 400 × 200 PNG in Edit mode, crop, Rotate & Resize with R (check the fields swap), Width 100 with the lock on, Apply, save; check the saved pixel size and the info panel's Dimensions against the fields, and that Cmd+W closes without a sheet; verify it passes on its own
 
 ## 4. Crash recovery flow
 
