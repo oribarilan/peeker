@@ -5,7 +5,7 @@ import Testing
 
 private func open(_ text: String, editable: Bool = true) async throws -> (URL, TextDocument) {
     let file = try TempFile.make(Data(text.utf8))
-    let document = try #require(try await TextPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: editable)) as? TextDocument)
+    let document = try await openDocument(file, with: TextPlugin.self, as: TextDocument.self, editing: editable)
     return (file, document)
 }
 

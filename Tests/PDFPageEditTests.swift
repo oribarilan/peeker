@@ -122,7 +122,7 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
 
 @Suite(.serialized) struct PDFPageDocument {
     private func open(_ file: URL) async throws -> PDFPluginDocument {
-        let document = try #require(try await PDFPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)) as? PDFPluginDocument)
+        let document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
         document.undoManager.groupsByEvent = false
         document.setEditing(true)
         return document

@@ -15,7 +15,7 @@ private func texts(_ document: PDFDocument) -> [String] {
     let thumbnails: PageThumbnails
 
     init(_ file: URL, editing: Bool = true) async throws {
-        document = try #require(try await PDFPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)) as? PDFPluginDocument)
+        document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
         document.undoManager.groupsByEvent = false
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false

@@ -38,6 +38,45 @@ enum TempFile {
     }
 }
 
+// MARK: Setup
+
+/// What `plugin` opens for `url`, as `type`. `editing` is false for the Space panel's view-only documents.
+func openDocument<Document>(_ url: URL, with plugin: any Plugin.Type, as type: Document.Type, editing: Bool = true,
+                            maxPixels: Int = 0) async throws -> Document {
+    try #require(try await plugin.open(url, context: OpenContext(maxPixels: maxPixels, allowsEditing: editing)) as? Document)
+}
+
+/// An off-screen window with `view` filling its content area.
+func offscreenWindow(holding view: NSView, width: CGFloat = 700, height: CGFloat = 900) -> NSWindow {
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height), styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    view.frame = window.contentView!.bounds
+    window.contentView!.addSubview(view)
+    return window
+}
+
+/// A document view controller on `url`, opened through `plugin`, with its content (or the failure view) showing.
+func loadedDocument(_ url: URL, with plugin: any Plugin.Type, allowsEditing: Bool = true, recovery: RecoveryStore? = nil,
+                    recoveryID: String = UUID().uuidString) async -> DocumentViewController {
+    let document = DocumentViewController(url: url, entry: PluginEntry(plugin), config: Config(), allowsEditing: allowsEditing,
+                                          recovery: recovery, recoveryID: recoveryID)
+    document.loadViewIfNeeded()
+    await document.load()
+    return document
+}
+
+/// A document window on a new file named `name`, shown with `plugin`. Waits for the document to open unless `waiting`
+/// is false.
+func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", waiting: Bool = true) async throws -> DocumentWindowController {
+    let url = try TempFile.make(Data("x".utf8), name: name)
+    let entry = PluginEntry(plugin)
+    let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(),
+                                              allowsEditing: true, recovery: nil, recoveryClipboard: nil)
+    controller.show(with: entry)
+    if waiting { try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil } }
+    return controller
+}
+
 struct TimedOut: Error {}
 
 /// Polls `condition` every 20 ms; throws `TimedOut` if it isn't true within `seconds`.

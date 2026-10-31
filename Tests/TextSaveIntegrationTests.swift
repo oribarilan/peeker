@@ -115,10 +115,8 @@ import Testing
 
     @Test func viewOnlyDocumentHasNoEdits() async throws {
         let file = try TempFile.make(Data("one\n".utf8))
-        let document = DocumentViewController(url: file, entry: Self.entry, config: Config(), allowsEditing: false, recovery: nil)
+        let document = await loadedDocument(file, with: TextPlugin.self, allowsEditing: false)
         defer { document.close() }
-        document.loadViewIfNeeded()
-        await document.load()
         let text = try #require(Self.textDocument(document))
         #expect(!text.isEditable)
         #expect(text.unsavedEdits() == nil)
@@ -304,9 +302,7 @@ import Testing
 
     /// An editable document window's controller on `file`, loaded through the text plugin.
     private func open(_ file: URL, recovery: RecoveryStore? = nil, recoveryID: String = UUID().uuidString) async -> (DocumentViewController, TextDocument?) {
-        let document = DocumentViewController(url: file, entry: Self.entry, config: Config(), allowsEditing: true, recovery: recovery, recoveryID: recoveryID)
-        document.loadViewIfNeeded()
-        await document.load()
+        let document = await loadedDocument(file, with: TextPlugin.self, recovery: recovery, recoveryID: recoveryID)
         return (document, Self.textDocument(document))
     }
 

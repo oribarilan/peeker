@@ -37,7 +37,7 @@ import Testing
 @Suite struct TextFilePrinting {
     private func open(_ text: String) async throws -> TextDocument {
         let file = try TempFile.make(Data(text.utf8))
-        return try #require(try await TextPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)) as? TextDocument)
+        return try await openDocument(file, with: TextPlugin.self, as: TextDocument.self)
     }
 
     @Test func unsavedTypingPrints() async throws {
@@ -86,7 +86,7 @@ import Testing
 @Suite struct PDFPrinting {
     @Test func anUnsavedTextBoxPrints() async throws {
         let file = try TempFile.makePDF(pages: 2)
-        let document = try #require(try await PDFPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)) as? PDFPluginDocument)
+        let document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
         document.setEditing(true)
         let box = CGRect(x: 72, y: 400, width: 200, height: 30)
         #expect(document.change(.add(PDFMark(id: PDFEdit.newID(), page: 0, rect: box, kind: .textBox(text: "Approved", fontSize: 18)))))
@@ -103,7 +103,7 @@ import Testing
         let source = try #require(PDFDocument(url: try TempFile.makePDF(pages: 1)))
         let file = try TempFile.make(Data(), name: "restricted.pdf")
         #expect(source.write(to: file, withOptions: [.ownerPasswordOption: "owner", .accessPermissionsOption: 0 as UInt]))
-        let document = try #require(try await PDFPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)) as? PDFPluginDocument)
+        let document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
         #expect(document.pdfView.document?.allowsPrinting == false)
         #expect(document.printJob == nil)
     }

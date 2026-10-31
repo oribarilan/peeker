@@ -85,10 +85,7 @@ private final class PlainDocument: PluginDocument {
     private func open(_ mode: EditMode = .available, plugin: any Plugin.Type = EditablePlugin.self) async throws -> DocumentViewController {
         EditablePlugin.nextMode = mode
         let url = try TempFile.make(Data("x".utf8), name: "f.bin")
-        let document = DocumentViewController(url: url, entry: PluginEntry(plugin), config: Config(), allowsEditing: true, recovery: nil)
-        document.loadViewIfNeeded()
-        await document.load()
-        return document
+        return await loadedDocument(url, with: plugin)
     }
 
     private func plugin(_ document: DocumentViewController) throws -> EditableDocument {
@@ -206,20 +203,10 @@ private final class PlainDocument: PluginDocument {
 }
 
 @Suite(.serialized) struct EditModeMenu {
-    private func window(for plugin: any Plugin.Type) async throws -> DocumentWindowController {
-        let url = try TempFile.make(Data("x".utf8), name: "f.bin")
-        let entry = PluginEntry(plugin)
-        let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(),
-                                                  allowsEditing: true, recovery: nil, recoveryClipboard: nil)
-        controller.show(with: entry)
-        try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil }
-        return controller
-    }
-
     @Test func editModeIsListedOnlyForDocumentsWithOne() async throws {
         EditablePlugin.nextMode = .available
-        let editable = try await window(for: EditablePlugin.self)
-        let plain = try await window(for: PlainPlugin.self)
+        let editable = try await documentWindow(for: EditablePlugin.self)
+        let plain = try await documentWindow(for: PlainPlugin.self)
         defer { editable.close(); plain.close() }
         let menu = NSMenu(title: "Commands")
         MainMenu.rebuildCommands(menu, for: editable)

@@ -6,17 +6,13 @@ import Testing
 
 private func open(_ texts: [String], allowsEditing: Bool = true) async throws -> PDFPluginDocument {
     let file = try TempFile.makePDF(texts: texts)
-    return try #require(try await PDFPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: allowsEditing)) as? PDFPluginDocument)
+    return try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self, editing: allowsEditing)
 }
 
 /// Puts the document's content view in a window, as the host does.
 private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
-    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
-    window.isReleasedWhenClosed = false
-    document.contentView.frame = window.contentView!.bounds
     document.contentView.autoresizingMask = [.width, .height]
-    window.contentView!.addSubview(document.contentView)
-    return window
+    return offscreenWindow(holding: document.contentView)
 }
 
 private func container(_ document: PDFPluginDocument) throws -> PDFFindContainer {

@@ -27,13 +27,7 @@ private final class LetterDocument: PluginDocument {
 
 @Suite(.serialized) struct SingleKeyShortcuts {
     private func window() async throws -> DocumentWindowController {
-        let url = try TempFile.make(Data("x".utf8), name: "f.bin")
-        let entry = PluginEntry(LetterPlugin.self)
-        let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(),
-                                                  allowsEditing: true, recovery: nil, recoveryClipboard: nil)
-        controller.show(with: entry)
-        try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil }
-        return controller
+        try await documentWindow(for: LetterPlugin.self)
     }
 
     private func key(_ character: String, code: UInt16, in window: NSWindow, modifiers: NSEvent.ModifierFlags = []) -> NSEvent {

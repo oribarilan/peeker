@@ -22,7 +22,7 @@ private func lockedPDF() throws -> URL {
 
 @Suite struct PDFPasswords {
     private func open(_ file: URL, editable: Bool = true) async throws -> LockedPDFDocument {
-        try #require(try await PDFPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: editable)) as? LockedPDFDocument)
+        try await openDocument(file, with: PDFPlugin.self, as: LockedPDFDocument.self, editing: editable)
     }
 
     @Test func aLockedPDFOpensToItsLockScreen() async throws {

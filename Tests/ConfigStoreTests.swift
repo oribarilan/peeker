@@ -137,10 +137,8 @@ import Testing
 @Suite(.serialized) struct LiveConfigTests {
     @Test func applyingAConfigUpdatesAnOpenDocumentsShortcuts() async throws {
         let file = try TempFile.make(Data("a\n".utf8))
-        let document = DocumentViewController(url: file, entry: PluginEntry(TextPlugin.self), config: Config(), allowsEditing: true, recovery: nil)
+        let document = await loadedDocument(file, with: TextPlugin.self)
         defer { document.close() }
-        document.loadViewIfNeeded()
-        await document.load()
         #expect(document.commands.first { $0.spec.id == "zoom-in" }?.shortcut == Shortcut(parsing: "cmd+="))
         var changed = false
         document.onCommandsChanged = { _ in changed = true }

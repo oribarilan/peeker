@@ -68,13 +68,6 @@ private final class StubDocument: PluginDocument {
 }
 
 @Suite(.serialized) struct DocumentReloading {
-    private func open(_ file: URL) async -> DocumentViewController {
-        let document = DocumentViewController(url: file, entry: PluginEntry(Stub.self), config: Config(), allowsEditing: true, recovery: nil)
-        document.loadViewIfNeeded()
-        await document.load()
-        return document
-    }
-
     private func text(of document: DocumentViewController) -> String? {
         (document.pluginDocument as? StubDocument)?.text
     }
@@ -93,7 +86,7 @@ private final class StubDocument: PluginDocument {
         Stub.reset()
         let file = try TempFile.make(Data("old".utf8), name: "f.stub")
         Stub.duringOpen = { try write("new", to: file, secondsFromNow: 10) }
-        let document = await open(file)
+        let document = await loadedDocument(file, with: Stub.self)
         defer { document.close() }
         try await waitUntil(seconds: 2) { text(of: document) == "new" }
     }
@@ -102,7 +95,7 @@ private final class StubDocument: PluginDocument {
     @Test func editsMadeWhileTheFileReopensAreKept() async throws {
         Stub.reset()
         let file = try TempFile.make(Data("old".utf8), name: "f.stub")
-        let document = await open(file)
+        let document = await loadedDocument(file, with: Stub.self)
         defer { document.close() }
         let first = try #require(document.pluginDocument as? StubDocument)
         try write("new", to: file, secondsFromNow: 10)
@@ -119,7 +112,7 @@ private final class StubDocument: PluginDocument {
         Stub.reloadsInPlace = true
         Stub.reloadTimes = [.milliseconds(300), .milliseconds(10)]
         let file = try TempFile.make(Data("one".utf8), name: "f.stub")
-        let document = await open(file)
+        let document = await loadedDocument(file, with: Stub.self)
         defer { document.close() }
         try write("two", to: file, secondsFromNow: 10)
         document.reloadIfChangedOnDisk()
@@ -136,7 +129,7 @@ private final class StubDocument: PluginDocument {
         Stub.reloadsInPlace = true
         Stub.reloadFails = true
         let file = try TempFile.make(Data("old".utf8), name: "f.stub")
-        let document = await open(file)
+        let document = await loadedDocument(file, with: Stub.self)
         defer { document.close() }
         await document.toggleEditing { true }
         #expect(document.isEditing && document.commands.count == 1)
@@ -155,11 +148,7 @@ private final class StubDocument: PluginDocument {
     /// The app keeps a list of open windows; a closed one must leave it.
     @Test func closingTheWindowTellsItsOwner() async throws {
         Stub.reset()
-        let file = try TempFile.make(Data("x".utf8), name: "f.stub")
-        let entry = PluginEntry(Stub.self)
-        let controller = DocumentWindowController(url: file, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(),
-                                                  allowsEditing: true, recovery: nil, recoveryClipboard: nil)
-        controller.show(with: entry)
+        let controller = try await documentWindow(for: Stub.self, name: "f.stub", waiting: false)
         var closed: DocumentWindowController?
         controller.onClose = { closed = $0 }
         controller.close()

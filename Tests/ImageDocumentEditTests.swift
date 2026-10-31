@@ -6,7 +6,7 @@ import Testing
 import UniformTypeIdentifiers
 
 private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocument {
-    let document = try #require(try await ImagePlugin.open(url, context: OpenContext(maxPixels: 1000, allowsEditing: editing)) as? ImageDocument)
+    let document = try await openDocument(url, with: ImagePlugin.self, as: ImageDocument.self, editing: editing, maxPixels: 1000)
     document.undoManager.groupsByEvent = false
     return document
 }
@@ -109,10 +109,7 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     /// The document shown in a window, in Edit mode.
     private func shown(_ width: Int = 400, _ height: Int = 200) async throws -> (ImageDocument, NSWindow) {
         let document = try await open(try imageFile(try cornerImage(width: width, height: height), type: .png))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        document.contentView.frame = window.contentView!.bounds
-        window.contentView!.addSubview(document.contentView)
+        let window = offscreenWindow(holding: document.contentView, width: 400, height: 200)
         document.canvas.frame = document.contentView.bounds
         document.setEditing(true)
         return (document, window)
@@ -256,11 +253,8 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
 
     @Test func zoomOutGoesBelowFitAndAnImageStaysCentered() async throws {
         let document = try await open(try imageFile(try cornerImage(width: 400, height: 200), type: .png))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
+        let window = offscreenWindow(holding: document.contentView, width: 400, height: 200)
         defer { window.close() }
-        document.contentView.frame = window.contentView!.bounds
-        window.contentView!.addSubview(document.contentView)
         let scroll = try #require(document.contentView as? NSScrollView)
         #expect(scroll.minMagnification <= 0.125)
         #expect(scroll.contentView is CenteringClipView)

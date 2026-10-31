@@ -20,7 +20,7 @@ private func encoded(_ edits: [PDFEdit]) throws -> Data {
 }
 
 private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginDocument {
-    try #require(try await PDFPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: editable)) as? PDFPluginDocument)
+    try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self, editing: editable)
 }
 
 @Suite struct PDFPluginOpening {
@@ -241,11 +241,8 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 
     @Test func cmdSWritesTheHighlightsAndDoesNotReload() async throws {
         let file = try TempFile.makePDF(pages: 1)
-        let document = DocumentViewController(url: file, entry: PluginEntry(PDFPlugin.self), config: Config(),
-                                              allowsEditing: true, recovery: nil)
+        let document = await loadedDocument(file, with: PDFPlugin.self)
         defer { document.close() }
-        document.loadViewIfNeeded()
-        await document.load()
         let pdf = try #require(document.pluginDocument as? PDFPluginDocument)
         #expect(pdf.restore(encoded: try encoded([highlight()])))
         #expect(document.isEdited)

@@ -35,10 +35,7 @@ private final class After: PluginDocument {
 
     @Test func aReplacementShowsWithItsCommands() async throws {
         let url = try TempFile.make(Data("x".utf8), name: "f.bin")
-        let entry = PluginEntry(SwappingPlugin.self)
-        let document = DocumentViewController(url: url, entry: entry, config: Config(), allowsEditing: true, recovery: nil)
-        document.loadViewIfNeeded()
-        await document.load()
+        let document = await loadedDocument(url, with: SwappingPlugin.self)
         defer { document.close() }
         let before = try #require(document.pluginDocument as? Before)
         #expect(document.commands.isEmpty)

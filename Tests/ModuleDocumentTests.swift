@@ -100,10 +100,7 @@ private final class SlowSaveDocument: PluginDocument {
 @Suite(.serialized) struct ModuleSaving {
     private func open() async throws -> (DocumentViewController, SlowSaveDocument) {
         let url = try TempFile.make(Data("x".utf8), name: "f.bin")
-        let document = DocumentViewController(url: url, entry: PluginEntry(SlowSavePlugin.self), config: Config(),
-                                              allowsEditing: true, recovery: nil)
-        document.loadViewIfNeeded()
-        await document.load()
+        let document = await loadedDocument(url, with: SlowSavePlugin.self)
         let plugin = try #require(document.pluginDocument as? SlowSaveDocument)
         return (document, plugin)
     }

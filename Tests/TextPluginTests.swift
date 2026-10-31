@@ -5,7 +5,7 @@ import Testing
 
 /// Opens `file` as an editable document.
 private func open(_ file: URL) async throws -> TextDocument {
-    try #require(try await TextPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)) as? TextDocument)
+    try await openDocument(file, with: TextPlugin.self, as: TextDocument.self)
 }
 
 /// Saves `text` as `document`'s new contents, accepting the UTF-8 offer when `utf8` is set.

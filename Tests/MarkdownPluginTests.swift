@@ -52,7 +52,7 @@ import UniformTypeIdentifiers
 @Suite struct MarkdownDocumentTests {
     private func open(_ text: String) async throws -> (URL, MarkdownDocument) {
         let file = try TempFile.make(Data(text.utf8), name: "f.md")
-        let document = try #require(try await MarkdownPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)) as? MarkdownDocument)
+        let document = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownDocument.self)
         return (file, document)
     }
 

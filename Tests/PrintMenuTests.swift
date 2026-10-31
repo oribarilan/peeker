@@ -57,13 +57,7 @@ private final class PrintingDocument: PluginDocument {
     private func window(prints: Bool, wait: Bool = true) async throws -> DocumentWindowController {
         PrintingPlugin.prints = prints
         PrintingPlugin.openDelay = wait ? .zero : .seconds(5)
-        let url = try TempFile.make(Data("x".utf8), name: "f.bin")
-        let entry = PluginEntry(PrintingPlugin.self)
-        let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(),
-                                                  allowsEditing: true, recovery: nil, recoveryClipboard: nil)
-        controller.show(with: entry)
-        if wait { try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil } }
-        return controller
+        return try await documentWindow(for: PrintingPlugin.self, waiting: wait)
     }
 
     private var printItem: NSMenuItem {

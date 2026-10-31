@@ -11,11 +11,8 @@ import Testing
 
     init(acroForm: String = "") async throws {
         let file = try FormPDF.make(acroForm: acroForm)
-        document = try #require(try await PDFPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)) as? PDFPluginDocument)
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        document.pdfView.frame = window.contentView!.bounds
-        window.contentView!.addSubview(document.pdfView)
+        document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
+        window = offscreenWindow(holding: document.pdfView)
         document.pdfView.autoScales = false
         document.pdfView.scaleFactor = 1
         document.pdfView.layoutDocumentView()

@@ -28,13 +28,8 @@ private final class BlockableDocument: PluginDocument {
     }
 
     @Test func aCommandWithAReasonIsGreyedOutWithItAsTooltip() async throws {
-        let url = try TempFile.make(Data("x".utf8), name: "f.bin")
-        let entry = PluginEntry(BlockablePlugin.self)
-        let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(),
-                                                  allowsEditing: true, recovery: nil, recoveryClipboard: nil)
-        controller.show(with: entry)
+        let controller = try await documentWindow(for: BlockablePlugin.self)
         defer { controller.close() }
-        try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil }
         let document = try #require(controller.current?.pluginDocument as? BlockableDocument)
         let menuItem = NSMenuItem(title: "Turn", action: #selector(DocumentWindowController.runCommand(_:)), keyEquivalent: "l")
         menuItem.tag = 0

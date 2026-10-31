@@ -7,7 +7,7 @@ import Testing
 nonisolated private let place = CGRect(x: 100, y: 300, width: 180, height: 60)
 
 private func open(_ file: URL) async throws -> PDFPluginDocument {
-    let document = try #require(try await PDFPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)) as? PDFPluginDocument)
+    let document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
     document.undoManager.groupsByEvent = false  // no event loop here to close each step's group
     document.setEditing(true)
     return document
@@ -16,10 +16,7 @@ private func open(_ file: URL) async throws -> PDFPluginDocument {
 /// `document`'s view in an off-screen window, laid out at 100%.
 @discardableResult
 private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
-    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
-    window.isReleasedWhenClosed = false
-    document.pdfView.frame = window.contentView!.bounds
-    window.contentView!.addSubview(document.pdfView)
+    let window = offscreenWindow(holding: document.pdfView)
     document.pdfView.autoScales = false
     document.pdfView.scaleFactor = 1
     document.pdfView.layoutDocumentView()
@@ -245,10 +242,7 @@ private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
     /// Saving or leaving Edit mode takes focus from the box, which must count as finishing it.
     @Test func losingFocusEndsTheBox() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 800), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        document.pdfView.frame = window.contentView!.bounds
-        window.contentView!.addSubview(document.pdfView)
+        let window = offscreenWindow(holding: document.pdfView, width: 600, height: 800)
         let page = try #require(document.pdfView.document?.page(at: 0))
         var ended: (String, Double)?
         let editor = TextBoxEditor(view: document.pdfView, page: page, topLeft: CGPoint(x: 100, y: 500), text: "", fontSize: 12, hiding: nil) { ended = ($0, $1) }
