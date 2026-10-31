@@ -82,6 +82,19 @@ func corners(_ image: CGImage) throws -> [String] {
         #expect(try corners(image) == ["blue", "red", "black", "black"])
     }
 
+    /// The window shows a screen-size decode: a resize scales it by the same factor as the full image, and never past
+    /// the decode's own size, so enlarging stays cheap.
+    @Test func thePreviewScalesTheScreenDecodeAndCapsEnlarging() throws {
+        let decode = try cornerImage(width: 200, height: 100)
+        let full = CGSize(width: 400, height: 200)
+        let half = ImageEditing.preview([.resize(width: 200, height: 100)], of: decode, fullSize: full)
+        #expect(half.width == 100 && half.height == 50)
+        let doubled = ImageEditing.preview([.resize(width: 800, height: 400)], of: decode, fullSize: full)
+        #expect(doubled.width == 200 && doubled.height == 100)
+        let turned = ImageEditing.preview([.rotate(by: 90), .resize(width: 100, height: 200)], of: decode, fullSize: full)
+        #expect(turned.width == 50 && turned.height == 100)
+    }
+
     @Test func onlyQuarterTurnsCropsInsideAndSaneSizesAreValid() throws {
         #expect(ImageEdit.rotate(by: 90).isValid && !ImageEdit.rotate(by: 45).isValid)
         #expect(ImageEdit.crop(CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.5)).isValid)

@@ -49,6 +49,26 @@ nonisolated enum ImageEditing {
         }
     }
 
+    /// `edits`, made to the full image of `fullSize`, applied to `decode`, a smaller decode of it for the screen. A resize
+    /// scales the decode by the same factor as the full image, but never past the decode's own size: enlarging only
+    /// shows as the same picture, and stays cheap. An edit that can't be drawn is skipped.
+    static func preview(_ edits: [ImageEdit], of decode: CGImage, fullSize: CGSize) -> CGImage {
+        var image = decode
+        var full = fullSize
+        for edit in edits {
+            var shown = edit
+            if case .resize(let width, let height) = edit, full.width > 0, full.height > 0 {
+                var size = CGSize(width: CGFloat(image.width) * CGFloat(width) / full.width, height: CGFloat(image.height) * CGFloat(height) / full.height)
+                let limit = CGFloat(max(decode.width, decode.height)) / max(size.width, size.height)
+                if limit < 1 { size = CGSize(width: size.width * limit, height: size.height * limit) }
+                shown = .resize(width: max(Int(size.width.rounded()), 1), height: max(Int(size.height.rounded()), 1))
+            }
+            image = apply(shown, to: image) ?? image
+            full = size(after: [edit], from: full)
+        }
+        return image
+    }
+
     static func apply(_ edits: [ImageEdit], to image: CGImage) -> CGImage? {
         edits.reduce(Optional(image)) { image, edit in image.flatMap { apply(edit, to: $0) } }
     }

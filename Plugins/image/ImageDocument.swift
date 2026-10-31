@@ -196,25 +196,9 @@ final class ImageDocument: PluginDocument {
         onEdit?()
     }
 
-    /// Shows the base with the edits applied. A resize scales the screen decode by the same factor as the full image.
+    /// Shows the base with the edits applied.
     private func redraw() {
-        var image = base
-        var full = baseSize
-        for edit in edits {
-            let shown: ImageEdit
-            if case .resize(let width, let height) = edit, full.width > 0, full.height > 0 {
-                // Never larger than the first decode: enlarging only shows as the same picture, and stays cheap.
-                var size = CGSize(width: CGFloat(image.width) * CGFloat(width) / full.width, height: CGFloat(image.height) * CGFloat(height) / full.height)
-                let limit = CGFloat(max(base.width, base.height)) / max(size.width, size.height)
-                if limit < 1 { size = CGSize(width: size.width * limit, height: size.height * limit) }
-                shown = .resize(width: max(Int(size.width.rounded()), 1), height: max(Int(size.height.rounded()), 1))
-            } else {
-                shown = edit
-            }
-            image = ImageEditing.apply(shown, to: image) ?? image
-            full = ImageEditing.size(after: [edit], from: full)
-        }
-        canvas.image = image
+        canvas.image = ImageEditing.preview(edits, of: base, fullSize: baseSize)
     }
 
     func unsavedEdits() -> UnsavedEdits? {
@@ -237,9 +221,7 @@ final class ImageDocument: PluginDocument {
         // The file now has the saved edits; start from it. Edits added during the save stay pending on top. If the
         // list changed under the save (an undo), those changes no longer fit the file and are dropped.
         let remainder = edits.starts(with: snapshot.edits) ? Array(edits.dropFirst(snapshot.edits.count)) : []
-        edits = snapshot.edits
-        redraw()
-        base = canvas.image
+        base = ImageEditing.preview(snapshot.edits, of: base, fullSize: baseSize)
         baseSize = ImageEditing.size(after: snapshot.edits, from: baseSize)
         edits = remainder
         redraw()
