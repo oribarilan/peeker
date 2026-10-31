@@ -255,43 +255,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func restoreRecoveredDocuments() {
         guard !recoveryRestored else { return }
         recoveryRestored = true
-        let store = RecoveryStore.shared
-        var restored: Set<URL> = []
-        var missingText: [RecoveryRecord] = [], unopenableText: [RecoveryRecord] = []
-        for record in store.all() {   // newest first, so a file's newest record wins
-            guard restored.insert(record.url.standardizedFileURL).inserted else {
-                store.remove(id: record.id)
-                continue
-            }
-            let exists = FileManager.default.fileExists(atPath: record.url.path)
-            if exists, plugin(for: record.url, restoring: record) != nil {
-                openInWindow(record.url, restoring: record)
-                continue
-            }
-            // Without its file or an enabled plugin for it, the record can't go back into a window; kept, it would
-            // come back every launch.
-            let name = "“\(record.url.lastPathComponent)”"
-            if catalog.recoveryText(record) != nil {
-                if exists { unopenableText.append(record) } else { missingText.append(record) }
-            } else {
-                store.remove(id: record.id)
-                let alert = NSAlert()
-                alert.messageText = exists ? "No enabled plugin opens \(name). Its unsaved changes couldn't be restored."
-                                           : "\(name) no longer exists. Its unsaved changes couldn't be restored."
-                alert.runModal()
-            }
-        }
-        copyToClipboard(missingText) { names, count in "\(names) \(count == 1 ? "no longer exists" : "no longer exist")." }
-        copyToClipboard(unopenableText) { names, _ in "No enabled plugin opens \(names)." }
-    }
-
-    /// Puts the records' text on the clipboard and says why; the records stay if the clipboard refuses.
-    private func copyToClipboard(_ records: [RecoveryRecord], reason: (_ names: String, _ count: Int) -> String) {
-        guard !records.isEmpty, recoveryClipboard.add(records) else { return }
-        let names = ListFormatter.localizedString(byJoining: records.map { "“\($0.url.lastPathComponent)”" })
-        let alert = NSAlert()
-        alert.messageText = reason(names, records.count) + " Your unsaved text was copied to the clipboard."
-        alert.runModal()
+        RecoveryRestore(store: .shared, clipboard: recoveryClipboard,
+                        canOpen: { [self] in plugin(for: $0.url, restoring: $0) != nil },
+                        hasText: { [self] in catalog.recoveryText($0) != nil },
+                        open: { [self] in openInWindow($0.url, restoring: $0) }).run()
     }
 
     private func startBench(_ bench: Bench, url: URL) {

@@ -128,3 +128,29 @@ private func text(of record: RecoveryRecord) -> String? {
         #expect(store.all() == [pdf])
     }
 }
+
+@Suite struct RecoveryRestoring {
+    /// A file's newest record reopens; one whose file is gone keeps its text on the clipboard; one with no text form
+    /// is dropped with a message. None comes back on the next launch.
+    @Test func eachRecordReopensGoesToTheClipboardOrIsDroppedWithAMessage() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)")
+        let store = RecoveryStore(directory: directory)
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("peeker-test-\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        let file = try TempFile.make(Data("a".utf8))
+        let missing = FileManager.default.temporaryDirectory.appending(path: "peeker-missing-\(UUID().uuidString)")
+        try store.write(try record("old", #"{"text":"older"}"#, url: file))
+        try FileManager.default.setAttributes([.modificationDate: Date.distantPast], ofItemAtPath: directory.appending(path: "old.json").path)
+        try store.write(try record("new", #"{"text":"newer"}"#, url: file))
+        try store.write(try record("gone", #"{"text":"lost text"}"#, url: missing.appending(path: "a.txt")))
+        try store.write(try record("lost", #"{"pdfHighlights":{"_0":[]}}"#, url: missing.appending(path: "a.pdf"), plugin: "pdf"))
+        var opened: [String] = [], told: [String] = []
+        RecoveryRestore(store: store, clipboard: RecoveryClipboard(pasteboard: pasteboard, store: store, text: text(of:)),
+                        canOpen: { $0.pluginID == "text" }, hasText: { text(of: $0) != nil },
+                        open: { opened.append($0.id) }, tell: { told.append($0) }).run()
+        #expect(opened == ["new"])
+        #expect(pasteboard.string(forType: .string) == "lost text")
+        #expect(told.count == 2, "\(told)")
+        #expect(store.all().map(\.id) == ["new"])
+    }
+}
