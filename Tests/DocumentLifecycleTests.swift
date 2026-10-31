@@ -15,17 +15,24 @@ private enum Stub: Plugin {
     static var reloadsInPlace = false
     static var reloadTimes: [Duration] = []
     static var reloadFails = false
+    /// The next open fails, once.
+    static var failNextOpen = false
 
     static func reset() {
         duringOpen = nil
         reloadsInPlace = false
         reloadTimes = []
         reloadFails = false
+        failNextOpen = false
     }
 
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let text = StubDocument.read(url)
         await Task.yield()  // a real open reads off the main thread, so it always suspends
+        if failNextOpen {
+            failNextOpen = false
+            throw PluginError("The file can't be read.")
+        }
         if let step = duringOpen {
             duringOpen = nil
             try? step()
@@ -142,6 +149,29 @@ private final class StubDocument: PluginDocument {
         #expect(document.commands.isEmpty)
         #expect(!document.isEditing)
         #expect(told == 1)
+    }
+}
+
+@Suite(.serialized) struct DocumentFailure {
+    /// The failure view's Reopen button opens the file afresh.
+    @Test func reopenAfterAFailedOpenShowsTheDocument() async throws {
+        Stub.reset()
+        Stub.failNextOpen = true
+        let file = try TempFile.make(Data("text".utf8), name: "f.stub")
+        let document = await loadedDocument(file, with: Stub.self)
+        defer { document.close() }
+        let window = offscreenWindow(holding: document.view)
+        defer { window.close() }
+        #expect(document.pluginDocument == nil)
+        let reopen = try #require(Self.button(titled: "Reopen", in: document.view))
+        reopen.performClick(nil)
+        try await waitUntil(seconds: 2) { document.pluginDocument != nil }
+        #expect((document.pluginDocument as? StubDocument)?.text == "text")
+    }
+
+    private static func button(titled title: String, in view: NSView) -> NSButton? {
+        if let button = view as? NSButton, button.title == title { return button }
+        return view.subviews.lazy.compactMap { button(titled: title, in: $0) }.first
     }
 }
 

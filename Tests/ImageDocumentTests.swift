@@ -208,6 +208,23 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         try await waitUntil(seconds: 3) { animation.frameIndex != paused }
     }
 
+    /// Through the canvas's own mouse handling, not the player directly.
+    @Test func aClickOnTheImagePausesAndAnotherResumes() async throws {
+        let document = try await open(try gif())
+        let animation = try #require(document.animation)
+        let click = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0,
+                                                    context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        document.canvas.mouseDown(with: click)
+        #expect(animation.isPaused)
+        document.canvas.mouseDown(with: click)
+        #expect(!animation.isPaused)
+        // An animated image can't enter Edit mode, so the canvas's own editing state stands in for it: there a click
+        // belongs to the edit tools.
+        document.canvas.isEditing = true
+        document.canvas.mouseDown(with: click)
+        #expect(!animation.isPaused)
+    }
+
     @Test func aTwoPageTIFFIsNotAnimated() async throws {
         let url = try TempFile.make(Data(), name: "f.tiff")
         let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.tiff.identifier as CFString, 2, nil))
