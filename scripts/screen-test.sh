@@ -5,17 +5,20 @@
 #
 # Needs an unlocked screen left alone (about three minutes without video), Accessibility and Screen Recording for the
 # terminal, and no other copy of Peeker running.
-# usage: scripts/screen-test.sh [--record] [--no-build] [routing|flows|pdf-edit ...]
+# usage: scripts/screen-test.sh [--record] [--no-build] [routing|flows|pdf-edit|pdf-pages|image-edit|recovery ...]
 #   --record     also save a screen recording of each flow (slower: a recording runs to its time limit)
 #   --no-build   test the app already in build/ instead of building first
 set -u
 cd "$(dirname "$0")/.."
-all=(routing flows pdf-edit)
+all=(routing flows pdf-edit pdf-pages image-edit recovery)
 script() {
     case $1 in
     routing) echo scripts/screen/e2e-routing.sh ;;
     flows) echo scripts/screen/record-flows.sh ;;
     pdf-edit) echo scripts/screen/pdf-edit-flow.sh ;;
+    pdf-pages) echo scripts/screen/pdf-pages-flow.sh ;;
+    image-edit) echo scripts/screen/image-edit-flow.sh ;;
+    recovery) echo scripts/screen/recovery-flow.sh ;;
     *) return 1 ;;
     esac
 }

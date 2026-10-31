@@ -62,7 +62,7 @@ Fix new warnings before you finish; the build is currently warning-free. Write t
 
 ## Screen tests
 
-`scripts/screen-test.sh` builds the app and runs the screen tests: the routing check and flows that drive the real app through Finder, menus, Settings and Edit mode, checking each step. It needs an unlocked screen left alone for about three minutes, and Accessibility and Screen Recording for the terminal. The flows live in `scripts/screen/`, and the `run-peeker` skill explains them.
+`scripts/screen-test.sh` builds the app and runs the screen tests: the routing check and flows that drive the real app through Finder, menus, Settings, Edit mode, page and image edits and crash recovery, checking each step. It needs an unlocked screen left alone for about four minutes, and Accessibility and Screen Recording for the terminal. The flows live in `scripts/screen/`, and the `run-peeker` skill explains them.
 
 Run it before a release and after changes to the host UI or a plugin's views. Agents ask the maintainer before starting it, since it takes over the mouse and keyboard. A user-facing change adds or updates a step in a flow, or its commit or pull request says why not.
 
