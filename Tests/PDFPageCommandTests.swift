@@ -64,6 +64,17 @@ private func texts(_ document: PDFDocument) -> [String] {
         #expect(shown.rotation(3) == 0)
     }
 
+    /// The info panel describes the file: after a save that deleted a page, it counts the pages left.
+    @Test func theInfoPanelCountsThePagesAfterASave() async throws {
+        let shown = try await Shown(try TempFile.makePDF(pages: 3))
+        defer { shown.window.close() }
+        try shown.select([2])
+        #expect(shown.document.perform("delete-page"))
+        try await shown.document.save(try #require(shown.document.unsavedEdits()), accepting: nil)
+        let info = try #require(shown.document.sidebar.last?.view as? NSTextField)
+        #expect(info.stringValue.contains("Pages\t2"), "\(info.stringValue)")
+    }
+
     /// A search left from earlier runs again after a page change without moving the view.
     @Test func aSearchRunningAgainDoesNotMoveTheCurrentPage() async throws {
         let shown = try await Shown(try TempFile.makePDF(pages: 5))

@@ -11,7 +11,8 @@ final class PDFPluginDocument: PluginDocument {
     private let document: PeekerPDFDocument
     private let url: URL
     private let editable: Bool
-    private let info: [InfoRow]
+    /// The file's details for the info panel, read again after a save.
+    private var info: [InfoRow]
     let editMode: EditMode
     private(set) var isEditing = false
     var onEdit: (() -> Void)?
@@ -188,6 +189,7 @@ final class PDFPluginDocument: PluginDocument {
         guard let snapshot = edits.value as? PDFSnapshot else { throw PluginError("These changes aren't PDF edits.") }
         try await PDFPlugin.write(snapshot.edits.operations, to: url.path)
         pending.removeAll { $0.number <= snapshot.through }  // edits made during the save stay pending
+        if let checked = try? await PDFPlugin.check(url) { info = checked.info }
     }
 
     func revertEdits() {

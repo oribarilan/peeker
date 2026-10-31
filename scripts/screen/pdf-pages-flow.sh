@@ -21,6 +21,8 @@ check_saved() {
     for _ in $(seq 50); do [ "$(saved_pages)" = "$2" ] && break; sleep 0.1; done
     check "$1" "$(saved_pages)" "$2"
 }
+# The page count in the info panel.
+pages_shown() { "$DRIVE" tree Peeker 12 | grep -o $'Pages\t[0-9]*' | cut -f2; }
 # The number of thumbnails: each has a text with its page number.
 thumbnails() { "$DRIVE" tree Peeker 12 | grep -cE '^ *AXStaticText = [0-9]+$'; }
 # The middle of the number under page n's thumbnail: x y.
@@ -68,6 +70,8 @@ drag_page_above 3 1
 "$DRIVE" shot Peeker "$OUT/1-edited.png"
 "$DRIVE" menu Peeker File Save
 check_saved "The saved file has page 3 first, page 2 turned and page 4 gone" "Page 3 / Page 1 / Page 2 (90)"
+for _ in $(seq 30); do [ "$(pages_shown)" = 3 ] && break; sleep 0.1; done
+check "The info panel counts the saved pages" "$(pages_shown)" 3
 
 # Undo reaches back past the save: first the drag, then the delete.
 "$DRIVE" keys Peeker cmd+z
