@@ -9,7 +9,8 @@ final class ImageDocument: PluginDocument {
     /// Below fit, down to an eighth, or to actual size when that's smaller.
     private static let minimumZoom: CGFloat = 1.0 / 8
     let canvas: ImageCanvas
-    let sidebar: [SidebarPanel]
+    /// The file's details for the info panel, read again after a save.
+    private(set) var info: [InfoRow]
     let editMode: EditMode
     private(set) var isEditing = false
     var onEdit: (() -> Void)?
@@ -44,7 +45,7 @@ final class ImageDocument: PluginDocument {
         baseSize = decoded.pixelSize
         pointsPerPixel = decoded.pixelSize.width > 0 ? decoded.printSize.width / decoded.pixelSize.width : 1
         editMode = !editable ? .none : decoded.uneditableReason.map { .unavailable(reason: $0) } ?? .available
-        sidebar = InfoPanel.make(decoded.info).map { [$0] } ?? []
+        info = decoded.info
         canvas = ImageCanvas(image: decoded.image)
         scrollView.contentView = CenteringClipView()
         scrollView.documentView = canvas
@@ -89,6 +90,7 @@ final class ImageDocument: PluginDocument {
     }
 
     var contentView: NSView { scrollView }
+    var sidebar: [SidebarPanel] { InfoPanel.make(info).map { [$0] } ?? [] }
 
     var commands: [CommandSpec] {
         editMode == .none ? ImagePlugin.commands.filter { !$0.isEditTool } : ImagePlugin.commands
@@ -242,7 +244,7 @@ final class ImageDocument: PluginDocument {
         edits = remainder
         redraw()
         undoManager.removeAllActions()
-        onEdit?()
+        info = await ImagePlugin.info(of: url)
     }
 
     func revertEdits() {

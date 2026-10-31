@@ -67,6 +67,28 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(!document.undoManager.canUndo, "the cropped pixels are gone from the file")
     }
 
+    @Test func theInfoShowsTheSavedFile() async throws {
+        let url = try imageFile(try cornerImage(width: 400, height: 200), type: .png)
+        let document = try await open(url)
+        document.setEditing(true)
+        document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
+        try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+        #expect(document.info.contains(InfoRow(label: "Dimensions", value: "200 × 200")))
+        let bytes = try #require(try url.resourceValues(forKeys: [.fileSizeKey]).fileSize)
+        #expect(document.info.contains(InfoRow(label: "File size", value: ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))))
+    }
+
+    /// The host counts each `onEdit` as a change; one after a save would leave the window marked as edited.
+    @Test func aSaveNeverReportsAnEdit() async throws {
+        let document = try await open(try imageFile(try cornerImage(width: 400, height: 200), type: .png))
+        document.setEditing(true)
+        document.apply(.rotate(by: 90))
+        var edits = 0
+        document.onEdit = { edits += 1 }
+        try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+        #expect(edits == 0)
+    }
+
     @Test func recoveryReappliesEditsAndRefusesBadOnes() async throws {
         let url = try imageFile(try cornerImage(), type: .png)
         let first = try await open(url)

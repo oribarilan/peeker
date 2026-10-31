@@ -92,6 +92,12 @@ public enum ImagePlugin: Plugin {
                        info: info(properties, source, url))
     }
 
+    /// The info rows for the file as it is now, such as after a save.
+    @concurrent nonisolated static func info(of url: URL) async -> [InfoRow] {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary) else { return [] }
+        return info(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:], source, url)
+    }
+
     private nonisolated static func printSize(_ properties: [CFString: Any], decoded: CGImage) -> CGSize {
         func points(_ pixels: CFString, _ dpi: CFString) -> Double? {
             guard let pixels = properties[pixels] as? Double, pixels > 0 else { return nil }
