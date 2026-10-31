@@ -70,6 +70,18 @@ import UniformTypeIdentifiers
         let json = try JSONEncoder().encode([ImageEdit.rotate(by: -90), .flip(horizontal: true), .crop(CGRect(x: 0, y: 0, width: 1, height: 1)), .resize(width: 3, height: 4)])
         #expect(try JSONDecoder().decode([ImageEdit].self, from: json).count == 4)
     }
+
+    @Test func aSliverAtTheEdgeStillCropsAPixel() throws {
+        let rect = ImageEditing.cropRect(CGRect(x: 0.999, y: 0.999, width: 0.001, height: 0.001), in: CGSize(width: 100, height: 50))
+        #expect(rect == CGRect(x: 99, y: 49, width: 1, height: 1))
+        #expect(ImageEditing.apply([.crop(CGRect(x: 0.999, y: 0, width: 0.001, height: 1))], to: try cornerImage(width: 100, height: 50)) != nil)
+    }
+
+    @Test func enlargingStaysWithinTheEditablePixels() {
+        #expect(!ImageEdit.resize(width: 20_000, height: 10_000).isValid)
+        #expect(ImageEdit.resize(width: 10_000, height: 10_000).isValid)
+        #expect(TransformPanel.targetSize(width: 800, height: 800, unit: .percent, lock: true, edited: .width, current: CGSize(width: 4000, height: 3000)) == nil)
+    }
 }
 
 @Suite struct ImageSavingTests {
