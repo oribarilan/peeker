@@ -22,7 +22,7 @@
 
 - [x] 5.1 Add `pdf-pages`, `image-edit` and `recovery` to `scripts/screen-test.sh` (names, help text) and describe them in the run-peeker skill; verify `scripts/screen-test.sh` passes in full and `scripts/screen-test.sh image-edit` runs that flow alone
 - [x] 5.2 Delete `docs/screenontest.md` and repoint the review report's references at `scripts/screen-test.sh`; verify `grep -rn screenontest` finds only history
-- [ ] 5.3 Run `scripts/build.sh test`, `scripts/check-plugin-imports.sh` and `openspec validate --all --strict`; verify all pass with no warnings, and list any app bugs the flows found with their commits
+- [x] 5.3 Run `scripts/build.sh test`, `scripts/check-plugin-imports.sh` and `openspec validate --all --strict`; verify all pass with no warnings, and list any app bugs the flows found with their commits
 
 ## Workflow follow-up
 
