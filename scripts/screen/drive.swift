@@ -19,6 +19,11 @@
 //        drive type <process> <text>               type <text>, only while <process> is in front
 //        drive drag <process> <x y>...             press at the first point, drag through the rest, release at the last
 //        drive keys <process> <combo>              press a combo such as opt+space, ctrl+cmd+h or return, only while <process> is in front
+//        drive wait <process> <kind> [label] [--gone] [--timeout s]
+//                                                  wait (5 s by default) for a window (title containing label), sheet,
+//                                                  menu or control (labeled like press finds it) to appear, or with
+//                                                  --gone to go away; exit 1 naming what it waited for on timeout
+//        drive focus <process>                     print the front app, the process's key window and focused element
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -355,6 +360,38 @@ case "drag":
     let numbers = args.dropFirst(2).compactMap(Double.init)
     guard numbers.count >= 4, numbers.count.isMultiple(of: 2) else { fail("drag needs at least two x y points") }
     drag(through: stride(from: 0, to: numbers.count, by: 2).map { CGPoint(x: numbers[$0], y: numbers[$0 + 1]) })
+case "wait":
+    var rest = Array(args.dropFirst(3))
+    let gone = rest.contains("--gone")
+    rest.removeAll { $0 == "--gone" }
+    var timeout = 5.0
+    if let at = rest.firstIndex(of: "--timeout"), at + 1 < rest.count {
+        timeout = Double(rest[at + 1]) ?? timeout
+        rest.removeSubrange(at...(at + 1))
+    }
+    let process = arg(1), kind = arg(2), wanted = rest.first
+    // Document windows and panels; not the menu bar icon (layer 25) or open menus (101).
+    let present: () -> Bool = switch kind {
+    case "window": { windows(owner: process).contains { $0.layer < 25 && (wanted.map($0.title.contains) ?? true) } }
+    case "menu": { windows(owner: process).contains { $0.layer == 101 } }
+    case "sheet": { axWindows(application(process)).contains { window in find(window, where: { role($0) == "AXSheet" }) != nil } }
+    case "control": { control(process, wanted ?? "") != nil }
+    default: fail("wait for a window, sheet, menu or control")
+    }
+    let deadline = Date().addingTimeInterval(timeout)
+    while present() == gone {
+        guard Date() < deadline else {
+            fail("timed out after \(timeout) s waiting for \(kind)\(wanted.map { " “\($0)”" } ?? "")\(gone ? " to go away" : "")")
+        }
+        usleep(50_000)
+    }
+case "focus":
+    let app = application(arg(1))
+    let window: AXUIElement? = attr(app, kAXFocusedWindowAttribute)
+    let focused: AXUIElement? = attr(app, kAXFocusedUIElementAttribute)
+    print("front: \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "nothing")")
+    print("key window: \(window.map { (attr($0, kAXTitleAttribute) as String?) ?? "untitled" } ?? "none")")
+    print("focused: \(focused.map { "\(role($0)) \(label($0))" } ?? "none")")
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|click|type|keys|drag ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|click|type|keys|drag|wait|focus ...; see the top of drive.swift")
 }
