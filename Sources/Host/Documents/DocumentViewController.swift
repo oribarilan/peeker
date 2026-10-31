@@ -29,7 +29,6 @@ final class DocumentViewController: NSSplitViewController {
         didSet {
             guard isEdited != oldValue else { return }
             view.window?.isDocumentEdited = isEdited
-            onEditedChanged?(self)
         }
     }
     private(set) var isSaving = false
@@ -66,7 +65,6 @@ final class DocumentViewController: NSSplitViewController {
     var onReady: ((DocumentViewController, Duration) -> Void)?
     var onFailure: ((DocumentViewController, String) -> Void)?
     var onCommandsChanged: ((DocumentViewController) -> Void)?
-    var onEditedChanged: ((DocumentViewController) -> Void)?
     var onRecovery: ((DocumentViewController, RecoveryResult) -> Void)?
     /// Edit mode was asked for but the document can't be edited; the string says why.
     var onEditRefused: ((DocumentViewController, String) -> Void)?
