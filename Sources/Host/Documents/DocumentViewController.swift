@@ -43,13 +43,10 @@ final class DocumentViewController: NSSplitViewController {
     /// A reload is running; `reloadAgain` notes a change that arrived meanwhile, checked once it ends.
     private var isReloading = false
     private var reloadAgain = false
-    /// Where unsaved edits are journaled for crash recovery; nil for view-only documents.
-    private var recovery: RecoveryStore?
-    private let recoveryID: String
-    private var pendingJournal: DispatchWorkItem?
+    /// Keeps the unsaved edits for crash recovery; nil for view-only documents, and once recovered edits were refused.
+    private var journal: RecoveryJournal?
     /// Recovered edits waiting for content: the open is still running, or it failed and a Reopen may succeed.
     private var unappliedRecord: RecoveryRecord?
-    private static let journalDelay = 2.0
     private var opened = ContinuousClock.now
     private var isReady = false
     private var isClosed = false
@@ -74,9 +71,8 @@ final class DocumentViewController: NSSplitViewController {
         self.entry = entry
         self.config = config
         self.allowsEditing = allowsEditing
-        self.recovery = recovery
-        self.recoveryID = recoveryID
         super.init(nibName: nil, bundle: nil)
+        journal = recovery.map { RecoveryJournal(store: $0, id: recoveryID, url: url, pluginID: entry.id) { [weak self] in self?.journalContents } }
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -176,7 +172,7 @@ final class DocumentViewController: NSSplitViewController {
     /// Without edits the recovery record goes; with edits (closed without the prompt) or recovered edits still waiting
     /// to be applied, it's kept so nothing is lost.
     func close() {
-        if unappliedRecord == nil { journal() }
+        if unappliedRecord == nil { journal?.write() }
         isClosed = true
         watcher?.stop()
         watcher = nil
@@ -204,7 +200,7 @@ final class DocumentViewController: NSSplitViewController {
         guard let document = pluginDocument, let edits = document.unsavedEdits() else {
             // Edited, then changed back: nothing differs from what was loaded.
             isEdited = false
-            journal()
+            journal?.write()
             reloadIfChangedOnDisk()
             return .saved
         }
@@ -232,7 +228,7 @@ final class DocumentViewController: NSSplitViewController {
         }
         knownModification = Self.modificationDate(of: url)
         isEdited = editCount != editsAtSave
-        journal()  // removes the record, or keeps only edits made during the save
+        journal?.write()  // removes the record, or keeps only edits made during the save
         if !isClosed { installSidebar(document.sidebar) }
         return .saved
     }
@@ -241,7 +237,7 @@ final class DocumentViewController: NSSplitViewController {
     func discardEdits() {
         pluginDocument?.revertEdits()
         isEdited = false
-        journal()
+        journal?.write()
         reloadIfChangedOnDisk()
     }
 
@@ -269,39 +265,24 @@ final class DocumentViewController: NSSplitViewController {
             // Taken, yet nothing differs: the recovered edits match the file.
             if !wasEditing { setEditing(false) }
             isEdited = false
-            journal()
+            journal?.write()
         } else {
             if !wasEditing { setEditing(false) }
-            recovery = nil
+            journal = nil
             onRecovery?(self, .rejected(record))
         }
     }
 
-    /// Writes the pending edits to the recovery store, or removes the record when there are none.
-    private func journal() {
-        pendingJournal?.cancel()
-        pendingJournal = nil
-        guard let recovery else { return }
-        guard isEdited, let edits = pluginDocument?.unsavedEdits() else {
-            recovery.remove(id: recoveryID)
-            return
-        }
-        recovery.writeInBackground(id: recoveryID, url: url, pluginID: entry.id, fileModified: knownModification, edits: edits)
-    }
-
-    /// Journals `journalDelay` after the last edit; each edit restarts the delay.
-    private func scheduleJournal() {
-        guard recovery != nil else { return }
-        pendingJournal?.cancel()
-        let work = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.journal() } }
-        pendingJournal = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.journalDelay, execute: work)
+    /// What the journal keeps: nothing without edits.
+    private var journalContents: RecoveryJournal.Contents? {
+        guard isEdited, let edits = pluginDocument?.unsavedEdits() else { return nil }
+        return RecoveryJournal.Contents(edits: edits, fileModified: knownModification)
     }
 
     private func didEdit() {
         editCount += 1
         isEdited = true
-        scheduleJournal()
+        journal?.schedule()
     }
 
     /// Reloads when someone else changed the file. Never while there are unsaved edits: saving asks about it instead.
