@@ -54,6 +54,10 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         #expect(conflict("cmd+s", for: "highlight") == "Save")
     }
 
+    @Test func editModeKeepsCommandE() {
+        #expect(conflict("cmd+e", for: "highlight") == "Edit Mode")
+    }
+
     @Test func anotherCommandOfThePluginTakesItsKey() {
         #expect(conflict("cmd+=", for: "highlight") == "Zoom In")
         var config = Config()

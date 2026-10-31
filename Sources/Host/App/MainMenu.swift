@@ -3,6 +3,14 @@ import AppKit
 enum MainMenu {
     static func rebuildCommands(_ menu: NSMenu, for controller: DocumentWindowController) {
         menu.removeAllItems()
+        if let document = controller.current, document.editMode != .none {
+            let edit = NSMenuItem(title: "Edit Mode", action: #selector(DocumentWindowController.toggleEditMode(_:)), keyEquivalent: "e")
+            edit.keyEquivalentModifierMask = .command
+            edit.state = document.isEditing ? .on : .off
+            edit.target = controller
+            menu.addItem(edit)
+            menu.addItem(.separator())
+        }
         for (index, command) in (controller.current?.commands ?? []).enumerated() {
             let item = NSMenuItem(title: command.spec.title, action: #selector(DocumentWindowController.runCommand(_:)), keyEquivalent: command.shortcut?.keyEquivalent ?? "")
             item.keyEquivalentModifierMask = command.shortcut?.modifiers ?? []

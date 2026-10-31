@@ -71,6 +71,14 @@ public struct OpenContext: Sendable {
     func save(_ edits: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError)
     /// Drops the unsaved changes, going back to the file as last loaded or saved.
     func revertEdits()
+
+    // Edit mode. A document with one opens in a read view that never changes the file; the host's Edit toggle and
+    // Cmd+E switch it on and off, and its edit tools show in the toolbar only while it's on.
+
+    /// `.none` (the default) means no edit mode: edits are allowed whenever the window allows them.
+    var editMode: EditMode { get }
+    /// Called when Edit mode turns on or off. Only for a document whose `editMode` is `.available`.
+    func setEditing(_ on: Bool)
 }
 
 public extension PluginDocument {
@@ -89,6 +97,15 @@ public extension PluginDocument {
         throw PluginError("This document can't be saved.")
     }
     func revertEdits() {}
+    var editMode: EditMode { .none }
+    func setEditing(_ on: Bool) {}
+}
+
+public enum EditMode: Sendable, Equatable {
+    case none
+    case available
+    /// The file can't be edited; `reason` is shown to the user, such as "This PDF's permissions don't allow changes."
+    case unavailable(reason: String)
 }
 
 /// A document's unsaved changes at one moment, in the plugin's own type. The host only stores and passes it back;
@@ -139,11 +156,15 @@ public struct CommandSpec: Sendable, Equatable {
     public let symbol: String?
     /// Default shortcut, such as `cmd+=`. The user's config can override it.
     public let shortcut: String?
+    /// An Edit mode tool: in the toolbar only while Edit mode is on, and run from the read view (by its shortcut or
+    /// menu item) it turns Edit mode on first.
+    public let isEditTool: Bool
 
-    public init(id: String, title: String, symbol: String? = nil, shortcut: String? = nil) {
+    public init(id: String, title: String, symbol: String? = nil, shortcut: String? = nil, isEditTool: Bool = false) {
         self.id = id
         self.title = title
         self.symbol = symbol
         self.shortcut = shortcut
+        self.isEditTool = isEditTool
     }
 }

@@ -20,7 +20,7 @@ import Testing
         let plugins = try #require(properties(schema, "plugins"))
         let pdf = try #require((plugins["properties"] as? [String: Any])?["pdf"] as? [String: Any])
         let commands = try #require(properties(pdf, "commands")?["properties"] as? [String: Any])
-        #expect(Set(commands.keys) == ["zoom-in", "zoom-out", "highlight"])
+        #expect(Set(commands.keys) == ["zoom-in", "zoom-out", "text-box", "sign", "highlight"])
         #expect(Set((plugins["properties"] as? [String: Any])?.keys ?? [:].keys) == ["pdf", "text"])
     }
 

@@ -1,6 +1,6 @@
 ---
 name: run-peeker
-description: Use when asked to run, launch, try or demo Peeker, to check a change in the real app rather than in unit tests, or to capture screenshots or a screen recording of its flows as evidence (Space in Finder, Open With, the menu bar icon, config problems, Settings).
+description: Use when asked to run, launch, try or demo Peeker, to check a change in the real app rather than in unit tests, or to capture screenshots or a screen recording of its flows as evidence (Space in Finder, Open With, the menu bar icon, config problems, Settings, PDF Edit mode).
 ---
 
 # Run Peeker
@@ -28,6 +28,14 @@ Records the flows a user sees and writes everything to `build/evidence/<time>/` 
 - `flows.mp4`: the whole run as a 1080p screen recording.
 
 It takes over the keyboard and Finder for about a minute, so the screen must be unlocked and nobody should touch it; it refuses to start on a locked screen. It runs Peeker with a throwaway config through `PEEKER_CONFIG`, so the user's own `~/.config/peeker/config.json` is never read or written, and quits the app at the end. Share the PNGs and the MP4 with the user when they asked to see the flows.
+
+## 3. PDF editing flow
+
+```sh
+.claude/skills/run-peeker/pdf-edit-flow.sh
+```
+
+Makes a one-page form (`pdf-tool form`), opens it, and checks Edit mode the way a user meets it: the read view hides the tools and ignores typing into a field, Edit Mode shows them, a typed name and a ticked checkbox, a text box on the Date line, a drawn signature placed, then placed again with Use Last Signature, and Save. `pdf-tool inspect` then reads the saved file, and the checks want the field values, one free-text and two ink annotations named `peeker-…`. Evidence goes to `build/evidence/pdf-<time>/`: `results.txt`, screenshots of each step, `saved.txt` and `pdf-flow.mp4`. It finds the Name field through Accessibility and places everything relative to it, so a change to the form means changing the offsets. Like the other flow it takes over the mouse and keyboard; clicks and keys go out only while Peeker is in front.
 
 ## Driving by hand
 

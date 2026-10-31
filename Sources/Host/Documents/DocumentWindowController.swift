@@ -47,6 +47,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             if let self, self.window?.isKeyWindow == true { self.onBecameKey?(self) }
         }
         document.onRecovery = { [weak self] _, result in self?.report(result) }
+        document.onEditRefused = { [weak self] _, reason in self?.showMessage(reason) }
         // Before loading, so closing the window while the file opens keeps the record for the next launch.
         if let record { document.restore(record) }
         self.current = document
@@ -80,11 +81,26 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
                 message = "“\(name)” can't take back its unsaved changes in this view."
             }
         }
+        showMessage(message)
+    }
+
+    private func showMessage(_ message: String) {
         Task {
-            guard let window else { return }
+            guard let window, window.attachedSheet == nil else { return }
             let alert = NSAlert()
             alert.messageText = message
             _ = await alert.beginSheetModal(for: window)
+        }
+    }
+
+    /// The Edit button and Edit Mode (Cmd+E).
+    @objc func toggleEditMode(_ sender: Any?) {
+        guard let document = current else { return }
+        Task {
+            await document.toggleEditing(resolve: resolveUnsavedEdits)
+            // The button flipped when clicked; after Cancel or a failed save it must show the mode as it is.
+            let button = window?.toolbar?.items.first { $0.itemIdentifier == Self.edit }?.view as? NSButton
+            button?.state = current?.isEditing == true ? .on : .off
         }
     }
 
@@ -111,16 +127,33 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     @objc func saveDocument(_ sender: Any?) {
         guard let document = current else { return }
+        finishTyping()
         Task { _ = await save(document) }
     }
 
+    /// Ends typing in progress, such as in a PDF text box or form field, so it counts as an edit before a save or the
+    /// unsaved-changes question. Only for documents with an edit mode: a text document's own view keeps its focus.
+    private func finishTyping() {
+        guard let window, let document = current, document.editMode != .none else { return }
+        window.makeFirstResponder(nil)
+        if let view = document.pluginDocument?.contentView, view.acceptsFirstResponder { window.makeFirstResponder(view) }
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        guard menuItem.action == #selector(saveDocument(_:)) else { return true }
-        return current?.isEdited == true && current?.isSaving == false
+        switch menuItem.action {
+        case #selector(saveDocument(_:)):
+            return current?.isEdited == true && current?.isSaving == false
+        case #selector(toggleEditMode(_:)):
+            menuItem.state = current?.isEditing == true ? .on : .off
+            return current.map { $0.editMode != .none } ?? false  // enabled when unavailable, to say why
+        default:
+            return true
+        }
     }
 
     /// Asks Save / Don't Save / Cancel when the document has unsaved edits. True when the caller may close or replace it.
     func resolveUnsavedEdits() async -> Bool {
+        finishTyping()
         guard let document = current, document.isEdited else { return true }
         guard let window, window.attachedSheet == nil else { return false }
         let alert = NSAlert()
@@ -178,6 +211,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        finishTyping()
         guard current?.isEdited == true else { return true }
         Task {
             if await resolveUnsavedEdits() { sender.close() }
@@ -201,6 +235,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     // MARK: Toolbar
 
     private static let openWith = NSToolbarItem.Identifier("openWith")
+    private static let edit = NSToolbarItem.Identifier("edit")
 
     private func rebuildToolbar() {
         // A fresh identifier per rebuild: toolbars sharing an identifier sync their items across windows.
@@ -212,7 +247,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [Self.openWith, .flexibleSpace] + (current?.commands.indices.map { NSToolbarItem.Identifier("command.\($0)") } ?? [])
+        guard let document = current else { return [Self.openWith] }
+        let tools = document.commands.indices.filter { index in document.toolbarCommands.contains { $0.spec == document.commands[index].spec } }
+        return [Self.openWith] + (document.editMode == .none ? [] : [Self.edit]) + [.flexibleSpace] + tools.map { NSToolbarItem.Identifier("command.\($0)") }
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -230,6 +267,22 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             popup.action = #selector(reopenWith(_:))
             item.view = popup
             item.label = "Open With"
+            return item
+        }
+        if identifier == Self.edit, let document = current {
+            let button = NSButton(image: NSImage(systemSymbolName: "pencil.tip.crop.circle", accessibilityDescription: "Edit")!, target: self, action: #selector(toggleEditMode(_:)))
+            button.setButtonType(.pushOnPushOff)
+            button.bezelStyle = .toolbar
+            button.state = document.isEditing ? .on : .off
+            item.view = button
+            item.label = "Edit"
+            if case .unavailable(let reason) = document.editMode {
+                button.isEnabled = false
+                button.toolTip = reason
+                item.toolTip = reason
+            } else {
+                item.toolTip = document.isEditing ? "Stop Editing (⌘E)" : "Edit (⌘E)"
+            }
             return item
         }
         guard let document = current, let index = Int(identifier.rawValue.dropFirst("command.".count)), document.commands.indices.contains(index) else { return nil }

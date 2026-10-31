@@ -31,8 +31,21 @@ context: |
      which leaves the app menu; default app per plugin, expanding to per-extension Make Default when only
      partly default); Config File. Plugins add their own pane content only when one needs it. Missing
      Accessibility while the key is on puts a red dot on Permissions and on the menu bar icon.
-  2. PDF fill, sign and annotate. Saved as standard PDF annotations that stay editable in other apps;
-     signatures stored by the PDF plugin.
+  2. PDF fill, sign and annotate (decided 2026-10-30; openspec/changes/pdf-fill-and-sign). First version: fill
+     form fields, add text boxes on flat forms (one system font, black, a size control, the box grows as you
+     type), sign with a signature drawn on trackpad or mouse, and Highlight, which moves into Edit mode. Notes,
+     shapes, underline and strikethrough wait. Edit mode is a host toggle (toolbar Edit button and Cmd+E) for
+     documents that declare one; the PDF plugin supplies the tools (Text Box, Sign, Highlight); Plain Text keeps
+     editing as today. PDFs always open in the read view, which never changes the file: form fields fill only
+     in Edit mode, and Highlight's shortcut switches to Edit mode. Leaving Edit mode with unsaved changes asks
+     Save / Don't Save / Cancel; Cmd+S saves without leaving; recovered edits reopen in Edit mode. Text boxes and
+     signatures are placed by clicking (a signature follows the pointer), and can be moved, resized and deleted
+     in Edit mode, saved or not; other apps' annotations are left alone. Undo covers every change since the
+     window opened, saves included. Saved as standard PDF data: field values (never flattened), text boxes as
+     free-text annotations, signatures as ink annotations. Signatures are never stored on disk; the last one
+     drawn is kept in memory until Peeker quits. Edit is disabled, with the reason, for XFA forms, PDFs whose
+     permissions forbid changes, locked PDFs and digitally signed PDFs. The edit tools load only when Edit mode
+     turns on, so opening stays as fast. Tool shortcuts rebind like other plugin commands; Cmd+E is fixed.
   Later: PDF page operations, image editing.
 
   Open questions:

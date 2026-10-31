@@ -56,6 +56,8 @@ final class DocumentViewController: NSSplitViewController {
     private(set) var openDuration: Duration = .zero
     /// The plugin's commands, each with its shortcut after config overrides.
     private(set) var commands: [(spec: CommandSpec, shortcut: Shortcut?)] = []
+    /// For a document with an edit mode: whether it's on. Documents open in their read view.
+    private(set) var isEditing = false
 
     /// First content on screen, with the time since `load()`.
     var onReady: ((DocumentViewController, Duration) -> Void)?
@@ -63,6 +65,8 @@ final class DocumentViewController: NSSplitViewController {
     var onCommandsChanged: ((DocumentViewController) -> Void)?
     var onEditedChanged: ((DocumentViewController) -> Void)?
     var onRecovery: ((DocumentViewController, RecoveryResult) -> Void)?
+    /// Edit mode was asked for but the document can't be edited; the string says why.
+    var onEditRefused: ((DocumentViewController, String) -> Void)?
 
     init(url: URL, entry: PluginEntry, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString) {
         self.url = url
@@ -120,7 +124,47 @@ final class DocumentViewController: NSSplitViewController {
     }
 
     func run(_ spec: CommandSpec) {
+        if spec.isEditTool, !isEditing {
+            switch editMode {
+            case .none: break
+            case .available: setEditing(true)
+            case .unavailable(let reason): return refuseEditing(reason)
+            }
+        }
         if pluginDocument?.perform(spec.id) != true { NSSound.beep() }
+    }
+
+    var editMode: EditMode { pluginDocument?.editMode ?? .none }
+
+    /// The commands the toolbar shows: edit tools only while Edit mode is on, or when there's no edit mode.
+    var toolbarCommands: [(spec: CommandSpec, shortcut: Shortcut?)] {
+        commands.filter { !$0.spec.isEditTool || isEditing || editMode == .none }
+    }
+
+    /// The Edit button and Cmd+E. Leaving calls `resolve`, which asks about unsaved edits and saves or drops them;
+    /// it returns false to stay in Edit mode.
+    func toggleEditing(resolve: () async -> Bool) async {
+        switch editMode {
+        case .none: return
+        case .unavailable(let reason): refuseEditing(reason)
+        case .available:
+            if !isEditing {
+                setEditing(true)
+            } else if await resolve(), !isClosed {
+                setEditing(false)
+            }
+        }
+    }
+
+    private func setEditing(_ on: Bool) {
+        guard on != isEditing, editMode == .available, let document = pluginDocument else { return }
+        isEditing = on
+        document.setEditing(on)
+        onCommandsChanged?(self)
+    }
+
+    private func refuseEditing(_ reason: String) {
+        if let onEditRefused { onEditRefused(self, reason) } else { NSSound.beep() }
     }
 
     /// Without edits the recovery record goes; with edits (closed without the prompt) or recovered edits still waiting
@@ -206,6 +250,8 @@ final class DocumentViewController: NSSplitViewController {
     private func applyRecoveredEdits() {
         guard let record = unappliedRecord, let document = pluginDocument, !isClosed else { return }
         unappliedRecord = nil
+        let wasEditing = isEditing
+        setEditing(true)  // recovered edits come back in Edit mode
         let accepted = document.restore(encoded: record.editsData)
         if document.unsavedEdits() != nil {
             let changedSince = knownModification != record.fileModified
@@ -215,9 +261,11 @@ final class DocumentViewController: NSSplitViewController {
             onRecovery?(self, .restored(fileChangedSince: changedSince))
         } else if accepted {
             // Taken, yet nothing differs: the recovered edits match the file.
+            if !wasEditing { setEditing(false) }
             isEdited = false
             journal()
         } else {
+            if !wasEditing { setEditing(false) }
             recovery = nil
             onRecovery?(self, .rejected(record))
         }
@@ -285,11 +333,14 @@ final class DocumentViewController: NSSplitViewController {
 
     private func show(_ document: any PluginDocument) {
         pluginDocument = document
+        let wasEditing = isEditing
+        isEditing = false
         document.onEdit = { [weak self] in self?.didEdit() }
         content.show(document.contentView)
         if let focus = document.focusView { view.window?.makeFirstResponder(focus) }
         if isReady { installSidebar(document.sidebar) } else { sidebarPending = true }
         setCommands(document.commands)
+        if wasEditing { onCommandsChanged?(self) }  // the toolbar drops the tools even when the commands are the same
         markReady()
         applyRecoveredEdits()
     }

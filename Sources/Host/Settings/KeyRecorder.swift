@@ -23,8 +23,9 @@ enum KeyRecorderRules {
 }
 
 /// What already uses `shortcut`, for a recorder of `command`: a menu item outside Commands, or another command of
-/// the same plugin (with its shortcut as the config has it now). Nil when it's free.
+/// the same plugin (with its shortcut as the config has it now), or Edit Mode's Cmd+E. Nil when it's free.
 func shortcutConflict(_ shortcut: Shortcut, command: String, plugin: PluginEntry, config: Config, menu: [(title: String, shortcut: Shortcut)]) -> String? {
+    if shortcut == Shortcut(key: .character("e"), modifiers: .command) { return "Edit Mode" }
     if let item = menu.first(where: { $0.shortcut == shortcut }) { return item.title }
     return plugin.commands.first { other in
         other.id != command && (config.keys["\(plugin.id).\(other.id)"] ?? other.shortcut.flatMap(Shortcut.init(parsing:))) == shortcut
