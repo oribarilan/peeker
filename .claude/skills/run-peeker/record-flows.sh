@@ -1,9 +1,10 @@
 #!/bin/bash
 # Records the user-facing flows as evidence: Space in Finder on files Peeker opens and on files it leaves to Quick
-# Look, Open With in a document window, a config clash in the menu bar icon, and changes made in Settings. Writes
+# Look, Open With in a document window, a config clash in the menu bar icon, and changes made in Settings (a plugin
+# off and on, moving an extension and Reset, the quick-look key recorder and Off, a new PDF shortcut). Writes
 # screenshots, a screen recording and results.txt (one ok/FAIL line per check) to build/evidence/<time>/.
 #
-# Takes over the keyboard and Finder for about a minute: the screen must be unlocked and left alone.
+# Takes over the keyboard and Finder for about four minutes: the screen must be unlocked and left alone.
 # usage: record-flows.sh [path/to/Peeker.app]
 set -u
 cd "$(git rev-parse --show-toplevel)"
@@ -13,6 +14,7 @@ TOOLS=build/run-tools
 DRIVE=$TOOLS/drive
 mkdir -p "$TOOLS"
 swiftc -O .claude/skills/run-peeker/drive.swift -o "$DRIVE" || exit 2
+swiftc -O .claude/skills/run-peeker/pdf-tool.swift -o "$TOOLS/pdf-tool" || exit 2
 "$DRIVE" locked >/dev/null && { echo "the screen is locked: unlock it and leave it alone while this runs"; exit 2; }
 
 OUT=build/evidence/$(date +%Y%m%d-%H%M%S)
@@ -22,6 +24,8 @@ printf '# Release notes\n\nPeeker routes files **by extension**.\n\n| File | Plu
 printf 'export EDITOR=vim\nalias ll="ls -la"\npath+=(~/.local/bin)\n' > "$F/.zshrc"
 printf 'not a real movie' > "$F/movie.mp4"
 printf 'a\n' > "$F/folder/inside.txt"
+base64 -d <<< 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' > "$F/pixel.png"
+"$TOOLS/pdf-tool" form "$F/form.pdf"
 CONFIG="$PWD/$OUT/config.json"
 echo '{}' > "$CONFIG"
 RESULTS="$OUT/results.txt"
@@ -38,7 +42,7 @@ sleep 2
 osascript -e 'tell application "Finder" to set bounds of front Finder window to (bounds of window of desktop)' >/dev/null 2>&1
 osascript -e 'tell application "Finder" to set b to bounds of front Finder window' -e 'tell application "Finder" to set bounds of front Finder window to {item 1 of b, (item 2 of b) + 30, item 3 of b, item 4 of b}' >/dev/null 2>&1
 sleep 1
-screencapture -v -V 180 -x -k -C "$OUT/flows.mov" &
+screencapture -v -V 300 -x -k -C "$OUT/flows.mov" &
 RECORDER=$!
 sleep 1
 
@@ -102,15 +106,64 @@ check "Turning Image off writes enabled false" "$(cfg "c['plugins']['image']['en
 "$DRIVE" shot Peeker "$OUT/10-settings-image-off.png"
 "$DRIVE" press Peeker "Open files with Image" && sleep 1
 check "Turning it back on" "$(cfg "c['plugins']['image']['enabled']")" True
+# Image off sends Space on an image to Finder's Quick Look; on again, Peeker takes it back.
+"$DRIVE" press Peeker "Open files with Image" && sleep 1
+space 10b-space-image-off "$F/pixel.png" "Quick Look"
+"$DRIVE" press Peeker "Open files with Image" && sleep 1
+space 10c-space-image-on "$F/pixel.png" Peeker
+front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.8; }
+
+# Adding md with Return offers to move it; Reset on either pane gives it back to Markdown.
+front
 "$DRIVE" row Peeker "Plain Text" && sleep 0.8
 # Setting the field's text through Accessibility doesn't reach SwiftUI's binding, so focus it and type.
-"$DRIVE" fill Peeker "Add an extension" "" && sleep 0.3 && "$DRIVE" type Peeker md && sleep 0.5
-"$DRIVE" press Peeker Add && sleep 1
+"$DRIVE" fill Peeker "Add an extension" "" && sleep 0.3 && "$DRIVE" type Peeker md && "$DRIVE" keys Peeker return && sleep 1
 "$DRIVE" shot Peeker "$OUT/11-settings-move-md.png"
 "$DRIVE" press Peeker "Move to Plain Text"; sleep 1
 check "Move takes md from Markdown to Plain Text" "$(cfg "'md' in c['plugins']['text']['extensions'] and 'md' not in c['plugins']['markdown']['extensions']")" True
+"$DRIVE" row Peeker Markdown && sleep 0.8
 "$DRIVE" press Peeker "Reset to Defaults" && sleep 1
-check "Reset gives md back to Markdown" "$(cfg "'md' in c['plugins']['markdown']['extensions'] and 'md' not in c['plugins']['text']['extensions']")" True
+check "Reset on Markdown takes md back" "$(cfg "'md' in c['plugins']['markdown']['extensions'] and 'md' not in c['plugins']['text']['extensions']")" True
+"$DRIVE" row Peeker "Plain Text" && sleep 0.8
+"$DRIVE" fill Peeker "Add an extension" "" && sleep 0.3 && "$DRIVE" type Peeker md && "$DRIVE" keys Peeker return && sleep 1
+"$DRIVE" press Peeker "Move to Plain Text"; sleep 1
+"$DRIVE" press Peeker "Reset to Defaults" && sleep 1
+check "Reset on Plain Text gives md back to Markdown" "$(cfg "'md' in c['plugins']['markdown']['extensions'] and 'md' not in c['plugins']['text']['extensions']")" True
+
+# The quick-look key: record Option-Space, use it, record it again while it's the key, then Off.
+"$DRIVE" row Peeker General && sleep 0.8
+"$DRIVE" press Peeker "Shortcut Space, click to record" && sleep 0.5 && "$DRIVE" keys Peeker opt+space && sleep 1
+check "Recording Option-Space writes it" "$(cfg "c['quickLook']['key']")" opt+space
+"$DRIVE" select "$F/notes.md"
+sleep 1.2
+"$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
+"$DRIVE" keys Finder opt+space && sleep 1.5
+check "Option-Space opens Peeker's panel" "$("$DRIVE" windows | awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen) && $2 == "Peeker" { print "Peeker"; exit }' "$OUT/.before" -)" Peeker
+screencapture -x "$OUT/12a-option-space.png"
+"$DRIVE" key escape && sleep 1
+front
+"$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
+"$DRIVE" press Peeker "Shortcut ⌥Space, click to record" && sleep 0.5 && "$DRIVE" keys Peeker opt+space && sleep 1.5
+check "Recording the current key records it, not the panel" "$("$DRIVE" windows | awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen) && $2 == "Peeker" { print "panel"; exit }' "$OUT/.before" -)$(cfg "c['quickLook']['key']")" opt+space
+"$DRIVE" press Peeker "Quick look panel" && sleep 1
+check "Off writes off" "$(cfg "c['quickLook']['key']")" off
+space 12b-space-key-off "$F/notes.md" "Quick Look"
+front
+"$DRIVE" press Peeker "Quick look panel" && sleep 1
+check "On again is Space" "$(cfg "c['quickLook']['key']")" space
+
+# A new Highlight Selection shortcut works in an open PDF: from the read view it turns on Edit mode. (Synthetic
+# drags and Select All don't select PDF text, so the highlight itself is left to the integration test.)
+"$DRIVE" row Peeker PDF && sleep 0.8
+"$DRIVE" press Peeker "Shortcut ⌃⌘H, click to record" && sleep 0.5 && "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
+check "Recording ⌃⌥H writes it" "$(cfg "c['plugins']['pdf']['commands']['highlight']['shortcut']")" ctrl+opt+h
+open -a "$APP" "$F/form.pdf" && sleep 2.5 && front
+check "The new shortcut isn't in the read view's toolbar" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight Selection”')" 0
+"$DRIVE" keys Peeker ctrl+opt+h && sleep 1
+check "The new shortcut turns on Edit mode" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight Selection”' | awk '{print ($1 > 0) ? "yes" : "no"}')" yes
+"$DRIVE" shot Peeker "$OUT/12c-pdf-shortcut.png" form.pdf
+"$DRIVE" menu Peeker File Close && sleep 1
+
 "$DRIVE" row Peeker Permissions && sleep 2
 "$DRIVE" shot Peeker "$OUT/12-settings-permissions.png"
 "$DRIVE" row Peeker General && sleep 0.8

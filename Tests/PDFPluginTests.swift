@@ -229,6 +229,26 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 }
 
 @Suite(.serialized) struct PDFSaveIntegrationTests {
+    /// The spec's read-view scenario: select text, press the shortcut, and Edit mode turns on and highlights it.
+    @Test func highlightFromTheReadViewTurnsOnEditModeAndHighlights() async throws {
+        let file = try TempFile.makePDF(pages: 1)
+        let document = DocumentViewController(url: file, entry: PluginEntry(PDFPlugin.self), config: Config(),
+                                              allowsEditing: true, recovery: nil)
+        defer { document.close() }
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = document
+        await document.load()
+        let pdf = try #require(document.pluginDocument as? PDFPluginDocument)
+        let page = try #require(pdf.pdfView.document?.page(at: 0))
+        pdf.pdfView.setCurrentSelection(page.selection(for: page.bounds(for: .mediaBox)), animate: false)
+        let highlight = try #require(document.commands.first { $0.spec.id == "highlight" })
+        document.run(highlight.spec)
+        #expect(document.isEditing)
+        #expect(page.annotations.contains { $0.type == "Highlight" })
+        #expect(document.isEdited)
+    }
+
     @Test func cmdSWritesTheHighlightsAndDoesNotReload() async throws {
         let file = try TempFile.makePDF(pages: 1)
         let document = DocumentViewController(url: file, entry: PluginEntry(PDFPlugin.self), config: Config(),

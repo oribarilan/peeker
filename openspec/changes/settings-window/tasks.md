@@ -16,14 +16,14 @@
 ## 3. General pane and the key recorder
 
 - [x] 3.1 Build `KeyRecorder` (design decision 5): click to record, a local key monitor while recording, Escape cancels, losing focus stops, a refusal shown briefly under it; the rules are a parameter: quick-look (bare Space, or any supported key with a modifier) and command (modifier required); verify the rule functions with tests (bare Space accepted, bare J refused, Option-J accepted for quick-look; bare J refused for commands)
-- [ ] 3.2 Pause the quick-look hotkey monitor while any recorder records, and resume it afterwards; verify in the built app that recording Option-Space while it's the current key records it instead of opening the panel
-- [ ] 3.3 Build the General pane: the quick-look key recorder and Off, saving through `ConfigStore.save`; verify in the built app that Option-Space opens the panel from any app and Off sends Space to Finder's Quick Look, and that `config.json` holds the new value
+- [x] 3.2 Pause the quick-look hotkey monitor while any recorder records, and resume it afterwards; verify in the built app that recording Option-Space while it's the current key records it instead of opening the panel
+- [x] 3.3 Build the General pane: the quick-look key recorder and Off, saving through `ConfigStore.save`; verify in the built app that Option-Space opens the panel from any app and Off sends Space to Finder's Quick Look, and that `config.json` holds the new value
 
 ## 4. Plugin panes
 
-- [ ] 4.1 Build `PluginPane` with the on/off switch, saving `enabled`; verify in the built app that turning Image off sends Space on an image to Finder's Quick Look
-- [ ] 4.2 Build `ExtensionTokens`: tokens with remove, a text field that adds on Return, an inline message for entries that aren't extensions, Reset, and a confirmation naming the owner with Move and Cancel when the extension belongs to another plugin; verify with the step 1.4 helpers' tests and in the built app by moving `md` to Plain Text and back with Reset on both panes
-- [ ] 4.3 Add a row per command with a `KeyRecorder` (command rules) and reset to default; add the pure clash check against the same plugin's other commands and the main menu outside Commands (read from `NSApp.mainMenu`); verify with tests that Command-S is refused naming Save and that a key free in the menu but used by another command of the plugin is refused naming that command, and in the built app that a new Highlight Selection shortcut works in an open PDF
+- [x] 4.1 Build `PluginPane` with the on/off switch, saving `enabled`; verify in the built app that turning Image off sends Space on an image to Finder's Quick Look
+- [x] 4.2 Build `ExtensionTokens`: tokens with remove, a text field that adds on Return, an inline message for entries that aren't extensions, Reset, and a confirmation naming the owner with Move and Cancel when the extension belongs to another plugin; verify with the step 1.4 helpers' tests and in the built app by moving `md` to Plain Text and back with Reset on both panes
+- [x] 4.3 Add a row per command with a `KeyRecorder` (command rules) and reset to default; add the pure clash check against the same plugin's other commands and the main menu outside Commands (read from `NSApp.mainMenu`); verify with tests that Command-S is refused naming Save and that a key free in the menu but used by another command of the plugin is refused naming that command, and in the built app that a new Highlight Selection shortcut works in an open PDF
 
 ## 5. Permissions pane
 

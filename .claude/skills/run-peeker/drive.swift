@@ -11,7 +11,7 @@
 //        drive choose <process> <item>             pick <item> in the front window's toolbar pop-up (Open With)
 //        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close"
 //        drive menuextra <process> [item]          open the process's menu bar icon menu and print it, or press <item>
-//        drive row <process> <title>               select the sidebar row titled <title> in the front window
+//        drive row <process> <title>               select the sidebar row titled <title> in any window
 //        drive press <process> <label>             press the control (button, switch) labeled <label> in any window
 //        drive fill <process> <label> <text>       focus the field with that placeholder or label and set its text
 //        drive enabled <process> <label>           print whether the control labeled <label> is enabled
@@ -19,6 +19,7 @@
 //        drive click <process> <x> <y> [count]     click at a screen point, only while <process> is in front
 //        drive type <process> <text>               type <text>, only while <process> is in front
 //        drive drag <process> <x y>...             press at the first point, drag through the rest, release at the last
+//        drive keys <process> <combo>              press a combo such as opt+space, ctrl+cmd+h or return, only while <process> is in front
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -111,6 +112,37 @@ func drag(through points: [CGPoint]) {
         let type: CGEventType = index == 0 ? .leftMouseDown : index == points.count - 1 ? .leftMouseUp : .leftMouseDragged
         CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
         usleep(16_000)
+    }
+}
+
+/// ANSI key codes for the keys a combo can name.
+let comboKeys: [String: CGKeyCode] = {
+    var keys: [String: CGKeyCode] = ["space": 49, "return": 36, "tab": 48, "escape": 53, "delete": 51]
+    for (key, code) in zip("asdfhgzxcv", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) { keys[String(key)] = CGKeyCode(code) }
+    for (key, code) in zip("bqweryt123465=97-80]ou[ip", [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]) { keys[String(key)] = CGKeyCode(code) }
+    for (key, code) in zip("lj'k;\\,/nm.", [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]) { keys[String(key)] = CGKeyCode(code) }
+    return keys
+}()
+
+func pressCombo(_ combo: String) {
+    var flags: CGEventFlags = []
+    var code: CGKeyCode?
+    for part in combo.lowercased().split(separator: "+").map(String.init) {
+        switch part {
+        case "cmd": flags.insert(.maskCommand)
+        case "opt": flags.insert(.maskAlternate)
+        case "ctrl": flags.insert(.maskControl)
+        case "shift": flags.insert(.maskShift)
+        default: code = comboKeys[part]
+        }
+    }
+    guard let code else { fail("no key in “\(combo)”") }
+    let source = CGEventSource(stateID: .hidSystemState)
+    for down in [true, false] {
+        let event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: down)
+        event?.flags = flags
+        event?.post(tap: .cghidEventTap)
+        usleep(30_000)
     }
 }
 
@@ -259,9 +291,10 @@ case "menuextra":
     guard let extras: AXUIElement = attr(application(arg(1)), "AXExtrasMenuBar"), let icon = children(extras).first else { fail("no menu bar icon") }
     pick(in: icon, item: args.count > 2 ? args[2] : nil)
 case "row":
-    guard let window = axWindows(application(arg(1))).first,
-          let row = find(window, where: { role($0) == kAXRowRole && find($0, where: { label($0) == arg(2) || (attr($0, kAXValueAttribute) as String?) == arg(2) }) != nil })
-    else { fail("no sidebar row “\(arg(2))”") }
+    let isRow = { (element: AXUIElement) in
+        role(element) == kAXRowRole && find(element, where: { label($0) == arg(2) || (attr($0, kAXValueAttribute) as String?) == arg(2) }) != nil
+    }
+    guard let row = axWindows(application(arg(1))).lazy.compactMap({ find($0, where: isRow) }).first else { fail("no sidebar row “\(arg(2))”") }
     let result = AXUIElementSetAttributeValue(row, kAXSelectedAttribute as CFString, kCFBooleanTrue)
     if result != .success { fail("can't select “\(arg(2))”: \(result.rawValue)") }
 case "press":
@@ -282,8 +315,10 @@ case "enabled":
     print((attr(control, kAXEnabledAttribute) as Bool?) ?? false)
 case "frame":
     let wanted = args.count > 3 ? args[3] : nil
-    guard let window = axWindows(application(arg(1))).first,
-          let element = find(window, where: { role($0) == arg(2) && (wanted == nil || label($0).contains(wanted!)) }) else { fail("no \(arg(2)) \(wanted ?? "")") }
+    // Every window, front first: a panel or another document may be in front of the one wanted.
+    guard let element = axWindows(application(arg(1))).lazy.compactMap({ window in
+        find(window, where: { role($0) == arg(2) && (wanted == nil || label($0).contains(wanted!)) })
+    }).first else { fail("no \(arg(2)) \(wanted ?? "")") }
     var origin = CGPoint.zero, size = CGSize.zero
     if let value: AXValue = attr(element, kAXPositionAttribute) { AXValueGetValue(value, .cgPoint, &origin) }
     if let value: AXValue = attr(element, kAXSizeAttribute) { AXValueGetValue(value, .cgSize, &size) }
@@ -295,11 +330,14 @@ case "click":
 case "type":
     requireFront(arg(1))
     type(arg(2))
+case "keys":
+    requireFront(arg(1))
+    pressCombo(arg(2))
 case "drag":
     requireFront(arg(1))
     let numbers = args.dropFirst(2).compactMap(Double.init)
     guard numbers.count >= 4, numbers.count.isMultiple(of: 2) else { fail("drag needs at least two x y points") }
     drag(through: stride(from: 0, to: numbers.count, by: 2).map { CGPoint(x: numbers[$0], y: numbers[$0 + 1]) })
 default:
-    fail("usage: drive locked|windows|shot|select|key|tree|choose|menu|menuextra|row|press|fill|enabled|frame|click|type|drag ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|key|tree|choose|menu|menuextra|row|press|fill|enabled|frame|click|type|keys|drag ...; see the top of drive.swift")
 }
