@@ -2,68 +2,30 @@
 # Records the user-facing flows as evidence: Space in Finder on files Peeker opens and on files it leaves to Quick
 # Look, Open With in a document window, a config clash in the menu bar icon, and changes made in Settings (a plugin
 # off and on, moving an extension and Reset, the quick-look key recorder and Off, a new PDF shortcut). Writes
-# screenshots, a screen recording and results.txt (one ok/FAIL line per check) to build/evidence/<time>/.
+# screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with
+# SCREEN_RECORD=1; scripts/screen-test.sh runs it with the other flows.
 #
 # Takes over the keyboard and Finder for about four minutes: the screen must be unlocked and left alone.
 # usage: record-flows.sh [path/to/Peeker.app]
-set -u
-cd "$(git rev-parse --show-toplevel)"
-APP=${1:-build/dd/Build/Products/Release/Peeker.app}
-APP="$(cd "$(dirname "$APP")" && pwd)/$(basename "$APP")"  # open -a needs an absolute path
-TOOLS=build/run-tools
-DRIVE=$TOOLS/drive
-mkdir -p "$TOOLS"
-swiftc -O scripts/screen/drive.swift -o "$DRIVE" || exit 2
-swiftc -O scripts/screen/pdf-tool.swift -o "$TOOLS/pdf-tool" || exit 2
-"$DRIVE" locked >/dev/null && { echo "the screen is locked: unlock it and leave it alone while this runs"; exit 2; }
+FLOW=flows
+source "$(dirname "$0")/common.sh" "$@"
 
-OUT=build/evidence/$(date +%Y%m%d-%H%M%S)
-F="$PWD/$OUT/files"
+F="$OUT/files"
 mkdir -p "$F/folder"
 printf '# Release notes\n\nPeeker routes files **by extension**.\n\n| File | Plugin |\n|---|---|\n| notes.md | Markdown |\n| nginx.conf | Plain Text |\n\n```swift\nlet owner = catalog.owner(for: url)\n```\n' > "$F/notes.md"
 printf 'export EDITOR=vim\nalias ll="ls -la"\npath+=(~/.local/bin)\n' > "$F/.zshrc"
 printf 'not a real movie' > "$F/movie.mp4"
 printf 'a\n' > "$F/folder/inside.txt"
 base64 -d <<< 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' > "$F/pixel.png"
-"$TOOLS/pdf-tool" form "$F/form.pdf"
-CONFIG="$PWD/$OUT/config.json"
-echo '{}' > "$CONFIG"
-RESULTS="$OUT/results.txt"
-: > "$RESULTS"
-check() { if [ "$2" = "$3" ]; then echo "ok    $1: $2" | tee -a "$RESULTS"; else echo "FAIL  $1: got $2, wanted $3" | tee -a "$RESULTS"; fi; }
-
-# Quits Peeker and stops the recorder however the run ends, so an aborted run leaves neither running. screencapture
-# can't stop early and keep its movie (it ignores SIGINT here, and other signals drop the file), so an aborted run
-# loses the recording, while a finished one waits for the recording's time limit.
-RECORDER=
-stop() {
-    # Not waiting for the reply: with a Save prompt up, the quit would block until AppleScript's 2-minute timeout.
-    osascript -e 'ignoring application responses' -e 'tell application "Peeker" to quit' -e 'end ignoring' >/dev/null 2>&1
-    [ -n "$RECORDER" ] && kill -TERM "$RECORDER" 2>/dev/null
-    RECORDER=
-    # Unsaved edits leave Quit waiting on a Save prompt. This run's files are throwaway, so answer Don't Save, which
-    # also drops their crash-recovery copies; kill the app under test only if it still won't quit.
-    for _ in 1 2 3; do
-        pgrep -f "$APP/Contents/MacOS/Peeker" >/dev/null || return 0
-        sleep 1
-        "$DRIVE" press Peeker "Don't Save" >/dev/null 2>&1
-    done
-    pkill -f "$APP/Contents/MacOS/Peeker" 2>/dev/null
-}
-trap stop EXIT
-trap 'exit 130' INT TERM
-osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
-sleep 1
-open --env PEEKER_CONFIG="$CONFIG" -a "$APP"
-sleep 2
+"$PDF" form "$F/form.pdf"
+launch
 
 # One big Finder window behind everything, so frames show Finder and Peeker rather than whatever else is open.
 "$DRIVE" select "$F/notes.md"
 osascript -e 'tell application "Finder" to set bounds of front Finder window to (bounds of window of desktop)' >/dev/null 2>&1
 osascript -e 'tell application "Finder" to set b to bounds of front Finder window' -e 'tell application "Finder" to set bounds of front Finder window to {item 1 of b, (item 2 of b) + 30, item 3 of b, item 4 of b}' >/dev/null 2>&1
 sleep 1
-screencapture -v -V 300 -x -k -C "$OUT/flows.mov" &
-RECORDER=$!
+record flows 300
 sleep 1
 
 # Presses Space on a file in Finder and reports which app's window appeared: Peeker's panel or Finder's Quick Look.
@@ -95,7 +57,7 @@ space 4-space-folder "$F/folder" "Quick Look"
 
 # Open With in a document window: Markdown, then Plain Text, then Image (which can't read it and says so).
 open -a "$APP" "$F/notes.md"
-sleep 2
+"$DRIVE" wait Peeker window notes.md
 "$DRIVE" shot Peeker "$OUT/5-window-markdown.png" notes.md
 openwith() { "$DRIVE" tree Peeker 20 | grep -m1 AXPopUpButton | sed 's/.*= //'; }
 check "A .md opens in Markdown" "$(openwith)" "Markdown"
@@ -106,7 +68,7 @@ check "Open With shows Plain Text" "$(openwith)" "Plain Text"
 "$DRIVE" shot Peeker "$OUT/7-openwith-image.png" notes.md
 check "Open With shows Image" "$(openwith)" "Image"
 "$DRIVE" menu Peeker File Close
-sleep 1
+"$DRIVE" wait Peeker window notes.md --gone
 
 # A clash: Plain Text also lists png, which stays with Image, and the menu bar icon reports the problem.
 echo '{"plugins": {"text": {"extensions": ["txt", "png"]}}}' > "$CONFIG"
@@ -121,7 +83,7 @@ echo '{}' > "$CONFIG"
 sleep 1.5
 cfg() { python3 -c 'import json, sys; c = json.load(open(sys.argv[1])); print(eval(sys.argv[2]))' "$CONFIG" "$1" 2>/dev/null || echo "unreadable"; }
 "$DRIVE" menuextra Peeker "Settings…"
-sleep 1.5
+"$DRIVE" wait Peeker window Settings
 "$DRIVE" shot Peeker "$OUT/9-settings-general.png"
 "$DRIVE" row Peeker Image && sleep 0.8
 "$DRIVE" press Peeker "Open files with Image" && sleep 1
@@ -180,12 +142,12 @@ check "On again is Space" "$(cfg "c['quickLook']['key']")" space
 "$DRIVE" row Peeker PDF && sleep 0.8
 "$DRIVE" press Peeker "Shortcut ⌃⌘H, click to record" && sleep 0.5 && "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
 check "Recording ⌃⌥H writes it" "$(cfg "c['plugins']['pdf']['commands']['highlight']['shortcut']")" ctrl+opt+h
-open -a "$APP" "$F/form.pdf" && sleep 2.5 && front
+open -a "$APP" "$F/form.pdf" && "$DRIVE" wait Peeker window form.pdf && front
 check "The new shortcut isn't in the read view's toolbar" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight Selection”')" 0
 "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
 check "The new shortcut turns on Edit mode" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight Selection”' | awk '{print ($1 > 0) ? "yes" : "no"}')" yes
 "$DRIVE" shot Peeker "$OUT/12c-pdf-shortcut.png" form.pdf
-"$DRIVE" menu Peeker File Close && sleep 1
+"$DRIVE" menu Peeker File Close && "$DRIVE" wait Peeker window form.pdf --gone
 
 "$DRIVE" row Peeker Permissions && sleep 2
 "$DRIVE" shot Peeker "$OUT/12-settings-permissions.png"
@@ -199,9 +161,4 @@ sleep 1.5
 check "Fixing the file unlocks them" "$("$DRIVE" enabled Peeker "Quick look panel")" true
 
 echo '{}' > "$CONFIG"
-osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
-wait "$RECORDER"
-RECORDER=
-avconvert --preset Preset1920x1080 --source "$OUT/flows.mov" --output "$OUT/flows.mp4" >/dev/null 2>&1 && rm "$OUT/flows.mov"
-echo "evidence in $OUT"
-! grep -q FAIL "$RESULTS"
+finish
