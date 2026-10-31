@@ -1,7 +1,8 @@
 import PDFKit
 
-/// The PDF shown in a window. PDFKit's thumbnail view moves a dragged page by inserting a copy of it and removing
-/// the original, and says nothing else; this reports such changes, made by anyone but Peeker, once they're done.
+/// The PDF shown in a window. PDFKit's thumbnail view moves a dragged page by inserting a copy of it where it's
+/// dropped (earlier releases also removed the original), and says nothing else; this reports such changes, made by
+/// anyone but Peeker, once they're done.
 nonisolated final class PeekerPDFDocument: PDFDocument {
     /// Called on the run loop turn after pages were inserted, removed or swapped by someone else, with the pages as
     /// they were before.
@@ -49,9 +50,11 @@ nonisolated final class PeekerPDFDocument: PDFDocument {
     }
 
     /// The new order as indices into `before`, given the pages now; nil unless they're the same pages moved around.
-    /// A page object not seen before is PDFKit's copy of a dragged page: matched with the gone page it shares its
-    /// underlying page with, or else in order with the pages that went.
+    /// A page object not seen before is PDFKit's copy of a dragged page: the original, when still there, moves to the
+    /// copy's place; otherwise the copy is matched with the gone page it shares its underlying page with, or else in
+    /// order with the pages that went.
     static func order(before: [PDFPage], after: [PDFPage]) -> [Int]? {
+        let after = movingOriginals(before: before, after: after)
         guard after.count == before.count else { return nil }
         var gone = before.indices.filter { index in !after.contains { $0 === before[index] } }
         var order: [Int] = []
@@ -67,5 +70,16 @@ nonisolated final class PeekerPDFDocument: PDFDocument {
             }
         }
         return Set(order).count == order.count ? order : nil
+    }
+
+    /// The pages with each copy whose original is still there replaced by that original, which leaves its old place.
+    private static func movingOriginals(before: [PDFPage], after: [PDFPage]) -> [PDFPage] {
+        let isNew = { (page: PDFPage) in !before.contains { $0 === page } }
+        let original = { (copy: PDFPage) in copy.pageRef.flatMap { ref in after.first { !isNew($0) && $0.pageRef === ref } } }
+        let moved = after.filter(isNew).compactMap(original)
+        return after.compactMap { page in
+            if isNew(page) { return original(page) ?? page }
+            return moved.contains { $0 === page } ? nil : page
+        }
     }
 }

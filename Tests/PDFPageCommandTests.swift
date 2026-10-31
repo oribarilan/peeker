@@ -166,12 +166,10 @@ private func texts(_ document: PDFDocument) -> [String] {
 }
 
 @Suite(.serialized) struct PDFThumbnailDrags {
-    /// What PDFKit's thumbnail view does on a drop: insert a copy of the dragged page where it's dropped, then remove
-    /// the original (seen in a probe on macOS 27).
+    /// What PDFKit's thumbnail view does on a drop: insert a copy of the dragged page where it's dropped and leave the
+    /// original where it was (seen with mouse and synthetic drags on macOS 27).
     private func drag(_ page: Int, to index: Int, in document: PDFDocument) {
-        let original = document.page(at: page)!
-        document.insert(original.copy() as! PDFPage, at: index)
-        document.removePage(at: document.index(for: original))
+        document.insert(document.page(at: page)!.copy() as! PDFPage, at: index)
     }
 
     @Test func aDragBecomesOneUndoableReorderOfTheOriginalPages() async throws {
@@ -189,7 +187,8 @@ private func texts(_ document: PDFDocument) -> [String] {
         #expect(shown.document.pendingEdits.count == 2, "the reorder and its undo")
     }
 
-    /// Copies may come in selection order rather than page order; each is matched with its own original.
+    /// A drop that also removes the originals (as PDFKit did in earlier releases) is the same move. Copies may come in
+    /// selection order rather than page order; each is matched with its own original.
     @Test func copiesAreMatchedWithTheirOwnOriginals() async throws {
         let shown = try await Shown(try TempFile.makePDF(pages: 4))
         defer { shown.window.close() }
