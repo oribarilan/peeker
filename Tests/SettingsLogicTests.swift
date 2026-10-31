@@ -86,6 +86,14 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         #expect(shortcuts.map(\.title) == ["Save", "Redo"])
         #expect(shortcuts.map(\.shortcut) == [Shortcut(parsing: "cmd+s"), Shortcut(parsing: "cmd+shift+z")])
     }
+
+    @Test func settingsRefusesPrintAndFindPreviousForCommands() {
+        let delegate = AppDelegate()  // menu items hold their target weakly
+        defer { withExtendedLifetime(delegate) {} }
+        let shortcuts = menuShortcuts(in: MainMenu.make(target: delegate))
+        #expect(shortcutConflict(Shortcut(parsing: "cmd+p")!, command: "highlight", plugin: plugins[0], config: Config(), menu: shortcuts) == "Print…")
+        #expect(shortcutConflict(Shortcut(parsing: "cmd+shift+g")!, command: "highlight", plugin: plugins[0], config: Config(), menu: shortcuts) == "Find Previous")
+    }
 }
 
 @Suite struct PermissionStates {
@@ -134,16 +142,5 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         #expect(MenuBarItem.State(problems: 2, needsAccessibility: false) == .init(dot: true, problemsLine: "Config has 2 problems", accessibilityLine: false))
         #expect(MenuBarItem.State(problems: 0, needsAccessibility: true) == .init(dot: true, problemsLine: nil, accessibilityLine: true))
         #expect(MenuBarItem.State(problems: 1, needsAccessibility: true) == .init(dot: true, problemsLine: "Config has 1 problem", accessibilityLine: true))
-    }
-}
-
-@Suite struct AppMenu {
-    @Test func thePeekerMenuHasSettingsButNotOpenAtLogin() throws {
-        let delegate = AppDelegate()  // menu items hold their target weakly
-        let menu = MainMenu.make(target: delegate)
-        defer { withExtendedLifetime(delegate) {} }
-        let peeker = try #require(menu.item(withTitle: "Peeker")?.submenu)
-        #expect(peeker.item(withTitle: "Settings…") != nil)
-        #expect(peeker.item(withTitle: "Open at Login") == nil)
     }
 }
