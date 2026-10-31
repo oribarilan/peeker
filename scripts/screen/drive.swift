@@ -97,6 +97,7 @@ func click(at point: CGPoint, count: Int) {
         for type in [CGEventType.leftMouseDown, .leftMouseUp] {
             let event = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left)
             event?.setIntegerValueField(.mouseEventClickState, value: Int64(index))
+            event?.flags = []  // a plain click, whatever modifiers the system thinks are held
             event?.post(tap: .cghidEventTap)
             usleep(30_000)
         }
@@ -107,7 +108,9 @@ func drag(through points: [CGPoint]) {
     let source = CGEventSource(stateID: .hidSystemState)
     for (index, point) in points.enumerated() {
         let type: CGEventType = index == 0 ? .leftMouseDown : index == points.count - 1 ? .leftMouseUp : .leftMouseDragged
-        CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
+        let event = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left)
+        event?.flags = []
+        event?.post(tap: .cghidEventTap)
         usleep(16_000)
     }
 }
@@ -141,6 +144,18 @@ func pressCombo(_ combo: String) {
         event?.post(tap: .cghidEventTap)
         usleep(30_000)
     }
+    releaseModifiers(source)
+}
+
+/// Posts the release of each modifier key. A key event's own flags leave them set in the system's state, so later
+/// typing, from this run or the user's, would arrive as shortcuts.
+func releaseModifiers(_ source: CGEventSource?) {
+    for code: CGKeyCode in [55, 56, 58, 59] {  // command, shift, option, control
+        let event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: false)
+        event?.type = .flagsChanged
+        event?.flags = []
+        event?.post(tap: .cghidEventTap)
+    }
 }
 
 func type(_ text: String) {
@@ -150,6 +165,7 @@ func type(_ text: String) {
             let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down)
             var unit = character
             event?.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
+            event?.flags = []  // text, not shortcuts, whatever modifiers the system thinks are held
             event?.post(tap: .cghidEventTap)
             usleep(15_000)
         }
