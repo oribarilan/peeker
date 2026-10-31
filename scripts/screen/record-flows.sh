@@ -13,8 +13,8 @@ APP="$(cd "$(dirname "$APP")" && pwd)/$(basename "$APP")"  # open -a needs an ab
 TOOLS=build/run-tools
 DRIVE=$TOOLS/drive
 mkdir -p "$TOOLS"
-swiftc -O .claude/skills/run-peeker/drive.swift -o "$DRIVE" || exit 2
-swiftc -O .claude/skills/run-peeker/pdf-tool.swift -o "$TOOLS/pdf-tool" || exit 2
+swiftc -O scripts/screen/drive.swift -o "$DRIVE" || exit 2
+swiftc -O scripts/screen/pdf-tool.swift -o "$TOOLS/pdf-tool" || exit 2
 "$DRIVE" locked >/dev/null && { echo "the screen is locked: unlock it and leave it alone while this runs"; exit 2; }
 
 OUT=build/evidence/$(date +%Y%m%d-%H%M%S)

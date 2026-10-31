@@ -41,11 +41,11 @@
 
 ## 7. Run-peeker checks for Settings
 
-- [ ] 7.1 Extend `.claude/skills/run-peeker/record-flows.sh` (and `drive.swift` if needed) with a Settings flow: open Settings from the menu bar icon, turn a plugin off and on, add and move an extension, and check `config.json` after each change, with screenshots; update `SKILL.md`; verify the script's checks pass on an unlocked screen
+- [ ] 7.1 Extend `scripts/screen/record-flows.sh` (and `drive.swift` if needed) with a Settings flow: open Settings from the menu bar icon, turn a plugin off and on, add and move an extension, and check `config.json` after each change, with screenshots; update `SKILL.md`; verify the script's checks pass on an unlocked screen
 
 ## 8. Integration
 
-- [ ] 8.1 Run `scripts/build.sh test` (no new warnings), `scripts/check-plugin-imports.sh`, `.claude/skills/run-peeker/e2e-routing.sh` and `openspec validate --all --strict`; then run `record-flows.sh` on an unlocked screen and confirm every check passes
+- [ ] 8.1 Run `scripts/build.sh test` (no new warnings), `scripts/check-plugin-imports.sh`, `scripts/screen/e2e-routing.sh` and `openspec validate --all --strict`; then run `record-flows.sh` on an unlocked screen and confirm every check passes
 
 ## Workflow follow-up
 

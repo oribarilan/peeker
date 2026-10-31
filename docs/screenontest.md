@@ -20,8 +20,8 @@ To repeat check 2, interrupt a run with Ctrl-C in a terminal, or send it SIGTERM
 `drive key` is gone; the scripts now press Space and Escape with `drive keys <app> <key>`, which refuses unless that app is in front.
 
 ```sh
-.claude/skills/run-peeker/record-flows.sh
-.claude/skills/run-peeker/pdf-edit-flow.sh
+scripts/screen/record-flows.sh
+scripts/screen/pdf-edit-flow.sh
 ```
 
 Pass: every line in each run's `results.txt` says `ok`, and no "isn't in front: not sending input" error appears. The Space checks also cover the quick-look key decision, which moved into `HotkeyMonitor.decide` (`ed972f7`). Watch the four Space checks in `record-flows.sh` most closely: Escape now goes to Finder, which stays in front because Peeker's panel never takes focus. If Escape stops closing the panel or Quick Look, that assumption is wrong.

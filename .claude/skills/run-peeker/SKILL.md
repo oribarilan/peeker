@@ -10,7 +10,7 @@ Unit tests (`scripts/build.sh test`) check the parts. This skill checks the buil
 ## 1. Routing check (works with the screen locked)
 
 ```sh
-.claude/skills/run-peeker/e2e-routing.sh
+scripts/screen/e2e-routing.sh
 ```
 
 Launches the app once per case in benchmark mode (`PEEKER_BENCH_OUT`), which opens a synthetic file through the real catalog and config, in a window and in the Space panel, and records which plugin opened it. It covers default lists, a dotfile, `Makefile`, a symlink, `.mp4` and a folder (no plugin), a config that moves `md` to Plain Text, a disabled plugin, and a clash. It needs no permissions. Add a line to `CASES` when routing changes. Quit any running Peeker first.
@@ -18,7 +18,7 @@ Launches the app once per case in benchmark mode (`PEEKER_BENCH_OUT`), which ope
 ## 2. Flows on screen, with evidence
 
 ```sh
-.claude/skills/run-peeker/record-flows.sh
+scripts/screen/record-flows.sh
 ```
 
 Records the flows a user sees and writes everything to `build/evidence/<time>/` (gitignored):
@@ -33,14 +33,14 @@ It takes over the keyboard and Finder for about four minutes, so the screen must
 ## 3. PDF editing flow
 
 ```sh
-.claude/skills/run-peeker/pdf-edit-flow.sh
+scripts/screen/pdf-edit-flow.sh
 ```
 
 Makes a one-page form (`pdf-tool form`), opens it, and checks Edit mode the way a user meets it: the read view hides the tools and ignores typing into a field, Edit Mode shows them, a typed name and a ticked checkbox, a text box on the Date line, a drawn signature placed, then placed again with Use Last Signature, and Save. `pdf-tool inspect` then reads the saved file, and the checks want the field values, one free-text and two ink annotations named `peeker-…`. Evidence goes to `build/evidence/pdf-<time>/`: `results.txt`, screenshots of each step, `saved.txt` and `pdf-flow.mp4`. It finds the Name field through Accessibility and places everything relative to it, so a change to the form means changing the offsets. Like the other flow it takes over the mouse and keyboard; clicks and keys go out only while Peeker is in front.
 
 ## Driving by hand
 
-`drive.swift` does the pieces, for flows the script doesn't cover. Build it once: `swiftc -O .claude/skills/run-peeker/drive.swift -o build/run-tools/drive`. Its commands are listed at the top of the file. Keys, clicks and typing go out only while the named app is in front, as in `drive keys Finder space`.
+`drive.swift` does the pieces, for flows the script doesn't cover. Build it once: `swiftc -O scripts/screen/drive.swift -o build/run-tools/drive`. Its commands are listed at the top of the file. Keys, clicks and typing go out only while the named app is in front, as in `drive keys Finder space`.
 
 Launch the app yourself with `open --env PEEKER_CONFIG=<scratch config> --env PEEKER_RECOVERY=<scratch folder> -a <Peeker.app> [file]`; both apply only when the app isn't running yet. A full-screen capture is `screencapture -x out.png`, and a recording is `screencapture -v -V <seconds> -x -k -C out.mov`, then `avconvert --preset Preset1920x1080 --source out.mov --output out.mp4`.
 
