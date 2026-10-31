@@ -56,6 +56,10 @@ context: |
      lossless when only turned. Single letters stay free for markup tools later; markup itself waits.
   6. Small Preview gaps (decided 2026-10-31; openspec/changes/small-preview-gaps): password-protected PDFs open
      view-only after a lock screen, image Actual Size and zoom below fit, animated images play.
+  7. Releases (requested 2026-11-01; needs its interview): semantic version numbers, install with Homebrew, and
+     updates from inside the app, on by default with a setting to turn them off, as common Mac apps do. To
+     settle in the interview: the update framework (Sparkle is the usual choice), signing and notarization in
+     CI, where releases and the update feed live, and how a Homebrew install and the app's own updater coexist.
 
   Open questions:
   - Text-based formats. Plain text, logs, source, structured data (JSON, YAML, XML), CSV and Markdown differ a
