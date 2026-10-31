@@ -109,8 +109,9 @@ nonisolated enum PDFMarks {
             page.removeAnnotation(try find(id, type, verb: "remove", on: page, index, fileName: fileName))
         case .field(let name, let value):
             let widgets = (0..<document.pageCount).flatMap { document.page(at: $0)?.annotations ?? [] }.filter { $0.fieldName == name }
-            guard !widgets.isEmpty, value.count <= maxText else {
-                throw PluginError("Can't save the field “\(name)”: it's no longer in “\(fileName)”.")
+            guard !widgets.isEmpty else { throw PluginError("Can't save the field “\(name)”: it's no longer in “\(fileName)”.") }
+            guard value.count <= maxText else {
+                throw PluginError("Can't save the field “\(name)”: its value is too long (over \(maxText.formatted()) characters).")
             }
             for widget in widgets { widget.widgetStringValue = value }
         case .rotatePages(let pages, let by):

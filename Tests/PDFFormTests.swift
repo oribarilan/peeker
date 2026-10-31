@@ -109,6 +109,17 @@ import Testing
         form.document.checkFields()
         #expect(form.document.pendingEdits == [.field(name: "Name", value: "")], "the undone value is known, not a new change")
     }
+
+    /// The field is still there, so the message must not say it's gone.
+    @Test func aTooLongValueSaysSo() throws {
+        let document = try #require(PDFDocument(url: try FormPDF.make()))
+        let long = String(repeating: "x", count: 10_001)
+        #expect {
+            try PDFMarks.apply(.field(name: "Name", value: long), to: document, fileName: "f.pdf")
+        } throws: { error in
+            (error as? PluginError)?.message.contains("too long") == true
+        }
+    }
 }
 
 @Suite(.serialized) struct PDFReadView {
