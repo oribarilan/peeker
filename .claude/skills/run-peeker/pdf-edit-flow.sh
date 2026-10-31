@@ -32,13 +32,23 @@ saved() { "$PDF" inspect "$FORM" | grep -c "^$1\$"; }
 # The screen frame of an element: x y width height.
 frame() { "$DRIVE" frame Peeker "$@" || echo "0 0 0 0"; }
 
-# Quits Peeker and stops the recorder however the run ends, so an aborted run leaves neither running.
+# Quits Peeker and stops the recorder however the run ends, so an aborted run leaves neither running. screencapture
+# can't stop early and keep its movie (it ignores SIGINT here, and other signals drop the file), so an aborted run
+# loses the recording, while a finished one waits for the recording's time limit.
 RECORDER=
 stop() {
-    osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
-    sleep 1
-    [ -n "$RECORDER" ] && kill -INT "$RECORDER" 2>/dev/null && wait "$RECORDER" 2>/dev/null
+    # Not waiting for the reply: with a Save prompt up, the quit would block until AppleScript's 2-minute timeout.
+    osascript -e 'ignoring application responses' -e 'tell application "Peeker" to quit' -e 'end ignoring' >/dev/null 2>&1
+    [ -n "$RECORDER" ] && kill -TERM "$RECORDER" 2>/dev/null
     RECORDER=
+    # Unsaved edits leave Quit waiting on a Save prompt. This run's files are throwaway, so answer Don't Save, which
+    # also drops their crash-recovery copies; kill the app under test only if it still won't quit.
+    for _ in 1 2 3; do
+        pgrep -f "$APP/Contents/MacOS/Peeker" >/dev/null || return 0
+        sleep 1
+        "$DRIVE" press Peeker "Don't Save" >/dev/null 2>&1
+    done
+    pkill -f "$APP/Contents/MacOS/Peeker" 2>/dev/null
 }
 trap stop EXIT
 trap 'exit 130' INT TERM
@@ -113,7 +123,9 @@ sleep 1
 check "Leaving a saved Edit mode asks nothing and hides the tools" "$(tools_shown)" 0
 "$DRIVE" shot Peeker "$OUT/6-saved-read-view.png"
 
-stop
+osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
+wait "$RECORDER"
+RECORDER=
 avconvert --preset Preset1920x1080 --source "$OUT/pdf-flow.mov" --output "$OUT/pdf-flow.mp4" >/dev/null 2>&1 && rm "$OUT/pdf-flow.mov"
 echo "evidence in $OUT"
 ! grep -q FAIL "$RESULTS"
