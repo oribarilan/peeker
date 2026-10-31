@@ -166,3 +166,38 @@ private func pixels(_ image: CGImage) -> Data? {
         #expect(try Data(contentsOf: url) == Data("not an image".utf8))
     }
 }
+
+@Suite struct ImageHDRSaving {
+    /// A 400 × 300 HEIC whose brightness runs from 0 to 4 times SDR white left to right, saved with an ISO gain map.
+    private func hdrFile() throws -> URL {
+        let space = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!
+        let info = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.floatComponents.rawValue | CGBitmapInfo.byteOrder16Little.rawValue
+        let context = try #require(CGContext(data: nil, width: 400, height: 300, bitsPerComponent: 16, bytesPerRow: 0, space: space, bitmapInfo: info))
+        for x in 0..<400 {
+            let v = CGFloat(x) / 399 * 4
+            context.setFillColor(CGColor(colorSpace: space, components: [v, v * 0.9, v * 0.8, 1])!)
+            context.fill(CGRect(x: x, y: 0, width: 1, height: 300))
+        }
+        return try imageFile(try #require(context.makeImage()), type: .heic,
+                             properties: [kCGImageDestinationEncodeRequest: kCGImageDestinationEncodeToISOGainmap, kCGImageDestinationLossyCompressionQuality: 0.9])
+    }
+
+    private func hasGainMap(_ url: URL) throws -> Bool {
+        let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        return CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil
+    }
+
+    @Test func aCropKeepsTheGainMap() async throws {
+        let url = try hdrFile()
+        #expect(try hasGainMap(url))
+        try await ImageSaving.save([.crop(CGRect(x: 0.5, y: 0, width: 0.5, height: 1))], to: url.path)
+        #expect(try hasGainMap(url))
+        #expect(try stored(url).image.width == 200)
+    }
+
+    @Test func aRotationKeepsTheGainMap() async throws {
+        let url = try hdrFile()
+        try await ImageSaving.save([.rotate(by: 90)], to: url.path)
+        #expect(try hasGainMap(url))
+    }
+}

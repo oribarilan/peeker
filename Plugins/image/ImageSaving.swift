@@ -41,7 +41,13 @@ nonisolated enum ImageSaving {
 
     /// The full image turned upright, edited, and written with its metadata, orientation 1 and its new size.
     private static func redrawn(_ source: CGImageSource, type: CFString, properties: [CFString: Any], edits: [ImageEdit]) -> Data? {
-        guard let full = CGImageSourceCreateImageAtIndex(source, 0, nil), let image = ImageEditing.apply(edits, to: full) else { return nil }
+        // An HDR photo's gain map would be lost with the plain decode, which gives only the SDR base image. Decoded
+        // to HDR, edited, then redrawn in extended linear sRGB at its headroom, it's written with a new ISO gain map.
+        let hdr = CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil
+            || CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil
+        let decode = hdr ? [kCGImageSourceDecodeRequest: kCGImageSourceDecodeToHDR] as CFDictionary : nil
+        guard let full = CGImageSourceCreateImageAtIndex(source, 0, decode), let edited = ImageEditing.apply(edits, to: full),
+              let image = hdr ? extendedRange(edited) : edited else { return nil }
         var written = properties
         for key in [kCGImagePropertyPixelWidth, kCGImagePropertyPixelHeight, kCGImagePropertyDepth] { written[key] = nil }
         written[kCGImagePropertyOrientation] = 1
@@ -56,10 +62,24 @@ nonisolated enum ImageSaving {
         }
         written[kCGImageDestinationEmbedThumbnail] = false
         if lossy.contains(type as String) { written[kCGImageDestinationLossyCompressionQuality] = lossyQuality }
+        if hdr { written[kCGImageDestinationEncodeRequest] = kCGImageDestinationEncodeToISOGainmap }
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, type, 1, nil) else { return nil }
         CGImageDestinationAddImage(destination, image, written as CFDictionary)
         return CGImageDestinationFinalize(destination) ? data as Data : nil
+    }
+}
+
+nonisolated extension ImageSaving {
+    /// `image` drawn into half-float extended linear sRGB at its own headroom, the form the gain-map encoder takes.
+    /// Encoding the HDR decode directly after an edit gives wrong values.
+    static func extendedRange(_ image: CGImage) -> CGImage? {
+        let info = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.floatComponents.rawValue | CGBitmapInfo.byteOrder16Little.rawValue
+        guard let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 16, bytesPerRow: 0,
+                                      space: CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!, bitmapInfo: info) else { return nil }
+        context.setEDRTargetHeadroom(image.contentHeadroom)
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        return context.makeImage()
     }
 }
 

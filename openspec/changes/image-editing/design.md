@@ -72,7 +72,7 @@ The menu item's title shows the key, as in "Crop (C)". The Settings recorder get
 - **Partly transparent pixels** go through a premultiplied bitmap context on the pixel path. Core Graphics has no other kind, so a rotated PNG's half-transparent pixels can shift by a rounding step. They look the same once drawn.
 - **Enlarging** is capped at the 100-megapixel editing limit, and the window shows an enlarged image no bigger than its first decode, so the screen stays cheap.
 - **An undo during a save** drops what changed under it: the file has the saved edits, and the window starts from them.
-- **HDR photos:** the pixel path most likely drops an HEIC's or JPEG's HDR gain map and other auxiliary images, so a cropped HDR photo saves as standard range. Not verified; worth a look before markup.
+- **HDR photos:** a photo with a gain map is decoded to HDR, edited, redrawn in half-float extended linear sRGB at its headroom and written with a new ISO gain map, so HDR survives a crop or resize; the brightest highlights can drop a few percent in the encoder. Rotating an HDR HEIC can't keep its data (ImageIO refuses to change its orientation) and is re-encoded the same way. Apple's own gain-map format comes back as an ISO gain map.
 - **Pressing C while cropping** starts over and drops the rectangle chosen so far.
 - **Metadata:** GPS and other EXIF are kept. Embedded thumbnails are dropped, since they would show the old image.
 - **The local key monitor** sees every key for the window. It only acts on bare keys in Edit mode outside text, and returns the event otherwise.
