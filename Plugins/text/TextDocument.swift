@@ -86,6 +86,14 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
 
     var commands: [CommandSpec] { TextPlugin.commands }
 
+    /// The text as shown, unsaved edits included, in the current font, black and always wrapped.
+    var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
+        { [textView] info in
+            let text = NSAttributedString(string: textView.string, attributes: [.font: textView.font ?? .monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: NSColor.black])
+            return TextPrinting.job(for: text, info: info)
+        }
+    }
+
     /// Shows the file as it is on disk now, keeping zoom, wrap and the scroll position. A growing log can cross a size
     /// limit, so editability and the note can change too.
     func reload() async throws(PluginError) -> Bool {

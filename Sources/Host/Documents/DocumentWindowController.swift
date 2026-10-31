@@ -131,18 +131,34 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         Task { _ = await save(document) }
     }
 
+    // MARK: Printing
+
+    /// Shows the print panel for what's on screen, as a sheet. The document's plugin decides what prints.
+    @objc func printDocument(_ sender: Any?) {
+        guard let window, let job = current?.pluginDocument?.printJob else { return }
+        finishTyping()
+        guard let operation = job(NSPrintInfo.shared.copy() as! NSPrintInfo) else { return NSSound.beep() }
+        operation.jobTitle = url.lastPathComponent
+        operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
+    }
+
     /// Ends typing in progress, such as in a PDF text box or form field, so it counts as an edit before a save or the
     /// unsaved-changes question. Only for documents with an edit mode: a text document's own view keeps its focus.
     private func finishTyping() {
         guard let window, let document = current, document.editMode != .none else { return }
         window.makeFirstResponder(nil)
-        if let view = document.pluginDocument?.contentView, view.acceptsFirstResponder { window.makeFirstResponder(view) }
+        if let plugin = document.pluginDocument {
+            let view = plugin.focusView ?? plugin.contentView
+            if view.acceptsFirstResponder { window.makeFirstResponder(view) }
+        }
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
         case #selector(saveDocument(_:)):
             return current?.isEdited == true && current?.isSaving == false
+        case #selector(printDocument(_:)):
+            return current?.pluginDocument?.printJob != nil
         case #selector(toggleEditMode(_:)):
             menuItem.state = current?.isEditing == true ? .on : .off
             return current.map { $0.editMode != .none } ?? false  // enabled when unavailable, to say why

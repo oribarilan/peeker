@@ -5,8 +5,12 @@ import PeekerKit
 final class ImageDocument: PluginDocument {
     private let scrollView = NSScrollView()
     let sidebar: [SidebarPanel]
+    private let image: CGImage
+    private let printSize: CGSize
 
-    init(image: CGImage, info: [InfoRow]) {
+    init(image: CGImage, printSize: CGSize, info: [InfoRow]) {
+        self.image = image
+        self.printSize = printSize
         sidebar = InfoPanel.make(info).map { [$0] } ?? []
         let imageView = LayerImageView(image: image)
         scrollView.documentView = imageView
@@ -22,6 +26,22 @@ final class ImageDocument: PluginDocument {
     var contentView: NSView { scrollView }
 
     var commands: [CommandSpec] { ImagePlugin.commands }
+
+    /// One page, centered, at the image's own size, shrunk to fit and never enlarged (what fit pagination does).
+    /// The screen-size decode is sharp enough for paper.
+    var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
+        { [image, printSize] info in
+            info.horizontalPagination = .fit
+            info.verticalPagination = .fit
+            info.isHorizontallyCentered = true
+            info.isVerticallyCentered = true
+            info.orientation = printSize.width > printSize.height ? .landscape : .portrait
+            let view = NSImageView(frame: NSRect(origin: .zero, size: printSize))
+            view.image = NSImage(cgImage: image, size: printSize)
+            view.imageScaling = .scaleAxesIndependently
+            return NSPrintOperation(view: view, printInfo: info)
+        }
+    }
 
     func perform(_ id: String) -> Bool {
         switch id {

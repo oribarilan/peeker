@@ -38,7 +38,10 @@ final class PDFPluginDocument: PluginDocument {
         pdfView.displayMode = .singlePageContinuous
     }
 
-    var contentView: NSView { pdfView }
+    /// The pages, with the find bar above them from the first Cmd+F. No find in the Space panel.
+    private lazy var container = PDFFindContainer(pdfView: pdfView, allowsFind: editable)
+    var contentView: NSView { container }
+    var focusView: NSView? { pdfView }
 
     var sidebar: [SidebarPanel] {
         let thumbnails = PDFThumbnailView()
@@ -46,6 +49,13 @@ final class PDFPluginDocument: PluginDocument {
         thumbnails.thumbnailSize = NSSize(width: 90, height: 120)
         thumbnails.backgroundColor = .clear
         return [SidebarPanel(thumbnails, sizing: .fill)] + (InfoPanel.make(info).map { [$0] } ?? [])
+    }
+
+    /// The pages as shown, unsaved marks and field values included, each fitted to the paper and turned to match it.
+    /// None when the file's permissions forbid printing.
+    var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
+        guard let document = pdfView.document, !document.isLocked, document.allowsPrinting else { return nil }
+        return { info in document.printOperation(for: info, scalingMode: .pageScaleToFit, autoRotate: true) }
     }
 
     /// A view-only document (the Space panel) leaves out the edit tools.

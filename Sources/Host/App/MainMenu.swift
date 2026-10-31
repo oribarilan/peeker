@@ -48,6 +48,8 @@ enum MainMenu {
             item("Open…", #selector(AppDelegate.showOpenPanel(_:)), "o", target: target),
             item("Close", #selector(NSWindow.performClose(_:)), "w"),
             item("Save", #selector(DocumentWindowController.saveDocument(_:)), "s"),
+            .separator(),
+            item("Print…", #selector(DocumentWindowController.printDocument(_:)), "p"),
         ])
         _ = submenu("Edit", [
             item("Undo", Selector(("undo:")), "z"),
@@ -60,6 +62,7 @@ enum MainMenu {
             .separator(),
             item("Find…", #selector(NSTextView.performFindPanelAction(_:)), "f", tag: Int(NSFindPanelAction.showFindPanel.rawValue)),
             item("Find Next", #selector(NSTextView.performFindPanelAction(_:)), "g", tag: Int(NSFindPanelAction.next.rawValue)),
+            item("Find Previous", #selector(NSTextView.performFindPanelAction(_:)), "g", [.command, .shift], tag: Int(NSFindPanelAction.previous.rawValue)),
         ])
         main.addItem(withTitle: "Commands", action: nil, keyEquivalent: "").submenu = commands
         NSApp.windowsMenu = submenu("Window", [

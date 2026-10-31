@@ -15,7 +15,10 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Missing next to Preview
 
-- **PDF:** no search (Cmd+F only reaches text views), no way to unlock a password-protected PDF, saved highlights can't be removed, one highlight color.
+- **PDF:** no way to unlock a password-protected PDF, saved highlights can't be removed, one highlight color.
 - **Images:** zooming in on a large photo shows upscaled screen pixels because decoding stops at screen size; no actual-size zoom; no zooming out below fit; only the first frame (no animated GIFs, first page of a TIFF).
 - **Markdown:** images show as their alt text; relative links such as `other.md` most likely do nothing (untested); no editing except Open With > Plain Text.
-- **Printing**, in every format.
+
+## Future work
+
+- **Find and Print in the Space panel.** Both work only in document windows for now (decided 2026-10-31); the panel is for a quick look.

@@ -54,6 +54,10 @@ public struct OpenContext: Sendable {
     /// it only while there are no unsaved edits, and shows `sidebar` again afterwards. Returns false when the document
     /// can't reload in place; the host then opens the file again.
     func reload() async throws(PluginError) -> Bool
+    /// Makes the print job for what's on screen, unsaved edits included, from the print info the host passes. Nil
+    /// (the default) when the document can't print; the host then greys out Print. A closure so the menu check is
+    /// free and the job is built only when Print is chosen; it returns nil if printing turns out to be impossible.
+    var printJob: ((NSPrintInfo) -> NSPrintOperation?)? { get }
 
     // Editing. A view-only document keeps the defaults.
 
@@ -87,6 +91,7 @@ public extension PluginDocument {
     var commands: [CommandSpec] { [] }
     func perform(_ id: String) -> Bool { false }
     func reload() async throws(PluginError) -> Bool { false }
+    var printJob: ((NSPrintInfo) -> NSPrintOperation?)? { nil }
     var onEdit: (() -> Void)? {
         get { nil }
         set {}  // a view-only document never calls it

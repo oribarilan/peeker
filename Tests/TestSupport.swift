@@ -14,13 +14,18 @@ enum TempFile {
 
     /// A US Letter PDF whose pages say "Page 1", "Page 2" and so on.
     static func makePDF(pages: Int) throws -> URL {
+        try makePDF(texts: (1...pages).map { "Page \($0)" })
+    }
+
+    /// A US Letter PDF with one page per string, each drawn as a line of text; an empty string makes a page with no text.
+    static func makePDF(texts: [String]) throws -> URL {
         let url = try make(Data(), name: "f.pdf")
         var box = CGRect(x: 0, y: 0, width: 612, height: 792)
         guard let context = CGContext(url as CFURL, mediaBox: &box, nil) else { throw CocoaError(.fileWriteUnknown) }
         let font = CTFontCreateWithName("Helvetica" as CFString, 24, nil)
-        for page in 1...pages {
+        for text in texts {
             context.beginPDFPage(nil)
-            let line = CTLineCreateWithAttributedString(NSAttributedString(string: "Page \(page)", attributes: [.font: font]))
+            let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font]))
             context.textPosition = CGPoint(x: 72, y: 700)
             CTLineDraw(line, context)
             context.endPDFPage()

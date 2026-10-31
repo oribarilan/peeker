@@ -24,11 +24,13 @@ public enum ImagePlugin: Plugin {
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let decoded = try await decode(url, maxPixels: context.maxPixels)
-        return ImageDocument(image: decoded.image, info: decoded.info)
+        return ImageDocument(image: decoded.image, printSize: decoded.printSize, info: decoded.info)
     }
 
     struct Decoded: Sendable {
         let image: CGImage
+        /// The full image's size in points, upright: pixels at its resolution, or 72 per inch when it states none.
+        let printSize: CGSize
         let info: [InfoRow]
     }
 
@@ -47,7 +49,23 @@ public enum ImagePlugin: Plugin {
             throw PluginError("This image couldn't be decoded.")
         }
         if Task.isCancelled { throw PluginError.cancelled }
-        return Decoded(image: try displayReady(thumbnail), info: info(source, url))
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
+        return Decoded(image: try displayReady(thumbnail), printSize: printSize(properties, decoded: thumbnail), info: info(properties, source, url))
+    }
+
+    private nonisolated static func printSize(_ properties: [CFString: Any], decoded: CGImage) -> CGSize {
+        func points(_ pixels: CFString, _ dpi: CFString) -> Double? {
+            guard let pixels = properties[pixels] as? Double, pixels > 0 else { return nil }
+            let dpi = (properties[dpi] as? Double).flatMap { $0 > 0 && $0.isFinite ? $0 : nil } ?? 72
+            return pixels * 72 / dpi
+        }
+        guard let width = points(kCGImagePropertyPixelWidth, kCGImagePropertyDPIWidth),
+              let height = points(kCGImagePropertyPixelHeight, kCGImagePropertyDPIHeight) else {
+            return CGSize(width: decoded.width, height: decoded.height)
+        }
+        // Orientations 5 to 8 turn the image a quarter turn.
+        let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
+        return turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height)
     }
 
     private nonisolated static func displayReady(_ image: CGImage) throws(PluginError) -> CGImage {
@@ -61,8 +79,7 @@ public enum ImagePlugin: Plugin {
         return converted
     }
 
-    private nonisolated static func info(_ source: CGImageSource, _ url: URL) -> [InfoRow] {
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
+    private nonisolated static func info(_ properties: [CFString: Any], _ source: CGImageSource, _ url: URL) -> [InfoRow] {
         var rows: [InfoRow] = []
         if let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int {
             rows.append(InfoRow(label: "Dimensions", value: "\(width) × \(height)"))

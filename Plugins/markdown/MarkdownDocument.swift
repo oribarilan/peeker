@@ -25,6 +25,11 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     var focusView: NSView? { textView }
     var renderedText: String { textView.string }
 
+    /// The rendered text, printed in the light appearance.
+    var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
+        { [textView] info in TextPrinting.job(for: NSAttributedString(attributedString: textView.attributedString()), info: info) }
+    }
+
     var sidebar: [SidebarPanel] {
         var panels: [SidebarPanel] = []
         if !outline.isEmpty {
