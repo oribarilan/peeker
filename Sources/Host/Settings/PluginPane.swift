@@ -41,9 +41,9 @@ struct PluginPane: View {
     }
 
     private func commandRow(_ command: CommandSpec) -> some View {
-        let key = "\(plugin.id).\(command.id)"
+        let key = Config.keyID(plugin: plugin.id, command: command.id)
         let defaultShortcut = command.shortcut.flatMap(Shortcut.init(parsing:))
-        let current = store.config.keys[key] ?? defaultShortcut
+        let current = store.config.shortcut(for: command, of: plugin.id)
         return LabeledContent(command.title) {
             HStack(alignment: .firstTextBaseline) {
                 KeyRecorder(shortcut: current, rules: command.isEditTool ? .editTool : .command,

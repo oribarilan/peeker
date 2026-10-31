@@ -382,7 +382,7 @@ final class DocumentViewController: NSSplitViewController {
 
     /// The command with its shortcut: the config's override, else the plugin's default.
     private func withShortcut(_ spec: CommandSpec) -> (spec: CommandSpec, shortcut: Shortcut?) {
-        (spec, config.keys["\(entry.id).\(spec.id)"] ?? spec.shortcut.flatMap(Shortcut.init(parsing:)))
+        (spec, config.shortcut(for: spec, of: entry.id))
     }
 
     private func installSidebar(_ panels: [SidebarPanel]) {

@@ -16,9 +16,17 @@ struct Config: Equatable {
     var disabled: Set<String> = []
     /// Plugin id -> the extensions the config gives it in place of its default list: lowercase, no dot.
     var extensions: [String: [String]] = [:]
-    /// "pluginID.commandID" -> shortcut override.
+    /// `keyID(plugin:command:)` -> shortcut override.
     var keys: [String: Shortcut] = [:]
     var quickLookKey: Shortcut? = Shortcut(key: .space)
+
+    /// Where `keys` holds a command's shortcut: "pluginID.commandID".
+    static func keyID(plugin: String, command: String) -> String { "\(plugin).\(command)" }
+
+    /// The command's shortcut: the config's override, else the plugin's default.
+    func shortcut(for command: CommandSpec, of plugin: String) -> Shortcut? {
+        keys[Self.keyID(plugin: plugin, command: command.id)] ?? command.shortcut.flatMap(Shortcut.init(parsing:))
+    }
 
     /// Which plugin opens each extension (or `noExtension`), from every plugin's configured or default list, taken in
     /// `plugins` order. An extension in more than one list stays with the plugin whose default list has it, or else
@@ -178,7 +186,7 @@ private struct ConfigReader {
                 if let refusal = (isEditTool ? Shortcut.Rules.editTool : .command).refusal(for: shortcut) {
                     problem("\(path).shortcut", "“\(text)” can't be used here. \(refusal)")
                 } else {
-                    config.keys["\(plugin.id).\(command)"] = shortcut
+                    config.keys[Config.keyID(plugin: plugin.id, command: command)] = shortcut
                 }
             }
         }

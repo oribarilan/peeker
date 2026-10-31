@@ -7,7 +7,7 @@ func shortcutConflict(_ shortcut: Shortcut, command: String, plugin: PluginEntry
     if shortcut == Shortcut(key: .character("e"), modifiers: .command) { return "Edit Mode" }
     if let item = menu.first(where: { $0.shortcut == shortcut }) { return item.title }
     return plugin.commands.first { other in
-        other.id != command && (config.keys["\(plugin.id).\(other.id)"] ?? other.shortcut.flatMap(Shortcut.init(parsing:))) == shortcut
+        other.id != command && config.shortcut(for: other, of: plugin.id) == shortcut
     }?.title
 }
 

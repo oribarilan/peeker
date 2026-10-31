@@ -7,7 +7,7 @@ extension Config {
     func json(plugins: [PluginEntry]) -> Data {
         let pluginSettings = Dictionary(uniqueKeysWithValues: plugins.map { plugin in
             let commands = Dictionary(uniqueKeysWithValues: plugin.commands.compactMap { command -> (String, [String: String])? in
-                guard let shortcut = keys["\(plugin.id).\(command.id)"] ?? command.shortcut.flatMap(Shortcut.init(parsing:)) else { return nil }
+                guard let shortcut = shortcut(for: command, of: plugin.id) else { return nil }
                 return (command.id, ["shortcut": shortcut.configText])
             })
             var settings: [String: Any] = [
