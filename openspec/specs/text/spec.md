@@ -6,14 +6,19 @@ The Plain Text plugin: view and quickly edit text files such as notes, logs, con
 
 ## Requirements
 
-### Requirement: Opens text and untyped files routed to it
+### Requirement: Opens the text files on its list
 
-The plugin SHALL open plain text and everything macOS types as plain text (logs, CSV, source code, extensionless files like `LICENSE`), plus JSON, XML, YAML and TOML, and untyped files the config routes to it. A file that isn't text (it holds NUL bytes and isn't UTF-16, or decodes in no supported encoding) SHALL show "This doesn't look like a text file." in its tab.
+By default the plugin SHALL open plain text and logs (`txt`, `text`, `log`), tables (`csv`, `tsv`), structured data (`json`, `xml`, `yaml`, `yml`, `toml`), config files (`ini`, `conf`, `cfg`, `env`, `properties`), common source code and scripts, and files with no extension (`noExtension`). A file that isn't text (it holds NUL bytes and isn't UTF-16, or decodes in no supported encoding) SHALL show "This doesn't look like a text file." in its tab.
 
-#### Scenario: Binary file routed to text
+#### Scenario: Extensionless binary file
 
-- **WHEN** `open.none = text` routes an extensionless binary file to the plugin
+- **WHEN** the user opens a binary file that has no extension
 - **THEN** the tab says the file doesn't look like a text file
+
+#### Scenario: Config file macOS has no type for
+
+- **WHEN** the user opens `nginx.conf`
+- **THEN** Plain Text shows it, with no config needed
 
 ### Requirement: Detects the encoding exactly
 

@@ -2,23 +2,23 @@
 
 ## Purpose
 
-Which plugin opens a file, how the user turns plugins on and off and overrides that choice, and how the config dotfile that holds those settings is read.
+Which plugin opens a file, how the user turns plugins on and off and overrides that choice, and how the config file that holds those settings is read.
 
 ## Requirements
 
 ### Requirement: Config is a JSON file
 
-The app SHALL read its settings from `~/.config/peeker/config.json`, or from the path in `$PEEKER_CONFIG` when set. The file SHALL be a JSON object with sections: `quickLook`, `plugins` (keyed by plugin id) and `open` (keyed by extension). A missing file or a missing key SHALL mean that setting's default. The old `~/.config/peeker/config` dotfile SHALL NOT be read.
+The app SHALL read its settings from `~/.config/peeker/config.json`, or from the path in `$PEEKER_CONFIG` when set. The file SHALL be a JSON object with sections `quickLook` and `plugins` (keyed by plugin id). A missing file or a missing key SHALL mean that setting's default. The old `~/.config/peeker/config` dotfile SHALL NOT be read.
 
 #### Scenario: No config file
 
 - **WHEN** no `config.json` exists
-- **THEN** every plugin is enabled, routing uses the built-in ranking, and Space opens the quick-look panel
+- **THEN** every plugin is enabled with its default extension list, and Space opens the quick-look panel
 
 #### Scenario: Only one setting
 
-- **WHEN** `config.json` is `{"open": {"md": "text"}}`
-- **THEN** Markdown files open in the text plugin and every other setting keeps its default
+- **WHEN** `config.json` is `{"plugins": {"image": {"enabled": false}}}`
+- **THEN** images no longer open in Peeker and every other setting keeps its default
 
 ### Requirement: Saving the config applies it everywhere at once
 
@@ -59,53 +59,88 @@ At launch, the app SHALL write `schema.json`, a JSON Schema describing every key
 
 ### Requirement: Users can turn plugins off
 
-`"plugins": {"<id>": {"enabled": false}}` SHALL turn off that plugin. A disabled plugin SHALL never open files: it SHALL drop out of default routing, the Open With menu and the quick-look panel.
+`"plugins": {"<id>": {"enabled": false}}` SHALL turn off that plugin. A disabled plugin SHALL never open files: it SHALL drop out of default routing, the Open With menu and the quick-look panel. No other plugin SHALL take its extensions.
 
 #### Scenario: Disabling the image plugin
 
 - **WHEN** the config contains `{"plugins": {"image": {"enabled": false}}}`
 - **THEN** images no longer open in Peeker, and Space on an image falls through to Finder's Quick Look
 
-### Requirement: The best-matching plugin opens a file by default
+#### Scenario: Disabling Markdown
 
-The app SHALL determine a file's type from macOS, following a symlink to the file it points to. Among enabled plugins that support the type, a plugin that declares the exact type SHALL rank before one that supports it through a parent type. The top-ranked plugin SHALL open the file unless a config route says otherwise.
+- **WHEN** the Markdown plugin is off and the user opens a `.md` file
+- **THEN** no plugin opens it by default, and Open With offers the other enabled plugins
+
+### Requirement: Each extension opens in one plugin
+
+A file SHALL open in the enabled plugin whose extension list contains the file's extension, compared without regard to case. For a symlink, the extension SHALL come from the file it points to. A file with no extension, including a dotfile such as `.zshrc`, SHALL match the list entry `noExtension`. A folder SHALL match nothing. When no enabled plugin lists the extension, no plugin SHALL open the file. No two plugins SHALL list the same extension by default.
 
 #### Scenario: Markdown file
 
-- **WHEN** the user opens a `.md` file and both the Markdown and Plain Text plugins are enabled
-- **THEN** Markdown opens it, because it declares Markdown exactly while Plain Text supports it only as text
+- **WHEN** the user opens `notes.md` and every plugin has its default list
+- **THEN** Markdown opens it
 
-### Requirement: Config routes choose a plugin per extension
+#### Scenario: Extension in capitals
 
-`"open": {"<ext>": "<id>"}` SHALL make the named plugin the default for files with that extension, when the plugin is enabled and supports the file's type. Extensions SHALL match without regard to case. A route to a plugin that doesn't support a typed file SHALL be ignored and listed as a problem.
+- **WHEN** the user opens `README.MD`
+- **THEN** Markdown opens it, as for `.md`
 
-#### Scenario: Route to an unsupported plugin
+#### Scenario: Dotfile
 
-- **WHEN** the config contains `{"open": {"pdf": "text"}}`
-- **THEN** PDFs still open in the PDF plugin
+- **WHEN** the user presses Space on `.zshrc` in Finder
+- **THEN** Plain Text shows it, because its default list has `noExtension`
 
-### Requirement: Untyped files open only where the config routes them
+#### Scenario: Extension no plugin lists
 
-Files macOS has no real type for (an extension it doesn't recognize, such as `.conf`, or a plain data type) SHALL be offered only to the plugin the config routes them to, whether or not that plugin declares the type. `"open": {"noExtension": "<id>"}` SHALL route files that have no extension. Without a route, no plugin SHALL open such a file.
+- **WHEN** the user opens `movie.mp4`
+- **THEN** no plugin opens it, and the window says no enabled plugin opens this file
 
-#### Scenario: Dotfile routed to text
+#### Scenario: Space on a folder
 
-- **WHEN** the config contains `{"open": {"noExtension": "text"}}` and the user presses Space on `.zshrc` in Finder
-- **THEN** the text plugin shows it
+- **WHEN** the user presses Space on a folder in Finder
+- **THEN** Finder's Quick Look shows it
 
-#### Scenario: Untyped file without a route
+### Requirement: The config can change a plugin's extensions
 
-- **WHEN** the user opens a `.conf` file and the config has no route for `conf`
-- **THEN** no plugin opens it, and a window open shows "No enabled plugin opens" with a hint to route it in the config
+`"plugins": {"<id>": {"extensions": [...]}}` SHALL replace that plugin's default list with the given list. A missing key SHALL keep the default list, and an empty list SHALL mean the plugin opens nothing. An entry SHALL be an extension without its dot (a leading dot is ignored) or `noExtension`. An entry that's empty or contains a dot, a slash or a space SHALL be listed as a problem and skipped.
+
+#### Scenario: Adding an extension
+
+- **WHEN** the config sets `plugins.text.extensions` to the default list plus `nginx`
+- **THEN** `site.nginx` opens in Plain Text
+
+#### Scenario: Moving an extension
+
+- **WHEN** the config sets `plugins.markdown.extensions` to `["markdown"]` and adds `md` to `plugins.text.extensions`
+- **THEN** `.md` files open in Plain Text and `.markdown` files in Markdown
+
+#### Scenario: Bad entry
+
+- **WHEN** `plugins.text.extensions` contains `"tar.gz"`
+- **THEN** that entry is skipped, the problems list names `plugins.text.extensions`, and the rest of the list applies
+
+### Requirement: An extension in two lists stays with one plugin
+
+When the config gives the same extension to more than one plugin, the extension SHALL stay with the plugin whose default list has it, or, if none does, with the first of them in sidebar order (Image, PDF, Markdown, Plain Text). The other lists SHALL drop it, and each one SHALL be listed as a problem naming the plugin that kept it.
+
+#### Scenario: md added to Plain Text but left in Markdown
+
+- **WHEN** the config adds `md` to `plugins.text.extensions` and leaves Markdown's list at its default
+- **THEN** `.md` files still open in Markdown, and the problems list says `md` in `plugins.text.extensions` belongs to Markdown
 
 ### Requirement: Open With switches the plugin for one tab
 
-Each document window SHALL show an Open With control listing every enabled plugin that supports the file, best first. Choosing another plugin SHALL reopen that tab with it. Unsaved edits SHALL be resolved first (Save, Don't Save or Cancel), and cancelling SHALL leave the tab and the control unchanged.
+Each document window SHALL show an Open With control listing every enabled plugin, the one whose list has the file's extension first. Choosing another plugin SHALL reopen that tab with it; a plugin that can't read the file SHALL show its error in the tab. Unsaved edits SHALL be resolved first (Save, Don't Save or Cancel), and cancelling SHALL leave the tab and the control unchanged.
 
 #### Scenario: View Markdown as plain text
 
 - **WHEN** the user picks Plain Text in Open With on a Markdown tab with no unsaved edits
 - **THEN** the tab reopens showing the Markdown source in the text plugin
+
+#### Scenario: A plugin that can't read the file
+
+- **WHEN** the user picks Image in Open With on a Markdown tab
+- **THEN** the tab says the file isn't a readable image, and Open With can switch it back
 
 ### Requirement: Plugin command shortcuts can be rebound
 
@@ -118,7 +153,7 @@ Each document window SHALL show an Open With control listing every enabled plugi
 
 ### Requirement: The app is an alternate handler for its formats
 
-The app SHALL declare text, JSON, XML, YAML, TOML, PDF, Markdown and image types so it appears in Finder's Open With menu and can be chosen as the default app, without claiming to be the default on install.
+The app SHALL declare the file types of every extension on the plugins' default lists, so it appears in Finder's Open With menu for them and can be chosen as the default app, without claiming to be the default on install. Extensions added only in the config SHALL open in Peeker but need not appear in Finder's Open With menu.
 
 #### Scenario: Fresh install
 

@@ -8,7 +8,7 @@ How the app finds its format plugins, runs them, and keeps working when one fail
 
 ### Requirement: Plugins are built into the app
 
-Each plugin SHALL be code built into the app that declares an id, a display name and the file types it supports. A plugin SHALL do no work until the first file routed to it opens.
+Each plugin SHALL be code built into the app that declares an id, a display name and the file extensions it opens by default. A plugin SHALL do no work until the first file routed to it opens.
 
 #### Scenario: Launch without files
 

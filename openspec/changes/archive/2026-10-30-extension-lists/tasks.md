@@ -24,6 +24,7 @@
 ## 5. Integration
 
 - [ ] 5.1 Run `scripts/build.sh test`, `scripts/check-plugin-imports.sh` and `openspec validate --all`; then check by hand in the built app: Space on a `.md`, `.conf`, `.zshrc` and `.mp4` in Finder (the last goes to Finder's Quick Look), and Open With on a Markdown tab switching to Plain Text and Image
+  - 2026-10-30, with `.claude/skills/run-peeker`: the routing check passed all 30 cases; in the real app, Open With (Markdown, Plain Text, Image) and the config clash in the menu bar passed. Space in Finder couldn't be checked because this build has no Accessibility permission (no event tap), so every Space went to Finder's Quick Look. Archived with this open; settings-window task 8.1 repeats the check.
 
 ## Workflow follow-up
 
