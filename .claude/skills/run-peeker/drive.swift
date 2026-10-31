@@ -8,7 +8,7 @@
 //        drive select <path>                       activate Finder and select <path>
 //        drive tree <process> [depth]              print the Accessibility tree of the process's windows
 //        drive choose <process> <item>             pick <item> in the front window's toolbar pop-up (Open With)
-//        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close"
+//        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close", and wait for the menu to close
 //        drive menuextra <process> [item]          open the process's menu bar icon menu and print it, or press <item>
 //        drive row <process> <title>               select the sidebar row titled <title> in any window
 //        drive press <process> <label>             press the control (button, switch) labeled <label> in any window
@@ -281,6 +281,13 @@ case "menu":
           let menu = children(bar).first(where: { label($0) == arg(2) }),
           let item = find(menu, where: { role($0) == kAXMenuItemRole && label($0) == arg(3) }) else { fail("no menu item \(arg(2)) > \(arg(3))") }
     press(item)
+    // The menu can stay drawn for a moment after the press, and a click or key sent meanwhile would land on it.
+    // Open menus are windows at the pop-up menu level (101).
+    var waits = 0
+    while waits < 60, windows(owner: arg(1)).contains(where: { $0.layer == 101 }) {
+        usleep(50_000)
+        waits += 1
+    }
 case "menuextra":
     guard let extras: AXUIElement = attr(application(arg(1)), "AXExtrasMenuBar"), let icon = children(extras).first else { fail("no menu bar icon") }
     pick(in: icon, item: args.count > 2 ? args[2] : nil)
