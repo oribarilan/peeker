@@ -14,7 +14,7 @@ private func pdf(_ pages: Int) throws -> PDFDocument {
 }
 
 private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash = PageStash()) throws(PluginError) {
-    try PDFMarks.apply(edit, to: document, fileName: "f.pdf", stash: stash)
+    try PDFEditing.apply(edit, to: document, fileName: "f.pdf", stash: stash)
 }
 
 @Suite struct PDFPageEdits {

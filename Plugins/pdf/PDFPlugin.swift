@@ -74,7 +74,7 @@ public enum PDFPlugin: Plugin {
         guard let document = PDFDocument(url: URL(filePath: path)) else { throw PluginError("“\(name)” is no longer a readable PDF.") }
         guard !document.isLocked else { throw PluginError("This PDF is password protected.") }
         let stash = PageStash()
-        for edit in edits { try PDFMarks.apply(edit, to: document, fileName: name, stash: stash) }
+        for edit in edits { try PDFEditing.apply(edit, to: document, fileName: name, stash: stash) }
         let movesPages = edits.contains(where: \.movesPages)
         let kept = movesPages ? MovedPageRepair.kept(in: document) : []
         guard var data = document.dataRepresentation() else { throw PluginError("“\(name)” couldn't be written as a PDF.") }

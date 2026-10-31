@@ -115,7 +115,7 @@ import Testing
         let document = try #require(PDFDocument(url: try FormPDF.make()))
         let long = String(repeating: "x", count: 10_001)
         #expect {
-            try PDFMarks.apply(.field(name: "Name", value: long), to: document, fileName: "f.pdf")
+            try PDFEditing.apply(.field(name: "Name", value: long), to: document, fileName: "f.pdf")
         } throws: { error in
             (error as? PluginError)?.message.contains("too long") == true
         }

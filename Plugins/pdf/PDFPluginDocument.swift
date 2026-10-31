@@ -209,7 +209,7 @@ final class PDFPluginDocument: PluginDocument {
     @discardableResult
     func change(_ edit: PDFEdit) -> Bool {
         if edit.isPageEdit { endInteraction() }  // before reading the inverse: a deleted page's copy needs the finished text
-        guard let inverse = inverse(of: edit, in: document) else {
+        guard let inverse = PDFEditing.inverse(of: edit, in: document) else {
             Self.log.error("skipped an edit for something no longer in the file")
             return false
         }
@@ -235,7 +235,7 @@ final class PDFPluginDocument: PluginDocument {
     /// pages again after a page edit and tells the form fields a value they now show.
     private func applyLive(_ edit: PDFEdit) throws(PluginError) {
         try document.own { () throws(PluginError) in
-            try PDFMarks.apply(edit, to: document, fileName: url.lastPathComponent, stash: stash)
+            try PDFEditing.apply(edit, to: document, fileName: url.lastPathComponent, stash: stash)
         }
         if edit.isPageEdit { pagesChanged() }
         if case .field(let name, let value) = edit { fields?.applied(name, value) }
@@ -274,53 +274,6 @@ final class PDFPluginDocument: PluginDocument {
         undoManager.registerUndo(withTarget: self) { [weak self] _ in self?.change(inverse) }
         undoManager.endUndoGrouping()
         onEdit?()
-    }
-
-    /// The edit that takes `edit` back, read from the document as it is now; nil when its target is missing.
-    private func inverse(of edit: PDFEdit, in document: PDFDocument) -> PDFEdit? {
-        func annotation(_ id: String, _ page: Int) -> PDFAnnotation? {
-            guard (0..<document.pageCount).contains(page), let page = document.page(at: page) else { return nil }
-            return PDFMarks.find(id, on: page)
-        }
-        switch edit {
-        case .add(let mark):
-            return .delete(id: mark.id, type: mark.type, page: mark.page)
-        case .setBounds(let id, let type, let page, _):
-            return annotation(id, page).map { .setBounds(id: id, type: type, page: page, rect: $0.bounds) }
-        case .setText(let id, let page, _, _, _):
-            return annotation(id, page).map {
-                .setText(id: id, page: page, text: $0.contents ?? "", fontSize: PDFMarks.fontSize(of: $0) ?? 12, rect: $0.bounds)
-            }
-        case .delete(let id, _, let page):
-            return annotation(id, page).flatMap { PDFMarks.mark(of: $0, page: page) }.map { .add($0) }
-        case .field(let name, _):
-            let widget = (0..<document.pageCount).lazy.compactMap { document.page(at: $0)?.annotations.first { $0.fieldName == name } }.first
-            return widget.map { .field(name: name, value: $0.widgetStringValue ?? "") }
-        case .rotatePages(let pages, let by):
-            return .rotatePages(pages: pages, by: -by)
-        case .reorderPages(let order):
-            guard order.count == document.pageCount, Set(order) == Set(order.indices) else { return nil }
-            var back = order
-            for (index, from) in order.enumerated() { back[from] = index }
-            return .reorderPages(order: back)
-        case .deletePages(let pages, let token):
-            return copies(of: pages, in: document).map { .restorePages(pages: pages.sorted(), token: token, data: $0) }
-        case .restorePages(let pages, let token, _):
-            return .deletePages(pages: pages, token: token)
-        }
-    }
-
-    /// The pages at `indices` as a PDF of copies, so a deletion can be undone after it was saved. Copying drops the
-    /// annotations' names and styles, so they're put back as when saving moved pages.
-    private func copies(of indices: [Int], in document: PDFDocument) -> Data? {
-        let pages = indices.sorted().compactMap { (0..<document.pageCount).contains($0) ? document.page(at: $0) : nil }
-        guard pages.count == indices.count else { return nil }
-        let copy = PDFDocument()
-        for (position, page) in pages.enumerated() {
-            guard let duplicate = page.copy() as? PDFPage else { return nil }
-            copy.insert(duplicate, at: position)
-        }
-        return copy.dataRepresentation().flatMap { MovedPageRepair.repaired($0, kept: MovedPageRepair.kept(on: pages)) }
     }
 }
 

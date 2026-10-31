@@ -2,18 +2,13 @@ import AppKit
 import PDFKit
 import PeekerKit
 
-/// Turns `PDFEdit`s into annotation changes on a `PDFDocument`. The view's document takes them live on the main
-/// thread; saving applies the same edits to a fresh copy off it.
+/// Peeker's marks as PDF annotations: builds them, reads them back, and changes their bounds and text.
 nonisolated enum PDFMarks {
     /// Text boxes use Helvetica: every PDF app has it, while the system font's name means nothing outside macOS.
     static let fontName = "Helvetica"
     static let fontSizes = 8.0...36.0
     static let signatureLineWidth = 1.5
     private static let styleKey = PDFAnnotationKey(rawValue: "/DS")
-    private static let maxText = 10_000
-    private static let maxStrokes = 500, maxPoints = 20_000
-    /// The most a restore's copy of deleted pages may hold; it can come from a recovery file.
-    private static let maxRestoreBytes = 256 << 20
 
     /// The annotation's name when Peeker made it, else nil: other apps' annotations are never selected or changed.
     static func id(of annotation: PDFAnnotation) -> String? {
@@ -59,108 +54,32 @@ nonisolated enum PDFMarks {
         return annotation
     }
 
+    /// The kind of mark an annotation can be; nil for kinds Peeker doesn't make.
+    static func type(of annotation: PDFAnnotation) -> MarkType? {
+        switch annotation.type {
+        case "Highlight": .highlight
+        case "FreeText": .textBox
+        case "Ink": .signature
+        default: nil
+        }
+    }
+
     /// The mark an annotation of Peeker's shows, so a removal can be undone; nil for other annotations.
     static func mark(of annotation: PDFAnnotation, page: Int) -> PDFMark? {
-        guard let id = id(of: annotation) else { return nil }
+        guard let id = id(of: annotation), let type = Self.type(of: annotation) else { return nil }
         let kind: PDFMark.Kind
-        switch annotation.type {
-        case "Highlight":
+        switch type {
+        case .highlight:
             guard let color = annotation.color.usingColorSpace(.sRGB) else { return nil }
             kind = .highlight(RGBA(red: color.redComponent, green: color.greenComponent, blue: color.blueComponent, alpha: color.alphaComponent))
-        case "FreeText":
+        case .textBox:
             kind = .textBox(text: annotation.contents ?? "", fontSize: fontSize(of: annotation) ?? 12)
-        case "Ink":
+        case .signature:
             let size = annotation.bounds.size
             guard size.width > 0, size.height > 0 else { return nil }
             kind = .signature(strokes: (annotation.paths ?? []).map { points(of: $0).map { CGPoint(x: $0.x / size.width, y: $0.y / size.height) } })
-        default:
-            return nil
         }
         return PDFMark(id: id, page: page, rect: annotation.bounds, kind: kind)
-    }
-
-    /// Applies `edit` to `document`, or throws without changing it when the edit doesn't fit. `fileName` is for messages.
-    /// `stash` keeps deleted pages for their restore: one per document shown, and one per save.
-    static func apply(_ edit: PDFEdit, to document: PDFDocument, fileName: String, stash: PageStash = PageStash()) throws(PluginError) {
-        switch edit {
-        case .add(let mark):
-            let page = try page(mark.page, of: document, for: mark.type, fileName: fileName)
-            guard mark.id.hasPrefix(PDFEdit.idPrefix), mark.id.count <= 64, isValid(mark.rect, on: page), isValid(mark.kind) else {
-                throw PluginError("Can't save the \(mark.type.name) on page \(mark.page + 1): its position, size or contents are invalid.")
-            }
-            page.addAnnotation(annotation(for: mark))
-        case .setBounds(let id, let type, let index, let rect):
-            let page = try page(index, of: document, for: type, fileName: fileName)
-            let annotation = try find(id, type, verb: "move", on: page, index, fileName: fileName)
-            guard isValid(rect, on: page) else {
-                throw PluginError("Can't save the \(type.name) on page \(index + 1): its new position or size is invalid.")
-            }
-            setBounds(rect, of: annotation)
-        case .setText(let id, let index, let text, let fontSize, let rect):
-            let page = try page(index, of: document, for: .textBox, fileName: fileName)
-            let annotation = try find(id, .textBox, verb: "change", on: page, index, fileName: fileName)
-            guard isValid(rect, on: page), isValid(.textBox(text: text, fontSize: fontSize)) else {
-                throw PluginError("Can't save the text box on page \(index + 1): its text, size or position is invalid.")
-            }
-            annotation.bounds = rect
-            setText(text, fontSize: fontSize, of: annotation)
-        case .delete(let id, let type, let index):
-            let page = try page(index, of: document, for: type, fileName: fileName)
-            page.removeAnnotation(try find(id, type, verb: "remove", on: page, index, fileName: fileName))
-        case .field(let name, let value):
-            let widgets = (0..<document.pageCount).flatMap { document.page(at: $0)?.annotations ?? [] }.filter { $0.fieldName == name }
-            guard !widgets.isEmpty else { throw PluginError("Can't save the field “\(name)”: it's no longer in “\(fileName)”.") }
-            guard value.count <= maxText else {
-                throw PluginError("Can't save the field “\(name)”: its value is too long (over \(maxText.formatted()) characters).")
-            }
-            for widget in widgets { widget.widgetStringValue = value }
-        case .rotatePages(let pages, let by):
-            guard by == 90 || by == -90 else { throw PluginError("Can't save the page rotation: it isn't a quarter turn.") }
-            for page in try self.pages(pages, of: document, fileName: fileName) {
-                page.rotation = ((page.rotation + by) % 360 + 360) % 360
-            }
-        case .reorderPages(let order):
-            let count = document.pageCount
-            guard order.count == count, Set(order) == Set(0..<count) else {
-                throw PluginError("Can't save the new page order: “\(fileName)” has \(count) pages.")
-            }
-            let wanted = order.compactMap(document.page(at:))
-            // Moves keep each page object, with its annotations, and touch only pages out of place. Not
-            // `exchangePage`: it crashes on a page that was removed and inserted again.
-            for (index, page) in wanted.enumerated() where document.page(at: index) !== page {
-                document.removePage(at: document.index(for: page))
-                document.insert(page, at: index)
-            }
-        case .deletePages(let pages, let token):
-            let targets = try self.pages(pages, of: document, fileName: fileName)
-            guard targets.count < document.pageCount else { throw PluginError("Can't save: a PDF needs at least one page.") }
-            stash.pages[token] = targets
-            for index in pages.sorted(by: >) { document.removePage(at: index) }
-        case .restorePages(let pages, let token, let data):
-            let total = document.pageCount + pages.count
-            guard !pages.isEmpty, Set(pages).count == pages.count, pages.allSatisfy({ (0..<total).contains($0) }) else {
-                throw PluginError("Can't save the restored pages: “\(fileName)” has \(document.pageCount) pages.")
-            }
-            let restored: [PDFPage]
-            if let kept = stash.pages[token], kept.count == pages.count {
-                restored = kept
-                stash.pages[token] = nil  // the same page objects can't go in twice
-            } else {
-                guard data.count <= maxRestoreBytes, let copy = PDFDocument(data: data), !copy.isLocked, copy.pageCount == pages.count else {
-                    throw PluginError("Can't save the restored pages: their copy is missing or damaged.")
-                }
-                restored = (0..<copy.pageCount).compactMap(copy.page(at:))
-            }
-            for (index, page) in zip(pages.sorted(), restored) { document.insert(page, at: index) }
-        }
-    }
-
-    /// The pages at `indices`, in page order; throws unless they're distinct, in range and at least one.
-    private static func pages(_ indices: [Int], of document: PDFDocument, fileName: String) throws(PluginError) -> [PDFPage] {
-        guard !indices.isEmpty, Set(indices).count == indices.count, indices.allSatisfy({ (0..<document.pageCount).contains($0) }) else {
-            throw PluginError("Can't save the page changes: “\(fileName)” has \(document.pageCount) pages.")
-        }
-        return indices.sorted().compactMap(document.page(at:))
     }
 
     /// Moves or resizes; a signature's strokes scale with it, and a text box keeps its size.
@@ -181,7 +100,7 @@ nonisolated enum PDFMarks {
         annotation.bounds = rect
     }
 
-    private static func setText(_ text: String, fontSize: Double, of annotation: PDFAnnotation) {
+    static func setText(_ text: String, fontSize: Double, of annotation: PDFAnnotation) {
         annotation.contents = text
         annotation.font = NSFont(name: fontName, size: fontSize)
         annotation.setValue("font: \(fontName) \(fontSize.formatted(.number.grouping(.never)))pt; color: #000000", forAnnotationKey: styleKey)
@@ -214,41 +133,4 @@ nonisolated enum PDFMarks {
         }
     }
 
-    private static func page(_ index: Int, of document: PDFDocument, for type: MarkType, fileName: String) throws(PluginError) -> PDFPage {
-        guard (0..<document.pageCount).contains(index), let page = document.page(at: index) else {
-            // `&+`: the index comes from a file, and Int.max must not trap.
-            throw PluginError("Can't save the \(type.name) on page \(index &+ 1): “\(fileName)” has \(document.pageCount) pages.")
-        }
-        return page
-    }
-
-    private static func find(_ id: String, _ type: MarkType, verb: String, on page: PDFPage, _ index: Int, fileName: String) throws(PluginError) -> PDFAnnotation {
-        guard let annotation = find(id, on: page) else {
-            throw PluginError("Can't save: the \(type.name) to \(verb) on page \(index + 1) is no longer in “\(fileName)”.")
-        }
-        return annotation
-    }
-
-    /// Finite, of non-negative size, and touching the page.
-    private static func isValid(_ rect: CGRect, on page: PDFPage) -> Bool {
-        [rect.origin.x, rect.origin.y, rect.size.width, rect.size.height].allSatisfy(\.isFinite)
-            && rect.size.width >= 0 && rect.size.height >= 0 && rect.intersects(page.bounds(for: .mediaBox))
-    }
-
-    private static func isValid(_ kind: PDFMark.Kind) -> Bool {
-        switch kind {
-        case .highlight(let color):
-            color.isValid
-        case .textBox(let text, let fontSize):
-            text.count <= maxText && fontSizes.contains(fontSize)
-        case .signature(let strokes):
-            strokes.count <= maxStrokes && strokes.reduce(0) { $0 + $1.count } <= maxPoints
-                && strokes.allSatisfy { $0.allSatisfy { (-0.01...1.01).contains($0.x) && (-0.01...1.01).contains($0.y) } }
-        }
-    }
-}
-
-/// Pages removed by `.deletePages`, by token, for the matching `.restorePages`.
-nonisolated final class PageStash {
-    var pages: [String: [PDFPage]] = [:]
 }

@@ -99,7 +99,7 @@ final class EditController {
     /// Removes the selected mark. False when nothing is selected.
     @discardableResult
     func deleteSelection() -> Bool {
-        guard let annotation = selectedAnnotation, let id = selectedID, let type = Self.type(of: annotation) else { return false }
+        guard let annotation = selectedAnnotation, let id = selectedID, let type = PDFMarks.type(of: annotation) else { return false }
         document.change(.delete(id: id, type: type, page: selectedPage))
         select(nil, page: 0)
         return true
@@ -116,16 +116,7 @@ final class EditController {
 
     /// The topmost of Peeker's own highlights, text boxes and signatures at `point`; others are never selected.
     static func hit(_ annotations: [PDFAnnotation], at point: CGPoint) -> PDFAnnotation? {
-        annotations.last { PDFMarks.id(of: $0) != nil && type(of: $0) != nil && $0.bounds.insetBy(dx: -2, dy: -2).contains(point) }
-    }
-
-    static func type(of annotation: PDFAnnotation) -> MarkType? {
-        switch annotation.type {
-        case "Highlight": .highlight
-        case "FreeText": .textBox
-        case "Ink": .signature
-        default: nil
-        }
+        annotations.last { PDFMarks.id(of: $0) != nil && PDFMarks.type(of: $0) != nil && $0.bounds.insetBy(dx: -2, dy: -2).contains(point) }
     }
 
     static func corner(at point: CGPoint, of rect: CGRect, tolerance: CGFloat) -> Corner? {
@@ -245,7 +236,7 @@ final class EditController {
     func mouseUp(with event: NSEvent) -> Bool {
         guard let drag else { return false }
         self.drag = nil
-        if let id = PDFMarks.id(of: drag.annotation), let type = Self.type(of: drag.annotation), let page = drag.annotation.page,
+        if let id = PDFMarks.id(of: drag.annotation), let type = PDFMarks.type(of: drag.annotation), let page = drag.annotation.page,
            let index = view.document?.index(for: page) {
             finishDrag(id: id, type: type, page: index, from: drag.original, to: drag.annotation.bounds)
         }
