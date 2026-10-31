@@ -69,6 +69,17 @@ import Testing
         try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
     }
 
+    /// The watcher sees the save's own write; reporting it again would rebuild every toolbar a second time.
+    @Test func aSettingsChangeIsReportedOnce() async throws {
+        let (store, _) = try store("{}")
+        defer { store.stop() }
+        var changes = 0
+        store.onChange = { _ in changes += 1 }
+        try store.save { $0.disabled.insert("text") }
+        try await Task.sleep(for: .milliseconds(600))  // past the watcher's 200 ms
+        #expect(changes == 1)
+    }
+
     @Test func theFirstSaveCreatesTheFileItsFolderAndTheSchema() throws {
         let folder = FileManager.default.temporaryDirectory.appending(path: "PeekerTests-" + UUID().uuidString).appending(path: "peeker")
         let file = folder.appending(path: "config.json")

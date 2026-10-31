@@ -46,7 +46,8 @@ final class FileWatcher {
         source.setCancelHandler { close(fd) }
         source.resume()
         self.source = source
-        if isReplacement { scheduleChange() }
+        // A file that was missing (replaced, or not there yet when watching began) is new content.
+        if isReplacement || attempt > 0 { scheduleChange() }
     }
 
     private func handleEvent() {

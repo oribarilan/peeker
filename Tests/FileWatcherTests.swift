@@ -37,6 +37,17 @@ import Testing
         try await waitUntil(seconds: 4) { count == 1 }
     }
 
+    /// A config file created after launch: the watcher starts before the file exists.
+    @Test func aFileMissingAtStartCountsAsAChangeWhenItAppears() async throws {
+        let file = try TempFile.make(Data("a".utf8))
+        try FileManager.default.removeItem(at: file)
+        var count = 0
+        let watcher = FileWatcher(url: file) { count += 1 }
+        defer { watcher.stop() }
+        try Data("b".utf8).write(to: file)
+        try await waitUntil(seconds: 2) { count == 1 }
+    }
+
     @Test func stopEndsTheSlowRetries() async throws {
         let file = try TempFile.make(Data("a".utf8))
         var count = 0

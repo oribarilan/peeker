@@ -12,7 +12,7 @@ import PeekerKit
 ///         "pdf": { "commands": { "highlight": { "shortcut": "cmd+shift+h" } } }
 ///       }
 ///     }
-struct Config {
+struct Config: Equatable {
     var disabled: Set<String> = []
     /// Plugin id -> the extensions the config gives it in place of its default list: lowercase, no dot.
     var extensions: [String: [String]] = [:]

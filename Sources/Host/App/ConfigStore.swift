@@ -13,7 +13,7 @@ final class ConfigStore {
     /// False while the file can't be used at all (not JSON, unreadable), which locks Settings. A missing file is fine.
     private(set) var isUsable = true
     @ObservationIgnored private var watcher: FileWatcher?
-    /// Called on the main thread after every read caused by a change to the file.
+    /// Called on the main thread when the settings in use, the problems or whether the file is usable change.
     @ObservationIgnored var onChange: ((ConfigStore) -> Void)?
 
     init(url: URL = Config.defaultURL, plugins: [PluginEntry]) {
@@ -21,8 +21,7 @@ final class ConfigStore {
         self.plugins = plugins
         read()
         watcher = FileWatcher(url: url) { [weak self] in
-            guard let self else { return }
-            read()
+            guard let self, read() else { return }
             onChange?(self)
         }
     }
@@ -46,8 +45,7 @@ final class ConfigStore {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try FileReplacement.replaceContents(ofFileAt: url.path, with: data)
         if isNewFolder { try ConfigSchema.write(nextTo: url, plugins: plugins) }
-        read()
-        onChange?(self)
+        if read() { onChange?(self) }
     }
 
     struct SaveError: LocalizedError {
@@ -55,10 +53,14 @@ final class ConfigStore {
         init(_ message: String) { errorDescription = message }
     }
 
-    private func read() {
+    /// Reads the file; true when that changed anything. A Settings save sees its own write again through the watcher.
+    @discardableResult
+    private func read() -> Bool {
+        let before = (config, problems, isUsable)
         let reading = Config.load(from: url, plugins: plugins)
         if let config = reading.config { self.config = config }
         isUsable = reading.config != nil
         problems = reading.problems
+        return before != (config, problems, isUsable)
     }
 }
