@@ -17,7 +17,12 @@ final class SettingsModel {
     let store: ConfigStore
     let accessibility: AccessibilityStatus
     var selection: SettingsPane? = .general
-    /// Told when a key recorder starts or stops listening, so the quick-look key doesn't fire meanwhile.
+    /// The key recorder listening for keys, by an id such as `quickLook` or `pdf.zoom-in`. One at a time: starting
+    /// another stops this one.
+    var recorder: String? {
+        didSet { if (recorder == nil) != (oldValue == nil) { onRecordingChange?(recorder != nil) } }
+    }
+    /// Told when recording starts or stops, so the quick-look key doesn't fire meanwhile.
     @ObservationIgnored var onRecordingChange: ((Bool) -> Void)?
 
     init(store: ConfigStore, accessibility: AccessibilityStatus) {

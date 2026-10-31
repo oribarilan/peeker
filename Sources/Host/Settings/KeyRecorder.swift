@@ -55,10 +55,12 @@ struct KeyRecorder: View {
     let shortcut: Shortcut?
     let rules: KeyRecorderRules
     var conflict: (Shortcut) -> String? = { _ in nil }
+    /// Which recorder is listening, shared by all of them; this one listens while it holds `id`.
+    @Binding var listening: String?
+    let id: String
     let onRecord: (Shortcut) -> Void
-    var onRecordingChange: (Bool) -> Void = { _ in }
 
-    @State private var isRecording = false
+    private var isRecording: Bool { listening == id }
     @State private var monitor: Any?
     @State private var refusal: String?
 
@@ -73,26 +75,33 @@ struct KeyRecorder: View {
             .accessibilityLabel(isRecording ? "Recording a shortcut" : "Shortcut \(shortcut.map(Self.display) ?? "none"), click to record")
             if let refusal { Text(refusal).font(.caption).foregroundStyle(.red).multilineTextAlignment(.trailing) }
         }
-        .onDisappear(perform: stop)
+        .onChange(of: isRecording) { _, recording in recording ? listen() : unlisten() }
+        .onDisappear {
+            stop()
+            unlisten()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in stop() }
     }
 
     private func start() {
         refusal = nil
-        isRecording = true
-        onRecordingChange(true)
+        listening = id
+    }
+
+    private func stop() {
+        if isRecording { listening = nil }
+    }
+
+    private func listen() {
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             MainActor.assumeIsolated { handle(event) }
             return nil
         }
     }
 
-    private func stop() {
-        guard isRecording else { return }
+    private func unlisten() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
-        isRecording = false
-        onRecordingChange(false)
     }
 
     private func handle(_ event: NSEvent) {

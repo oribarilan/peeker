@@ -4,7 +4,7 @@ import SwiftUI
 
 /// One plugin's settings, all host rows: on/off, its extensions, its command shortcuts.
 struct PluginPane: View {
-    let model: SettingsModel
+    @Bindable var model: SettingsModel
     let plugin: PluginEntry
 
     private var store: ConfigStore { model.store }
@@ -48,8 +48,8 @@ struct PluginPane: View {
             HStack(alignment: .firstTextBaseline) {
                 KeyRecorder(shortcut: current, rules: command.isEditTool ? .editTool : .command,
                             conflict: { shortcutConflict($0, command: command.id, plugin: plugin, config: store.config, menu: menuShortcuts(in: NSApp.mainMenu ?? NSMenu())) },
-                            onRecord: { shortcut in model.save { $0.keys[key] = shortcut } },
-                            onRecordingChange: { model.onRecordingChange?($0) })
+                            listening: $model.recorder, id: key,
+                            onRecord: { shortcut in model.save { $0.keys[key] = shortcut } })
                 Button("Reset") { model.save { $0.keys[key] = nil } }
                     .disabled(current == defaultShortcut)
                     .help("Back to \(defaultShortcut.map(KeyRecorder.display) ?? "no shortcut")")

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The quick-look key: on or off, and which key.
 struct GeneralPane: View {
-    let model: SettingsModel
+    @Bindable var model: SettingsModel
 
     private var store: ConfigStore { model.store }
 
@@ -14,9 +14,8 @@ struct GeneralPane: View {
                     get: { store.config.quickLookKey != nil },
                     set: { on in model.save { $0.quickLookKey = on ? Shortcut(key: .space) : nil } }))
                 LabeledContent("Key") {
-                    KeyRecorder(shortcut: store.config.quickLookKey, rules: .quickLook,
-                                onRecord: { key in model.save { $0.quickLookKey = key } },
-                                onRecordingChange: { model.onRecordingChange?($0) })
+                    KeyRecorder(shortcut: store.config.quickLookKey, rules: .quickLook, listening: $model.recorder, id: "quickLook",
+                                onRecord: { key in model.save { $0.quickLookKey = key } })
                 }
                 .disabled(store.config.quickLookKey == nil)
             } footer: {

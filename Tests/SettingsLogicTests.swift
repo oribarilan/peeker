@@ -111,6 +111,23 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
     }
 }
 
+@Suite struct KeyRecording {
+    /// While any recorder listens, the quick-look key is off; a second recorder taking over must not turn it back on.
+    @Test func oneRecorderListensAtATime() throws {
+        let file = try TempFile.make(Data("{}".utf8), name: "config.json")
+        let store = ConfigStore(url: file, plugins: plugins)
+        defer { store.stop() }
+        let model = SettingsModel(store: store, accessibility: AccessibilityStatus())
+        var changes: [Bool] = []
+        model.onRecordingChange = { changes.append($0) }
+        model.recorder = "quickLook"
+        model.recorder = "pdf.zoom-in"
+        #expect(changes == [true])
+        model.recorder = nil
+        #expect(changes == [true, false])
+    }
+}
+
 @Suite struct MenuBarStates {
     @Test func theDotShowsForProblemsOrMissingAccessibility() {
         #expect(MenuBarItem.State(problems: 0, needsAccessibility: false) == .init(dot: false, problemsLine: nil, accessibilityLine: false))
