@@ -21,6 +21,20 @@ import Testing
     }
 }
 
+@Suite struct ShortcutParsing {
+    /// Without a key code the shortcut could never fire, so the config must list it as a problem.
+    @Test func aCharacterWithNoKeyCodeIsRefused() {
+        #expect(Shortcut(parsing: "opt+;") == nil)
+        #expect(Shortcut(parsing: "cmd+é") == nil)
+    }
+
+    @Test func aSecondKeyIsRefusedInEitherOrder() {
+        for text in ["a+esc", "esc+a", "a+space", "space+a", "tab+enter", "a+b"] {
+            #expect(Shortcut(parsing: text) == nil, "\(text)")
+        }
+    }
+}
+
 @Suite struct ShortcutFromEvent {
     private func event(keyCode: UInt16, modifiers: NSEvent.ModifierFlags = [], characters: String = "") -> NSEvent {
         NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: 0, context: nil,

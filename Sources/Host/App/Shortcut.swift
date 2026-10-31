@@ -24,16 +24,24 @@ struct Shortcut: Equatable {
             case "shift": modifiers.insert(.shift)
             case "opt", "option", "alt": modifiers.insert(.option)
             case "ctrl", "control": modifiers.insert(.control)
-            case "space" where key == nil: key = .space
-            case "esc", "escape": key = key ?? .escape
-            case "tab": key = key ?? .tab
-            case "enter", "return": key = key ?? .enter
-            case _ where part.count == 1 && key == nil: key = .character(part.first!)
-            default: return nil
+            default:
+                guard key == nil, let named = Self.key(named: part) else { return nil }
+                key = named
             }
         }
         guard let key else { return nil }
         self.init(key: key, modifiers: modifiers)
+    }
+
+    /// The key a config part names; nil for anything the keyboard can't press, so the shortcut could never fire.
+    private static func key(named name: String) -> Key? {
+        switch name {
+        case "space": .space
+        case "esc", "escape": .escape
+        case "tab": .tab
+        case "enter", "return": .enter
+        default: name.count == 1 && ansiKeyCodes[name.first!] != nil ? .character(name.first!) : nil
+        }
     }
 
     /// The key typed in `event`, or nil for a key the config can't write (arrows, function keys).
