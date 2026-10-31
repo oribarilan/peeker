@@ -1,11 +1,11 @@
 #!/bin/bash
 # Records the user-facing flows as evidence: Space in Finder on files Peeker opens and on files it leaves to Quick
 # Look, Open With in a document window, a config clash in the menu bar icon, and changes made in Settings (a plugin
-# off and on, moving an extension and Reset, the quick-look key recorder and Off, a new PDF shortcut). Writes
-# screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with
-# SCREEN_RECORD=1; scripts/screen-test.sh runs it with the other flows.
+# off and on, moving an extension and Reset, the quick-look key recorder and Off, a new PDF shortcut, one recorder
+# listening at a time). Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus
+# a screen recording with SCREEN_RECORD=1; scripts/screen-test.sh runs it with the other flows.
 #
-# Takes over the keyboard and Finder for about four minutes: the screen must be unlocked and left alone.
+# Takes over the keyboard and Finder for about two minutes: the screen must be unlocked and left alone.
 # usage: record-flows.sh [path/to/Peeker.app]
 FLOW=flows
 source "$(dirname "$0")/common.sh" "$@"
@@ -148,6 +148,22 @@ check "The new shortcut isn't in the read view's toolbar" "$("$DRIVE" tree Peeke
 check "The new shortcut turns on Edit mode" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight Selection”' | awk '{print ($1 > 0) ? "yes" : "no"}')" yes
 "$DRIVE" shot Peeker "$OUT/12c-pdf-shortcut.png" form.pdf
 "$DRIVE" menu Peeker File Close && "$DRIVE" wait Peeker window form.pdf --gone
+
+# Only one shortcut recorder listens at a time, the key goes to its command, and switching apps stops it, so Space
+# reaches the panel again either way.
+front
+"$DRIVE" press Peeker "Shortcut ⌘=, click to record" && sleep 0.3
+"$DRIVE" press Peeker "Shortcut ⌘-, click to record" && sleep 0.3
+check "Only the last recorder pressed listens" "$("$DRIVE" tree Peeker 14 | grep -c '“Recording a shortcut”')" 1
+"$DRIVE" keys Peeker opt+cmd+z && sleep 1
+check "The key goes to that recorder's command" "$(cfg "c['plugins']['pdf']['commands']['zoom-in']['shortcut'] + ' ' + c['plugins']['pdf']['commands']['zoom-out']['shortcut']")" "cmd+= opt+cmd+z"
+space 12d-space-after-recording "$F/notes.md" Peeker
+front
+"$DRIVE" press Peeker "Shortcut ⌘=, click to record" && sleep 0.3
+"$DRIVE" select "$F/notes.md" && sleep 1
+check "Switching to Finder stops the recorder" "$("$DRIVE" tree Peeker 14 | grep -c '“Recording a shortcut”')" 0
+space 12e-space-after-switching "$F/notes.md" Peeker
+front
 
 "$DRIVE" row Peeker Permissions && sleep 2
 "$DRIVE" shot Peeker "$OUT/12-settings-permissions.png"
