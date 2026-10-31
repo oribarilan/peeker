@@ -134,6 +134,13 @@ final class EditController {
         return corners.first { abs($0.1.x - point.x) <= tolerance && abs($0.1.y - point.y) <= tolerance }?.0
     }
 
+    /// `rect` moved back just enough that `minimumSize` of it stays on the page: a mark off its page can't be saved.
+    static func kept(_ rect: CGRect, on page: CGRect) -> CGRect {
+        let x = min(max(rect.minX, page.minX - rect.width + minimumSize), page.maxX - minimumSize)
+        let y = min(max(rect.minY, page.minY - rect.height + minimumSize), page.maxY - minimumSize)
+        return CGRect(origin: CGPoint(x: x, y: y), size: rect.size)
+    }
+
     /// `rect` with `corner` dragged by `delta` (page space, y up); the opposite corner stays put.
     static func resized(_ rect: CGRect, corner: Corner, by delta: CGSize) -> CGRect {
         var minX = rect.minX, maxX = rect.maxX, minY = rect.minY, maxY = rect.maxY
@@ -230,7 +237,7 @@ final class EditController {
         let point = view.convert(view.convert(event.locationInWindow, from: nil), to: page)
         let delta = CGSize(width: point.x - drag.start.x, height: point.y - drag.start.y)
         let rect = drag.corner.map { Self.resized(drag.original, corner: $0, by: delta) } ?? drag.original.offsetBy(dx: delta.width, dy: delta.height)
-        PDFMarks.setBounds(rect, of: drag.annotation)
+        PDFMarks.setBounds(Self.kept(rect, on: page.bounds(for: .mediaBox)), of: drag.annotation)
         overlay.refresh()
         return true
     }

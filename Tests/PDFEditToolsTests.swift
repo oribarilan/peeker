@@ -93,6 +93,30 @@ private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
         #expect(document.pendingEdits == pending)
     }
 
+    /// A mark off its page can't be saved, so every later save would fail until an undo.
+    @Test func aMarkDraggedOffThePageStaysOnItAndSaves() async throws {
+        let file = try TempFile.makePDF(pages: 1)
+        let document = try await open(file)
+        let window = inWindow(document)
+        let mark = PDFMark(id: PDFEdit.newID(), page: 0, rect: place, kind: .textBox(text: "x", fontSize: 12))
+        #expect(document.change(.add(mark)))
+        let page = try #require(document.pdfView.document?.page(at: 0))
+        func event(_ type: NSEvent.EventType, _ point: CGPoint) -> NSEvent {
+            let location = document.pdfView.convert(document.pdfView.convert(point, from: page), to: nil)
+            return NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                                      context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        }
+        let tools = try #require(document.tools)
+        let start = CGPoint(x: place.midX, y: place.midY)
+        let off = CGPoint(x: start.x + 2000, y: start.y - 2000)
+        #expect(tools.mouseDown(with: event(.leftMouseDown, start), at: document.pdfView.convert(start, from: page)))
+        #expect(tools.mouseDragged(with: event(.leftMouseDragged, off)))
+        #expect(tools.mouseUp(with: event(.leftMouseUp, off)))
+        let moved = try #require(PDFMarks.find(mark.id, on: page)?.bounds)
+        #expect(moved.intersects(page.bounds(for: .mediaBox)))
+        try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+    }
+
     @Test func movingASavedMarkIsAnEditThatKeepsItsName() async throws {
         let file = try TempFile.makePDF(pages: 1)
         try await PDFPlugin.write([.add(PDFMark(id: "peeker-s", page: 0, rect: place, kind: .signature(strokes: [[.zero, CGPoint(x: 1, y: 1)]])))], to: file.path)
