@@ -44,7 +44,8 @@ nonisolated struct PDFMark: Codable, Sendable, Equatable {
     }
 }
 
-/// One change to a PDF. Applied to the view at once, and again to a fresh copy of the file on save.
+/// One change to a PDF. Applied to the view at once, and again to a fresh copy of the file on save. Page indices
+/// refer to the document as it was just before the edit, so a list of edits only makes sense applied in order.
 nonisolated enum PDFEdit: Codable, Sendable, Equatable {
     case add(PDFMark)
     /// A move or resize of one of Peeker's marks.
@@ -54,6 +55,15 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
     case delete(id: String, type: MarkType, page: Int)
     /// A form field's value as PDFKit reports it: the text, a choice, or a button's on-state name ("Off" when off).
     case field(name: String, value: String)
+    /// Turns pages a quarter turn: `by` is 90 (clockwise) or -90.
+    case rotatePages(pages: [Int], by: Int)
+    /// Puts the pages in a new order: `order[i]` is the index of the page that ends up at `i`.
+    case reorderPages(order: [Int])
+    /// Removes pages, keeping them under `token` so the matching restore puts back the same pages.
+    case deletePages(pages: [Int], token: String)
+    /// Puts deleted pages back at `pages` (their indices once restored). `data` holds copies of them as a PDF, for
+    /// when the pages kept under `token` aren't at hand: the deletion was saved, or this comes from a recovery copy.
+    case restorePages(pages: [Int], token: String, data: Data)
 
     /// The prefix that marks an annotation as Peeker's own: only those can be selected and changed.
     static let idPrefix = "peeker-"
@@ -65,7 +75,23 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
         switch self {
         case .add(let mark): mark.id
         case .setBounds(let id, _, _, _), .setText(let id, _, _, _, _), .delete(let id, _, _): id
-        case .field: nil
+        case .field, .rotatePages, .reorderPages, .deletePages, .restorePages: nil
+        }
+    }
+
+    /// Rotates, removes, inserts or reorders pages.
+    var isPageEdit: Bool {
+        switch self {
+        case .rotatePages, .reorderPages, .deletePages, .restorePages: true
+        default: false
+        }
+    }
+
+    /// Changes which index some page has.
+    var movesPages: Bool {
+        switch self {
+        case .reorderPages, .deletePages, .restorePages: true
+        default: false
         }
     }
 
@@ -103,6 +129,8 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
                 if !addedHere { out.append(edit) }
             case .field(let name, _):
                 out.removeAll { if case .field(name, _) = $0 { true } else { false } }
+                out.append(edit)
+            case .rotatePages, .reorderPages, .deletePages, .restorePages:
                 out.append(edit)
             }
         }

@@ -27,7 +27,7 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
     @Test func offersZoomAndTheEditTools() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
         #expect(document.commands.map(\.id) == PDFPlugin.commands.map(\.id))
-        #expect(document.commands.filter(\.isEditTool).map(\.id) == ["text-box", "sign", "highlight"])
+        #expect(document.commands.filter(\.isEditTool).map(\.id) == ["text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
     }
 
     @Test func notAPDFSaysSo() async throws {

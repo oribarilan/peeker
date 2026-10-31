@@ -12,6 +12,8 @@ nonisolated enum PDFMarks {
     private static let styleKey = PDFAnnotationKey(rawValue: "/DS")
     private static let maxText = 10_000
     private static let maxStrokes = 500, maxPoints = 20_000
+    /// The most a restore's copy of deleted pages may hold; it can come from a recovery file.
+    private static let maxRestoreBytes = 256 << 20
 
     /// The annotation's name when Peeker made it, else nil: other apps' annotations are never selected or changed.
     static func id(of annotation: PDFAnnotation) -> String? {
@@ -78,7 +80,8 @@ nonisolated enum PDFMarks {
     }
 
     /// Applies `edit` to `document`, or throws without changing it when the edit doesn't fit. `fileName` is for messages.
-    static func apply(_ edit: PDFEdit, to document: PDFDocument, fileName: String) throws(PluginError) {
+    /// `stash` keeps deleted pages for their restore: one per document shown, and one per save.
+    static func apply(_ edit: PDFEdit, to document: PDFDocument, fileName: String, stash: PageStash = PageStash()) throws(PluginError) {
         switch edit {
         case .add(let mark):
             let page = try page(mark.page, of: document, for: mark.type, fileName: fileName)
@@ -110,7 +113,53 @@ nonisolated enum PDFMarks {
                 throw PluginError("Can't save the field “\(name)”: it's no longer in “\(fileName)”.")
             }
             for widget in widgets { widget.widgetStringValue = value }
+        case .rotatePages(let pages, let by):
+            guard by == 90 || by == -90 else { throw PluginError("Can't save the page rotation: it isn't a quarter turn.") }
+            for page in try self.pages(pages, of: document, fileName: fileName) {
+                page.rotation = ((page.rotation + by) % 360 + 360) % 360
+            }
+        case .reorderPages(let order):
+            let count = document.pageCount
+            guard order.count == count, Set(order) == Set(0..<count) else {
+                throw PluginError("Can't save the new page order: “\(fileName)” has \(count) pages.")
+            }
+            let wanted = order.compactMap(document.page(at:))
+            // Moves keep each page object, with its annotations, and touch only pages out of place. Not
+            // `exchangePage`: it crashes on a page that was removed and inserted again.
+            for (index, page) in wanted.enumerated() where document.page(at: index) !== page {
+                document.removePage(at: document.index(for: page))
+                document.insert(page, at: index)
+            }
+        case .deletePages(let pages, let token):
+            let targets = try self.pages(pages, of: document, fileName: fileName)
+            guard targets.count < document.pageCount else { throw PluginError("Can't save: a PDF needs at least one page.") }
+            stash.pages[token] = targets
+            for index in pages.sorted(by: >) { document.removePage(at: index) }
+        case .restorePages(let pages, let token, let data):
+            let total = document.pageCount + pages.count
+            guard !pages.isEmpty, Set(pages).count == pages.count, pages.allSatisfy({ (0..<total).contains($0) }) else {
+                throw PluginError("Can't save the restored pages: “\(fileName)” has \(document.pageCount) pages.")
+            }
+            let restored: [PDFPage]
+            if let kept = stash.pages[token], kept.count == pages.count {
+                restored = kept
+                stash.pages[token] = nil  // the same page objects can't go in twice
+            } else {
+                guard data.count <= maxRestoreBytes, let copy = PDFDocument(data: data), !copy.isLocked, copy.pageCount == pages.count else {
+                    throw PluginError("Can't save the restored pages: their copy is missing or damaged.")
+                }
+                restored = (0..<copy.pageCount).compactMap(copy.page(at:))
+            }
+            for (index, page) in zip(pages.sorted(), restored) { document.insert(page, at: index) }
         }
+    }
+
+    /// The pages at `indices`, in page order; throws unless they're distinct, in range and at least one.
+    private static func pages(_ indices: [Int], of document: PDFDocument, fileName: String) throws(PluginError) -> [PDFPage] {
+        guard !indices.isEmpty, Set(indices).count == indices.count, indices.allSatisfy({ (0..<document.pageCount).contains($0) }) else {
+            throw PluginError("Can't save the page changes: “\(fileName)” has \(document.pageCount) pages.")
+        }
+        return indices.sorted().compactMap(document.page(at:))
     }
 
     /// Moves or resizes; a signature's strokes scale with it, and a text box keeps its size.
@@ -196,4 +245,9 @@ nonisolated enum PDFMarks {
                 && strokes.allSatisfy { $0.allSatisfy { (-0.01...1.01).contains($0.x) && (-0.01...1.01).contains($0.y) } }
         }
     }
+}
+
+/// Pages removed by `.deletePages`, by token, for the matching `.restorePages`.
+nonisolated final class PageStash {
+    var pages: [String: [PDFPage]] = [:]
 }

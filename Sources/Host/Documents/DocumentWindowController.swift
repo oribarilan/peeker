@@ -3,7 +3,7 @@ import PeekerKit
 
 /// A document window (tabbed). Owns the chrome: "Open With" and the plugin's commands in the toolbar, and the save
 /// prompts as sheets.
-final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, SavePrompts {
+final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, NSToolbarItemValidation, SavePrompts {
     let url: URL
     private let catalog: PluginCatalog
     private var config: Config
@@ -157,6 +157,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         switch menuItem.action {
         case #selector(saveDocument(_:)):
             return current?.isEdited == true && current?.isSaving == false
+        case #selector(runCommand(_:)):
+            return unavailableReason(forCommandAt: menuItem.tag) == nil
         case #selector(printDocument(_:)):
             return current?.pluginDocument?.printJob != nil
         case #selector(toggleEditMode(_:)):
@@ -165,6 +167,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         default:
             return true
         }
+    }
+
+    /// Greys out a command its document says can't run now, with the reason as the tooltip.
+    func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
+        guard item.action == #selector(runCommand(_:)) else { return true }
+        let reason = unavailableReason(forCommandAt: item.tag)
+        item.toolTip = reason ?? current.flatMap { $0.commands.indices.contains(item.tag) ? $0.commands[item.tag].spec.title : nil }
+        return reason == nil
+    }
+
+    private func unavailableReason(forCommandAt index: Int) -> String? {
+        guard let document = current, document.commands.indices.contains(index) else { return nil }
+        return document.pluginDocument?.unavailableReason(for: document.commands[index].spec.id)
     }
 
     /// Asks Save / Don't Save / Cancel when the document has unsaved edits. True when the caller may close or replace it.

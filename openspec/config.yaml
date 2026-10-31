@@ -46,7 +46,12 @@ context: |
      drawn is kept in memory until Peeker quits. Edit is disabled, with the reason, for XFA forms, PDFs whose
      permissions forbid changes, locked PDFs and digitally signed PDFs. The edit tools load only when Edit mode
      turns on, so opening stays as fast. Tool shortcuts rebind like other plugin commands; Cmd+E is fixed.
-  Later: PDF page operations, image editing.
+  3. Find and Print (decided 2026-10-31; openspec/changes/find-and-print): a find bar for PDFs and File > Print
+     for every format, in document windows only.
+  4. PDF page operations (decided 2026-10-31; openspec/changes/pdf-page-operations): rotate, delete and reorder
+     pages in Edit mode, from the thumbnails, the Commands menu and the toolbar; saved like other edits, with
+     Undo reaching past saves. Inserting, extracting and blank pages wait.
+  Later: image editing.
 
   Open questions:
   - Text-based formats. Plain text, logs, source, structured data (JSON, YAML, XML), CSV and Markdown differ a

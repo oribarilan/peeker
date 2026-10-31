@@ -50,6 +50,9 @@ public struct OpenContext: Sendable {
     var commands: [CommandSpec] { get }
     /// Runs the command with `id`. Returns false for an id it doesn't know.
     func perform(_ id: String) -> Bool
+    /// Why the command with `id` can't run right now, shown as its tooltip while its menu item and button are greyed
+    /// out; nil (the default) when it can. Asked on every menu check, so it must be cheap.
+    func unavailableReason(for command: String) -> String?
     /// Re-reads the file after it changed on disk, keeping the view (scroll position, zoom) as it is. The host calls
     /// it only while there are no unsaved edits, and shows `sidebar` again afterwards. Returns false when the document
     /// can't reload in place; the host then opens the file again.
@@ -90,6 +93,7 @@ public extension PluginDocument {
     var sidebar: [SidebarPanel] { [] }
     var commands: [CommandSpec] { [] }
     func perform(_ id: String) -> Bool { false }
+    func unavailableReason(for command: String) -> String? { nil }
     func reload() async throws(PluginError) -> Bool { false }
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? { nil }
     var onEdit: (() -> Void)? {

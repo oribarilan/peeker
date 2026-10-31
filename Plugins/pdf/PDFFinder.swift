@@ -9,6 +9,7 @@ final class PDFFinder: NSObject {
     private(set) var current: Int?
     private(set) var isSearching = false
     private var query = ""
+    private var selectsFirst = true
     /// Whether the matches show on the pages: off while the find bar is closed.
     var highlights = true {
         didSet { showHighlights() }
@@ -28,14 +29,17 @@ final class PDFFinder: NSObject {
         stop()
     }
 
-    /// "2 of 5", "Not found", or empty while there's nothing to say yet.
+    /// "2 of 5", "5 matches", "Not found", or empty while there's nothing to say yet.
     var status: String {
         if let current { return "\(current + 1) of \(matches.count)" }
+        if !matches.isEmpty { return matches.count == 1 ? "1 match" : "\(matches.count) matches" }
         return query.isEmpty || isSearching ? "" : "Not found"
     }
 
-    func search(_ text: String) {
+    /// Searches for `text`. The first match becomes current, selected and in view, unless `selectingFirst` is false.
+    func search(_ text: String, selectingFirst: Bool = true) {
         stop()
+        selectsFirst = selectingFirst
         matches = []
         current = nil
         query = text
@@ -45,6 +49,17 @@ final class PDFFinder: NSObject {
             isSearching = true
             document.beginFindString(text, withOptions: [.caseInsensitive, .diacriticInsensitive])
         }
+        onChange?()
+    }
+
+    /// Runs the last search again after the pages changed, leaving the view where it is.
+    func searchAgain() {
+        if !query.isEmpty { search(query, selectingFirst: false) }
+    }
+
+    /// Stops a search in progress, keeping what it found so far.
+    func cancel() {
+        stop()
         onChange?()
     }
 
@@ -82,7 +97,7 @@ final class PDFFinder: NSObject {
         guard search == generation, let selection else { return }
         selection.color = .findHighlightColor
         matches.append(selection)
-        if current == nil {
+        if current == nil, selectsFirst {
             current = 0
             select()
         }

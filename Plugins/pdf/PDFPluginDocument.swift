@@ -22,6 +22,8 @@ final class PDFPluginDocument: PluginDocument {
     /// The document's own undo history, which the view hands out only in Edit mode. Not the window's: that one
     /// outlives the document (Open With, reload), and its actions would then run on a freed document.
     private(set) lazy var undoManager = UndoManager()
+    /// Pages deleted in this view, for their undo.
+    private let stash = PageStash()
     /// Opaque: PDFKit drops alpha when writing and draws highlights with multiply, so text stays readable and the
     /// highlight looks the same before and after saving.
     static let highlightColor = RGBA(red: 1, green: 0.8, blue: 0, alpha: 1)
@@ -34,9 +36,14 @@ final class PDFPluginDocument: PluginDocument {
         self.editable = editable
         editMode = !editable ? .none : uneditableReason.map { .unavailable(reason: $0) } ?? .available
         pdfView.document = document
+        (document as? PeekerPDFDocument)?.onForeignChange = { [weak self] before in self?.pagesDragged(before: before) }
         pdfView.autoScales = true
         pdfView.displayMode = .singlePageContinuous
     }
+
+    /// The thumbnails last made for the sidebar, for the selected pages.
+    private weak var thumbnails: PageThumbnails?
+    private static let pageCommands: Set = ["rotate-left", "rotate-right", "delete-page"]
 
     /// The pages, with the find bar above them from the first Cmd+F. No find in the Space panel.
     private lazy var container = PDFFindContainer(pdfView: pdfView, allowsFind: editable)
@@ -44,8 +51,14 @@ final class PDFPluginDocument: PluginDocument {
     var focusView: NSView? { pdfView }
 
     var sidebar: [SidebarPanel] {
-        let thumbnails = PDFThumbnailView()
+        let pageCommands = PDFPlugin.commands.filter { Self.pageCommands.contains($0.id) }
+        let thumbnails = PageThumbnails(commands: pageCommands.map { ($0.id, $0.title) })
         thumbnails.pdfView = pdfView
+        thumbnails.allowsPageChanges = allowsPageChanges
+        thumbnails.isEditing = isEditing
+        thumbnails.onCommand = { [weak self] id in self?.perform(id) == true }
+        thumbnails.canRun = { [weak self] id in self?.unavailableReason(for: id) == nil }
+        self.thumbnails = thumbnails
         thumbnails.thumbnailSize = NSSize(width: 90, height: 120)
         thumbnails.backgroundColor = .clear
         return [SidebarPanel(thumbnails, sizing: .fill)] + (InfoPanel.make(info).map { [$0] } ?? [])
@@ -68,6 +81,7 @@ final class PDFPluginDocument: PluginDocument {
         guard editMode == .available, on != isEditing else { return }
         isEditing = on
         pdfView.isEditing = on
+        thumbnails?.isEditing = on
         pdfView.editUndoManager = on ? undoManager : nil
         if on, tools == nil {
             let tools = EditController(document: self)
@@ -117,10 +131,33 @@ final class PDFPluginDocument: PluginDocument {
                     change(.add(PDFMark(id: PDFEdit.newID(), page: document.index(for: page), rect: line.bounds(for: page), kind: .highlight(Self.highlightColor))))
                 }
             }
+        case "rotate-left" where isEditing, "rotate-right" where isEditing:
+            guard unavailableReason(for: id) == nil else { return false }
+            change(.rotatePages(pages: targetPages, by: id == "rotate-left" ? -90 : 90))
+        case "delete-page" where isEditing:
+            guard unavailableReason(for: id) == nil else { return false }
+            change(.deletePages(pages: targetPages, token: UUID().uuidString))
         default:
             return false
         }
         return true
+    }
+
+    func unavailableReason(for command: String) -> String? {
+        guard Self.pageCommands.contains(command), editMode == .available else { return nil }
+        if !allowsPageChanges { return "This PDF's permissions don't allow page changes." }
+        if command == "delete-page", targetPages.count >= pdfView.document?.pageCount ?? 0 { return "A PDF needs at least one page." }
+        return nil
+    }
+
+    private var allowsPageChanges: Bool { pdfView.document?.allowsDocumentAssembly ?? false }
+
+    /// The pages selected in the sidebar, or the current page when none are.
+    private var targetPages: [Int] {
+        guard let document = pdfView.document else { return [] }
+        let selected = (thumbnails?.selectedPages ?? []).map(document.index(for:)).filter { $0 != NSNotFound }
+        if !selected.isEmpty { return selected.sorted() }
+        return pdfView.currentPage.map { [document.index(for: $0)] } ?? []
     }
 
     /// The unsaved edits, folded; empty when there are none.
@@ -135,7 +172,15 @@ final class PDFPluginDocument: PluginDocument {
     func restore(encoded edits: Data) -> Bool {
         // Old records come from builds that highlighted any PDF; a signed or locked one must not take them.
         guard editMode == .available, let decoded = try? JSONDecoder().decode(PDFEdits.self, from: edits) else { return false }
-        return decoded.operations.reduce(false) { change($1) || $0 }
+        var applied = false
+        for edit in decoded.operations {
+            if change(edit) {
+                applied = true
+            } else if edit.movesPages {
+                break  // every later page index would point at the wrong page
+            }
+        }
+        return applied
     }
 
     func save(_ edits: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError) {
@@ -148,7 +193,8 @@ final class PDFPluginDocument: PluginDocument {
         guard let document = pdfView.document else { return }
         for entry in pending.reversed() {
             do throws(PluginError) {
-                try PDFMarks.apply(entry.inverse, to: document, fileName: url.lastPathComponent)
+                try applyLive(entry.inverse, to: document)
+                if entry.inverse.isPageEdit { pagesChanged() }
                 noteApplied(entry.inverse)
             } catch {
                 Self.log.error("couldn't take back an edit: \(error.message, privacy: .private)")
@@ -162,12 +208,17 @@ final class PDFPluginDocument: PluginDocument {
     /// file (recovered edits for a file that changed, say).
     @discardableResult
     func change(_ edit: PDFEdit) -> Bool {
+        if edit.isPageEdit {
+            tools?.end()  // finishes typing first, and a selected mark's page index may change
+            container.finder.cancel()  // PDFKit's search reads the pages on another thread
+        }
         guard let document = pdfView.document, let inverse = inverse(of: edit, in: document) else {
             Self.log.error("skipped an edit for something no longer in the file")
             return false
         }
         do throws(PluginError) {
-            try PDFMarks.apply(edit, to: document, fileName: url.lastPathComponent)
+            try applyLive(edit, to: document)
+            if edit.isPageEdit { pagesChanged() }
         } catch {
             // Saving refuses the whole file over one edit it can't write, so such an edit never becomes pending.
             Self.log.error("skipped an edit: \(error.message, privacy: .private)")
@@ -176,6 +227,44 @@ final class PDFPluginDocument: PluginDocument {
         noteApplied(edit)
         record(edit, inverse: inverse)
         return true
+    }
+
+    /// Applies an edit to the document shown, as Peeker's own change rather than a thumbnail drag.
+    private func applyLive(_ edit: PDFEdit, to document: PDFDocument) throws(PluginError) {
+        let apply = { () throws(PluginError) in try PDFMarks.apply(edit, to: document, fileName: self.url.lastPathComponent, stash: self.stash) }
+        guard let shown = document as? PeekerPDFDocument else { return try apply() }
+        try shown.own { () throws(PluginError) in try apply() }
+    }
+
+    /// Pages were moved by a drag in the thumbnails. Puts the original page objects (PDFKit leaves copies) in their
+    /// new places and records the move; puts the old order back when it isn't a move, or isn't allowed.
+    private func pagesDragged(before: [PDFPage]) {
+        guard let document = pdfView.document as? PeekerPDFDocument else { return }
+        tools?.end()
+        container.finder.cancel()
+        let after = (0..<document.pageCount).compactMap(document.page(at:))
+        let allowed = isEditing && allowsPageChanges
+        let order = PeekerPDFDocument.order(before: before, after: after).flatMap { allowed ? $0 : nil }
+        let wanted = order.map { $0.map { before[$0] } } ?? before
+        document.own {
+            for page in after where !wanted.contains(where: { $0 === page }) { document.removePage(at: document.index(for: page)) }
+            for (index, page) in wanted.enumerated() where index >= document.pageCount || document.page(at: index) !== page {
+                let at = document.index(for: page)
+                if at != NSNotFound { document.removePage(at: at) }
+                document.insert(page, at: index)
+            }
+        }
+        pagesChanged()
+        guard let order else { return NSSound.beep() }
+        guard order != Array(order.indices) else { return }
+        var back = order
+        for (index, from) in order.enumerated() { back[from] = index }
+        record(.reorderPages(order: order), inverse: .reorderPages(order: back))
+    }
+
+    private func pagesChanged() {
+        pdfView.layoutDocumentView()
+        container.finder.searchAgain()
     }
 
     private func noteApplied(_ edit: PDFEdit) {
@@ -213,7 +302,31 @@ final class PDFPluginDocument: PluginDocument {
         case .field(let name, _):
             let widget = (0..<document.pageCount).lazy.compactMap { document.page(at: $0)?.annotations.first { $0.fieldName == name } }.first
             return widget.map { .field(name: name, value: $0.widgetStringValue ?? "") }
+        case .rotatePages(let pages, let by):
+            return .rotatePages(pages: pages, by: -by)
+        case .reorderPages(let order):
+            guard order.count == document.pageCount, Set(order) == Set(order.indices) else { return nil }
+            var back = order
+            for (index, from) in order.enumerated() { back[from] = index }
+            return .reorderPages(order: back)
+        case .deletePages(let pages, let token):
+            return copies(of: pages, in: document).map { .restorePages(pages: pages.sorted(), token: token, data: $0) }
+        case .restorePages(let pages, let token, _):
+            return .deletePages(pages: pages, token: token)
         }
+    }
+
+    /// The pages at `indices` as a PDF of copies, so a deletion can be undone after it was saved. Copying drops the
+    /// annotations' names and styles, so they're put back as when saving moved pages.
+    private func copies(of indices: [Int], in document: PDFDocument) -> Data? {
+        let pages = indices.sorted().compactMap { (0..<document.pageCount).contains($0) ? document.page(at: $0) : nil }
+        guard pages.count == indices.count else { return nil }
+        let copy = PDFDocument()
+        for (position, page) in pages.enumerated() {
+            guard let duplicate = page.copy() as? PDFPage else { return nil }
+            copy.insert(duplicate, at: position)
+        }
+        return copy.dataRepresentation().flatMap { MovedPageRepair.repaired($0, kept: MovedPageRepair.kept(on: pages)) }
     }
 }
 

@@ -13,11 +13,14 @@ public enum PDFPlugin: Plugin {
         CommandSpec(id: "text-box", title: "Text Box", symbol: "character.textbox", shortcut: "ctrl+cmd+t", isEditTool: true),
         CommandSpec(id: "sign", title: "Sign", symbol: "signature", shortcut: "ctrl+cmd+s", isEditTool: true),
         CommandSpec(id: "highlight", title: "Highlight Selection", symbol: "highlighter", shortcut: "ctrl+cmd+h", isEditTool: true),
+        CommandSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", shortcut: "cmd+l", isEditTool: true),
+        CommandSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
+        CommandSpec(id: "delete-page", title: "Delete Page", symbol: "trash", isEditTool: true),
     ]
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let checked = try await check(url)
-        guard let document = PDFDocument(url: url) else { throw PluginError("This file isn't a readable PDF.") }
+        guard let document = PeekerPDFDocument(url: url) else { throw PluginError("This file isn't a readable PDF.") }
         // Edit mode adds annotations and fills in fields, so it needs those two permissions, not "changes" to the pages.
         let reason = checked.uneditableReason
             ?? (document.allowsCommenting && document.allowsFormFieldEntry ? nil : "This PDF's permissions don't allow changes.")
@@ -58,8 +61,15 @@ public enum PDFPlugin: Plugin {
         let name = URL(filePath: path).lastPathComponent
         guard let document = PDFDocument(url: URL(filePath: path)) else { throw PluginError("“\(name)” is no longer a readable PDF.") }
         guard !document.isLocked else { throw PluginError("This PDF is password protected.") }
-        for edit in edits { try PDFMarks.apply(edit, to: document, fileName: name) }
-        guard let data = document.dataRepresentation() else { throw PluginError("“\(name)” couldn't be written as a PDF.") }
+        let stash = PageStash()
+        for edit in edits { try PDFMarks.apply(edit, to: document, fileName: name, stash: stash) }
+        let movesPages = edits.contains(where: \.movesPages)
+        let kept = movesPages ? MovedPageRepair.kept(in: document) : []
+        guard var data = document.dataRepresentation() else { throw PluginError("“\(name)” couldn't be written as a PDF.") }
+        if movesPages {
+            guard let repaired = MovedPageRepair.repaired(data, kept: kept) else { throw PluginError("“\(name)” couldn't be written as a PDF.") }
+            data = repaired
+        }
         try FileReplacement.replaceContents(ofFileAt: path, with: data)
     }
 
