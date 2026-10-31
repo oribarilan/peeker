@@ -32,6 +32,16 @@ saved() { "$PDF" inspect "$FORM" | grep -c "^$1\$"; }
 # The screen frame of an element: x y width height.
 frame() { "$DRIVE" frame Peeker "$@" || echo "0 0 0 0"; }
 
+# Quits Peeker and stops the recorder however the run ends, so an aborted run leaves neither running.
+RECORDER=
+stop() {
+    osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
+    sleep 1
+    [ -n "$RECORDER" ] && kill -INT "$RECORDER" 2>/dev/null && wait "$RECORDER" 2>/dev/null
+    RECORDER=
+}
+trap stop EXIT
+trap 'exit 130' INT TERM
 osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
 sleep 1
 open --env PEEKER_CONFIG="$CONFIG" -a "$APP" "$FORM"
@@ -39,7 +49,7 @@ sleep 2.5
 # macOS doesn't always bring an app opened from a terminal to the front, and its Commands menu fills in only then.
 osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
 sleep 1
-"$DRIVE" type Peeker "" || { echo "Peeker didn't come to the front; nothing was sent"; osascript -e 'tell application "Peeker" to quit'; exit 2; }
+"$DRIVE" type Peeker "" || { echo "Peeker didn't come to the front; nothing was sent"; exit 2; }
 screencapture -v -V 90 -x -k -C "$OUT/pdf-flow.mov" &
 RECORDER=$!
 sleep 1
@@ -103,10 +113,7 @@ sleep 1
 check "Leaving a saved Edit mode asks nothing and hides the tools" "$(tools_shown)" 0
 "$DRIVE" shot Peeker "$OUT/6-saved-read-view.png"
 
-osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
-sleep 1
-kill -INT "$RECORDER" 2>/dev/null
-wait "$RECORDER" 2>/dev/null
+stop
 avconvert --preset Preset1920x1080 --source "$OUT/pdf-flow.mov" --output "$OUT/pdf-flow.mp4" >/dev/null 2>&1 && rm "$OUT/pdf-flow.mov"
 echo "evidence in $OUT"
 ! grep -q FAIL "$RESULTS"

@@ -32,6 +32,16 @@ RESULTS="$OUT/results.txt"
 : > "$RESULTS"
 check() { if [ "$2" = "$3" ]; then echo "ok    $1: $2" | tee -a "$RESULTS"; else echo "FAIL  $1: got $2, wanted $3" | tee -a "$RESULTS"; fi; }
 
+# Quits Peeker and stops the recorder however the run ends, so an aborted run leaves neither running.
+RECORDER=
+stop() {
+    osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
+    sleep 1
+    [ -n "$RECORDER" ] && kill -INT "$RECORDER" 2>/dev/null && wait "$RECORDER" 2>/dev/null
+    RECORDER=
+}
+trap stop EXIT
+trap 'exit 130' INT TERM
 osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
 sleep 1
 open --env PEEKER_CONFIG="$CONFIG" -a "$APP"
@@ -179,10 +189,7 @@ sleep 1.5
 check "Fixing the file unlocks them" "$("$DRIVE" enabled Peeker "Quick look panel")" true
 
 echo '{}' > "$CONFIG"
-osascript -e 'tell application "Peeker" to quit' >/dev/null 2>&1
-sleep 1
-kill -INT "$RECORDER" 2>/dev/null
-wait "$RECORDER" 2>/dev/null
+stop
 avconvert --preset Preset1920x1080 --source "$OUT/flows.mov" --output "$OUT/flows.mp4" >/dev/null 2>&1 && rm "$OUT/flows.mov"
 echo "evidence in $OUT"
 ! grep -q FAIL "$RESULTS"
