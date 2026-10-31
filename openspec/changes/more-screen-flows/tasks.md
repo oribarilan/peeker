@@ -16,7 +16,7 @@
 
 ## 4. Crash recovery flow
 
-- [ ] 4.1 Write `scripts/screen/recovery-flow.sh`: edit a text file and a form PDF's Name field, wait for two records, kill the build under test with SIGKILL, relaunch with the same recovery folder; check both windows reopen, the PDF shows the Edit mode tools, closing each shows the Save sheet, and after Don't Save on both the recovery folder is empty; verify it passes on its own
+- [x] 4.1 Write `scripts/screen/recovery-flow.sh`: edit a text file and a form PDF's Name field, wait for two records, kill the build under test with SIGKILL, relaunch with the same recovery folder; check both windows reopen, the PDF shows the Edit mode tools, closing each shows the Save sheet, and after Don't Save on both the recovery folder is empty; verify it passes on its own
 
 ## 5. Suite and docs
 
