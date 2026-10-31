@@ -215,3 +215,75 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(!(try await open(url)).restore(encoded: record))
     }
 }
+
+@Suite(.serialized) struct ImageZoom {
+    @Test func actualSizeIsOneImagePixelPerScreenPixel() {
+        #expect(ImageDocument.actualMagnification(pixelWidth: 4000, backingScale: 2, fittedWidth: 1000) == 2)
+        #expect(ImageDocument.actualMagnification(pixelWidth: 64, backingScale: 2, fittedWidth: 640) == 0.05)
+    }
+
+    @Test func zoomOutGoesBelowFitAndAnImageStaysCentered() async throws {
+        let document = try await open(try imageFile(try cornerImage(width: 400, height: 200), type: .png))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 200), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        document.contentView.frame = window.contentView!.bounds
+        window.contentView!.addSubview(document.contentView)
+        let scroll = try #require(document.contentView as? NSScrollView)
+        #expect(scroll.minMagnification <= 0.125)
+        #expect(scroll.contentView is CenteringClipView)
+        for _ in 0..<4 { #expect(document.perform("zoom-out")) }
+        #expect(scroll.magnification < 1)
+        let clip = scroll.contentView.bounds, image = document.canvas.frame
+        #expect(abs(clip.midX - image.midX) < 1 && abs(clip.midY - image.midY) < 1, "centered")
+        #expect(document.perform("zoom-actual"))
+        let expected = ImageDocument.actualMagnification(pixelWidth: 400, backingScale: window.backingScaleFactor, fittedWidth: document.canvas.imageRect.width)
+        #expect(abs(scroll.magnification - expected) < 0.001)
+    }
+
+    @Test func actualSizeIsACommandOnCmd0() {
+        #expect(ImagePlugin.commands.first { $0.id == "zoom-actual" }?.shortcut == "cmd+0")
+    }
+}
+
+@Suite(.serialized) struct ImageAnimation {
+    /// A GIF of three solid frames (red, green, blue), 50 ms each, looping forever.
+    private func gif() throws -> URL {
+        let url = try TempFile.make(Data(), name: "f.gif")
+        let loop = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary
+        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.gif.identifier as CFString, 3, nil))
+        CGImageDestinationSetProperties(destination, loop)
+        for (r, g, b) in [(1.0, 0.0, 0.0), (0, 1, 0), (0, 0, 1)] {
+            let context = try #require(CGContext(data: nil, width: 8, height: 8, bitsPerComponent: 8, bytesPerRow: 0,
+                                                 space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.setFillColor(red: r, green: g, blue: b, alpha: 1)
+            context.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
+            let delay = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: 0.05]] as CFDictionary
+            CGImageDestinationAddImage(destination, try #require(context.makeImage()), delay)
+        }
+        #expect(CGImageDestinationFinalize(destination))
+        return url
+    }
+
+    @Test func framesPlayAndAClickPausesAndResumes() async throws {
+        let document = try await open(try gif())
+        #expect(document.isAnimated)
+        let first = document.frameIndex
+        try await waitUntil(seconds: 3) { document.frameIndex != first }
+        document.toggleAnimation()
+        #expect(document.isPaused)
+        let paused = document.frameIndex
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(document.frameIndex == paused)
+        document.toggleAnimation()
+        try await waitUntil(seconds: 3) { document.frameIndex != paused }
+    }
+
+    @Test func aTwoPageTIFFIsNotAnimated() async throws {
+        let url = try TempFile.make(Data(), name: "f.tiff")
+        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.tiff.identifier as CFString, 2, nil))
+        for _ in 0..<2 { CGImageDestinationAddImage(destination, try cornerImage(), nil) }
+        #expect(CGImageDestinationFinalize(destination))
+        #expect(!(try await open(url)).isAnimated)
+    }
+}

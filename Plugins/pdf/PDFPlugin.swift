@@ -19,7 +19,7 @@ public enum PDFPlugin: Plugin {
     ]
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
-        let checked = try await check(url)
+        guard let checked = try await check(url) else { return LockedPDFDocument(url: url, canUnlock: context.allowsEditing) }
         guard let document = PeekerPDFDocument(url: url) else { throw PluginError("This file isn't a readable PDF.") }
         // Edit mode adds annotations and fills in fields, so it needs those two permissions, not "changes" to the pages.
         let reason = checked.uneditableReason
@@ -27,11 +27,23 @@ public enum PDFPlugin: Plugin {
         return PDFPluginDocument(url: url, document: document, info: checked.info, editable: context.allowsEditing, uneditableReason: reason)
     }
 
-    /// Checks with CoreGraphics, which starts faster than PDFKit, that `url` is a readable, unlocked PDF, and reads
-    /// what the info panel shows and whether its form rules out editing.
-    @concurrent nonisolated static func check(_ url: URL) async throws(PluginError) -> (info: [InfoRow], uneditableReason: String?) {
+    nonisolated struct Checked: Sendable {
+        let info: [InfoRow]
+        let uneditableReason: String?
+    }
+
+    /// Checks with CoreGraphics, which starts faster than PDFKit, that `url` is a readable PDF, and reads what the
+    /// info panel shows and whether its form rules out editing. Nil when it needs a password.
+    @concurrent nonisolated static func check(_ url: URL) async throws(PluginError) -> Checked? {
+        try check(url, password: nil)
+    }
+
+    /// The same check for a locked PDF, unlocked with `password`; nil when the password doesn't open it.
+    nonisolated static func check(_ url: URL, password: String?) throws(PluginError) -> Checked? {
         guard let document = CGPDFDocument(url as CFURL) else { throw PluginError("This file isn't a readable PDF.") }
-        guard document.isUnlocked else { throw PluginError("This PDF is password protected.") }
+        if !document.isUnlocked {
+            guard let password, document.unlockWithPassword(password) else { return nil }
+        }
         var major: Int32 = 0, minor: Int32 = 0
         document.getVersion(majorVersion: &major, minorVersion: &minor)
         var info = [InfoRow(label: "Pages", value: document.numberOfPages.formatted()), InfoRow(label: "PDF version", value: "\(major).\(minor)")]
@@ -39,7 +51,7 @@ public enum PDFPlugin: Plugin {
             if let value = string(document.info, key), !value.isEmpty { info.append(InfoRow(label: label, value: value)) }
         }
         if document.isEncrypted { info.append(InfoRow(label: "Encrypted", value: "Yes")) }
-        return (info, uneditableReason(document))
+        return Checked(info: info, uneditableReason: uneditableReason(document))
     }
 
     /// An XFA form can't be filled with PDFKit, and changing a signed PDF breaks its signatures (`SigFlags` bit 1).

@@ -15,13 +15,13 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Missing next to Preview
 
-- **PDF:** no way to unlock a password-protected PDF, saved highlights can't be removed, one highlight color.
-- **Images:** zooming in on a large photo shows upscaled screen pixels because decoding stops at screen size; no actual-size zoom; no zooming out below fit; only the first frame (no animated GIFs, first page of a TIFF).
+- **PDF:** one highlight color. Other apps' highlights can't be removed (Peeker's own can, in Edit mode). A password-protected PDF opens view-only.
+- **Images:** zooming in on a large photo (and Actual Size on one) shows upscaled screen pixels because decoding stops at screen size; a multi-page TIFF shows only its first page.
 - **Markdown:** images show as their alt text; relative links such as `other.md` most likely do nothing (untested); no editing except Open With > Plain Text.
 
 ## Future work
 
-- **Find and Print in the Space panel.** Both work only in document windows for now (decided 2026-10-31); the panel is for a quick look.
+- **Find and Print in the Space panel.** Both work only in document windows for now (decided 2026-10-31). The panel never takes the keyboard from Finder, so Cmd+F and Cmd+P go to Finder; making them work means routing them through the global key monitor and handing keyboard focus to the panel and back.
 
 ## Risks
 

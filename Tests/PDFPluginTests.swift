@@ -35,16 +35,6 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         await #expect(throws: PluginError("This file isn't a readable PDF.")) { _ = try await open(file) }
     }
 
-    @Test func lockedPDFSaysSo() async throws {
-        let file = try TempFile.make(Data(), name: "f.pdf")
-        var box = CGRect(x: 0, y: 0, width: 612, height: 792)
-        let info = [kCGPDFContextUserPassword: "secret", kCGPDFContextOwnerPassword: "secret"] as CFDictionary
-        let context = try #require(CGContext(file as CFURL, mediaBox: &box, info))
-        context.beginPDFPage(nil)
-        context.endPDFPage()
-        context.closePDF()
-        await #expect(throws: PluginError("This PDF is password protected.")) { _ = try await open(file) }
-    }
 }
 
 @Suite struct PDFRefusingToEdit {

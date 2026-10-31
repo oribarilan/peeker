@@ -6,6 +6,8 @@ import PeekerKit
 final class ImageDocument: PluginDocument {
     private let url: URL
     private let scrollView = NSScrollView()
+    /// Below fit, down to an eighth, or to actual size when that's smaller.
+    private static let minimumZoom: CGFloat = 1.0 / 8
     let canvas: ImageCanvas
     let sidebar: [SidebarPanel]
     let editMode: EditMode
@@ -27,6 +29,12 @@ final class ImageDocument: PluginDocument {
         transformPanel = panel
         return panel
     }
+    let isAnimated: Bool
+    private(set) var isPaused = false
+    /// The frame shown, so a paused animation resumes from it.
+    private(set) var frameIndex = 0
+    /// Tells the running animation from one replaced by a pause and resume.
+    private var animationRun = 0
     /// Undo for the edits since the last save; a save clears it, since a crop's pixels are then gone from the file.
     private(set) lazy var undoManager = UndoManager()
 
@@ -38,14 +46,46 @@ final class ImageDocument: PluginDocument {
         editMode = !editable ? .none : decoded.uneditableReason.map { .unavailable(reason: $0) } ?? .available
         sidebar = InfoPanel.make(decoded.info).map { [$0] } ?? []
         canvas = ImageCanvas(image: decoded.image)
+        scrollView.contentView = CenteringClipView()
         scrollView.documentView = canvas
         scrollView.allowsMagnification = true
-        scrollView.minMagnification = 1
+        scrollView.minMagnification = Self.minimumZoom
         scrollView.maxMagnification = 16
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
         scrollView.drawsBackground = false
         canvas.autoresizingMask = [.width, .height]
+        isAnimated = decoded.isAnimated
+        if isAnimated {
+            canvas.onClick = { [weak self] in self?.toggleAnimation() }
+            play(from: 0)
+        }
+    }
+
+    // MARK: Animation
+
+    /// Pauses a playing animation on its frame, or plays a paused one on from there.
+    func toggleAnimation() {
+        guard isAnimated else { return }
+        isPaused.toggle()
+        if !isPaused { play(from: frameIndex) }
+    }
+
+    /// Plays the file's frames with its own timing and loop count, from frame `start`.
+    private func play(from start: Int) {
+        animationRun += 1
+        let run = animationRun
+        let status = CGAnimateImageAtURLWithBlock(url as CFURL, [kCGImageAnimationStartIndex: start] as CFDictionary) { [weak self] index, image, stop in
+            MainActor.assumeIsolated {
+                guard let self, self.animationRun == run, !self.isPaused else {
+                    stop.pointee = true
+                    return
+                }
+                self.frameIndex = index
+                self.canvas.image = image
+            }
+        }
+        if status != noErr { isPaused = true }
     }
 
     var contentView: NSView { scrollView }
@@ -82,11 +122,25 @@ final class ImageDocument: PluginDocument {
         case "zoom-in": scrollView.magnification *= 1.25
         case "zoom-out": scrollView.magnification /= 1.25
         case "zoom-fit": scrollView.magnification = 1
+        case "zoom-actual": zoomToActualSize()
         case "crop" where isEditing: startCrop()
         case "transform" where isEditing: showTransform()
         default: return false
         }
         return true
+    }
+
+    /// The magnification that shows one image pixel per screen pixel, given the fitted image's width in points.
+    static func actualMagnification(pixelWidth: CGFloat, backingScale: CGFloat, fittedWidth: CGFloat) -> CGFloat {
+        guard fittedWidth > 0, backingScale > 0 else { return 1 }
+        return pixelWidth / backingScale / fittedWidth
+    }
+
+    private func zoomToActualSize() {
+        let scale = scrollView.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+        let target = Self.actualMagnification(pixelWidth: pixelSize.width, backingScale: scale, fittedWidth: canvas.imageRect.width)
+        scrollView.minMagnification = min(Self.minimumZoom, target)
+        scrollView.setMagnification(min(target, scrollView.maxMagnification), centeredAt: NSPoint(x: canvas.bounds.midX, y: canvas.bounds.midY))
     }
 
     // MARK: Editing

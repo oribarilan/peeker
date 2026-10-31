@@ -101,7 +101,7 @@ import UniformTypeIdentifiers
     @Test func documentOffersZoomCommands() async throws {
         let url = try image(width: 40, height: 20, type: .png)
         let document = try await ImagePlugin.open(url, context: OpenContext(maxPixels: 100, allowsEditing: false))
-        #expect(document.commands.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit"])
+        #expect(document.commands.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual"])
         #expect(document.perform("zoom-in"))
         #expect(!document.perform("no-such-command"))
     }

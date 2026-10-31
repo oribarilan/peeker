@@ -336,6 +336,7 @@ final class DocumentViewController: NSSplitViewController {
         let wasEditing = isEditing
         isEditing = false
         document.onEdit = { [weak self] in self?.didEdit() }
+        document.onReplace = { [weak self] replacement in self?.show(replacement) }
         content.show(document.contentView)
         if let focus = document.focusView { view.window?.makeFirstResponder(focus) }
         if isReady { installSidebar(document.sidebar) } else { sidebarPending = true }

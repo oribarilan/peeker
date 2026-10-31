@@ -18,6 +18,7 @@ public enum ImagePlugin: Plugin {
         CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),
         CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),
         CommandSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9"),
+        CommandSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0"),
         // A single key, kept for Crop alone: other letters stay free for markup tools.
         CommandSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true),
         CommandSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
@@ -53,8 +54,12 @@ public enum ImagePlugin: Plugin {
         /// The full image's size in pixels, upright.
         let pixelSize: CGSize
         let uneditableReason: String?
+        /// Several frames in a format that animates them; a multi-page TIFF isn't.
+        let isAnimated: Bool
         let info: [InfoRow]
     }
+
+    nonisolated static let animatedTypes: Set<String> = [UTType.gif.identifier, UTType.png.identifier, UTType.webP.identifier, "public.heics"]
 
     /// Decodes the first image, upright and at most `maxPixels` on its longer side, into premultiplied sRGB, the
     /// layout Core Animation draws without converting on the main thread.
@@ -82,7 +87,9 @@ public enum ImagePlugin: Plugin {
                                       pixels: width * height, isFloat: properties[kCGImagePropertyIsFloat] as? Bool ?? false)
         return Decoded(image: try displayReady(thumbnail), printSize: printSize,
                        pixelSize: turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height),
-                       uneditableReason: reason, info: info(properties, source, url))
+                       uneditableReason: reason,
+                       isAnimated: CGImageSourceGetCount(source) > 1 && animatedTypes.contains(CGImageSourceGetType(source).map { $0 as String } ?? ""),
+                       info: info(properties, source, url))
     }
 
     private nonisolated static func printSize(_ properties: [CFString: Any], decoded: CGImage) -> CGSize {

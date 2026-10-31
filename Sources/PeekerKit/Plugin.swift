@@ -62,6 +62,10 @@ public struct OpenContext: Sendable {
     /// free and the job is built only when Print is chosen; it returns nil if printing turns out to be impossible.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? { get }
 
+    /// Set by the host: call it with another document for the same file to be shown instead of this one, such as a
+    /// PDF unlocked from its lock screen. The default ignores it.
+    var onReplace: ((any PluginDocument) -> Void)? { get set }
+
     // Editing. A view-only document keeps the defaults.
 
     /// Called after each change the user makes.
@@ -96,6 +100,10 @@ public extension PluginDocument {
     func unavailableReason(for command: String) -> String? { nil }
     func reload() async throws(PluginError) -> Bool { false }
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? { nil }
+    var onReplace: ((any PluginDocument) -> Void)? {
+        get { nil }
+        set {}  // a document that never replaces itself ignores it
+    }
     var onEdit: (() -> Void)? {
         get { nil }
         set {}  // a view-only document never calls it
