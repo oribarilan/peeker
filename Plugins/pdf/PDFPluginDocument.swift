@@ -7,6 +7,8 @@ import PeekerKit
 /// fields, text boxes and signatures, saved on Cmd+S.
 final class PDFPluginDocument: PluginDocument {
     let pdfView = PeekerPDFView()
+    /// The PDF shown, unsaved edits included.
+    private let document: PeekerPDFDocument
     private let url: URL
     private let editable: Bool
     private let info: [InfoRow]
@@ -30,13 +32,14 @@ final class PDFPluginDocument: PluginDocument {
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "pdf")
 
     /// `uneditableReason` keeps Edit mode off for a file that can't be safely changed.
-    init(url: URL, document: PDFDocument, info: [InfoRow], editable: Bool, uneditableReason: String? = nil) {
+    init(url: URL, document: PeekerPDFDocument, info: [InfoRow], editable: Bool, uneditableReason: String? = nil) {
         self.url = url
+        self.document = document
         self.info = info
         self.editable = editable
         editMode = !editable ? .none : uneditableReason.map { .unavailable(reason: $0) } ?? .available
         pdfView.document = document
-        (document as? PeekerPDFDocument)?.onForeignChange = { [weak self] before in self?.pagesDragged(before: before) }
+        document.onForeignChange = { [weak self] before in self?.pagesDragged(before: before) }
         pdfView.autoScales = true
         pdfView.displayMode = .singlePageContinuous
     }
@@ -67,8 +70,8 @@ final class PDFPluginDocument: PluginDocument {
     /// The pages as shown, unsaved marks and field values included, each fitted to the paper and turned to match it.
     /// None when the file's permissions forbid printing.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
-        guard let document = pdfView.document, !document.isLocked, document.allowsPrinting else { return nil }
-        return { info in document.printOperation(for: info, scalingMode: .pageScaleToFit, autoRotate: true) }
+        guard !document.isLocked, document.allowsPrinting else { return nil }
+        return { [document] info in document.printOperation(for: info, scalingMode: .pageScaleToFit, autoRotate: true) }
     }
 
     /// A view-only document (the Space panel) leaves out the edit tools.
@@ -121,7 +124,6 @@ final class PDFPluginDocument: PluginDocument {
             guard let window = pdfView.window else { return true }
             SignaturePad.present(on: window) { [weak self] signature in self?.tools?.startPlacing(signature) }
         case "highlight" where isEditing:
-            guard let document = pdfView.document else { return true }
             let lines = pdfView.currentSelection?.selectionsByLine() ?? []
             pdfView.clearSelection()
             undoManager.beginUndoGrouping()  // one undo step for every line
@@ -146,15 +148,14 @@ final class PDFPluginDocument: PluginDocument {
     func unavailableReason(for command: String) -> String? {
         guard Self.pageCommands.contains(command), editMode == .available else { return nil }
         if !allowsPageChanges { return "This PDF's permissions don't allow page changes." }
-        if command == "delete-page", targetPages.count >= pdfView.document?.pageCount ?? 0 { return "A PDF needs at least one page." }
+        if command == "delete-page", targetPages.count >= document.pageCount { return "A PDF needs at least one page." }
         return nil
     }
 
-    private var allowsPageChanges: Bool { pdfView.document?.allowsDocumentAssembly ?? false }
+    private var allowsPageChanges: Bool { document.allowsDocumentAssembly }
 
     /// The pages selected in the sidebar, or the current page when none are.
     private var targetPages: [Int] {
-        guard let document = pdfView.document else { return [] }
         let selected = (thumbnails?.selectedPages ?? []).map(document.index(for:)).filter { $0 != NSNotFound }
         if !selected.isEmpty { return selected.sorted() }
         return pdfView.currentPage.map { [document.index(for: $0)] } ?? []
@@ -190,11 +191,10 @@ final class PDFPluginDocument: PluginDocument {
     }
 
     func revertEdits() {
-        guard let document = pdfView.document as? PeekerPDFDocument else { return }
         endInteraction()  // typing in progress becomes a pending edit, taken back with the rest
         for entry in pending.reversed() {
             do throws(PluginError) {
-                try applyLive(entry.inverse, to: document)
+                try applyLive(entry.inverse)
             } catch {
                 Self.log.error("couldn't take back an edit: \(error.message, privacy: .private)")
                 if entry.inverse.movesPages { break }  // every earlier page index would point at the wrong page
@@ -209,12 +209,12 @@ final class PDFPluginDocument: PluginDocument {
     @discardableResult
     func change(_ edit: PDFEdit) -> Bool {
         if edit.isPageEdit { endInteraction() }  // before reading the inverse: a deleted page's copy needs the finished text
-        guard let document = pdfView.document as? PeekerPDFDocument, let inverse = inverse(of: edit, in: document) else {
+        guard let inverse = inverse(of: edit, in: document) else {
             Self.log.error("skipped an edit for something no longer in the file")
             return false
         }
         do throws(PluginError) {
-            try applyLive(edit, to: document)
+            try applyLive(edit)
         } catch {
             // Saving refuses the whole file over one edit it can't write, so such an edit never becomes pending.
             Self.log.error("skipped an edit: \(error.message, privacy: .private)")
@@ -233,7 +233,7 @@ final class PDFPluginDocument: PluginDocument {
 
     /// Applies an edit to the document shown, as Peeker's own change rather than a thumbnail drag, then lays out the
     /// pages again after a page edit and tells the form fields a value they now show.
-    private func applyLive(_ edit: PDFEdit, to document: PeekerPDFDocument) throws(PluginError) {
+    private func applyLive(_ edit: PDFEdit) throws(PluginError) {
         try document.own { () throws(PluginError) in
             try PDFMarks.apply(edit, to: document, fileName: url.lastPathComponent, stash: stash)
         }
@@ -244,7 +244,6 @@ final class PDFPluginDocument: PluginDocument {
     /// Pages were moved by a drag in the thumbnails. Puts the old order back with the original page objects (PDFKit
     /// leaves copies), then makes a real move an edit like any other; one that isn't a move, or isn't allowed, beeps.
     private func pagesDragged(before: [PDFPage]) {
-        guard let document = pdfView.document as? PeekerPDFDocument else { return }
         endInteraction()
         let after = (0..<document.pageCount).compactMap(document.page(at:))
         let order = isEditing && allowsPageChanges ? PeekerPDFDocument.order(before: before, after: after) : nil
