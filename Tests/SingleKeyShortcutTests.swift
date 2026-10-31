@@ -84,9 +84,9 @@ private final class LetterDocument: PluginDocument {
 
     @Test func editToolRecordersTakeSingleKeys() {
         let c = Shortcut(key: .character("c"))
-        #expect(KeyRecorderRules.editTool.refusal(for: c) == nil)
-        #expect(KeyRecorderRules.editTool.refusal(for: Shortcut(key: .character("c"), modifiers: .command)) == nil)
-        #expect(KeyRecorderRules.editTool.refusal(for: Shortcut(key: .space)) != nil, "Space scrolls")
-        #expect(KeyRecorderRules.command.refusal(for: c) != nil)
+        #expect(Shortcut.Rules.editTool.refusal(for: c) == nil)
+        #expect(Shortcut.Rules.editTool.refusal(for: Shortcut(key: .character("c"), modifiers: .command)) == nil)
+        #expect(Shortcut.Rules.editTool.refusal(for: Shortcut(key: .space)) != nil, "Space scrolls")
+        #expect(Shortcut.Rules.command.refusal(for: c) != nil)
     }
 }

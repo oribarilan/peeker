@@ -175,7 +175,7 @@ private struct ConfigReader {
                     continue
                 }
                 let isEditTool = plugin.commands.first { $0.id == command }?.isEditTool == true
-                if let refusal = (isEditTool ? KeyRecorderRules.editTool : .command).refusal(for: shortcut) {
+                if let refusal = (isEditTool ? Shortcut.Rules.editTool : .command).refusal(for: shortcut) {
                     problem("\(path).shortcut", "“\(text)” can't be used here. \(refusal)")
                 } else {
                     config.keys["\(plugin.id).\(command)"] = shortcut

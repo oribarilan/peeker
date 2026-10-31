@@ -1,33 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Which shortcuts a recorder takes.
-enum KeyRecorderRules {
-    /// The quick-look key: Space alone, or a key with Command, Option or Control.
-    case quickLook
-    /// A plugin command: always with Command, Option or Control.
-    case command
-    /// An edit tool: like a command, or a single letter or digit, which works only in Edit mode.
-    case editTool
-
-    /// Why `shortcut` isn't allowed here, or nil when it is. Shift alone doesn't count as a modifier, since it only
-    /// types a capital letter.
-    func refusal(for shortcut: Shortcut) -> String? {
-        let hasModifier = !shortcut.modifiers.intersection([.command, .option, .control]).isEmpty
-        switch self {
-        case .quickLook:
-            if shortcut == Shortcut(key: .space) || hasModifier { return nil }
-            return "Use Space alone, or add Command, Option or Control."
-        case .command:
-            return hasModifier ? nil : "Add Command, Option or Control."
-        case .editTool:
-            if hasModifier { return nil }
-            if case .character = shortcut.key { return nil }
-            return "Use a letter or digit, or add Command, Option or Control."
-        }
-    }
-}
-
 /// What already uses `shortcut`, for a recorder of `command`: a menu item outside Commands, or another command of
 /// the same plugin (with its shortcut as the config has it now), or Edit Mode's Cmd+E. Nil when it's free.
 func shortcutConflict(_ shortcut: Shortcut, command: String, plugin: PluginEntry, config: Config, menu: [(title: String, shortcut: Shortcut)]) -> String? {
@@ -53,7 +26,7 @@ func menuShortcuts(in menu: NSMenu) -> [(title: String, shortcut: Shortcut)] {
 /// `conflict` refuse is shown as a short message under it and the shortcut stays.
 struct KeyRecorder: View {
     let shortcut: Shortcut?
-    let rules: KeyRecorderRules
+    let rules: Shortcut.Rules
     var conflict: (Shortcut) -> String? = { _ in nil }
     /// Which recorder is listening, shared by all of them; this one listens while it holds `id`.
     @Binding var listening: String?
@@ -67,12 +40,12 @@ struct KeyRecorder: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: 2) {
             Button { isRecording ? stop() : start() } label: {
-                Text(isRecording ? "Type a shortcut…" : shortcut.map(Self.display) ?? "None")
+                Text(isRecording ? "Type a shortcut…" : shortcut.map(\.displayText) ?? "None")
                     .frame(minWidth: 120)
             }
             .buttonStyle(.bordered)
             .tint(isRecording ? .accentColor : nil)
-            .accessibilityLabel(isRecording ? "Recording a shortcut" : "Shortcut \(shortcut.map(Self.display) ?? "none"), click to record")
+            .accessibilityLabel(isRecording ? "Recording a shortcut" : "Shortcut \(shortcut.map(\.displayText) ?? "none"), click to record")
             if let refusal { Text(refusal).font(.caption).foregroundStyle(.red).multilineTextAlignment(.trailing) }
         }
         .onChange(of: isRecording) { _, recording in recording ? listen() : unlisten() }
@@ -108,7 +81,7 @@ struct KeyRecorder: View {
         if event.keyCode == 53, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty { return stop() }
         guard let recorded = Shortcut(event: event) else { return refuse("Peeker can't use that key. Try a letter, digit, Space, Tab or Return.") }
         if let reason = rules.refusal(for: recorded) { return refuse(reason) }
-        if let owner = conflict(recorded) { return refuse("\(Self.display(recorded)) is used by \(owner).") }
+        if let owner = conflict(recorded) { return refuse("\(recorded.displayText) is used by \(owner).") }
         stop()
         onRecord(recorded)
     }
@@ -120,18 +93,5 @@ struct KeyRecorder: View {
             try? await Task.sleep(for: .seconds(3))
             if refusal == reason { refusal = nil }
         }
-    }
-
-    /// As menus show it, such as ⌃⌥⇧⌘H.
-    static func display(_ shortcut: Shortcut) -> String {
-        let symbols: [(NSEvent.ModifierFlags, String)] = [(.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")]
-        let key = switch shortcut.key {
-        case .character(let c): String(c).uppercased()
-        case .space: "Space"
-        case .escape: "Esc"
-        case .tab: "Tab"
-        case .enter: "Return"
-        }
-        return symbols.filter { shortcut.modifiers.contains($0.0) }.map(\.1).joined() + key
     }
 }

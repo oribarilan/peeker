@@ -31,15 +31,15 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
     private func key(_ text: String) -> Shortcut { Shortcut(parsing: text)! }
 
     @Test func theQuickLookKeyIsBareSpaceOrAKeyWithAModifier() {
-        #expect(KeyRecorderRules.quickLook.refusal(for: key("space")) == nil)
-        #expect(KeyRecorderRules.quickLook.refusal(for: key("opt+j")) == nil)
-        #expect(KeyRecorderRules.quickLook.refusal(for: key("j")) != nil)
+        #expect(Shortcut.Rules.quickLook.refusal(for: key("space")) == nil)
+        #expect(Shortcut.Rules.quickLook.refusal(for: key("opt+j")) == nil)
+        #expect(Shortcut.Rules.quickLook.refusal(for: key("j")) != nil)
     }
 
     @Test func aCommandNeedsAModifier() {
-        #expect(KeyRecorderRules.command.refusal(for: key("j")) != nil)
-        #expect(KeyRecorderRules.command.refusal(for: key("space")) != nil)
-        #expect(KeyRecorderRules.command.refusal(for: key("cmd+j")) == nil)
+        #expect(Shortcut.Rules.command.refusal(for: key("j")) != nil)
+        #expect(Shortcut.Rules.command.refusal(for: key("space")) != nil)
+        #expect(Shortcut.Rules.command.refusal(for: key("cmd+j")) == nil)
     }
 }
 

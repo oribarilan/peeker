@@ -52,7 +52,7 @@ struct PluginPane: View {
                             onRecord: { shortcut in model.save { $0.keys[key] = shortcut } })
                 Button("Reset") { model.save { $0.keys[key] = nil } }
                     .disabled(current == defaultShortcut)
-                    .help("Back to \(defaultShortcut.map(KeyRecorder.display) ?? "no shortcut")")
+                    .help("Back to \(defaultShortcut.map(\.displayText) ?? "no shortcut")")
             }
         }
     }

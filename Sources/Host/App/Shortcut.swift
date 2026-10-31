@@ -10,6 +10,34 @@ struct Shortcut: Equatable {
     let key: Key
     let modifiers: NSEvent.ModifierFlags
 
+    /// Which shortcuts a place takes: the quick-look key, a command, or an edit tool. The config and the Settings
+    /// recorders both check them.
+    enum Rules {
+        /// The quick-look key: Space alone, or a key with Command, Option or Control.
+        case quickLook
+        /// A plugin command: always with Command, Option or Control.
+        case command
+        /// An edit tool: like a command, or a single letter or digit, which works only in Edit mode.
+        case editTool
+
+        /// Why `shortcut` isn't allowed here, or nil when it is. Shift alone doesn't count as a modifier, since it only
+        /// types a capital letter.
+        func refusal(for shortcut: Shortcut) -> String? {
+            let hasModifier = !shortcut.modifiers.intersection([.command, .option, .control]).isEmpty
+            switch self {
+            case .quickLook:
+                if shortcut == Shortcut(key: .space) || hasModifier { return nil }
+                return "Use Space alone, or add Command, Option or Control."
+            case .command:
+                return hasModifier ? nil : "Add Command, Option or Control."
+            case .editTool:
+                if hasModifier { return nil }
+                if case .character = shortcut.key { return nil }
+                return "Use a letter or digit, or add Command, Option or Control."
+            }
+        }
+    }
+
     init(key: Key, modifiers: NSEvent.ModifierFlags = []) {
         self.key = key
         self.modifiers = modifiers
@@ -69,6 +97,19 @@ struct Shortcut: Equatable {
         case .enter: "enter"
         }
         return (names.filter { modifiers.contains($0.0) }.map(\.1) + [keyName]).joined(separator: "+")
+    }
+
+    /// As menus show it, such as ⌃⌥⇧⌘H.
+    var displayText: String {
+        let symbols: [(NSEvent.ModifierFlags, String)] = [(.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")]
+        let name = switch key {
+        case .character(let c): String(c).uppercased()
+        case .space: "Space"
+        case .escape: "Esc"
+        case .tab: "Tab"
+        case .enter: "Return"
+        }
+        return symbols.filter { modifiers.contains($0.0) }.map(\.1).joined() + name
     }
 
     /// A key without Command, Option or Control, which only edit tools may use.
