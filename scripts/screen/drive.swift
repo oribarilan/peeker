@@ -15,6 +15,7 @@
 //        drive fill <process> <label> <text>       focus the field with that placeholder or label and set its text
 //        drive enabled <process> <label>           print whether the control labeled <label> is enabled
 //        drive frame <process> <role> [label]      print the screen frame (x y width height) of the first such element
+//                                                  whose label contains <label> or whose value is <label>
 //        drive click <process> <x> <y> [count]     click at a screen point, only while <process> is in front
 //        drive type <process> <text>               type <text>, only while <process> is in front
 //        drive drag <process> <x y>...             press at the first point, drag through the rest, release at the last
@@ -339,7 +340,9 @@ case "frame":
     let wanted = args.count > 3 ? args[3] : nil
     // Every window, front first: a panel or another document may be in front of the one wanted.
     guard let element = axWindows(application(arg(1))).lazy.compactMap({ window in
-        find(window, where: { role($0) == arg(2) && (wanted == nil || label($0).contains(wanted!)) })
+        find(window, where: { element in
+            role(element) == arg(2) && (wanted.map { label(element).contains($0) || (attr(element, kAXValueAttribute) as String?) == $0 } ?? true)
+        })
     }).first else { fail("no \(arg(2)) \(wanted ?? "")") }
     var origin = CGPoint.zero, size = CGSize.zero
     if let value: AXValue = attr(element, kAXPositionAttribute) { AXValueGetValue(value, .cgPoint, &origin) }

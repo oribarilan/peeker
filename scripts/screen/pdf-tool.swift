@@ -1,9 +1,11 @@
-// Makes and inspects PDFs for the PDF editing flow.
+// Makes and inspects PDFs for the PDF flows.
 //
-// usage: pdf-tool form <out.pdf>     write a one-page form: text field "Name", checkbox "Agree", radio "Pick" (A, B),
-//                                    combo box "Color" (Red, Green); written by hand because PDFKit can't write radio groups
-//        pdf-tool inspect <in.pdf>   print each form field's value and each annotation, one per line:
-//                                    "field Name = Jane Doe", "annotation FreeText peeker = 31 Oct", "annotation Ink peeker"
+// usage: pdf-tool form <out.pdf>      write a one-page form: text field "Name", checkbox "Agree", radio "Pick" (A, B),
+//                                     combo box "Color" (Red, Green); written by hand because PDFKit can't write radio groups
+//        pdf-tool pages <out.pdf> <n> write n Letter pages that say "Page 1", "Page 2"...
+//        pdf-tool inspect <in.pdf>    print each page's first line of text and rotation, each form field's value and
+//                                     each annotation, one per line: "page 1: Page 3, rotation 90",
+//                                     "field Name = Jane Doe", "annotation FreeText peeker = 31 Oct", "annotation Ink peeker"
 import Foundation
 import PDFKit
 
@@ -26,6 +28,28 @@ func form() -> String {
         on, off,
         "<< /Length \(label.utf8.count) >>\nstream\n\(label)\nendstream",
     ]
+    return pdf(objects)
+}
+
+/// n pages, each with its number in large type.
+func pages(_ count: Int) -> String {
+    // Objects: 1 catalog, 2 page tree, 3 font, then each page followed by its contents.
+    let kids = (0..<count).map { "\(4 + 2 * $0) 0 R" }.joined(separator: " ")
+    var objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [\(kids)] /Count \(count) >>",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    for number in 1...count {
+        let text = "BT /Helv 48 Tf 72 680 Td (Page \(number)) Tj ET"
+        objects.append("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents \(5 + 2 * (number - 1)) 0 R /Resources << /Font << /Helv 3 0 R >> >> >>")
+        objects.append("<< /Length \(text.utf8.count) >>\nstream\n\(text)\nendstream")
+    }
+    return pdf(objects)
+}
+
+/// A PDF file of the given objects, numbered from 1; the first is the catalog.
+func pdf(_ objects: [String]) -> String {
     var out = "%PDF-1.7\n"
     var offsets: [Int] = []
     for (index, object) in objects.enumerated() {
@@ -39,15 +63,22 @@ func form() -> String {
 }
 
 let args = CommandLine.arguments
-guard args.count == 3 else { print("usage: pdf-tool form|inspect <file>"); exit(2) }
+let usage = "usage: pdf-tool form <out.pdf> | pages <out.pdf> <n> | inspect <in.pdf>"
+guard args.count >= 3 else { print(usage); exit(2) }
 switch args[1] {
 case "form":
     try Data(form().utf8).write(to: URL(filePath: args[2]))
+case "pages":
+    guard args.count == 4, let count = Int(args[3]), count > 0 else { print(usage); exit(2) }
+    try Data(pages(count).utf8).write(to: URL(filePath: args[2]))
 case "inspect":
     guard let document = PDFDocument(url: URL(filePath: args[2])) else { print("unreadable"); exit(1) }
     var fields: [String: String] = [:]
     for index in 0..<document.pageCount {
-        for annotation in document.page(at: index)?.annotations ?? [] {
+        guard let page = document.page(at: index) else { continue }
+        let text = page.string?.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
+        print("page \(index + 1): \(text), rotation \(page.rotation)")
+        for annotation in page.annotations {
             if annotation.type == "Widget", let name = annotation.fieldName {
                 fields[name] = annotation.widgetStringValue ?? ""
             } else {
@@ -58,6 +89,6 @@ case "inspect":
     }
     for (name, value) in fields.sorted(by: { $0.key < $1.key }) { print("field \(name) = \(value)") }
 default:
-    print("usage: pdf-tool form|inspect <file>")
+    print(usage)
     exit(2)
 }
