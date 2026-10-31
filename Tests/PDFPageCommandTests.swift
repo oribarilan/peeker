@@ -138,6 +138,33 @@ private func texts(_ document: PDFDocument) -> [String] {
     }
 }
 
+@Suite(.serialized) struct PDFRevert {
+    /// Don't Save can move pages back, so a mark selected by its page index must not stay selected.
+    @Test func revertEndsTheTools() async throws {
+        let shown = try await Shown(try TempFile.makePDF(pages: 2))
+        defer { shown.window.close() }
+        let mark = PDFMark(id: PDFEdit.newID(), page: 1, rect: CGRect(x: 100, y: 300, width: 100, height: 40), kind: .textBox(text: "x", fontSize: 12))
+        #expect(shown.document.change(.add(mark)))
+        let tools = try #require(shown.document.tools)
+        tools.select(mark.id, page: 1)
+        shown.document.revertEdits()
+        #expect(tools.selectedID == nil)
+    }
+
+    /// Once a page move can't be taken back, the inverses before it would land on the wrong pages.
+    @Test func revertStopsAtAPageMoveItCantTakeBack() async throws {
+        let shown = try await Shown(try TempFile.makePDF(pages: 3))
+        defer { shown.window.close() }
+        let live = try #require(shown.document.pdfView.document as? PeekerPDFDocument)
+        let second = try #require(live.page(at: 1))
+        #expect(shown.document.change(.rotatePages(pages: [0], by: 90)))
+        #expect(shown.document.change(.reorderPages(order: [1, 0, 2])))
+        live.own { live.removePage(at: 2) }  // the move's inverse no longer fits
+        shown.document.revertEdits()
+        #expect(second.rotation == 0)
+    }
+}
+
 @Suite(.serialized) struct PDFThumbnailDrags {
     /// What PDFKit's thumbnail view does on a drop: insert a copy of the dragged page where it's dropped, then remove
     /// the original (seen in a probe on macOS 27).

@@ -190,14 +190,14 @@ final class PDFPluginDocument: PluginDocument {
     }
 
     func revertEdits() {
-        guard let document = pdfView.document else { return }
+        guard let document = pdfView.document as? PeekerPDFDocument else { return }
+        endInteraction()  // typing in progress becomes a pending edit, taken back with the rest
         for entry in pending.reversed() {
             do throws(PluginError) {
                 try applyLive(entry.inverse, to: document)
-                if entry.inverse.isPageEdit { pagesChanged() }
-                noteApplied(entry.inverse)
             } catch {
                 Self.log.error("couldn't take back an edit: \(error.message, privacy: .private)")
+                if entry.inverse.movesPages { break }  // every earlier page index would point at the wrong page
             }
         }
         pending = []
@@ -208,67 +208,62 @@ final class PDFPluginDocument: PluginDocument {
     /// file (recovered edits for a file that changed, say).
     @discardableResult
     func change(_ edit: PDFEdit) -> Bool {
-        if edit.isPageEdit {
-            tools?.end()  // finishes typing first, and a selected mark's page index may change
-            container.finder.cancel()  // PDFKit's search reads the pages on another thread
-        }
-        guard let document = pdfView.document, let inverse = inverse(of: edit, in: document) else {
+        if edit.isPageEdit { endInteraction() }  // before reading the inverse: a deleted page's copy needs the finished text
+        guard let document = pdfView.document as? PeekerPDFDocument, let inverse = inverse(of: edit, in: document) else {
             Self.log.error("skipped an edit for something no longer in the file")
             return false
         }
         do throws(PluginError) {
             try applyLive(edit, to: document)
-            if edit.isPageEdit { pagesChanged() }
         } catch {
             // Saving refuses the whole file over one edit it can't write, so such an edit never becomes pending.
             Self.log.error("skipped an edit: \(error.message, privacy: .private)")
             return false
         }
-        noteApplied(edit)
         record(edit, inverse: inverse)
         return true
     }
 
-    /// Applies an edit to the document shown, as Peeker's own change rather than a thumbnail drag.
-    private func applyLive(_ edit: PDFEdit, to document: PDFDocument) throws(PluginError) {
-        let apply = { () throws(PluginError) in try PDFMarks.apply(edit, to: document, fileName: self.url.lastPathComponent, stash: self.stash) }
-        guard let shown = document as? PeekerPDFDocument else { return try apply() }
-        try shown.own { () throws(PluginError) in try apply() }
-    }
-
-    /// Pages were moved by a drag in the thumbnails. Puts the original page objects (PDFKit leaves copies) in their
-    /// new places and records the move; puts the old order back when it isn't a move, or isn't allowed.
-    private func pagesDragged(before: [PDFPage]) {
-        guard let document = pdfView.document as? PeekerPDFDocument else { return }
+    /// Finishes typing and stops PDFKit's search, which reads the pages on another thread, before pages change.
+    /// Ending the tools also drops the selection, whose page index a page edit may change.
+    private func endInteraction() {
         tools?.end()
         container.finder.cancel()
+    }
+
+    /// Applies an edit to the document shown, as Peeker's own change rather than a thumbnail drag, then lays out the
+    /// pages again after a page edit and tells the form fields a value they now show.
+    private func applyLive(_ edit: PDFEdit, to document: PeekerPDFDocument) throws(PluginError) {
+        try document.own { () throws(PluginError) in
+            try PDFMarks.apply(edit, to: document, fileName: url.lastPathComponent, stash: stash)
+        }
+        if edit.isPageEdit { pagesChanged() }
+        if case .field(let name, let value) = edit { fields?.applied(name, value) }
+    }
+
+    /// Pages were moved by a drag in the thumbnails. Puts the old order back with the original page objects (PDFKit
+    /// leaves copies), then makes a real move an edit like any other; one that isn't a move, or isn't allowed, beeps.
+    private func pagesDragged(before: [PDFPage]) {
+        guard let document = pdfView.document as? PeekerPDFDocument else { return }
+        endInteraction()
         let after = (0..<document.pageCount).compactMap(document.page(at:))
-        let allowed = isEditing && allowsPageChanges
-        let order = PeekerPDFDocument.order(before: before, after: after).flatMap { allowed ? $0 : nil }
-        let wanted = order.map { $0.map { before[$0] } } ?? before
+        let order = isEditing && allowsPageChanges ? PeekerPDFDocument.order(before: before, after: after) : nil
         document.own {
-            for page in after where !wanted.contains(where: { $0 === page }) { document.removePage(at: document.index(for: page)) }
-            for (index, page) in wanted.enumerated() where index >= document.pageCount || document.page(at: index) !== page {
+            for page in after where !before.contains(where: { $0 === page }) { document.removePage(at: document.index(for: page)) }
+            for (index, page) in before.enumerated() where index >= document.pageCount || document.page(at: index) !== page {
                 let at = document.index(for: page)
                 if at != NSNotFound { document.removePage(at: at) }
                 document.insert(page, at: index)
             }
         }
+        if let order, order != Array(order.indices), change(.reorderPages(order: order)) { return }
         pagesChanged()
-        guard let order else { return NSSound.beep() }
-        guard order != Array(order.indices) else { return }
-        var back = order
-        for (index, from) in order.enumerated() { back[from] = index }
-        record(.reorderPages(order: order), inverse: .reorderPages(order: back))
+        if order == nil { NSSound.beep() }
     }
 
     private func pagesChanged() {
         pdfView.layoutDocumentView()
         container.finder.searchAgain()
-    }
-
-    private func noteApplied(_ edit: PDFEdit) {
-        if case .field(let name, let value) = edit { fields?.applied(name, value) }
     }
 
     /// Makes an edit the view already shows (a form field the user filled in) pending and undoable.
