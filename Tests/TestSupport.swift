@@ -137,3 +137,22 @@ final class StubPrompts: SavePrompts {
         return recreate
     }
 }
+
+/// A document view controller showing the text plugin, read and edited as the host sees it.
+extension DocumentViewController {
+    var textDocument: TextDocument? { pluginDocument as? TextDocument }
+    var shownText: String? { textDocument?.text }
+    var pendingText: String? { (textDocument?.unsavedEdits()?.value as? TextEdits)?.text }
+
+    /// Replaces the whole text, as typing would.
+    func type(_ text: String) throws {
+        #expect(try #require(textDocument).restore(encoded: JSONEncoder().encode(TextEdits.text(text))))
+    }
+}
+
+extension RecoveryStore {
+    /// A store in a new temporary folder.
+    static func temporary() -> RecoveryStore {
+        RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))
+    }
+}
