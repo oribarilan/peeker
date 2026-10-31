@@ -41,6 +41,9 @@ final class DocumentViewController: NSSplitViewController {
     /// A different date means someone else wrote it.
     private(set) var knownModification: Date?
     private var watcher: FileWatcher?
+    /// A reload is running; `reloadAgain` notes a change that arrived meanwhile, checked once it ends.
+    private var isReloading = false
+    private var reloadAgain = false
     /// Where unsaved edits are journaled for crash recovery; nil for view-only documents.
     private var recovery: RecoveryStore?
     private let recoveryID: String
@@ -95,10 +98,11 @@ final class DocumentViewController: NSSplitViewController {
     /// meanwhile gets nothing.
     func load() async {
         opened = .now
-        isReady = false
         openTask?.cancel()
         let plugin = entry.plugin, url = url
         let context = OpenContext(maxPixels: Self.maxPixels, allowsEditing: allowsEditing)
+        // Read before the plugin reads the file, so a write in between shows as a change and reloads.
+        let modified = Self.modificationDate(of: url)
         // The result is shown inside the task, in the same main-actor turn the plugin returns in. Awaiting the task
         // and showing afterwards would take one more turn, which can land after a display pass and delay first paint.
         let task = Task.immediate { [weak self] in
@@ -113,7 +117,11 @@ final class DocumentViewController: NSSplitViewController {
             openDuration = .now - opened
             switch result {
             case .success(let document):
-                knownModification = Self.modificationDate(of: url)
+                // Opened again after a change on disk: edits made meanwhile win, as in `reload`, and the known date
+                // stays old, so saving still asks.
+                guard !isEdited || pluginDocument == nil else { return }
+                knownModification = modified
+                isReady = false
                 show(document)
             case .failure(let error):
                 fail(error.message)
@@ -302,9 +310,22 @@ final class DocumentViewController: NSSplitViewController {
     /// Internal so tests can start a reload at a chosen moment.
     func reloadIfChangedOnDisk() {
         guard !isEdited, !isSaving, !isClosed, isReady else { return }
+        // One at a time: an older read finishing last would show older text.
+        guard !isReloading else {
+            reloadAgain = true
+            return
+        }
         let modified = Self.modificationDate(of: url)
         guard modified != knownModification else { return }
-        Task.immediate { await reload(modified: modified) }
+        isReloading = true
+        Task.immediate {
+            await reload(modified: modified)
+            isReloading = false
+            if reloadAgain {
+                reloadAgain = false
+                reloadIfChangedOnDisk()
+            }
+        }
     }
 
     /// Has the document re-read its file in place, or opens the file again when it can't.
@@ -409,6 +430,8 @@ final class DocumentViewController: NSSplitViewController {
         }
         pluginDocument = nil
         sidebarPending = false
+        isEditing = false
+        setCommands([])  // the failure view has nothing to run
         let label = NSTextField(wrappingLabelWithString: message)
         label.alignment = .center
         label.textColor = .secondaryLabelColor
