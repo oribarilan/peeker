@@ -1,6 +1,9 @@
+import AppKit
 import CoreText
-import Foundation
+import PDFKit
+import PeekerKit
 @testable import PeekerText
+import Testing
 
 enum TempFile {
     /// Writes `bytes` to `name` in a fresh temporary directory.
@@ -54,4 +57,44 @@ extension RecoveryRecord {
     }
 
     var text: String? { TextPlugin.recoveryText(from: editsData) }
+}
+
+/// Runs `job` without a panel, saving to a PDF file, and returns what it printed.
+@MainActor func printed(_ job: (NSPrintInfo) -> NSPrintOperation?, title: String = "f.txt") throws -> PDFDocument {
+    let url = try TempFile.make(Data(), name: "printed.pdf")
+    let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+    info.paperSize = NSSize(width: 612, height: 792)
+    info.orientation = .portrait
+    info.jobDisposition = .save
+    info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = url
+    let operation = try #require(job(info))
+    operation.jobTitle = title
+    operation.showsPrintPanel = false
+    operation.showsProgressPanel = false
+    #expect(operation.run())
+    return try #require(PDFDocument(url: url))
+}
+
+/// Save prompts with set answers, recording which ran.
+final class StubPrompts: SavePrompts {
+    var overwrite = true
+    var utf8 = true
+    var recreate = true
+    /// Which prompts ran, in order: "overwrite", "recreate", "utf8".
+    var asked: [String] = []
+
+    func confirmOverwriteNewerFile(named: String) async -> Bool {
+        asked.append("overwrite")
+        return overwrite
+    }
+
+    func confirm(_ offer: SaveOffer, reason: String) async -> Bool {
+        asked.append(offer.id)
+        return utf8
+    }
+
+    func confirmRecreateMissingFile(named: String) async -> Bool {
+        asked.append("recreate")
+        return recreate
+    }
 }

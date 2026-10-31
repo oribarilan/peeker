@@ -328,26 +328,3 @@ import Testing
         (textDocument(document)?.unsavedEdits()?.value as? TextEdits)?.text
     }
 }
-
-final class StubPrompts: SavePrompts {
-    var overwrite = true
-    var utf8 = true
-    var recreate = true
-    /// Which prompts ran, in order: "overwrite", "recreate", "utf8".
-    var asked: [String] = []
-
-    func confirmOverwriteNewerFile(named: String) async -> Bool {
-        asked.append("overwrite")
-        return overwrite
-    }
-
-    func confirm(_ offer: SaveOffer, reason: String) async -> Bool {
-        asked.append(offer.id)
-        return utf8
-    }
-
-    func confirmRecreateMissingFile(named: String) async -> Bool {
-        asked.append("recreate")
-        return recreate
-    }
-}

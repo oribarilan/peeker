@@ -6,22 +6,6 @@ import PeekerKit
 @testable import PeekerText
 import Testing
 
-/// Runs `job` without a panel, saving to a PDF file, and returns what it printed.
-@MainActor func printed(_ job: (NSPrintInfo) -> NSPrintOperation?, title: String = "f.txt") throws -> PDFDocument {
-    let url = try TempFile.make(Data(), name: "printed.pdf")
-    let info = NSPrintInfo.shared.copy() as! NSPrintInfo
-    info.paperSize = NSSize(width: 612, height: 792)
-    info.orientation = .portrait
-    info.jobDisposition = .save
-    info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = url
-    let operation = try #require(job(info))
-    operation.jobTitle = title
-    operation.showsPrintPanel = false
-    operation.showsProgressPanel = false
-    #expect(operation.run())
-    return try #require(PDFDocument(url: url))
-}
-
 @Suite struct TextPrintingHelper {
     @Test func printsTheTextWithTheTitleInTheHeader() throws {
         let text = NSAttributedString(string: "Hello from the printer", attributes: [.font: NSFont.systemFont(ofSize: 12)])
