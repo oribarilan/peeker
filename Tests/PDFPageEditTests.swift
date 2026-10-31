@@ -99,6 +99,12 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
         #expect(throws: PluginError.self) { try apply(.restorePages(pages: [5], token: "gone", data: data), to: try pdf(2)) }
     }
 
+    /// Encoding the deleted pages takes about 50 ms a page of a scan, on the main thread; only an undo needs them.
+    @Test func deletingBuildsNoCopyOfThePages() throws {
+        let inverse = PDFEditing.inverse(of: .deletePages(pages: [1], token: "t"), in: try pdf(3))
+        #expect(inverse == .restorePages(pages: [1], token: "t", data: Data()))
+    }
+
     @Test func pageEditsRoundTripAndStayInPlaceWhenFolded() throws {
         let mark = PDFMark(id: "peeker-a", page: 0, rect: CGRect(x: 1, y: 2, width: 3, height: 4), kind: .highlight(RGBA(red: 1, green: 0, blue: 0, alpha: 1)))
         let edits: [PDFEdit] = [

@@ -127,7 +127,8 @@ nonisolated enum PDFEditing {
         }
     }
 
-    /// The edit that takes `edit` back, read from the document as it is now; nil when its target is missing.
+    /// The edit that takes `edit` back, read from the document as it is now; nil when its target is missing. A
+    /// deletion's restore leaves the pages' copy empty: making it is slow, and only an undo needs it (see `copy(of:)`).
     static func inverse(of edit: PDFEdit, in document: PDFDocument) -> PDFEdit? {
         func annotation(_ id: String, _ page: Int) -> PDFAnnotation? {
             guard (0..<document.pageCount).contains(page), let page = document.page(at: page) else { return nil }
@@ -155,17 +156,15 @@ nonisolated enum PDFEditing {
             for (index, from) in order.enumerated() { back[from] = index }
             return .reorderPages(order: back)
         case .deletePages(let pages, let token):
-            return copies(of: pages, in: document).map { .restorePages(pages: pages.sorted(), token: token, data: $0) }
+            return .restorePages(pages: pages.sorted(), token: token, data: Data())
         case .restorePages(let pages, let token, _):
             return .deletePages(pages: pages, token: token)
         }
     }
 
-    /// The pages at `indices` as a PDF of copies, so a deletion can be undone after it was saved. Copying drops the
-    /// annotations' names and styles, so they're put back as when saving moved pages.
-    private static func copies(of indices: [Int], in document: PDFDocument) -> Data? {
-        let pages = indices.sorted().compactMap { (0..<document.pageCount).contains($0) ? document.page(at: $0) : nil }
-        guard pages.count == indices.count else { return nil }
+    /// `pages` as a PDF of copies, which a restore needs once the page objects are gone: in a save or a recovery
+    /// record. Copying drops the annotations' names and styles, so they're put back as when saving moved pages.
+    static func copy(of pages: [PDFPage]) -> Data? {
         let copy = PDFDocument()
         for (position, page) in pages.enumerated() {
             guard let duplicate = page.copy() as? PDFPage else { return nil }

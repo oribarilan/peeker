@@ -208,7 +208,16 @@ final class PDFPluginDocument: PluginDocument {
     /// file (recovered edits for a file that changed, say).
     @discardableResult
     func change(_ edit: PDFEdit) -> Bool {
-        if edit.isPageEdit { endInteraction() }  // before reading the inverse: a deleted page's copy needs the finished text
+        if edit.isPageEdit { endInteraction() }  // typing ends first, so a deleted page keeps the finished text
+        var edit = edit
+        if case .restorePages(let pages, let token, let data) = edit, data.isEmpty, let kept = stash.pages[token] {
+            // An undone deletion: saving and crash recovery restore from a copy, since they don't have these page objects.
+            guard let copy = PDFEditing.copy(of: kept) else {
+                Self.log.error("couldn't copy the deleted pages for their restore")
+                return false
+            }
+            edit = .restorePages(pages: pages, token: token, data: copy)
+        }
         guard let inverse = PDFEditing.inverse(of: edit, in: document) else {
             Self.log.error("skipped an edit for something no longer in the file")
             return false
