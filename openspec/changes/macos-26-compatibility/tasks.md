@@ -20,7 +20,7 @@
 ## 5. Checks
 
 - [x] 5.1 Remove the macOS 26 entry from `openspec/gaps.md`, adding a line that screen tests run only on macOS 27, and update the roadmap in `openspec/config.yaml`; verify `openspec validate --all --strict` passes
-- [ ] 5.2 Verify the tests workflow is green on `main` after a push (with the maintainer's OK), `scripts/build.sh test` and `scripts/check-plugin-imports.sh` pass locally with no warnings, and the pdf-edit and pdf-pages screen flows pass locally (with the maintainer's go)
+- [x] 5.2 Verify the tests workflow is green on `main` after a push (with the maintainer's OK), `scripts/build.sh test` and `scripts/check-plugin-imports.sh` pass locally with no warnings, and the pdf-edit and pdf-pages screen flows pass locally (with the maintainer's go)
 
 ## Workflow follow-up
 
