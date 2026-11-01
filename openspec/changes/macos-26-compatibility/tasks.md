@@ -2,7 +2,7 @@
 
 ## 1. Tests on every push
 
-- [ ] 1.1 Add `.github/workflows/tests.yml` (design decision 5); verify it runs on a push to `main` and shows the same 15 failures as the release dry run
+- [x] 1.1 Add `.github/workflows/tests.yml` (design decision 5); verify it runs on a push to `main` and shows the same 15 failures as the release dry run
 
 ## 2. Probe
 
