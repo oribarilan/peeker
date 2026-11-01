@@ -51,8 +51,8 @@ final class PeekerPDFView: PDFView, NSMenuItemValidation {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        if isEditing { tools?.mouseMoved(with: event) }
         super.mouseMoved(with: event)
+        if isEditing { tools?.mouseMoved(with: event) }  // after PDFKit, so a waiting tool's cursor wins
     }
 
     override func keyDown(with event: NSEvent) {

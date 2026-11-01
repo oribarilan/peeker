@@ -65,7 +65,7 @@ final class EditController {
         endTextBox()
         tool = .textBox
         select(nil, page: 0)
-        NSCursor.iBeam.set()
+        NSCursor.crosshair.set()
     }
 
     func startPlacing(_ signature: Signature) {
@@ -267,13 +267,33 @@ final class EditController {
         return true
     }
 
+    /// Shows the waiting tool over the page: a crosshair for Text Box, a highlighter for Highlight, the signature itself
+    /// following the pointer for Sign.
     func mouseMoved(with event: NSEvent) {
-        guard case .signature(let signature) = tool else { return }
         let point = view.convert(event.locationInWindow, from: nil)
-        guard let page = view.page(for: point, nearest: false) else { overlay.ghost = nil; return }
-        let mark = Self.signatureMark(signature, page: 0, centeredAt: view.convert(point, to: page))
-        overlay.ghost = (signature, view.convert(mark.rect, from: page))
+        let page = view.page(for: point, nearest: false)
+        switch tool {
+        case .textBox:
+            if page != nil { NSCursor.crosshair.set() }
+        case .highlighter:
+            if page != nil { Self.highlighterCursor.set() }
+        case .signature(let signature):
+            guard let page else { overlay.ghost = nil; return }
+            let mark = Self.signatureMark(signature, page: 0, centeredAt: view.convert(point, to: page))
+            overlay.ghost = (signature, view.convert(mark.rect, from: page))
+        case .none:
+            break
+        }
     }
+
+    /// The `highlighter` symbol as a cursor, pointing with its tip at the bottom left.
+    static let highlighterCursor: NSCursor = {
+        let configuration = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+        guard let image = NSImage(systemSymbolName: "highlighter", accessibilityDescription: "Highlight")?.withSymbolConfiguration(configuration) else {
+            return .iBeam
+        }
+        return NSCursor(image: image, hotSpot: NSPoint(x: 2, y: image.size.height - 2))
+    }()
 
     func keyDown(with event: NSEvent) -> Bool {
         switch event.keyCode {
