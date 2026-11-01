@@ -1,8 +1,9 @@
 #!/bin/bash
-# Records the user-facing flows as evidence: Space in Finder on files Peeker opens and on files it leaves to Quick
-# Look, Open With in a document window, a config clash in the menu bar icon, and changes made in Settings (a plugin
-# off and on, moving an extension and Reset, the quick-look key recorder and Off, the update checkbox and a
-# development build's Check for Updates…, a new PDF shortcut, one recorder listening at a time). Writes screenshots
+# Records the user-facing flows as evidence: Settings on a launch by hand, Space in Finder on files Peeker opens and
+# on files it leaves to Quick Look, Open With in a document window, a config clash in the menu bar icon, and changes
+# made in Settings (a plugin off and on, moving an extension and Reset, the quick-look key recorder and Off, the update
+# checkbox and a development build's Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one
+# recorder listening at a time). Writes screenshots
 # and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1;
 # scripts/screen-test.sh runs it with the other flows.
 #
@@ -20,6 +21,12 @@ printf 'a\n' > "$F/folder/inside.txt"
 base64 -d <<< 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' > "$F/pixel.png"
 "$PDF" form "$F/form.pdf"
 launch
+# Opened by hand with nothing to open, Peeker shows Settings; close it before the Space checks.
+check "Opening Peeker by hand shows Settings" "$("$DRIVE" wait Peeker window Settings --timeout 5 2>/dev/null && echo yes)" yes
+osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
+sleep 0.5
+"$DRIVE" keys Peeker cmd+w
+"$DRIVE" wait Peeker window Settings --gone
 
 # One big Finder window behind everything, so frames show Finder and Peeker rather than whatever else is open.
 "$DRIVE" select "$F/notes.md"
@@ -157,6 +164,12 @@ front
 "$DRIVE" row Peeker PDF && sleep 0.8
 "$DRIVE" press Peeker "Shortcut ⌃⌘H, click to record" && sleep 0.5 && "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
 check "Recording ⌃⌥H writes it" "$(cfg "c['plugins']['pdf']['commands']['highlight']['shortcut']")" ctrl+opt+h
+# The clear button leaves Zoom In without a shortcut; Reset (Zoom In's is the pane's first) brings Cmd+= back.
+"$DRIVE" press Peeker "Clear the shortcut for Zoom In" && sleep 1
+check "Clearing a shortcut writes off" "$(cfg "c['plugins']['pdf']['commands']['zoom-in']['shortcut']")" off
+"$DRIVE" shot Peeker "$OUT/12b-shortcut-cleared.png" Settings
+"$DRIVE" press Peeker Reset && sleep 1
+check "Reset brings the default back" "$(cfg "c['plugins']['pdf']['commands']['zoom-in']['shortcut']")" "cmd+="
 open -a "$APP" "$F/form.pdf" && "$DRIVE" wait Peeker window form.pdf && front
 check "The new shortcut isn't in the read view's toolbar" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight”')" 0
 "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
