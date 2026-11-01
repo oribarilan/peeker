@@ -19,6 +19,20 @@ Highlight (Ctrl+Cmd+H) SHALL be an Edit mode tool that, from the read view, turn
 - **WHEN** the user clicks Highlight and presses Escape before dragging
 - **THEN** the next drag only selects text
 
+### Requirement: A waiting tool shows itself
+
+While Text Box, Sign or Highlight waits for its click or drag, its toolbar button SHALL show as selected and its Commands menu item SHALL be checked, and the pointer over a page SHALL show the tool: a crosshair for Text Box, a highlighter for Highlight, and the signature following it for Sign. Once the tool is used or dismissed, both SHALL go back.
+
+#### Scenario: Arming the highlighter
+
+- **WHEN** the user clicks Highlight in Edit mode
+- **THEN** the Highlight button shows as selected and the pointer over the page becomes a highlighter, until the drag that highlights or Escape
+
+#### Scenario: Placing a text box
+
+- **WHEN** the user clicks Text Box and then clicks on the page
+- **THEN** the button shows as selected with a crosshair pointer until that click, then neither
+
 ## REMOVED Requirements
 
 ### Requirement: Highlighting a selection is an edit

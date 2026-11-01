@@ -7,6 +7,7 @@ The maintainer started using Peeker day to day on 2026-11-01 and hit three gaps 
 ## What Changes
 
 - **Highlight becomes a highlighter for one drag.** Clicking Highlight (or its shortcut) arms it; the next drag over text highlights that text and disarms it. Escape, another tool or leaving Edit mode also disarm it. Text already selected is highlighted at once, and the highlighter stays armed for one more drag. The command's name becomes "Highlight"; its config id stays `highlight`.
+- **A waiting tool shows itself.** While Text Box, Sign or Highlight waits for its click or drag, its toolbar button shows as selected and its menu item checked, and the cursor over the page shows the tool: a crosshair for Text Box, a highlighter for Highlight, the signature following the pointer for Sign (as today). This needs a small addition to the plugin contract: a document can name its active command.
 - **A shortcut can be cleared.** Each shortcut recorder in Settings gets a clear button that leaves the command without a shortcut; Reset brings the default back. The config says so with `"shortcut": "off"`, and the menu item shows no shortcut.
 - **Opening Peeker by hand shows Settings.** A launch with no file to open (from Launchpad, Spotlight or Finder) and reopening Peeker while it runs bring up the Settings window. A launch at login stays quiet.
 
@@ -21,10 +22,12 @@ None.
 - `pdf`: Highlight works as a one-drag highlighter instead of acting only on a selection made first.
 - `routing-and-config`: a command's shortcut can be set to `off`.
 - `settings`: each shortcut can be cleared from Settings; launching or reopening Peeker by hand opens Settings.
+- `plugin-host`: a document can name an active command, which the window shows as selected.
 
 ## Impact
 
-- `Plugins/pdf`: `EditController` (the armed highlighter), `PDFPluginDocument` (the highlight command), `PDFPlugin` (the command's title).
+- `Plugins/pdf`: `EditController` (the armed highlighter, the active tool, cursors), `PDFPluginDocument` (the highlight command, the active command), `PDFPlugin` (the command's title).
+- `Sources/PeekerKit/Plugin.swift`: `activeCommand` and its change callback, with defaults, so other plugins need no change. `DocumentWindowController`: the toolbar's selected item and the menu checkmark.
 - `Sources/Host/App`: `Config` reading, rendering and schema for `off`, `MainMenu` and the window's command lookup for a command without a shortcut, and `AppDelegate` (launch and reopen).
 - `Sources/Host/Settings`: the clear button beside each recorder.
 - `scripts/screen/record-flows.sh`: clearing a shortcut, and the Settings window a launch with no file now shows.
