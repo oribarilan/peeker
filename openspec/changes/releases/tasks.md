@@ -21,7 +21,7 @@
 
 ## 4. Hardened runtime
 
-- [ ] 4.1 Turn on `ENABLE_HARDENED_RUNTIME` for the app and add `Peeker.entitlements` with `com.apple.security.automation.apple-events`; verify `codesign -d --entitlements - ` shows it, `codesign -dv` shows the runtime flag, and `scripts/screen-test.sh` passes in full on the hardened build (needs the maintainer's go)
+- [x] 4.1 Turn on `ENABLE_HARDENED_RUNTIME` for the app and add `Peeker.entitlements` with `com.apple.security.automation.apple-events`; verify `codesign -d --entitlements - ` shows it, `codesign -dv` shows the runtime flag, and `scripts/screen-test.sh` passes in full on the hardened build (needs the maintainer's go)
 
 ## 5. Release build and DMG
 
@@ -30,14 +30,14 @@
 
 ## 6. Workflow and feed
 
-- [ ] 6.1 Write `.github/workflows/release.yml` (design decision 10) with the secret names from the guide; verify a manual dispatch on `main` runs through tests and the dry-run DMG artifact, and that a tag whose changelog section is missing fails before the build (on a test tag deleted afterwards, with the maintainer's OK)
+- [x] 6.1 Write `.github/workflows/release.yml` (design decision 10) with the secret names from the guide; verify a manual dispatch on `main` runs through tests and the dry-run DMG artifact, and that a tag whose changelog section is missing fails before the build (on a test tag deleted afterwards, with the maintainer's OK)
 - [x] 6.2 Add the feed step: `generate_appcast` from Sparkle's 2.10.1 tools on the new DMG with its Markdown notes, the Release asset address and deltas off, pushed to `gh-pages`; confirm the exact options against the tools; verify locally with a throwaway EdDSA key that the generated `appcast.xml` has the version, build number, signature, length and notes
 - [x] 6.3 Add the tap step: fill in `packaging/peeker.rb` and commit it to `oribarilan/homebrew-tap` with the tap token; verify the step is skipped in a dry run and its commands work against a local clone
 
 ## 7. Guide and checks
 
 - [x] 7.1 Write `docs/releasing.md` (design decision 12) with the one-time setup, the secret names the workflow reads, each release's steps and how to pull a bad release; link it from `AGENTS.md` and the README's install section, and add the install command to the README marked as coming with 0.1.0
-- [ ] 7.2 Run `scripts/build.sh test` (no new warnings), `scripts/check-plugin-imports.sh`, `openspec validate --all --strict` and, with the maintainer's go, `scripts/screen-test.sh`; verify all pass
+- [x] 7.2 Run `scripts/build.sh test` (no new warnings), `scripts/check-plugin-imports.sh`, `openspec validate --all --strict` and, with the maintainer's go, `scripts/screen-test.sh`; verify all pass
 
 ## Workflow follow-up
 
