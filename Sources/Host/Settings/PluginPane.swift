@@ -49,8 +49,8 @@ struct PluginPane: View {
                 KeyRecorder(shortcut: current, rules: command.isEditTool ? .editTool : .command,
                             conflict: { shortcutConflict($0, command: command.id, plugin: plugin, config: store.config, menu: menuShortcuts(in: NSApp.mainMenu ?? NSMenu())) },
                             listening: $model.recorder, id: key,
-                            onRecord: { shortcut in model.save { $0.keys[key] = shortcut } })
-                Button("Reset") { model.save { $0.keys[key] = nil } }
+                            onRecord: { shortcut in model.save { $0.recordShortcut(shortcut, for: key) } })
+                Button("Reset") { model.save { $0.resetShortcut(for: key) } }
                     .disabled(current == defaultShortcut)
                     .help("Back to \(defaultShortcut.map(\.displayText) ?? "no shortcut")")
             }

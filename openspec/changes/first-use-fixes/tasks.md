@@ -12,7 +12,7 @@
 
 ## 3. Clearing a shortcut
 
-- [ ] 3.1 Add `Config.noShortcut` with `off` in reading, rendering and the schema (design decision 2), and make recording and Reset update it; tests first: `off` leaves a command without a shortcut and without a problem, a rendered config round-trips `off`, and Reset brings the default back; update the README's config section
+- [x] 3.1 Add `Config.noShortcut` with `off` in reading, rendering and the schema (design decision 2), and make recording and Reset update it; tests first: `off` leaves a command without a shortcut and without a problem, a rendered config round-trips `off`, and Reset brings the default back; update the README's config section
 - [ ] 3.2 Add the clear button beside each recorder (design decision 3), with the recorder showing "None" for a cleared command; unit test that clearing through the settings model writes `off`
 - [ ] 3.3 Add a step to `record-flows.sh` that clears Zoom In's shortcut in the PDF pane and checks `config.json`, then resets it; verify the flow passes on screen (with the maintainer's go)
 

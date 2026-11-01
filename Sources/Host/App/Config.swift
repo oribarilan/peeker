@@ -10,7 +10,7 @@ import PeekerKit
 ///       "plugins": {
 ///         "image": { "enabled": false },
 ///         "text": { "extensions": ["txt", "md", "noExtension"] },   // replaces the plugin's default list
-///         "pdf": { "commands": { "highlight": { "shortcut": "cmd+shift+h" } } }
+///         "pdf": { "commands": { "highlight": { "shortcut": "cmd+shift+h" }, "zoom-in": { "shortcut": "off" } } }
 ///       }
 ///     }
 struct Config: Equatable {
@@ -19,6 +19,8 @@ struct Config: Equatable {
     var extensions: [String: [String]] = [:]
     /// `keyID(plugin:command:)` -> shortcut override.
     var keys: [String: Shortcut] = [:]
+    /// `keyID(plugin:command:)` of each command the config leaves without a shortcut (`"off"`).
+    var noShortcut: Set<String> = []
     var quickLookKey: Shortcut? = Shortcut(key: .space)
     /// Whether Peeker checks for updates once a day by itself.
     var checkForUpdates = true
@@ -26,9 +28,29 @@ struct Config: Equatable {
     /// Where `keys` holds a command's shortcut: "pluginID.commandID".
     static func keyID(plugin: String, command: String) -> String { "\(plugin).\(command)" }
 
-    /// The command's shortcut: the config's override, else the plugin's default.
+    /// The command's shortcut: none when the config turned it off, else the config's override, else the plugin's default.
     func shortcut(for command: CommandSpec, of plugin: String) -> Shortcut? {
-        keys[Self.keyID(plugin: plugin, command: command.id)] ?? command.shortcut.flatMap(Shortcut.init(parsing:))
+        let key = Self.keyID(plugin: plugin, command: command.id)
+        guard !noShortcut.contains(key) else { return nil }
+        return keys[key] ?? command.shortcut.flatMap(Shortcut.init(parsing:))
+    }
+
+    /// Gives the command at `key` this shortcut.
+    mutating func recordShortcut(_ shortcut: Shortcut, for key: String) {
+        keys[key] = shortcut
+        noShortcut.remove(key)
+    }
+
+    /// Leaves the command at `key` without a shortcut.
+    mutating func clearShortcut(for key: String) {
+        keys[key] = nil
+        noShortcut.insert(key)
+    }
+
+    /// Gives the command at `key` its default shortcut back.
+    mutating func resetShortcut(for key: String) {
+        keys[key] = nil
+        noShortcut.remove(key)
     }
 
     /// Which plugin opens each extension (or `noExtension`), from every plugin's configured or default list, taken in
@@ -189,8 +211,12 @@ private struct ConfigReader {
             for (key, value) in sorted(settings) {
                 guard key == "shortcut" else { unknown("\(path).\(key)"); continue }
                 guard let text = string(value, at: "\(path).shortcut") else { continue }
+                if text == "off" {
+                    config.noShortcut.insert(Config.keyID(plugin: plugin.id, command: command))
+                    continue
+                }
                 guard let shortcut = Shortcut(parsing: text) else {
-                    problem("\(path).shortcut", "“\(text)” isn't a shortcut Peeker understands. Use one like cmd+shift+h.")
+                    problem("\(path).shortcut", "“\(text)” isn't a shortcut Peeker understands. Use one like cmd+shift+h, or off for none.")
                     continue
                 }
                 let isEditTool = plugin.commands.first { $0.id == command }?.isEditTool == true

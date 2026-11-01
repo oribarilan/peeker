@@ -69,7 +69,7 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change th
 - `updates.check`: `false` stops the daily check for a new version; Check for Updates… still checks when you ask.
 - `plugins.<id>.enabled`: `false` turns a plugin off. Its files then open nowhere; no other plugin takes them.
 - `plugins.<id>.extensions`: every extension the plugin opens, without the dot, replacing its default list (`schema.json` lists each default). `noExtension` matches files with none, such as `.zshrc` and `Makefile`, and is on Plain Text's list. An extension belongs to one plugin: listed twice, it stays with the plugin that has it by default (above, `md` moves to Plain Text because Markdown's list drops it). Open With in a window can still pick any enabled plugin for one tab.
-- `plugins.<id>.commands.<command>.shortcut` rebinds a command.
+- `plugins.<id>.commands.<command>.shortcut` rebinds a command; `"off"` leaves it without one.
 
 Peeker writes `schema.json` next to the config at launch, so editors that read `$schema` autocomplete and check the keys. A key it doesn't know or a value it can't use is skipped and listed under Settings > Config file, and the menu bar icon shows a red dot until it's fixed; a file that isn't valid JSON changes nothing. Settings > Open in Editor creates the file when there's none.
 

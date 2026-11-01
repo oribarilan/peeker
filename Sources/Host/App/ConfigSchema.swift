@@ -16,7 +16,7 @@ enum ConfigSchema {
                 ],
                 "commands": object("Shortcuts for the plugin's commands.", Dictionary(uniqueKeysWithValues: plugin.commands.map { command in
                     (command.id, object("\(command.title)" + (command.shortcut.map { ". Default: \($0)." } ?? "."), [
-                        "shortcut": ["type": "string", "description": "A key with modifiers, such as cmd+shift+h. An edit tool may also use a single key, such as c, which works only in Edit mode."],
+                        "shortcut": ["type": "string", "description": "A key with modifiers, such as cmd+shift+h, or \"off\" for no shortcut. An edit tool may also use a single key, such as c, which works only in Edit mode."],
                     ]))
                 })),
             ]))

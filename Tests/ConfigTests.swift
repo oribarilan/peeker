@@ -131,6 +131,13 @@ private func config(_ json: String) throws -> Config {
         #expect(reading.problems.map(\.path) == ["plugins.pdf.commands.hilight", "plugins.pfd"])
     }
 
+    @Test func offLeavesACommandWithoutAShortcut() throws {
+        let reading = read(#"{"plugins": {"pdf": {"commands": {"zoom-in": {"shortcut": "off"}}}}}"#)
+        #expect(reading.problems.isEmpty)
+        let zoomIn = try #require(StubPDF.commands.first { $0.id == "zoom-in" })
+        #expect(try #require(reading.config).shortcut(for: zoomIn, of: "pdf") == nil)
+    }
+
     @Test func theOldOpenSectionIsUnknown() {
         let reading = read(#"{"open": {"md": "text"}}"#)
         #expect(reading.problems.map(\.path) == ["open"])
@@ -194,6 +201,34 @@ private func config(_ json: String) throws -> Config {
     @Test func aDisabledPluginKeepsItsExtensions() throws {
         let config = try config(#"{"plugins": {"markdown": {"enabled": false}}}"#)
         #expect(config.owners(of: plugins).owners["md"] == "markdown")
+    }
+}
+
+@Suite struct ShortcutChoices {
+    private let zoomIn = StubPDF.commands.first { $0.id == "zoom-in" }!
+
+    @Test func clearingRecordingAndResetting() {
+        var config = Config()
+        let key = Config.keyID(plugin: "pdf", command: "zoom-in")
+        config.clearShortcut(for: key)
+        #expect(config.shortcut(for: zoomIn, of: "pdf") == nil)
+        config.recordShortcut(Shortcut(key: .character("z"), modifiers: [.command, .option]), for: key)
+        #expect(config.shortcut(for: zoomIn, of: "pdf") == Shortcut(key: .character("z"), modifiers: [.command, .option]))
+        config.clearShortcut(for: key)
+        config.resetShortcut(for: key)
+        #expect(config.shortcut(for: zoomIn, of: "pdf") == Shortcut(parsing: "cmd+="), "Reset brings the default back")
+    }
+
+    @Test func aClearedShortcutIsWrittenAsOffAndReadBack() throws {
+        var config = Config()
+        config.clearShortcut(for: Config.keyID(plugin: "pdf", command: "zoom-in"))
+        let rendered = String(decoding: config.json(plugins: plugins), as: UTF8.self)
+        let root = try #require(try JSONSerialization.jsonObject(with: Data(rendered.utf8)) as? [String: Any])
+        let pdf = try #require((root["plugins"] as? [String: [String: Any]])?["pdf"])
+        #expect((pdf["commands"] as? [String: [String: String]])?["zoom-in"] == ["shortcut": "off"])
+        let back = read(rendered)
+        #expect(back.problems.isEmpty)
+        #expect(try #require(back.config).shortcut(for: zoomIn, of: "pdf") == nil)
     }
 }
 

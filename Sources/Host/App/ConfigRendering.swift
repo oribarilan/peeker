@@ -7,6 +7,7 @@ extension Config {
     func json(plugins: [PluginEntry]) -> Data {
         let pluginSettings = Dictionary(uniqueKeysWithValues: plugins.map { plugin in
             let commands = Dictionary(uniqueKeysWithValues: plugin.commands.compactMap { command -> (String, [String: String])? in
+                if noShortcut.contains(Config.keyID(plugin: plugin.id, command: command.id)) { return (command.id, ["shortcut": "off"]) }
                 guard let shortcut = shortcut(for: command, of: plugin.id) else { return nil }
                 return (command.id, ["shortcut": shortcut.configText])
             })
