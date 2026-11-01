@@ -254,3 +254,61 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         #expect(document.pluginDocument === pdf, "our own save must not trigger a reload")
     }
 }
+
+/// Highlight arms a highlighter for one drag: the selection that drag makes is highlighted when the mouse comes up.
+@Suite struct PDFHighlighter {
+    private func selectAll(_ document: PDFPluginDocument) throws {
+        let page = try #require(document.pdfView.document?.page(at: 0))
+        document.pdfView.setCurrentSelection(page.selection(for: page.bounds(for: .mediaBox)), animate: false)
+    }
+
+    private func escape() throws -> NSEvent {
+        try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+                                      characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
+    }
+
+    @Test func theNextSelectionIsHighlightedOnce() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1))
+        document.setEditing(true)
+        #expect(document.perform("highlight"))
+        let tools = try #require(document.tools)
+        #expect(tools.highlighterArmed && document.pendingEdits.isEmpty)
+        try selectAll(document)
+        tools.selectionEnded()
+        #expect(document.pendingEdits.count == 1 && !tools.highlighterArmed)
+        try selectAll(document)
+        tools.selectionEnded()
+        #expect(document.pendingEdits.count == 1, "a second drag only selects")
+    }
+
+    @Test func aSelectionMadeFirstIsHighlightedAndOneMoreDragFollows() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1))
+        document.setEditing(true)
+        try selectAll(document)
+        #expect(document.perform("highlight"))
+        let tools = try #require(document.tools)
+        #expect(document.pendingEdits.count == 1 && tools.highlighterArmed)
+        try selectAll(document)
+        tools.selectionEnded()
+        #expect(document.pendingEdits.count == 2 && !tools.highlighterArmed)
+    }
+
+    @Test func escapeAndOtherToolsDisarmIt() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1))
+        document.setEditing(true)
+        #expect(document.perform("highlight"))
+        let tools = try #require(document.tools)
+        #expect(tools.keyDown(with: try escape()))
+        #expect(!tools.highlighterArmed)
+        #expect(document.perform("highlight"))
+        tools.chooseTextBox()
+        #expect(!tools.highlighterArmed)
+        #expect(document.perform("highlight"))
+        document.setEditing(false)
+        #expect(!tools.highlighterArmed)
+    }
+
+    @Test func theCommandIsCalledHighlight() {
+        #expect(PDFPlugin.commands.first { $0.id == "highlight" }?.title == "Highlight")
+    }
+}

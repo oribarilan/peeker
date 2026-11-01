@@ -152,15 +152,15 @@ screencapture -x "$OUT/12g-development-build-update.png"
 "$DRIVE" wait Peeker control OK --gone
 front
 
-# A new Highlight Selection shortcut works in an open PDF: from the read view it turns on Edit mode. (Synthetic
+# A new Highlight shortcut works in an open PDF: from the read view it turns on Edit mode. (Synthetic
 # drags and Select All don't select PDF text, so the highlight itself is left to the integration test.)
 "$DRIVE" row Peeker PDF && sleep 0.8
 "$DRIVE" press Peeker "Shortcut ⌃⌘H, click to record" && sleep 0.5 && "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
 check "Recording ⌃⌥H writes it" "$(cfg "c['plugins']['pdf']['commands']['highlight']['shortcut']")" ctrl+opt+h
 open -a "$APP" "$F/form.pdf" && "$DRIVE" wait Peeker window form.pdf && front
-check "The new shortcut isn't in the read view's toolbar" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight Selection”')" 0
+check "The new shortcut isn't in the read view's toolbar" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight”')" 0
 "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
-check "The new shortcut turns on Edit mode" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight Selection”' | awk '{print ($1 > 0) ? "yes" : "no"}')" yes
+check "The new shortcut turns on Edit mode" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight”' | awk '{print ($1 > 0) ? "yes" : "no"}')" yes
 "$DRIVE" shot Peeker "$OUT/12c-pdf-shortcut.png" form.pdf
 "$DRIVE" menu Peeker File Close && "$DRIVE" wait Peeker window form.pdf --gone
 

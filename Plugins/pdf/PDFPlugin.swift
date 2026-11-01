@@ -12,7 +12,7 @@ public enum PDFPlugin: Plugin {
         CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-"),
         CommandSpec(id: "text-box", title: "Text Box", symbol: "character.textbox", shortcut: "ctrl+cmd+t", isEditTool: true),
         CommandSpec(id: "sign", title: "Sign", symbol: "signature", shortcut: "ctrl+cmd+s", isEditTool: true),
-        CommandSpec(id: "highlight", title: "Highlight Selection", symbol: "highlighter", shortcut: "ctrl+cmd+h", isEditTool: true),
+        CommandSpec(id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "ctrl+cmd+h", isEditTool: true),
         CommandSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", shortcut: "cmd+l", isEditTool: true),
         CommandSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
         CommandSpec(id: "delete-page", title: "Delete Page", symbol: "trash", isEditTool: true),

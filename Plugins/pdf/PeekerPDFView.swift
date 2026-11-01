@@ -45,7 +45,9 @@ final class PeekerPDFView: PDFView, NSMenuItemValidation {
     override func mouseUp(with event: NSEvent) {
         if isEditing, tools?.mouseUp(with: event) == true { return }
         super.mouseUp(with: event)
-        if isEditing { onInteraction?(nil) }
+        guard isEditing else { return }
+        tools?.selectionEnded()
+        onInteraction?(nil)
     }
 
     override func mouseMoved(with event: NSEvent) {

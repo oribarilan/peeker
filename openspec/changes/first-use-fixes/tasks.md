@@ -2,7 +2,7 @@
 
 ## 1. Highlighter
 
-- [ ] 1.1 Add the armed highlighter to `EditController` and `PeekerPDFView.mouseUp` (design decision 1), make the highlight command highlight a selection and arm, and rename it "Highlight"; tests first: arming then a selection highlights it once and disarms, a selection made first is highlighted and the highlighter stays armed, Escape and Text Box disarm, and the command's title is "Highlight"; verify `scripts/build.sh test` passes
+- [x] 1.1 Add the armed highlighter to `EditController` and `PeekerPDFView.mouseUp` (design decision 1), make the highlight command highlight a selection and arm, and rename it "Highlight"; tests first: arming then a selection highlights it once and disarms, a selection made first is highlighted and the highlighter stays armed, Escape and Text Box disarm, and the command's title is "Highlight"; verify `scripts/build.sh test` passes
 
 ## 2. Clearing a shortcut
 

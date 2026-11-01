@@ -125,15 +125,8 @@ final class PDFPluginDocument: PluginDocument {
             guard let window = pdfView.window else { return true }
             SignaturePad.present(on: window) { [weak self] signature in self?.tools?.startPlacing(signature) }
         case "highlight" where isEditing:
-            let lines = pdfView.currentSelection?.selectionsByLine() ?? []
-            pdfView.clearSelection()
-            undoManager.beginUndoGrouping()  // one undo step for every line
-            defer { undoManager.endUndoGrouping() }
-            for line in lines {
-                for page in line.pages {
-                    change(.add(PDFMark(id: PDFEdit.newID(), page: document.index(for: page), rect: line.bounds(for: page), kind: .highlight(Self.highlightColor))))
-                }
-            }
+            highlightSelection()
+            tools?.armHighlighter()
         case "rotate-left" where isEditing, "rotate-right" where isEditing:
             guard unavailableReason(for: id) == nil else { return false }
             change(.rotatePages(pages: targetPages, by: id == "rotate-left" ? -90 : 90))
@@ -144,6 +137,19 @@ final class PDFPluginDocument: PluginDocument {
             return false
         }
         return true
+    }
+
+    /// Covers each line of the text selection with a highlight, as one undo step, and clears the selection.
+    func highlightSelection() {
+        let lines = pdfView.currentSelection?.selectionsByLine() ?? []
+        pdfView.clearSelection()
+        undoManager.beginUndoGrouping()  // one undo step for every line
+        defer { undoManager.endUndoGrouping() }
+        for line in lines {
+            for page in line.pages {
+                change(.add(PDFMark(id: PDFEdit.newID(), page: document.index(for: page), rect: line.bounds(for: page), kind: .highlight(Self.highlightColor))))
+            }
+        }
     }
 
     func unavailableReason(for command: String) -> String? {

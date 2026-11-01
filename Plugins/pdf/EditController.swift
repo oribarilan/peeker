@@ -5,7 +5,7 @@ import PDFKit
 /// signatures. Created when Edit mode first turns on, so opening a PDF costs nothing extra.
 final class EditController {
     enum Corner { case topLeft, topRight, bottomLeft, bottomRight }
-    enum Tool { case none, textBox, signature(Signature) }
+    enum Tool { case none, textBox, signature(Signature), highlighter }
 
     static let minimumSize: CGFloat = 8
     /// About the width of a signature on a signature line.
@@ -39,6 +39,23 @@ final class EditController {
     }
 
     // MARK: Tools
+
+    /// Whether the next drag over text gets highlighted.
+    var highlighterArmed: Bool { if case .highlighter = tool { true } else { false } }
+
+    /// Arms the highlighter for one drag: text selected next is highlighted when the mouse comes up.
+    func armHighlighter() {
+        endTextBox()
+        tool = .highlighter
+        select(nil, page: 0)
+    }
+
+    /// A drag that may have selected text just ended: an armed highlighter highlights that text and disarms.
+    func selectionEnded() {
+        guard highlighterArmed, let text = view.currentSelection?.string, !text.isEmpty else { return }
+        tool = .none
+        document.highlightSelection()
+    }
 
     func chooseTextBox() {
         endTextBox()
@@ -202,6 +219,9 @@ final class EditController {
             tool = .none
             editTextBox(nil, page: page, at: pagePoint)
             return true
+        case .highlighter:
+            select(nil, page: 0)
+            return false  // PDFKit selects the text; selectionEnded highlights it
         case .none:
             break
         }
