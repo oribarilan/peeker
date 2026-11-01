@@ -15,7 +15,7 @@
 
 ## 3. Menus and Settings
 
-- [ ] 3.1 Add Check for Updates… after About Peeker in the app menu and after Settings… in the menu bar icon's menu, enabled while no check runs, with the development-build message; update `MainMenuTests` and the menu bar tests for the new items, and update `docs/` or the run-peeker skill where they list the menu
+- [x] 3.1 Add Check for Updates… after About Peeker in the app menu and after Settings… in the menu bar icon's menu, enabled while no check runs, with the development-build message; update `MainMenuTests` and the menu bar tests for the new items, and update `docs/` or the run-peeker skill where they list the menu
 - [ ] 3.2 Add the Updates section to `GeneralPane`: the checkbox through `model.save`, Check Now, and the version line; unit test that toggling it rewrites the config with `updates.check`
 - [ ] 3.3 Add a step to `scripts/screen/record-flows.sh`: clear the checkbox and check `config.json`, choose Check for Updates… from the menu bar icon and check the development-build message appears; verify the flow passes on its own (needs the maintainer's go)
 

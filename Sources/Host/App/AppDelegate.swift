@@ -30,6 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var settings: SettingsWindowController?
     private var menuBarItem: MenuBarItem?
     private var benchStarted = false
+    /// Sparkle starts only on the turn after launch, so it never delays the first window.
+    private(set) lazy var updater: Updater = {
+        let updater = Updater()
+        updater.apply(config)
+        return updater
+    }()
     private var recoveryRestored = false
     /// One for the whole app, so recovered texts that land on the clipboard during a launch don't replace each other.
     private lazy var recoveryClipboard = RecoveryClipboard(pasteboard: .general, store: .shared) { [weak self] in self?.catalog.recoveryText($0) }
@@ -42,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item.action == #selector(toggleOpenAtLogin(_:)) { item.state = LoginItem.isEnabled ? .on : LoginItem.needsApproval ? .mixed : .off }
+        if item.action == #selector(checkForUpdates(_:)) { return updater.canCheck }
         return true
     }
 
@@ -60,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         restoreRecoveredDocuments()
         files.forEach(openInWindow)
         startHotkey()
+        DispatchQueue.main.async { [weak self] in self?.updater.start() }
         do {
             try ConfigSchema.write(nextTo: Config.defaultURL, plugins: catalog.entries)
         } catch {
@@ -138,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Self.logProblems(store.problems)
         updateMenuBar()
         catalog.reload(config: store.config)
+        updater.apply(store.config)
         windows.forEach { $0.apply(store.config) }
         guard store.config.quickLookKey != hotkeyShortcut else { return }
         hotkey?.stop()
@@ -153,6 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         Presence.update(documentWindows: windows.count, settingsOpen: settings != nil)
     }
 
+    @objc func checkForUpdates(_ sender: Any?) { updater.checkNow() }
     @objc func showSettings(_ sender: Any?) { showSettings(pane: nil) }
     @objc func showConfigFileSettings(_ sender: Any?) { showSettings(pane: .configFile) }
     @objc func showPermissionsSettings(_ sender: Any?) { showSettings(pane: .permissions) }

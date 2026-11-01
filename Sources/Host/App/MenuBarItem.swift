@@ -1,6 +1,6 @@
 import AppKit
 
-/// Peeker's icon in the menu bar, there whenever it runs: Settings, Open at Login and Quit, and a red dot while the
+/// Peeker's icon in the menu bar, there whenever it runs: Settings, Check for Updates, Open at Login and Quit, and a red dot while the
 /// config has problems or Space in Finder is missing Accessibility, with a menu line saying which.
 final class MenuBarItem {
     /// What the icon and its menu show.
@@ -29,18 +29,11 @@ final class MenuBarItem {
     init(target: AppDelegate) {
         problemsItem = NSMenuItem(title: "", action: #selector(AppDelegate.showConfigFileSettings(_:)), keyEquivalent: "")
         accessibilityItem = NSMenuItem(title: "Space in Finder needs Accessibility…", action: #selector(AppDelegate.showPermissionsSettings(_:)), keyEquivalent: "")
-        let menu = NSMenu()
         for line in [problemsItem, accessibilityItem] {
             line.target = target
             line.isHidden = true
-            menu.addItem(line)
         }
-        for (title, action) in [("Settings…", #selector(AppDelegate.showSettings(_:))), ("Open at Login", #selector(AppDelegate.toggleOpenAtLogin(_:)))] {
-            menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = target
-        }
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Peeker", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        item.menu = menu
+        item.menu = Self.menu(target: target, lines: [problemsItem, accessibilityItem])
         guard let button = item.button else { return }
         let image = NSImage(systemSymbolName: "eye", accessibilityDescription: "Peeker")
         image?.isTemplate = true
@@ -50,6 +43,20 @@ final class MenuBarItem {
         dot.cornerRadius = 3
         dot.isHidden = true
         button.layer?.addSublayer(dot)
+    }
+
+    /// The icon's menu: the status `lines` (hidden until there's something to say), then the app's commands.
+    static func menu(target: AppDelegate, lines: [NSMenuItem]) -> NSMenu {
+        let menu = NSMenu()
+        lines.forEach(menu.addItem)
+        let commands = [("Settings…", #selector(AppDelegate.showSettings(_:))), ("Check for Updates…", #selector(AppDelegate.checkForUpdates(_:))),
+                        ("Open at Login", #selector(AppDelegate.toggleOpenAtLogin(_:)))]
+        for (title, action) in commands {
+            menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = target
+        }
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit Peeker", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        return menu
     }
 
     func show(_ state: State) {

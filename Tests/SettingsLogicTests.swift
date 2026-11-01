@@ -136,6 +136,16 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
     }
 }
 
+@Suite struct MenuBarMenu {
+    @Test func itOffersSettingsUpdatesLoginAndQuit() {
+        let delegate = AppDelegate()  // menu items hold their target weakly
+        defer { withExtendedLifetime(delegate) {} }
+        let menu = MenuBarItem.menu(target: delegate, lines: [])
+        #expect(menu.items.map(\.title) == ["Settings…", "Check for Updates…", "Open at Login", "", "Quit Peeker"])
+        #expect(menu.items[1].action == #selector(AppDelegate.checkForUpdates(_:)) && menu.items[1].target === delegate)
+    }
+}
+
 @Suite struct MenuBarStates {
     @Test func theDotShowsForProblemsOrMissingAccessibility() {
         #expect(MenuBarItem.State(problems: 0, needsAccessibility: false) == .init(dot: false, problemsLine: nil, accessibilityLine: false))

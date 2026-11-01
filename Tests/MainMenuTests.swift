@@ -11,6 +11,16 @@ import Testing
         #expect(peeker.item(withTitle: "Open at Login") == nil)
     }
 
+    @Test func thePeekerMenuChecksForUpdatesAfterAbout() throws {
+        let delegate = AppDelegate()  // menu items hold their target weakly
+        let menu = MainMenu.make(target: delegate)
+        defer { withExtendedLifetime(delegate) {} }
+        let peeker = try #require(menu.item(withTitle: "Peeker")?.submenu)
+        #expect(Array(peeker.items.map(\.title).prefix(3)) == ["About Peeker", "Check for Updates…", "Settings…"])
+        let check = try #require(peeker.item(withTitle: "Check for Updates…"))
+        #expect(check.action == #selector(AppDelegate.checkForUpdates(_:)) && check.target === delegate)
+    }
+
     @Test func fileHasPrintAndEditHasFindPrevious() throws {
         let delegate = AppDelegate()  // menu items hold their target weakly
         let main = MainMenu.make(target: delegate)
