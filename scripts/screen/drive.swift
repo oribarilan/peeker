@@ -79,8 +79,13 @@ func selectInFinder(_ path: String) {
         tell application "Finder"
             activate
             set picked to (POSIX file "\(escaped)" as alias)
-            -- Reuse the front window when it already shows the folder, rather than opening one per file.
-            if (count of Finder windows) > 0 and ((target of front Finder window) as alias) is ((container of picked) as alias) then
+            -- Reuse the front window when it already shows the folder, rather than opening one per file. A window
+            -- showing Recents or another search has no folder to compare, so it errors and the file is revealed.
+            set reuse to false
+            try
+                set reuse to ((target of front Finder window) as alias) is ((container of picked) as alias)
+            end try
+            if reuse then
                 select picked
             else
                 reveal picked

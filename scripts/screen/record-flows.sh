@@ -39,7 +39,8 @@ sleep 1
 # Presses Space on a file in Finder and reports which app's window appeared: Peeker's panel or Finder's Quick Look.
 space() {
     local name=$1 file=$2 want=$3
-    "$DRIVE" select "$file"
+    # Space on whatever else Finder has selected would test the wrong file.
+    "$DRIVE" select "$file" || { check "Space on $(basename "$file")" "no Finder selection" "$want"; return; }
     sleep 2.5  # Finder answers the select script first; Space too soon can find it busy
     # What had the keyboard when Space was pressed, kept for a failed check.
     local state; state="front $(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null), focus $(osascript -e 'tell application "System Events" to tell process "Finder" to get role of (value of attribute "AXFocusedUIElement")' 2>/dev/null)"
