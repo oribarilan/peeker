@@ -9,8 +9,8 @@
 ## 2. Config and updater
 
 - [x] 2.1 Add `updates.check` to the config: `Config.checkForUpdates` (default true), reading with problems for a wrong type or unknown key under `updates`, rendering, and the schema; unit tests first for a missing key, false, a string value and an unknown key, and for a Settings rewrite including `"updates": {"check": true}`
-- [ ] 2.2 Add Sparkle 2.10.1 to `project.yml` (app, embedded and signed on copy, and `HostTests`) with the Info.plist keys from design decision 2 (`SUPublicEDKey` a placeholder until task 6.2); verify `scripts/build.sh` passes with no new warnings and `codesign --verify --deep --strict` passes on the built app
-- [ ] 2.3 Write `Updater` (design decision 2): whether this build updates, the check flag, check now, and a development-build answer; unit tests first that a `0.0.0-dev` build never starts or checks and that the flag follows the config
+- [x] 2.2 Add Sparkle 2.10.1 to `project.yml` (app, embedded and signed on copy, and `HostTests`) with the Info.plist keys from design decision 2 (`SUPublicEDKey` a placeholder until task 6.2); verify `scripts/build.sh` passes with no new warnings and `codesign --verify --deep --strict` passes on the built app
+- [x] 2.3 Write `Updater` (design decision 2): whether this build updates, the check flag, check now, and a development-build answer; unit tests first that a `0.0.0-dev` build never starts or checks and that the flag follows the config
 - [ ] 2.4 Have `AppDelegate` create `Updater` on the turn after launch (not in benchmark mode) and pass `checkForUpdates` from every config change; verify with a unit test that a saved `{"updates": {"check": false}}` turns the flag off, and with `scripts/bench-ab.sh main` that launch and open times stay within the gate (record the numbers in the commit)
 
 ## 3. Menus and Settings
