@@ -1,11 +1,14 @@
 import AppKit
 
 enum MainMenu {
+    /// The menu plugins' commands fill.
+    static let commandsTitle = "Commands"
+
     static func rebuildCommands(_ menu: NSMenu, for controller: DocumentWindowController) {
         menu.removeAllItems()
         if let document = controller.current, document.editMode != .none {
-            let edit = NSMenuItem(title: "Edit Mode", action: #selector(DocumentWindowController.toggleEditMode(_:)), keyEquivalent: "e")
-            edit.keyEquivalentModifierMask = .command
+            let edit = NSMenuItem(title: "Edit Mode", action: #selector(DocumentWindowController.toggleEditMode(_:)), keyEquivalent: Shortcut.editMode.keyEquivalent)
+            edit.keyEquivalentModifierMask = Shortcut.editMode.modifiers
             edit.state = document.isEditing ? .on : .off
             edit.target = controller
             menu.addItem(edit)
@@ -26,7 +29,7 @@ enum MainMenu {
 
     static func make(target: AppDelegate) -> NSMenu {
         let main = NSMenu()
-        let commands = NSMenu(title: "Commands")
+        let commands = NSMenu(title: commandsTitle)
         func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenu {
             let menu = NSMenu(title: title)
             items.forEach(menu.addItem)
@@ -69,7 +72,7 @@ enum MainMenu {
             item("Find Next", #selector(NSTextView.performFindPanelAction(_:)), "g", tag: Int(NSFindPanelAction.next.rawValue)),
             item("Find Previous", #selector(NSTextView.performFindPanelAction(_:)), "g", [.command, .shift], tag: Int(NSFindPanelAction.previous.rawValue)),
         ])
-        main.addItem(withTitle: "Commands", action: nil, keyEquivalent: "").submenu = commands
+        main.addItem(withTitle: commandsTitle, action: nil, keyEquivalent: "").submenu = commands
         NSApp.windowsMenu = submenu("Window", [
             item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),
             item("Show Previous Tab", #selector(NSWindow.selectPreviousTab(_:)), "{"),

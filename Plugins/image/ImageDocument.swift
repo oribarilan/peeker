@@ -116,7 +116,6 @@ final class ImageDocument: PluginDocument {
     func setEditing(_ on: Bool) {
         guard editMode == .available, on != isEditing else { return }
         isEditing = on
-        canvas.isEditing = on
         canvas.editUndoManager = on ? undoManager : nil
         if on {
             canvas.window?.makeFirstResponder(canvas)

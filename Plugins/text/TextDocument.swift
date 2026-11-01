@@ -13,7 +13,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private let scrollView = NSScrollView()
     /// Owns the layout manager and text container; a TextKit 1 text view doesn't retain its storage.
     private let storage = NSTextStorage()
-    private var textView: NSTextView { scrollView.documentView as! NSTextView }
+    private let textView: NSTextView
     private let noteLabel = NSTextField(labelWithString: "")
     private var scrollBelowNote: NSLayoutConstraint!
     private var scrollAtTop: NSLayoutConstraint!
@@ -46,6 +46,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         textContainer.widthTracksTextView = true
         layoutManager.addTextContainer(textContainer)
         let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 400), textContainer: textContainer)
+        self.textView = textView
         textView.isVerticallyResizable = true
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
         textView.autoresizingMask = [.width]
@@ -208,12 +209,12 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private func longestLineWidth() -> CGFloat {
         let advance = ("0" as NSString).size(withAttributes: [.font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)]).width
         let tabUnits = Int(ceil(NSParagraphStyle.default.defaultTabInterval / advance))
-        let units = longestLineUnits ?? Self.longestLineUnits(in: textView.textStorage?.mutableString ?? "", tabUnits: tabUnits)
+        let units = longestLineUnits ?? Self.countLongestLineUnits(in: textView.textStorage?.mutableString ?? "", tabUnits: tabUnits)
         longestLineUnits = units
         return CGFloat(units + 2) * advance
     }
 
-    private static func longestLineUnits(in text: NSString, tabUnits: Int) -> Int {
+    private static func countLongestLineUnits(in text: NSString, tabUnits: Int) -> Int {
         var longest = 0, current = 0
         let chunk = 65_536
         var buffer = [unichar](repeating: 0, count: chunk)

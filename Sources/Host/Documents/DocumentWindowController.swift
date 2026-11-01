@@ -358,7 +358,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
                 button.toolTip = reason
                 item.toolTip = reason
             } else {
-                item.toolTip = document.isEditing ? "Stop Editing (⌘E)" : "Edit (⌘E)"
+                item.toolTip = (document.isEditing ? "Stop Editing" : "Edit") + " (\(Shortcut.editMode.displayText))"
             }
             return item
         }

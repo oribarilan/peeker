@@ -10,7 +10,7 @@ final class EditController {
     static let minimumSize: CGFloat = 8
     /// About the width of a signature on a signature line.
     static let signatureWidth: CGFloat = 180
-    private static let handleSize: CGFloat = 8
+    static let handleSize: CGFloat = 8
 
     private unowned let document: PDFPluginDocument
     private var view: PeekerPDFView { document.pdfView }
@@ -325,7 +325,8 @@ final class EditOverlay: NSView {
             outline.lineWidth = 1
             outline.stroke()
             for corner in [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.minX, y: rect.maxY), CGPoint(x: rect.maxX, y: rect.maxY)] {
-                let handle = NSBezierPath(rect: CGRect(x: corner.x - 4, y: corner.y - 4, width: 8, height: 8))
+                let size = EditController.handleSize
+                let handle = NSBezierPath(rect: CGRect(x: corner.x - size / 2, y: corner.y - size / 2, width: size, height: size))
                 NSColor.white.setFill()
                 handle.fill()
                 handle.stroke()

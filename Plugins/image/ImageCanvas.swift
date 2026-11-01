@@ -6,9 +6,9 @@ final class ImageCanvas: NSView, NSMenuItemValidation {
     var image: CGImage {
         didSet { layer?.contents = image }
     }
-    var isEditing = false
     /// The document's undo history, set while in Edit mode.
     weak var editUndoManager: UndoManager?
+    var isEditing: Bool { editUndoManager != nil }
     /// A click outside Edit mode, which pauses or plays an animation.
     var onClick: (() -> Void)?
 

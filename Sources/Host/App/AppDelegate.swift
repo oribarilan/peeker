@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         launchedAtLogin = launch?.eventID == kAEOpenApplication
             && launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
         let menu = MainMenu.make(target: self)
-        commandsMenu = menu.item(withTitle: "Commands")?.submenu
+        commandsMenu = menu.item(withTitle: MainMenu.commandsTitle)?.submenu
         NSApp.mainMenu = menu
     }
 

@@ -10,6 +10,9 @@ struct Shortcut: Equatable {
     let key: Key
     let modifiers: NSEvent.ModifierFlags
 
+    /// Edit Mode's key, which no command may take.
+    static let editMode = Shortcut(key: .character("e"), modifiers: .command)
+
     /// Which shortcuts a place takes: the quick-look key, a command, or an edit tool. The config and the Settings
     /// recorders both check them.
     enum Rules {

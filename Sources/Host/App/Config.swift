@@ -107,6 +107,8 @@ struct Config: Equatable {
         guard let data else { return ConfigReading(config: Config(), problems: []) }
         let root: JSONValue
         do {
+            // JSONSerialization first, for its error: it says where the JSON breaks ("around line 3, column 7"), and
+            // JSONDecoder's doesn't.
             _ = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
             root = try JSONDecoder().decode(JSONValue.self, from: data)
         } catch {

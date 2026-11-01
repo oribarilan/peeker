@@ -5,7 +5,7 @@ import PeekerKit
 final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private let url: URL
     private let scrollView = NSTextView.scrollableTextView()
-    private var textView: NSTextView { scrollView.documentView as! NSTextView }
+    private let textView: NSTextView
     private var anchors: [Int: Int] = [:]
     /// Counts renders, so a tail scheduled by an older one is dropped.
     private var renders = 0
@@ -14,6 +14,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
 
     init(url: URL, parsed: MarkdownPlugin.Parsed) {
         self.url = url
+        textView = scrollView.documentView as! NSTextView  // what scrollableTextView() always holds
         super.init()
         textView.isEditable = false
         textView.delegate = self

@@ -218,11 +218,13 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(animation.isPaused)
         document.canvas.mouseDown(with: click)
         #expect(!animation.isPaused)
-        // An animated image can't enter Edit mode, so the canvas's own editing state stands in for it: there a click
-        // belongs to the edit tools.
-        document.canvas.isEditing = true
+        // An animated image can't enter Edit mode, so handing the canvas an edit history stands in for it: there a
+        // click belongs to the edit tools.
+        let history = UndoManager()
+        document.canvas.editUndoManager = history
         document.canvas.mouseDown(with: click)
         #expect(!animation.isPaused)
+        withExtendedLifetime(history) {}
     }
 
     @Test func aTwoPageTIFFIsNotAnimated() async throws {
