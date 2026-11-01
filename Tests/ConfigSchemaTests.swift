@@ -33,6 +33,12 @@ import Testing
         }
     }
 
+    @Test func describesTheUpdateCheck() throws {
+        let check = try #require(properties(properties(try schema(), "updates"), "check"))
+        #expect(check["type"] as? String == "boolean")
+        #expect(check["default"] as? Bool == true)
+    }
+
     @Test func theOldOpenSectionIsGone() throws {
         #expect(properties(try schema(), "open") == nil)
     }
@@ -42,6 +48,7 @@ import Testing
         #expect(schema["additionalProperties"] as? Bool == false)
         #expect(properties(schema, "quickLook")?["additionalProperties"] as? Bool == false)
         #expect(properties(schema, "plugins")?["additionalProperties"] as? Bool == false)
+        #expect(properties(schema, "updates")?["additionalProperties"] as? Bool == false)
     }
 
     @Test func writesNextToTheConfigOnlyWhenItChanges() throws {

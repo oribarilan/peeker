@@ -45,6 +45,7 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change th
 {
   "$schema": "schema.json",
   "quickLook": { "key": "space" },
+  "updates": { "check": true },
   "plugins": {
     "image": { "enabled": false },
     "markdown": { "extensions": ["markdown", "mdown"] },
@@ -55,6 +56,7 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change th
 ```
 
 - `quickLook.key`: a bare key works only in Finder and not while typing; one with modifiers works anywhere; `"off"` turns the panel off.
+- `updates.check`: `false` stops the daily check for a new version; Check for Updates… still checks when you ask.
 - `plugins.<id>.enabled`: `false` turns a plugin off. Its files then open nowhere; no other plugin takes them.
 - `plugins.<id>.extensions`: every extension the plugin opens, without the dot, replacing its default list (`schema.json` lists each default). `noExtension` matches files with none, such as `.zshrc` and `Makefile`, and is on Plain Text's list. An extension belongs to one plugin: listed twice, it stays with the plugin that has it by default (above, `md` moves to Plain Text because Markdown's list drops it). Open With in a window can still pick any enabled plugin for one tab.
 - `plugins.<id>.commands.<command>.shortcut` rebinds a command.

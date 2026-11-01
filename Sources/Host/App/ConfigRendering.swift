@@ -20,6 +20,7 @@ extension Config {
         let root: [String: Any] = [
             "$schema": "schema.json",
             "quickLook": ["key": quickLookKey?.configText ?? "off"],
+            "updates": ["check": checkForUpdates],
             "plugins": pluginSettings,
         ]
         // Can't fail: the tree holds only strings, booleans, arrays and dictionaries.

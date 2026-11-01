@@ -27,6 +27,9 @@ enum ConfigSchema {
                 "key": ["type": "string", "description": "The key that opens the panel. A bare key works only in Finder and not while typing; one with modifiers works anywhere; \"off\" turns the panel off. Default: space."],
             ]),
             "plugins": object("Per-plugin settings, by plugin id.", pluginProperties),
+            "updates": object("Checking for new versions of Peeker.", [
+                "check": ["type": "boolean", "default": true, "description": "True checks for a new version once a day and offers it with its release notes; false checks only when you ask. Default: true."],
+            ]),
         ])
         schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
         schema["title"] = "Peeker config"

@@ -72,6 +72,12 @@ private func config(_ json: String) throws -> Config {
         #expect(try config(#"{"quickLook": {"key": "off"}}"#).quickLookKey == nil)
     }
 
+    @Test func updateChecksAreOnUnlessTheConfigTurnsThemOff() throws {
+        #expect(try config("{}").checkForUpdates)
+        #expect(try config(#"{"updates": {"check": true}}"#).checkForUpdates)
+        #expect(try config(#"{"updates": {"check": false}}"#).checkForUpdates == false)
+    }
+
     @Test func theDefaultFileIsJSONAndTheOldDotfileIsNotRead() {
         #expect(Config.defaultURL.lastPathComponent == "config.json")
     }
@@ -105,6 +111,13 @@ private func config(_ json: String) throws -> Config {
         let config = try #require(reading.config)
         #expect(config.disabled.isEmpty && config.extensions.isEmpty && config.quickLookKey == Shortcut(key: .space))
         #expect(Set(reading.problems.map(\.path)) == ["plugins.text.enabled", "plugins.text.extensions", "quickLook.key"])
+    }
+
+    @Test func badUpdateSettingsKeepChecksOn() throws {
+        let reading = read(#"{"updates": {"check": "no", "channel": "beta"}}"#)
+        #expect(try #require(reading.config).checkForUpdates)
+        #expect(reading.problems.map(\.path) == ["updates.channel", "updates.check"])
+        #expect(read(#"{"updates": false}"#).problems.map(\.path) == ["updates"])
     }
 
     @Test func unparseableShortcutKeepsTheDefault() throws {
@@ -195,6 +208,7 @@ private func config(_ json: String) throws -> Config {
         let root = try object(Config())
         #expect(root["$schema"] as? String == "schema.json")
         #expect((root["quickLook"] as? [String: Any])?["key"] as? String == "space")
+        #expect((root["updates"] as? [String: Any])?["check"] as? Bool == true)
         let pluginSettings = try #require(root["plugins"] as? [String: [String: Any]])
         #expect(pluginSettings.keys.sorted() == ["markdown", "pdf", "text"])
         #expect(pluginSettings["markdown"]?["enabled"] as? Bool == true)
@@ -206,7 +220,7 @@ private func config(_ json: String) throws -> Config {
 
     @Test func readingTheRenderingGivesBackTheSameSettings() throws {
         let original = try config("""
-            {"quickLook": {"key": "off"},
+            {"quickLook": {"key": "off"}, "updates": {"check": false},
              "plugins": {"text": {"enabled": false, "extensions": ["txt", "log"]},
                          "pdf": {"commands": {"highlight": {"shortcut": "cmd+shift+h"}}}}}
             """)
@@ -214,6 +228,7 @@ private func config(_ json: String) throws -> Config {
         #expect(reading.problems.isEmpty)
         let back = try #require(reading.config)
         #expect(back.quickLookKey == nil)
+        #expect(back.checkForUpdates == false)
         #expect(back.disabled == ["text"])
         #expect(back.extensions["text"] == ["txt", "log"])
         #expect(back.keys["pdf.highlight"] == Shortcut(key: .character("h"), modifiers: [.command, .shift]))

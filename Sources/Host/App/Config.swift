@@ -6,6 +6,7 @@ import PeekerKit
 ///     {
 ///       "$schema": "schema.json",
 ///       "quickLook": { "key": "space" },          // bare key: Finder only, not while typing; with modifiers: anywhere; "off"
+///       "updates": { "check": true },             // false: no daily update check
 ///       "plugins": {
 ///         "image": { "enabled": false },
 ///         "text": { "extensions": ["txt", "md", "noExtension"] },   // replaces the plugin's default list
@@ -19,6 +20,8 @@ struct Config: Equatable {
     /// `keyID(plugin:command:)` -> shortcut override.
     var keys: [String: Shortcut] = [:]
     var quickLookKey: Shortcut? = Shortcut(key: .space)
+    /// Whether Peeker checks for updates once a day by itself.
+    var checkForUpdates = true
 
     /// Where `keys` holds a command's shortcut: "pluginID.commandID".
     static func keyID(plugin: String, command: String) -> String { "\(plugin).\(command)" }
@@ -127,6 +130,7 @@ private struct ConfigReader {
             case "$schema": break
             case "quickLook": if let settings = object(value, at: key) { readQuickLook(settings) }
             case "plugins": if let entries = object(value, at: key) { readPlugins(entries) }
+            case "updates": if let settings = object(value, at: key) { readUpdates(settings) }
             default: unknown(key)
             }
         }
@@ -140,6 +144,13 @@ private struct ConfigReader {
             if text == "off" { config.quickLookKey = nil }
             else if let shortcut = Shortcut(parsing: text) { config.quickLookKey = shortcut }
             else { problem(path, "“\(text)” isn't a key Peeker understands. Use one like space or opt+space, or off.") }
+        }
+    }
+
+    private mutating func readUpdates(_ settings: [String: JSONValue]) {
+        for (key, value) in sorted(settings) {
+            guard key == "check" else { unknown("updates.\(key)"); continue }
+            if let check = bool(value, at: "updates.check") { config.checkForUpdates = check }
         }
     }
 
