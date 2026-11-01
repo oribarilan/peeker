@@ -69,6 +69,11 @@ targets:
       - package: Sparkle
     scheme:
       testTargets: [HostTests]
+    settings:
+      base:
+        # Notarization needs the hardened runtime; every build has it, so the screen tests drive what ships.
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_ENTITLEMENTS: packaging/Peeker.entitlements
     info:
       path: build/Info-Peeker.plist
       properties:
