@@ -33,7 +33,11 @@ jobs:
         run: |
           read -r version build <<< "$(scripts/release-version.sh "$TAG")"
           echo "VERSION=$version" >> "$GITHUB_ENV"
-          scripts/changelog-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
+          # A tag needs its notes; a dry run only warns, so it can run before they're written.
+          if ! scripts/changelog-notes.sh "$version" > "$RUNNER_TEMP/notes.md"; then
+            [ "$PUBLISH" != true ] || exit 1
+            echo "::warning::CHANGELOG.md has no notes for $version yet; a tag for it would fail here."
+          fi
 
       - name: Check the secrets
         if: env.PUBLISH == 'true'
