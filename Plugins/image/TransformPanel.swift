@@ -28,7 +28,7 @@ final class TransformPanel: NSObject, NSTextFieldDelegate {
             button.toolTip = turn.title
             button.bezelStyle = .smallSquare
             buttons.append(button)
-            view.keys[turn.key] = { [weak self] in self?.turn(turn.edit) }
+            view.keys[turn.keyCode] = { [weak self] in self?.turn(turn.edit) }
         }
         for field in [width, height] {
             field.delegate = self
@@ -84,12 +84,13 @@ final class TransformPanel: NSObject, NSTextFieldDelegate {
 
     private var lastEdited = Side.width
 
-    /// The rotate and flip buttons, in order; a button's tag is its index.
-    private static let turns: [(symbol: String, title: String, key: Character, edit: ImageEdit)] = [
-        ("rotate.left", "Rotate Left (L)", "l", .rotate(by: -90)),
-        ("rotate.right", "Rotate Right (R)", "r", .rotate(by: 90)),
-        ("arrow.left.and.right.righttriangle.left.righttriangle.right", "Flip Horizontally (H)", "h", .flip(horizontal: true)),
-        ("arrow.up.and.down.righttriangle.up.righttriangle.down", "Flip Vertically (V)", "v", .flip(horizontal: false)),
+    /// The rotate and flip buttons, in order; a button's tag is its index. Each key is the ANSI key code of its letter,
+    /// so it's the same key on the keyboard whatever letter the active layout types there, as Peeker's shortcuts are.
+    private static let turns: [(symbol: String, title: String, keyCode: UInt16, edit: ImageEdit)] = [
+        ("rotate.left", "Rotate Left (L)", 37, .rotate(by: -90)),
+        ("rotate.right", "Rotate Right (R)", 15, .rotate(by: 90)),
+        ("arrow.left.and.right.righttriangle.left.righttriangle.right", "Flip Horizontally (H)", 4, .flip(horizontal: true)),
+        ("arrow.up.and.down.righttriangle.up.righttriangle.down", "Flip Vertically (V)", 9, .flip(horizontal: false)),
     ]
 
     @objc private func pressed(_ sender: NSButton) { turn(Self.turns[sender.tag].edit) }
@@ -140,13 +141,13 @@ final class TransformPanel: NSObject, NSTextFieldDelegate {
 
 /// The panel's content: takes the keyboard so L, R, H and V press the turn buttons; a focused field gets typing.
 final class TransformView: NSView {
-    var keys: [Character: () -> Void] = [:]
+    /// Actions by key code.
+    var keys: [UInt16: () -> Void] = [:]
 
     override var acceptsFirstResponder: Bool { true }
 
     override func keyDown(with event: NSEvent) {
-        guard event.modifierFlags.intersection([.command, .option, .control]).isEmpty,
-              let character = event.charactersIgnoringModifiers?.lowercased().first, let action = keys[character] else {
+        guard event.modifierFlags.intersection([.command, .option, .control]).isEmpty, let action = keys[event.keyCode] else {
             return super.keyDown(with: event)
         }
         action()
