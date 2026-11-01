@@ -100,3 +100,17 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(TransformPanel.targetSize(width: 0, height: 0, unit: .pixels, lock: false, edited: .width, current: current) == nil)
     }
 }
+
+/// L, R, H and V in Rotate & Resize press its turn buttons.
+@Suite struct TransformPanelKeys {
+    @Test func eachTurnLetterPressesItsButton() throws {
+        var edits: [ImageEdit] = []
+        let panel = TransformPanel(currentSize: { CGSize(width: 400, height: 200) }, onEdit: { edits.append($0) })
+        for (code, letter) in [(UInt16(37), "l"), (15, "r"), (4, "h"), (9, "v")] {
+            let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0,
+                                                      context: nil, characters: letter, charactersIgnoringModifiers: letter, isARepeat: false, keyCode: code))
+            panel.view.keyDown(with: event)
+        }
+        #expect(edits == [.rotate(by: -90), .rotate(by: 90), .flip(horizontal: true), .flip(horizontal: false)])
+    }
+}

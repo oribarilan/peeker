@@ -41,7 +41,7 @@ sleep 0.5
 "$DRIVE" wait Peeker control "Apply"
 width=$(field Width) height=$(field Height)
 check "The crop made the image smaller" "$([ "${width:-0}" -gt 0 ] && [ "$width" -lt 400 ] && echo yes)" yes
-"$DRIVE" keys Peeker r
+"$DRIVE" type Peeker r  # the letter, so the input source doesn't matter
 sleep 0.3
 check "R turns the size in the fields" "$(field Width) × $(field Height)" "$height × $width"
 "$DRIVE" shot Peeker "$OUT/2-turned.png"
