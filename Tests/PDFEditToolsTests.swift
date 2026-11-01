@@ -23,6 +23,24 @@ private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
     return window
 }
 
+/// A mouse event at `point` in page 0's space.
+private func mouse(_ type: NSEvent.EventType, at point: CGPoint, in document: PDFPluginDocument, window: NSWindow) -> NSEvent {
+    let page = document.pdfView.document!.page(at: 0)!
+    let location = document.pdfView.convert(document.pdfView.convert(point, from: page), to: nil)
+    return NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+                              context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+}
+
+/// Drags the mark under `start` to `end` (page 0's space) with the mouse, through the tools as the view hands them
+/// the events.
+private func drag(in document: PDFPluginDocument, window: NSWindow, from start: CGPoint, to end: CGPoint) throws {
+    let tools = try #require(document.tools)
+    let page = try #require(document.pdfView.document?.page(at: 0))
+    #expect(tools.mouseDown(with: mouse(.leftMouseDown, at: start, in: document, window: window), at: document.pdfView.convert(start, from: page)))
+    #expect(tools.mouseDragged(with: mouse(.leftMouseDragged, at: end, in: document, window: window)))
+    #expect(tools.mouseUp(with: mouse(.leftMouseUp, at: end, in: document, window: window)))
+}
+
 @Suite struct PDFSelecting {
     private func annotation(id: String?, _ rect: CGRect = place, type: PDFAnnotationSubtype = .freeText) -> PDFAnnotation {
         let annotation = PDFAnnotation(bounds: rect, forType: type, withProperties: nil)
@@ -75,11 +93,7 @@ private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
         #expect(document.change(.add(mark)))
         let pending = document.pendingEdits
         let page = try #require(document.pdfView.document?.page(at: 0))
-        func event(_ type: NSEvent.EventType, _ point: CGPoint) -> NSEvent {
-            let location = document.pdfView.convert(document.pdfView.convert(point, from: page), to: nil)
-            return NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-                                      context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
-        }
+        func event(_ type: NSEvent.EventType, _ point: CGPoint) -> NSEvent { mouse(type, at: point, in: document, window: window) }
         let tools = try #require(document.tools)
         let start = CGPoint(x: place.midX, y: place.midY)
         #expect(tools.mouseDown(with: event(.leftMouseDown, start), at: document.pdfView.convert(start, from: page)))
@@ -98,11 +112,7 @@ private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
         let mark = PDFMark(id: PDFEdit.newID(), page: 0, rect: place, kind: .textBox(text: "x", fontSize: 12))
         #expect(document.change(.add(mark)))
         let page = try #require(document.pdfView.document?.page(at: 0))
-        func event(_ type: NSEvent.EventType, _ point: CGPoint) -> NSEvent {
-            let location = document.pdfView.convert(document.pdfView.convert(point, from: page), to: nil)
-            return NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-                                      context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
-        }
+        func event(_ type: NSEvent.EventType, _ point: CGPoint) -> NSEvent { mouse(type, at: point, in: document, window: window) }
         let tools = try #require(document.tools)
         let start = CGPoint(x: place.midX, y: place.midY)
         let off = CGPoint(x: start.x + 2000, y: start.y - 2000)
@@ -118,10 +128,11 @@ private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
         let file = try TempFile.makePDF(pages: 1)
         try await PDFPlugin.write([.add(PDFMark(id: "peeker-s", page: 0, rect: place, kind: .signature(strokes: [[.zero, CGPoint(x: 1, y: 1)]])))], to: file.path)
         let document = try await open(file)
+        let window = inWindow(document)
         var edits = 0
         document.onEdit = { edits += 1 }
         let moved = place.offsetBy(dx: 30, dy: 0)
-        try #require(document.tools).finishDrag(id: "peeker-s", type: .signature, page: 0, from: place, to: moved)
+        try drag(in: document, window: window, from: CGPoint(x: place.midX, y: place.midY), to: CGPoint(x: moved.midX, y: moved.midY))
         #expect(edits == 1)
         #expect(document.pendingEdits == [.setBounds(id: "peeker-s", type: .signature, page: 0, rect: moved)])
         try await document.save(try #require(document.unsavedEdits()), accepting: nil)
@@ -173,9 +184,10 @@ private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
 
     @Test func undoOfAMoveMovesItBack() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        let id = PDFEdit.newID()
-        #expect(document.change(signature(id)))
-        try #require(document.tools).finishDrag(id: id, type: .signature, page: 0, from: place, to: place.offsetBy(dx: 40, dy: 0))
+        let window = inWindow(document)
+        #expect(document.change(signature()))
+        try drag(in: document, window: window, from: CGPoint(x: place.midX, y: place.midY), to: CGPoint(x: place.midX + 40, y: place.midY))
+        #expect(document.pdfView.document?.page(at: 0)?.annotations.first?.bounds == place.offsetBy(dx: 40, dy: 0))
         document.undoManager.undo()
         #expect(document.pdfView.document?.page(at: 0)?.annotations.first?.bounds == place)
     }

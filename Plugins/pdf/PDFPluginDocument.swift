@@ -96,25 +96,13 @@ final class PDFPluginDocument: PluginDocument {
             let fields = FormFields(view: pdfView)
             fields.onChange = { [weak self] name, new, old in self?.record(.field(name: name, value: new), inverse: .field(name: name, value: old)) }
             self.fields = fields
-            pdfView.onInteraction = { [weak self] widget in
-                if let widget { self?.widgetClicked(widget) }
-                self?.checkFields()
+            pdfView.onInteraction = { [weak fields] widget in
+                if let widget { fields?.clicked(widget) }
+                fields?.check()  // records the fields the click changed
             }
         }
         if on { pdfView.window?.makeFirstResponder(pdfView) }  // so Undo reaches the document's history
         if !on { tools?.end() }
-    }
-
-    /// Records the form fields the user changed since the last check. Only in Edit mode.
-    func checkFields() {
-        guard isEditing else { return }
-        fields?.check()
-    }
-
-    /// The user clicked a form field in Edit mode.
-    func widgetClicked(_ widget: PDFAnnotation) {
-        guard isEditing else { return }
-        fields?.clicked(widget)
     }
 
     /// The tool waiting for its click or drag, as its command.

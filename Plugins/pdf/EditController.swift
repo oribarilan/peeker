@@ -127,11 +127,8 @@ final class EditController {
     }
 
     /// Records a finished move or resize, which the view already shows.
-    func finishDrag(id: String, type: MarkType, page: Int, from old: CGRect, to new: CGRect) {
+    private func finishDrag(id: String, type: MarkType, page: Int, from old: CGRect, to new: CGRect) {
         guard old != new else { return }
-        if let annotation = view.document?.page(at: page).flatMap({ PDFMarks.find(id, on: $0) }), annotation.bounds != new {
-            PDFMarks.setBounds(new, of: annotation)
-        }
         document.record(.setBounds(id: id, type: type, page: page, rect: new), inverse: .setBounds(id: id, type: type, page: page, rect: old))
     }
 

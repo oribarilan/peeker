@@ -29,6 +29,11 @@ import Testing
     func point(in rect: CGRect) -> NSPoint {
         document.pdfView.convert(CGPoint(x: rect.midX, y: rect.midY), from: page)
     }
+
+    /// What the view reports when a click in Edit mode ends: the field it hit, if any.
+    func clickEnded(on widget: PDFAnnotation? = nil) {
+        document.pdfView.onInteraction?(widget)
+    }
 }
 
 @Suite(.serialized) struct PDFFormFields {
@@ -41,21 +46,21 @@ import Testing
         form.widget("Agree").buttonWidgetState = .onState
         form.widget("Pick", on: "B").widgetStringValue = "B"
         form.widget("Color").widgetStringValue = "Green"
-        form.document.checkFields()
+        form.clickEnded()
         let expected: [PDFEdit] = [
             .field(name: "Name", value: "Ori"), .field(name: "Agree", value: "Yes"),
             .field(name: "Pick", value: "B"), .field(name: "Color", value: "Green"),
         ]
         #expect(form.document.pendingEdits.count == 4 && expected.allSatisfy(form.document.pendingEdits.contains))
         #expect(count == 4)
-        form.document.checkFields()
+        form.clickEnded()
         #expect(count == 4, "an unchanged field isn't recorded again")
     }
 
     @Test func typingIntoATextFieldIsRecordedAsYouType() async throws {
         let form = try await OpenForm()
         form.document.setEditing(true)
-        form.document.widgetClicked(form.widget("Name"))
+        form.clickEnded(on: form.widget("Name"))
         let editor = NSTextView()
         form.document.pdfView.addSubview(editor)
         editor.string = "Or"
@@ -68,7 +73,7 @@ import Testing
     @Test func textEditingOutsideTheViewIsIgnored() async throws {
         let form = try await OpenForm()
         form.document.setEditing(true)
-        form.document.widgetClicked(form.widget("Name"))
+        form.clickEnded(on: form.widget("Name"))
         let elsewhere = NSTextView()
         elsewhere.string = "nope"
         NotificationCenter.default.post(name: NSText.didChangeNotification, object: elsewhere)
@@ -79,7 +84,7 @@ import Testing
     @Test func typingInATextBoxIsNotAFieldChange() async throws {
         let form = try await OpenForm()
         form.document.setEditing(true)
-        form.document.widgetClicked(form.widget("Name"))
+        form.clickEnded(on: form.widget("Name"))
         let editor = TextBoxEditor(view: form.document.pdfView, page: form.page, topLeft: CGPoint(x: 300, y: 400), text: "", fontSize: 12, hiding: nil) { _, _ in }
         let box = try #require(form.window.firstResponder as? NSTextView)
         box.string = "31 Oct"
@@ -90,8 +95,13 @@ import Testing
 
     @Test func fieldChangesAreNotRecordedInTheReadView() async throws {
         let form = try await OpenForm()
+        form.document.setEditing(true)
+        form.document.setEditing(false)
         form.widget("Name").widgetStringValue = "Ori"
-        form.document.checkFields()
+        let point = form.document.pdfView.convert(form.point(in: CGRect(x: 400, y: 400, width: 1, height: 1)), to: nil)
+        let release = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: 0,
+                                                      windowNumber: form.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        form.document.pdfView.mouseUp(with: release)
         #expect(form.document.pendingEdits.isEmpty)
     }
 
@@ -99,11 +109,11 @@ import Testing
         let form = try await OpenForm()
         form.document.setEditing(true)
         form.widget("Name").widgetStringValue = "Ori"
-        form.document.checkFields()
+        form.clickEnded()
         form.document.undoManager.undo()
         #expect(form.widget("Name").widgetStringValue == "")
         #expect(form.document.pendingEdits == [.field(name: "Name", value: "")])
-        form.document.checkFields()
+        form.clickEnded()
         #expect(form.document.pendingEdits == [.field(name: "Name", value: "")], "the undone value is known, not a new change")
     }
 
