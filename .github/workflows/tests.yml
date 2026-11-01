@@ -1,0 +1,29 @@
+name: Tests
+
+# The unit tests on GitHub's macOS 26 runner for every push to main (pull requests get them from bench.yml). Peeker
+# supports macOS 26 while development happens on newer systems, so this is where a macOS 26 difference shows up.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Unit tests
+        run: |
+          sw_vers
+          scripts/build.sh test
