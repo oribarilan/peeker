@@ -1,9 +1,10 @@
 #!/bin/bash
 # Records the user-facing flows as evidence: Space in Finder on files Peeker opens and on files it leaves to Quick
 # Look, Open With in a document window, a config clash in the menu bar icon, and changes made in Settings (a plugin
-# off and on, moving an extension and Reset, the quick-look key recorder and Off, a new PDF shortcut, one recorder
-# listening at a time). Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus
-# a screen recording with SCREEN_RECORD=1; scripts/screen-test.sh runs it with the other flows.
+# off and on, moving an extension and Reset, the quick-look key recorder and Off, the update checkbox and a
+# development build's Check for Updates…, a new PDF shortcut, one recorder listening at a time). Writes screenshots
+# and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1;
+# scripts/screen-test.sh runs it with the other flows.
 #
 # Takes over the keyboard and Finder for about two minutes: the screen must be unlocked and left alone.
 # usage: record-flows.sh [path/to/Peeker.app]
@@ -136,6 +137,20 @@ space 12b-space-key-off "$F/notes.md" "Quick Look"
 front
 "$DRIVE" press Peeker "Quick look panel" && sleep 1
 check "On again is Space" "$(cfg "c['quickLook']['key']")" space
+
+# Updates: the checkbox writes updates.check, and a development build's Check for Updates… says it doesn't update.
+"$DRIVE" press Peeker "Check for updates automatically" && sleep 1
+check "Clearing the update checkbox writes check false" "$(cfg "c['updates']['check']")" False
+"$DRIVE" shot Peeker "$OUT/12f-settings-updates-off.png"
+"$DRIVE" press Peeker "Check for updates automatically" && sleep 1
+check "Ticking it again writes check true" "$(cfg "c['updates']['check']")" True
+"$DRIVE" menuextra Peeker "Check for Updates…"
+"$DRIVE" wait Peeker control OK
+check "A development build says it doesn't update" "$("$DRIVE" tree Peeker 8 | grep -c "Development builds don’t update\|Development builds don't update")" 1
+screencapture -x "$OUT/12g-development-build-update.png"
+"$DRIVE" press Peeker OK
+"$DRIVE" wait Peeker control OK --gone
+front
 
 # A new Highlight Selection shortcut works in an open PDF: from the read view it turns on Edit mode. (Synthetic
 # drags and Select All don't select PDF text, so the highlight itself is left to the integration test.)
