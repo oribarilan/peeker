@@ -9,11 +9,13 @@ nonisolated enum PDFMarks {
     static let fontSizes = 8.0...36.0
     static let signatureLineWidth = 1.5
     private static let styleKey = PDFAnnotationKey(rawValue: "/DS")
+    /// A second home for a mark's id: PDFKit on macOS 26 leaves `/NM` out when it writes a file, and keeps this key.
+    static let idKey = PDFAnnotationKey(rawValue: "/PeekerID")
 
-    /// The annotation's name when Peeker made it, else nil: other apps' annotations are never selected or changed.
+    /// The annotation's id when Peeker made it, from `/NM` or else `/PeekerID`; nil for other apps' annotations,
+    /// which are never selected or changed.
     static func id(of annotation: PDFAnnotation) -> String? {
-        guard let name = annotation.value(forAnnotationKey: .name) as? String, name.hasPrefix(PDFEdit.idPrefix) else { return nil }
-        return name
+        [PDFAnnotationKey.name, idKey].lazy.compactMap { annotation.value(forAnnotationKey: $0) as? String }.first { $0.hasPrefix(PDFEdit.idPrefix) }
     }
 
     static func find(_ id: String, on page: PDFPage) -> PDFAnnotation? {
@@ -50,8 +52,14 @@ nonisolated enum PDFMarks {
             annotation.border = border
             for path in paths(strokes, size: mark.rect.size) { annotation.add(path) }
         }
-        annotation.setValue(mark.id, forAnnotationKey: .name)
+        setID(mark.id, on: annotation)
         return annotation
+    }
+
+    /// Names the annotation as Peeker's mark: `/NM` for every PDF app, `/PeekerID` for when `/NM` doesn't survive.
+    static func setID(_ id: String, on annotation: PDFAnnotation) {
+        annotation.setValue(id, forAnnotationKey: .name)
+        annotation.setValue(id, forAnnotationKey: idKey)
     }
 
     /// The kind of mark an annotation can be; nil for kinds Peeker doesn't make.

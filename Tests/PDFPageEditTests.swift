@@ -74,7 +74,7 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
         let bounds = CGRect(x: 72, y: 600, width: 100, height: 20)
         let theirs = PDFAnnotation(bounds: bounds, forType: .highlight, withProperties: nil)
         let ours = PDFAnnotation(bounds: bounds, forType: .highlight, withProperties: nil)
-        ours.setValue("peeker-ours", forAnnotationKey: .name)
+        PDFMarks.setID("peeker-ours", on: ours)
         document.page(at: 1)!.addAnnotation(theirs)
         document.page(at: 1)!.addAnnotation(ours)
         let data = try #require(document.dataRepresentation())
@@ -84,8 +84,17 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
         let written = try #require(saved.dataRepresentation())
         let repaired = try #require(MovedPageRepair.repaired(written, kept: kept))
         let page = try #require(PDFDocument(data: repaired)?.page(at: 0))
-        let names = page.annotations.map { $0.value(forAnnotationKey: .name) as? String }
-        #expect(names == [nil, "peeker-ours"])
+        #expect(page.annotations.map(PDFMarks.id(of:)) == [nil, "peeker-ours"])
+    }
+
+    /// Every key that names a mark is kept across a page move, `/PeekerID` included.
+    @Test func repairKeepsBothNames() throws {
+        let annotation = PDFAnnotation(bounds: CGRect(x: 72, y: 600, width: 100, height: 20), forType: .highlight, withProperties: nil)
+        PDFMarks.setID("peeker-ours", on: annotation)
+        let page = PDFPage()
+        page.addAnnotation(annotation)
+        let keys = try #require(MovedPageRepair.kept(on: [page]).first?.first).values.map(\.0.rawValue)
+        #expect(Set(keys) == ["/NM", "/PeekerID"])
     }
 
     @Test func restoreFallsBackToTheCopyAndChecksIt() throws {

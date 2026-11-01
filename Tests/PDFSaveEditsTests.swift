@@ -21,6 +21,28 @@ private func write(_ edits: [PDFEdit], to file: URL) async throws {
     try await PDFPlugin.write(edits, to: file.path)
 }
 
+/// macOS 26 leaves `/NM` out when it writes a file, so a mark's id goes under `/PeekerID` too.
+@Suite struct PDFMarkNames {
+    @Test func aMarkWhoseNameWasDroppedIsStillFound() {
+        let annotation = PDFMarks.annotation(for: PDFMark(id: "peeker-h", page: 0, rect: place, kind: .highlight(yellow)))
+        annotation.removeValue(forAnnotationKey: .name)  // what saving on macOS 26 does
+        #expect(PDFMarks.id(of: annotation) == "peeker-h")
+    }
+
+    @Test func aMarkFromAnEarlierBuildIsFoundByItsName() {
+        let annotation = PDFAnnotation(bounds: place, forType: .highlight, withProperties: nil)
+        annotation.setValue("peeker-old", forAnnotationKey: .name)
+        #expect(PDFMarks.id(of: annotation) == "peeker-old")
+    }
+
+    @Test func anotherAppsAnnotationHasNoID() {
+        let annotation = PDFAnnotation(bounds: place, forType: .highlight, withProperties: nil)
+        annotation.setValue("their-name", forAnnotationKey: .name)
+        annotation.setValue("their-id", forAnnotationKey: PDFAnnotationKey(rawValue: "/PeekerID"))
+        #expect(PDFMarks.id(of: annotation) == nil)
+    }
+}
+
 @Suite struct PDFSavingEdits {
     @Test func aHighlightIsSavedWithItsName() async throws {
         let file = try TempFile.makePDF(pages: 1)

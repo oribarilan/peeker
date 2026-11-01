@@ -20,8 +20,8 @@ nonisolated enum MarkType: String, Codable, Sendable {
     }
 }
 
-/// Something Peeker puts on a page, saved as a standard annotation whose `/NM` is `id`. `page` is 0-based and `rect`
-/// is in page space.
+/// Something Peeker puts on a page, saved as a standard annotation named `id` (in `/NM` and `/PeekerID`). `page` is
+/// 0-based and `rect` is in page space.
 nonisolated struct PDFMark: Codable, Sendable, Equatable {
     nonisolated enum Kind: Codable, Sendable, Equatable {
         case highlight(RGBA)
