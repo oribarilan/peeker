@@ -3,16 +3,17 @@ import os
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "config")
+    private let entries = PluginCatalog.builtIn.map { PluginEntry($0) }
     /// The settings in use, re-read whenever the file is saved.
     private lazy var configStore: ConfigStore = {
-        let store = ConfigStore(plugins: PluginCatalog.builtIn.map { PluginEntry($0) })
+        let store = ConfigStore(plugins: entries)
         store.onChange = { [weak self] in self?.configChanged($0) }
         Self.logProblems(store.problems)
         return store
     }()
     private var config: Config { configStore.config }
 
-    private lazy var catalog = PluginCatalog.builtIn(config: config)
+    private lazy var catalog = PluginCatalog(entries: entries, config: config)
     private var windows: [DocumentWindowController] = []
     private lazy var panel: QuickLookPanel = {
         let panel = QuickLookPanel()

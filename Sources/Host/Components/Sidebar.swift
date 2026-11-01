@@ -5,22 +5,21 @@ import PeekerKit
 enum Sidebar {
     /// Stacks a document's panels, or nil without any.
     static func make(_ panels: [SidebarPanel]) -> NSView? {
-        panels.isEmpty ? nil : Column(panels.map { ($0.view, $0.sizing == .fit ? .fit : .fill) })
+        panels.isEmpty ? nil : Column(panels)
     }
 
     /// Stacks the panels top to bottom by hand: info panels take the height of their text, list panels (outline,
     /// thumbnails) share what's left.
     private final class Column: NSView {
-        enum Sizing { case fit, fill }
-        private let panels: [(view: NSView, sizing: Sizing)]
+        private let panels: [SidebarPanel]
         private static let insets = NSEdgeInsets(top: 8, left: 10, bottom: 10, right: 10)
         private static let spacing: CGFloat = 14
         private static let minimumFillHeight: CGFloat = 80
 
-        init(_ panels: [(NSView, Sizing)]) {
+        init(_ panels: [SidebarPanel]) {
             self.panels = panels
             super.init(frame: .zero)
-            for (view, _) in panels { addSubview(view) }
+            for panel in panels { addSubview(panel.view) }
         }
 
         required init?(coder: NSCoder) { fatalError("not used") }
