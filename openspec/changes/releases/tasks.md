@@ -31,8 +31,8 @@
 ## 6. Workflow and feed
 
 - [ ] 6.1 Write `.github/workflows/release.yml` (design decision 10) with the secret names from the guide; verify a manual dispatch on `main` runs through tests and the dry-run DMG artifact, and that a tag whose changelog section is missing fails before the build (on a test tag deleted afterwards, with the maintainer's OK)
-- [ ] 6.2 Add the feed step: `generate_appcast` from Sparkle's 2.10.1 tools on the new DMG with its Markdown notes, the Release asset address and deltas off, pushed to `gh-pages`; confirm the exact options against the tools; verify locally with a throwaway EdDSA key that the generated `appcast.xml` has the version, build number, signature, length and notes
-- [ ] 6.3 Add the tap step: fill in `packaging/peeker.rb` and commit it to `oribarilan/homebrew-tap` with the tap token; verify the step is skipped in a dry run and its commands work against a local clone
+- [x] 6.2 Add the feed step: `generate_appcast` from Sparkle's 2.10.1 tools on the new DMG with its Markdown notes, the Release asset address and deltas off, pushed to `gh-pages`; confirm the exact options against the tools; verify locally with a throwaway EdDSA key that the generated `appcast.xml` has the version, build number, signature, length and notes
+- [x] 6.3 Add the tap step: fill in `packaging/peeker.rb` and commit it to `oribarilan/homebrew-tap` with the tap token; verify the step is skipped in a dry run and its commands work against a local clone
 
 ## 7. Guide and checks
 

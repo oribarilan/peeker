@@ -1,0 +1,136 @@
+name: Release
+
+# A version tag (v0.2.0) builds, signs, notarizes and publishes a release: the GitHub Release with its CHANGELOG.md
+# notes, the update feed on GitHub Pages and the Homebrew cask in oribarilan/homebrew-tap. Run by hand, it's a dry
+# run: it stops before signing and keeps the unsigned DMG as a workflow artifact. docs/releasing.md lists the secrets.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build as a dry run, such as 0.1.0
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      TAG: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', inputs.version) }}
+      PUBLISH: ${{ github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the tag and its notes
+        run: |
+          read -r version build <<< "$(scripts/release-version.sh "$TAG")"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          scripts/changelog-notes.sh "$version" > "$RUNNER_TEMP/notes.md"
+
+      - name: Check the secrets
+        if: env.PUBLISH == 'true'
+        env:
+          DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          DEVELOPER_ID_PASSWORD: ${{ secrets.DEVELOPER_ID_PASSWORD }}
+          NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          missing=()
+          for name in DEVELOPER_ID_P12 DEVELOPER_ID_PASSWORD NOTARY_KEY NOTARY_KEY_ID NOTARY_ISSUER SPARKLE_PRIVATE_KEY TAP_TOKEN; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          [ ${#missing[@]} -eq 0 ] || { echo "::error::A release needs these secrets: ${missing[*]} (docs/releasing.md)"; exit 1; }
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Unit tests
+        run: scripts/build.sh test
+
+      - name: Import the signing certificate and notarization key
+        if: env.PUBLISH == 'true'
+        env:
+          DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          DEVELOPER_ID_PASSWORD: ${{ secrets.DEVELOPER_ID_PASSWORD }}
+          NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password=$(uuidgen)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$DEVELOPER_ID_P12" | base64 --decode > "$RUNNER_TEMP/id.p12"
+          security import "$RUNNER_TEMP/id.p12" -k "$keychain" -P "$DEVELOPER_ID_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/id.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          printf '%s' "$NOTARY_KEY" > "$RUNNER_TEMP/notary.p8"
+          echo "NOTARY_KEY_PATH=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
+
+      - name: Build, sign and notarize
+        env:
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+        run: |
+          set -o pipefail
+          scripts/release.sh "$TAG" | tee "$RUNNER_TEMP/release.txt"
+          echo "DMG=$(tail -1 "$RUNNER_TEMP/release.txt")" >> "$GITHUB_ENV"
+
+      - name: Keep the dry run's DMG
+        if: env.PUBLISH != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Peeker-${{ env.VERSION }}-unsigned
+          path: ${{ env.DMG }}
+          retention-days: 7
+
+      - name: Publish the GitHub Release
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG" "$DMG" --verify-tag --title "Peeker $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Add the release to the update feed
+        if: env.PUBLISH == 'true'
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          feed="$RUNNER_TEMP/feed"
+          if git ls-remote --exit-code --heads origin gh-pages > /dev/null; then
+            git fetch origin gh-pages:gh-pages
+            git worktree add "$feed" gh-pages
+          else
+            git worktree add --orphan -b gh-pages "$feed"
+          fi
+          scripts/update-appcast.sh "$VERSION" "$DMG" "$RUNNER_TEMP/notes.md" "$feed"
+          cd "$feed"
+          git add appcast.xml
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Add Peeker $VERSION to the update feed"
+          git push origin gh-pages
+
+      - name: Update the Homebrew cask
+        if: env.PUBLISH == 'true'
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          tap="$RUNNER_TEMP/tap"
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/oribarilan/homebrew-tap.git" "$tap"
+          mkdir -p "$tap/Casks"
+          scripts/fill-cask.sh "$VERSION" "$DMG" > "$tap/Casks/peeker.rb"
+          cd "$tap"
+          git add Casks/peeker.rb
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "peeker $VERSION"
+          git push
