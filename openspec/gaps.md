@@ -11,6 +11,8 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Requirements the code misses
 
+- **macOS 26** (pdf). The first CI run of the unit tests (2026-11-01, GitHub's macOS 26 runner) failed 15 PDF tests that pass on macOS 27: most find an annotation Peeker saved without its name, and the thumbnail-drag tests imitate macOS 27's PDFKit. If PDFKit on macOS 26 drops the names, Peeker there can't find its own highlights, text boxes and signatures after a save. Until it's fixed the release workflow, which needs passing tests, can't publish.
+
 - **Large Markdown** (markdown) opened in 472 ms against TextEdit's 286 ms in the published run. After the in-app move the A/B run measured 310 to 400 ms, but TextEdit wasn't timed in that run, so the requirement is still unconfirmed.
 
 ## Missing next to Preview
