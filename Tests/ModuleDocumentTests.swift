@@ -111,8 +111,7 @@ private final class SlowSaveDocument: PluginDocument {
         _ = plugin.restore(encoded: Data("a".utf8))
         let first = Task { await document.save(prompts: StubPrompts()) }
         try await waitUntil(seconds: 2) { SlowSaveDocument.waiting != nil }
-        let second = Task { await document.save(prompts: StubPrompts()) }
-        try await Task.sleep(for: .milliseconds(50))
+        let second = Task.immediate { await document.save(prompts: StubPrompts()) }  // waiting for the first when this returns
         SlowSaveDocument.release()
         #expect(await first.value == .saved)
         #expect(await second.value == .saved)

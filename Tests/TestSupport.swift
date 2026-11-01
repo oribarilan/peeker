@@ -78,11 +78,15 @@ func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", waiting
 
 struct TimedOut: Error {}
 
-/// Polls `condition` every 20 ms; throws `TimedOut` if it isn't true within `seconds`.
-func waitUntil(seconds: Double, _ condition: () -> Bool) async throws {
+/// Polls `condition` every 20 ms. If it isn't true within `seconds`, records the failure at the caller's line and
+/// throws `TimedOut`.
+func waitUntil(seconds: Double, sourceLocation: SourceLocation = #_sourceLocation, _ condition: () -> Bool) async throws {
     let deadline = ContinuousClock.now + .seconds(seconds)
     while !condition() {
-        guard ContinuousClock.now < deadline else { throw TimedOut() }
+        guard ContinuousClock.now < deadline else {
+            Issue.record("Still waiting after \(seconds) s", sourceLocation: sourceLocation)
+            throw TimedOut()
+        }
         try await Task.sleep(for: .milliseconds(20))
     }
 }

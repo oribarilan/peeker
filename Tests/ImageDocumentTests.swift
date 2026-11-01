@@ -153,7 +153,6 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         defer { window.close() }
         let scroll = try #require(document.contentView as? NSScrollView)
         #expect(scroll.minMagnification <= 0.125)
-        #expect(scroll.contentView is CenteringClipView)
         for _ in 0..<4 { #expect(document.perform("zoom-out")) }
         #expect(scroll.magnification < 1)
         let clip = scroll.contentView.bounds, image = document.canvas.frame

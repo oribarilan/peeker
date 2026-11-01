@@ -67,8 +67,8 @@ import UniformTypeIdentifiers
         #expect(!ImageEdit.crop(CGRect(x: 0, y: 0, width: 0, height: 1)).isValid)
         #expect(ImageEdit.resize(width: 1, height: 1).isValid && !ImageEdit.resize(width: 0, height: 5).isValid)
         #expect(!ImageEdit.resize(width: 100_000, height: 5).isValid)
-        let json = try JSONEncoder().encode([ImageEdit.rotate(by: -90), .flip(horizontal: true), .crop(CGRect(x: 0, y: 0, width: 1, height: 1)), .resize(width: 3, height: 4)])
-        #expect(try JSONDecoder().decode([ImageEdit].self, from: json).count == 4)
+        let edits: [ImageEdit] = [.rotate(by: -90), .flip(horizontal: true), .crop(CGRect(x: 0, y: 0, width: 1, height: 1)), .resize(width: 3, height: 4)]
+        #expect(try JSONDecoder().decode([ImageEdit].self, from: JSONEncoder().encode(edits)) == edits)
     }
 
     @Test func aSliverAtTheEdgeStillCropsAPixel() throws {
