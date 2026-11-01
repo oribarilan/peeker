@@ -19,7 +19,7 @@ nonisolated enum ImageSaving {
             throw PluginError("“\(name)” is no longer a readable image.")
         }
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
-        let orientation = (properties[kCGImagePropertyOrientation] as? Int).flatMap(Orientation.init) ?? .up
+        let orientation = (properties[kCGImagePropertyOrientation] as? UInt32).flatMap(CGImagePropertyOrientation.init(rawValue:)) ?? .up
         var data: Data?
         if edits.allSatisfy(\.isOrientationOnly), orientable.contains(type as String) {
             data = reoriented(source, type: type, to: edits.reduce(orientation) { $0.then($1) })
@@ -32,7 +32,7 @@ nonisolated enum ImageSaving {
     }
 
     /// The same image data with a new orientation tag.
-    private static func reoriented(_ source: CGImageSource, type: CFString, to orientation: Orientation) -> Data? {
+    private static func reoriented(_ source: CGImageSource, type: CFString, to orientation: CGImagePropertyOrientation) -> Data? {
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, type, 1, nil) else { return nil }
         let options: [CFString: Any] = [kCGImageDestinationOrientation: orientation.rawValue, kCGImageDestinationMergeMetadata: true]
@@ -83,49 +83,47 @@ nonisolated extension ImageSaving {
     }
 }
 
-/// An EXIF orientation: how the stored image is turned and mirrored to be shown. As a matrix on (x, y) with y down,
-/// so edits compose by multiplying.
-nonisolated enum Orientation: Int {
-    case up = 1, mirrored, upsideDown, mirroredUpsideDown, transposed, right, transverse, left
+/// EXIF orientations, how the stored image is turned and mirrored to be shown, as matrices on (x, y) with y down, so
+/// edits compose by multiplying.
+nonisolated extension CGImagePropertyOrientation {
+    private static let all: [CGImagePropertyOrientation] = [.up, .upMirrored, .down, .downMirrored, .leftMirrored, .right, .rightMirrored, .left]
 
     private var matrix: (Int, Int, Int, Int) {
         switch self {
         case .up: (1, 0, 0, 1)
-        case .mirrored: (-1, 0, 0, 1)
-        case .upsideDown: (-1, 0, 0, -1)
-        case .mirroredUpsideDown: (1, 0, 0, -1)
-        case .transposed: (0, 1, 1, 0)
+        case .upMirrored: (-1, 0, 0, 1)
+        case .down: (-1, 0, 0, -1)
+        case .downMirrored: (1, 0, 0, -1)
+        case .leftMirrored: (0, 1, 1, 0)
         case .right: (0, -1, 1, 0)
-        case .transverse: (0, -1, -1, 0)
+        case .rightMirrored: (0, -1, -1, 0)
         case .left: (0, 1, -1, 0)
         }
     }
 
     /// The orientation after `edit` turns or mirrors the image as shown.
-    func then(_ edit: ImageEdit) -> Orientation {
+    func then(_ edit: ImageEdit) -> CGImagePropertyOrientation {
         let e: (Int, Int, Int, Int) = switch edit {
-        case .rotate(let by): by > 0 ? Orientation.right.matrix : Orientation.left.matrix
-        case .flip(let horizontal): horizontal ? Orientation.mirrored.matrix : Orientation.mirroredUpsideDown.matrix
-        case .crop, .resize: Orientation.up.matrix
+        case .rotate(let by): by > 0 ? Self.right.matrix : Self.left.matrix
+        case .flip(let horizontal): horizontal ? Self.upMirrored.matrix : Self.downMirrored.matrix
+        case .crop, .resize: Self.up.matrix
         }
         let m = matrix
         let product = (e.0 * m.0 + e.1 * m.2, e.0 * m.1 + e.1 * m.3, e.2 * m.0 + e.3 * m.2, e.2 * m.1 + e.3 * m.3)
-        return Self.allCases.first { $0.matrix == product } ?? .up
+        return Self.all.first { $0.matrix == product } ?? .up
     }
 
     /// The edits that turn the stored image as this orientation shows it.
     var uprightEdits: [ImageEdit] {
         switch self {
         case .up: []
-        case .mirrored: [.flip(horizontal: true)]
-        case .upsideDown: [.rotate(by: 90), .rotate(by: 90)]
-        case .mirroredUpsideDown: [.flip(horizontal: false)]
-        case .transposed: [.rotate(by: 90), .flip(horizontal: true)]
+        case .upMirrored: [.flip(horizontal: true)]
+        case .down: [.rotate(by: 90), .rotate(by: 90)]
+        case .downMirrored: [.flip(horizontal: false)]
+        case .leftMirrored: [.rotate(by: 90), .flip(horizontal: true)]
         case .right: [.rotate(by: 90)]
-        case .transverse: [.flip(horizontal: true), .rotate(by: 90)]
+        case .rightMirrored: [.flip(horizontal: true), .rotate(by: 90)]
         case .left: [.rotate(by: -90)]
         }
     }
 }
-
-extension Orientation: CaseIterable {}

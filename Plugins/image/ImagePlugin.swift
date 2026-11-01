@@ -49,8 +49,8 @@ public enum ImagePlugin: Plugin {
 
     struct Decoded: Sendable {
         let image: CGImage
-        /// The full image's size in points, upright: pixels at its resolution, or 72 per inch when it states none.
-        let printSize: CGSize
+        /// Print points per pixel: 72 over the file's resolution, or 1 when it states none.
+        let pointsPerPixel: CGFloat
         /// The full image's size in pixels, upright.
         let pixelSize: CGSize
         let uneditableReason: String?
@@ -79,17 +79,16 @@ public enum ImagePlugin: Plugin {
             throw PluginError("This image couldn't be decoded.")
         }
         if Task.isCancelled { throw PluginError.cancelled }
-        let printSize = printSize(properties, decoded: thumbnail)
         let width = properties[kCGImagePropertyPixelWidth] as? Int ?? thumbnail.width
         let height = properties[kCGImagePropertyPixelHeight] as? Int ?? thumbnail.height
+        // Orientations 5 to 8 turn the image a quarter turn.
         let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
-        let reason = uneditableReason(type: CGImageSourceGetType(source).map { $0 as String } ?? "", frames: CGImageSourceGetCount(source),
-                                      pixels: width * height, isFloat: properties[kCGImagePropertyIsFloat] as? Bool ?? false)
-        return Decoded(image: try displayReady(thumbnail), printSize: printSize,
+        let type = CGImageSourceGetType(source).map { $0 as String } ?? ""
+        let frames = CGImageSourceGetCount(source)
+        let reason = uneditableReason(type: type, frames: frames, pixels: width * height, isFloat: properties[kCGImagePropertyIsFloat] as? Bool ?? false)
+        return Decoded(image: try displayReady(thumbnail), pointsPerPixel: pointsPerPixel(properties),
                        pixelSize: turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height),
-                       uneditableReason: reason,
-                       isAnimated: CGImageSourceGetCount(source) > 1 && animatedTypes.contains(CGImageSourceGetType(source).map { $0 as String } ?? ""),
-                       info: info(properties, source, url))
+                       uneditableReason: reason, isAnimated: frames > 1 && animatedTypes.contains(type), info: info(properties, source, url))
     }
 
     /// The info rows for the file as it is now, such as after a save.
@@ -98,19 +97,10 @@ public enum ImagePlugin: Plugin {
         return info(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:], source, url)
     }
 
-    private nonisolated static func printSize(_ properties: [CFString: Any], decoded: CGImage) -> CGSize {
-        func points(_ pixels: CFString, _ dpi: CFString) -> Double? {
-            guard let pixels = properties[pixels] as? Double, pixels > 0 else { return nil }
-            let dpi = (properties[dpi] as? Double).flatMap { $0 > 0 && $0.isFinite ? $0 : nil } ?? 72
-            return pixels * 72 / dpi
-        }
-        guard let width = points(kCGImagePropertyPixelWidth, kCGImagePropertyDPIWidth),
-              let height = points(kCGImagePropertyPixelHeight, kCGImagePropertyDPIHeight) else {
-            return CGSize(width: decoded.width, height: decoded.height)
-        }
-        // Orientations 5 to 8 turn the image a quarter turn.
-        let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
-        return turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height)
+    /// Takes pixels as square, as nearly every image's are, so the horizontal resolution holds both ways.
+    private nonisolated static func pointsPerPixel(_ properties: [CFString: Any]) -> CGFloat {
+        guard let dpi = properties[kCGImagePropertyDPIWidth] as? Double, dpi > 0, dpi.isFinite else { return 1 }
+        return 72 / dpi
     }
 
     private nonisolated static func displayReady(_ image: CGImage) throws(PluginError) -> CGImage {

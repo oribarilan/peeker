@@ -33,12 +33,17 @@ import UniformTypeIdentifiers
     }
 
     @Test func printSizeIsInPointsFromTheResolutionAndUpright() async throws {
-        let plain = try await ImagePlugin.decode(try image(width: 400, height: 200, type: .png), maxPixels: 100)
-        #expect(plain.printSize == CGSize(width: 400, height: 200))
-        let dense = try await ImagePlugin.decode(try image(width: 400, height: 200, type: .png, dpi: 144), maxPixels: 100)
-        #expect(dense.printSize == CGSize(width: 200, height: 100))
-        let turned = try await ImagePlugin.decode(try image(width: 40, height: 20, type: .jpeg, orientation: 6), maxPixels: 100)
-        #expect(turned.printSize == CGSize(width: 20, height: 40))
+        func printSize(_ url: URL) async throws -> CGSize? {
+            let document = try await ImagePlugin.open(url, context: OpenContext(maxPixels: 100, allowsEditing: true))
+            let job = try #require(document.printJob)
+            return job(NSPrintInfo())?.view?.frame.size
+        }
+        let plain = try await printSize(try image(width: 400, height: 200, type: .png))
+        let dense = try await printSize(try image(width: 400, height: 200, type: .png, dpi: 144))
+        let turned = try await printSize(try image(width: 40, height: 20, type: .jpeg, orientation: 6))
+        #expect(plain == CGSize(width: 400, height: 200))
+        #expect(dense == CGSize(width: 200, height: 100))
+        #expect(turned == CGSize(width: 20, height: 40))
     }
 
     @Test func printStartsInTheImagesOrientation() async throws {

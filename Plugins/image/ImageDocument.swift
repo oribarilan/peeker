@@ -39,7 +39,7 @@ final class ImageDocument: PluginDocument {
         self.url = url
         base = decoded.image
         baseSize = decoded.pixelSize
-        pointsPerPixel = decoded.pixelSize.width > 0 ? decoded.printSize.width / decoded.pixelSize.width : 1
+        pointsPerPixel = decoded.pointsPerPixel
         editMode = !editable ? .none : decoded.uneditableReason.map { .unavailable(reason: $0) } ?? .available
         info = decoded.info
         canvas = ImageCanvas(image: decoded.image)
