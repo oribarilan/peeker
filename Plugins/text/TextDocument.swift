@@ -79,7 +79,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
 
     var contentView: NSView { root }
     var focusView: NSView? { textView }
-    var sidebar: [SidebarPanel] { InfoPanel.make(info).map { [$0] } ?? [] }
+    func makeSidebar() -> [SidebarPanel] { InfoPanel.make(info).map { [$0] } ?? [] }
     var isEditable: Bool { textView.isEditable }
     var note: String? { noteLabel.isHidden ? nil : noteLabel.stringValue }
     var text: String { textView.string }

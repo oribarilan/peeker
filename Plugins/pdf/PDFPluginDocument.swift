@@ -55,7 +55,7 @@ final class PDFPluginDocument: PluginDocument {
     var contentView: NSView { container }
     var focusView: NSView? { pdfView }
 
-    var sidebar: [SidebarPanel] {
+    func makeSidebar() -> [SidebarPanel] {
         let pageCommands = PDFPlugin.commands.filter { Self.pageCommands.contains($0.id) }
         let thumbnails = PageThumbnails(commands: pageCommands.map { ($0.id, $0.title) })
         thumbnails.pdfView = pdfView

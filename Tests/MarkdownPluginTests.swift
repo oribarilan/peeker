@@ -59,7 +59,7 @@ import UniformTypeIdentifiers
     @Test func rendersTheTextAndListsHeadingsAndTasksInTheSidebar() async throws {
         let (_, document) = try await open("# Plan\n\n- [ ] first\n- [x] second\n")
         #expect(document.renderedText.contains("Plan"))
-        #expect(document.sidebar.count == 2)
+        #expect(document.makeSidebar().count == 2)
         #expect(document.info.contains(PeekerKit.InfoRow(label: "Tasks", value: "1 of 2 done")))
     }
 

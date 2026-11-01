@@ -19,7 +19,7 @@ private func texts(_ document: PDFDocument) -> [String] {
         document.undoManager.groupsByEvent = false
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
-        thumbnails = try #require(document.sidebar.first?.view as? PageThumbnails)
+        thumbnails = try #require(document.makeSidebar().first?.view as? PageThumbnails)
         thumbnails.frame = NSRect(x: 0, y: 0, width: 150, height: 900)
         document.contentView.frame = NSRect(x: 150, y: 0, width: 750, height: 900)
         window.contentView!.addSubview(thumbnails)
@@ -71,7 +71,7 @@ private func texts(_ document: PDFDocument) -> [String] {
         try shown.select([2])
         #expect(shown.document.perform("delete-page"))
         try await shown.document.save(try #require(shown.document.unsavedEdits()), accepting: nil)
-        let info = try #require(shown.document.sidebar.last?.view as? NSTextField)
+        let info = try #require(shown.document.makeSidebar().last?.view as? NSTextField)
         #expect(info.stringValue.contains("Pages\t2"), "\(info.stringValue)")
     }
 

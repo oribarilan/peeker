@@ -46,7 +46,9 @@ public struct OpenContext: Sendable {
     var contentView: NSView { get }
     /// The view that takes keyboard focus when the document appears, so Cmd+F works without a click first.
     var focusView: NSView? { get }
-    var sidebar: [SidebarPanel] { get }
+    /// Builds the sidebar panels. The host calls it when the document appears, after a save and after a reload, and
+    /// replaces the panels it showed before.
+    func makeSidebar() -> [SidebarPanel]
     var commands: [CommandSpec] { get }
     /// Runs the command with `id`. Returns false for an id it doesn't know.
     func perform(_ id: String) -> Bool
@@ -54,7 +56,7 @@ public struct OpenContext: Sendable {
     /// out; nil (the default) when it can. Asked on every menu check, so it must be cheap.
     func unavailableReason(for command: String) -> String?
     /// Re-reads the file after it changed on disk, keeping the view (scroll position, zoom) as it is. The host calls
-    /// it only while there are no unsaved edits, and shows `sidebar` again afterwards. Returns false when the document
+    /// it only while there are no unsaved edits, and makes the sidebar again afterwards. Returns false when the document
     /// can't reload in place; the host then opens the file again.
     func reload() async throws(PluginError) -> Bool
     /// Makes the print job for what's on screen, unsaved edits included, from the print info the host passes. Nil
@@ -90,7 +92,9 @@ public struct OpenContext: Sendable {
     func revertEdits()
 
     // Edit mode. A document with one opens in a read view that never changes the file; the host's Edit toggle and
-    // Cmd+E switch it on and off, and its edit tools show in the toolbar only while it's on.
+    // Cmd+E switch it on and off, and its edit tools show in the toolbar only while it's on. Before a save, a print or
+    // the unsaved-changes question, the host takes the keyboard focus from the document's views, so typing in
+    // progress (a text box, a form field) must count as an edit once its view loses focus.
 
     /// `.none` (the default) means no edit mode: edits are allowed whenever the window allows them.
     var editMode: EditMode { get }
@@ -100,7 +104,7 @@ public struct OpenContext: Sendable {
 
 public extension PluginDocument {
     var focusView: NSView? { nil }
-    var sidebar: [SidebarPanel] { [] }
+    func makeSidebar() -> [SidebarPanel] { [] }
     var commands: [CommandSpec] { [] }
     func perform(_ id: String) -> Bool { false }
     func unavailableReason(for command: String) -> String? { nil }

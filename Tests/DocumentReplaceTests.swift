@@ -22,7 +22,7 @@ private final class Before: PluginDocument {
 private final class After: PluginDocument {
     let contentView = NSView()
     var commands: [CommandSpec] { SwappingPlugin.commands }
-    var sidebar: [SidebarPanel] { [SidebarPanel(NSView(), sizing: .fill)] }
+    func makeSidebar() -> [SidebarPanel] { [SidebarPanel(NSView(), sizing: .fill)] }
 }
 
 @Suite(.serialized) struct DocumentReplacing {

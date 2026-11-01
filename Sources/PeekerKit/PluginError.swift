@@ -1,6 +1,7 @@
 import Foundation
 
-/// A failure a plugin reports to the user: `message` is shown as is, `code` lets the host react to known cases.
+/// A failure a plugin reports to the user: the host shows `message` as is and offers `offer`. `code` names known
+/// cases for the plugin's own checks, such as turning `.cannotEncode` into an offer; the host doesn't read it.
 public nonisolated struct PluginError: Error, Sendable, Equatable {
     public enum Code: String, Sendable {
         case general, notText, notWritable, cannotEncode, cancelled

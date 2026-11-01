@@ -56,7 +56,7 @@ final class ImageDocument: PluginDocument {
     }
 
     var contentView: NSView { scrollView }
-    var sidebar: [SidebarPanel] { InfoPanel.make(info).map { [$0] } ?? [] }
+    func makeSidebar() -> [SidebarPanel] { InfoPanel.make(info).map { [$0] } ?? [] }
 
     var commands: [CommandSpec] {
         editMode == .none ? ImagePlugin.commands.filter { !$0.isEditTool } : ImagePlugin.commands

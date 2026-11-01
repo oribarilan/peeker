@@ -237,7 +237,7 @@ final class DocumentViewController: NSSplitViewController {
         knownModification = Self.modificationDate(of: url)
         isEdited = editCount != editsAtSave
         journal?.write()  // removes the record, or keeps only edits made during the save
-        if !isClosed { installSidebar(document.sidebar) }
+        if !isClosed { installSidebar(document.makeSidebar()) }
         return .saved
     }
 
@@ -324,7 +324,7 @@ final class DocumentViewController: NSSplitViewController {
             guard !isClosed, pluginDocument === document, !isEdited else { return }
             guard reloaded else { return await load() }
             knownModification = modified
-            installSidebar(document.sidebar)
+            installSidebar(document.makeSidebar())
         } catch {
             guard !isClosed, pluginDocument === document else { return }
             fail(error.message)
@@ -348,7 +348,7 @@ final class DocumentViewController: NSSplitViewController {
         document.onActiveCommandChange = { [weak self] in self.map { $0.onActiveCommandChanged?($0) } }
         content.show(document.contentView)
         if let focus = document.focusView { view.window?.makeFirstResponder(focus) }
-        if isReady { installSidebar(document.sidebar) } else { sidebarPending = true }
+        if isReady { installSidebar(document.makeSidebar()) } else { sidebarPending = true }
         setCommands(document.commands)
         if wasEditing { onCommandsChanged?(self) }  // the toolbar drops the tools even when the commands are the same
         markReady()
@@ -401,7 +401,7 @@ final class DocumentViewController: NSSplitViewController {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak self] in
             guard let self, !isClosed, sidebarPending, let document = pluginDocument else { return }
-            installSidebar(document.sidebar)
+            installSidebar(document.makeSidebar())
         }
     }
 

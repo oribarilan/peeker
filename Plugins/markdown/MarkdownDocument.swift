@@ -32,7 +32,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
         { [textView] info in TextPrinting.job(for: NSAttributedString(attributedString: textView.attributedString()), info: info) }
     }
 
-    var sidebar: [SidebarPanel] {
+    func makeSidebar() -> [SidebarPanel] {
         var panels: [SidebarPanel] = []
         if !outline.isEmpty {
             panels.append(SidebarPanel(OutlineList(items: outline) { [weak self] in self?.scroll(toLine: $0) }.scrollView, sizing: .fill))
