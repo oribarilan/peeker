@@ -70,6 +70,9 @@ drag_page_above 3 1
 "$DRIVE" shot Peeker "$OUT/1-edited.png"
 "$DRIVE" menu Peeker File Save
 check_saved "The saved file has page 3 first, page 2 turned and page 4 gone" "Page 3 / Page 1 / Page 2 (90)"
+check "Preview opens the saved file" "$(preview_shot "$FILE" "$OUT/1b-in-preview.png" && echo yes)" yes
+osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
+sleep 0.5
 for _ in $(seq 30); do [ "$(pages_shown)" = 3 ] && break; sleep 0.1; done
 check "The info panel counts the saved pages" "$(pages_shown)" 3
 

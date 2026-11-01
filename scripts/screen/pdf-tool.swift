@@ -3,6 +3,8 @@
 // usage: pdf-tool form <out.pdf>      write a one-page form: text field "Name", checkbox "Agree", radio "Pick" (A, B),
 //                                     combo box "Color" (Red, Green); written by hand because PDFKit can't write radio groups
 //        pdf-tool pages <out.pdf> <n> write n Letter pages that say "Page 1", "Page 2"...
+//        pdf-tool locked <out.pdf> <password> <n>
+//                                     the same n pages, opening only with the password
 //        pdf-tool inspect <in.pdf>    print each page's first line of text and rotation, each form field's value and
 //                                     each annotation, one per line: "page 1: Page 3, rotation 90",
 //                                     "field Name = Jane Doe", "annotation FreeText peeker = 31 Oct", "annotation Ink peeker"
@@ -63,7 +65,7 @@ func pdf(_ objects: [String]) -> String {
 }
 
 let args = CommandLine.arguments
-let usage = "usage: pdf-tool form <out.pdf> | pages <out.pdf> <n> | inspect <in.pdf>"
+let usage = "usage: pdf-tool form <out.pdf> | pages <out.pdf> <n> | locked <out.pdf> <password> <n> | inspect <in.pdf>"
 guard args.count >= 3 else { print(usage); exit(2) }
 switch args[1] {
 case "form":
@@ -71,6 +73,10 @@ case "form":
 case "pages":
     guard args.count == 4, let count = Int(args[3]), count > 0 else { print(usage); exit(2) }
     try Data(pages(count).utf8).write(to: URL(filePath: args[2]))
+case "locked":
+    guard args.count == 5, let count = Int(args[4]), count > 0, let document = PDFDocument(data: Data(pages(count).utf8)) else { print(usage); exit(2) }
+    let options: [PDFDocumentWriteOption: Any] = [.userPasswordOption: args[3], .ownerPasswordOption: args[3]]
+    guard document.write(to: URL(filePath: args[2]), withOptions: options) else { print("couldn't write \(args[2])"); exit(1) }
 case "inspect":
     guard let document = PDFDocument(url: URL(filePath: args[2])) else { print("unreadable"); exit(1) }
     var fields: [String: String] = [:]

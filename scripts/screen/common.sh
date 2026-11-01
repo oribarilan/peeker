@@ -53,6 +53,22 @@ launch() {
     if [ $# -gt 0 ]; then "$DRIVE" wait Peeker window "$(basename "$1")" --timeout 10; else sleep 1; fi
 }
 
+# Opens a file in Preview and screenshots its window, as a check that another app reads what Peeker saved; then closes
+# that window, quitting Preview only when it wasn't running before, so the user's own Preview windows are left alone.
+preview_shot() {
+    local name running id
+    name=$(basename "$1")
+    pgrep -xq Preview && running=yes
+    open -a Preview "$1"
+    "$DRIVE" wait Preview window "$name" --timeout 10
+    sleep 1
+    id=$("$DRIVE" windows Preview | awk -v name="$name" 'index($0, name) { print $1; exit }')
+    [ -n "$id" ] && screencapture -x -o -l"$id" "$2"
+    osascript -e "tell application \"Preview\" to close (every window whose name contains \"$name\")" >/dev/null 2>&1
+    [ -n "${running:-}" ] || osascript -e 'tell application "Preview" to quit' >/dev/null 2>&1
+    [ -n "$id" ]
+}
+
 # Screen recording, only with SCREEN_RECORD=1. screencapture can't stop early and keep its movie (it ignores SIGINT
 # when started like this, and other signals drop the file), so a finished run waits for the time limit and an
 # aborted one loses the recording.

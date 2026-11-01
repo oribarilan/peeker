@@ -1,7 +1,8 @@
 #!/bin/bash
-# The image editing flow on screen: in Edit mode, crop a 400 × 200 PNG, turn it with R in Rotate & Resize, resize it
-# to 100 pixels wide with the proportions kept, and save. Checks the size fields after the turn, the saved file's
-# pixel size, the info panel's Dimensions, and that closing after the save asks nothing. Writes screenshots and
+# The image editing flow on screen: in Edit mode, crop a 400 × 200 PNG, turn it with R and flip it with H in Rotate &
+# Resize, resize it to 100 pixels wide with the proportions kept, and save. Checks the size fields after the turn,
+# the saved file's pixel size, resolution and color profile, the info panel's Dimensions, that Preview opens the
+# saved file, and that closing after the save asks nothing. Writes screenshots and
 # results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
 #
 # Every expected size comes from the fields after the crop, so where the crop drag lands doesn't matter.
@@ -13,6 +14,9 @@ source "$(dirname "$0")/common.sh" "$@"
 
 FILE="$OUT/wide.png"
 sips -s format png -z 200 400 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$FILE" >/dev/null
+# The resolution and color profile the save must keep.
+metadata() { sips -g dpiWidth -g dpiHeight -g profile "$FILE" | tail -n +2 | tr -s ' ' | paste -sd ';' -; }
+before=$(metadata)
 # A Rotate & Resize field's value.
 field() { "$DRIVE" tree Peeker 30 | sed -n "s/^ *AXTextField “$1” = \([0-9]*\)$/\1/p" | head -1; }
 saved_size() { sips -g pixelWidth -g pixelHeight "$FILE" | awk '/pixelWidth/ { w = $2 } /pixelHeight/ { h = $2 } END { print w " × " h }'; }
@@ -44,7 +48,10 @@ check "The crop made the image smaller" "$([ "${width:-0}" -gt 0 ] && [ "$width"
 "$DRIVE" type Peeker r  # the letter, so the input source doesn't matter
 sleep 0.3
 check "R turns the size in the fields" "$(field Width) × $(field Height)" "$height × $width"
-"$DRIVE" shot Peeker "$OUT/2-turned.png"
+"$DRIVE" type Peeker h  # flips it; the size stays
+sleep 0.3
+check "H flips without changing the size" "$(field Width) × $(field Height)" "$height × $width"
+"$DRIVE" shot Peeker "$OUT/2-turned-and-flipped.png"
 
 # Width 100 with Keep proportions on: the height follows the turned image's shape.
 read -r fx fy fw fh <<< "$("$DRIVE" frame Peeker AXTextField Width || echo "0 0 0 0")"
@@ -64,6 +71,10 @@ check "The saved file has the new size" "$(saved_size)" "$expected"
 for _ in $(seq 30); do [ "$(shown_dimensions)" = "$expected" ] && break; sleep 0.1; done
 check "The info panel shows the saved size" "$(shown_dimensions)" "$expected"
 "$DRIVE" shot Peeker "$OUT/3-saved.png"
+check "The save keeps the resolution and color profile" "$(metadata)" "$before"
+check "Preview opens the saved image" "$(preview_shot "$FILE" "$OUT/4-in-preview.png" && echo yes)" yes
+front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.5; }
+front
 
 "$DRIVE" keys Peeker cmd+w
 check "Closing after the save asks nothing" "$("$DRIVE" wait Peeker window wide.png --gone --timeout 3 2>/dev/null && echo closed)" closed
