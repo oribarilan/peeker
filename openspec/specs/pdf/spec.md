@@ -211,3 +211,147 @@ On macOS 26, thumbnails SHALL NOT be draggable, in Edit mode or out of it; Rotat
 
 - **WHEN** on macOS 27 the user drags page 3's thumbnail above page 1 in Edit mode
 - **THEN** page 3 becomes page 1
+
+### Requirement: Page commands
+
+In a document window, the PDF plugin SHALL offer Rotate Left (Cmd+L), Rotate Right (Cmd+R) and Delete Page, in the Commands menu and a right-click menu on the thumbnails, with Rotate and Delete buttons in the toolbar in Edit mode. Run from the read view, they SHALL turn Edit mode on first. Each SHALL act on the selected thumbnails (Shift- and Cmd-click select several), or on the current page when none is selected. The Space panel SHALL have no page commands.
+
+#### Scenario: Rotating selected pages
+- **WHEN** pages 2 and 3 are selected in the sidebar and the user presses Cmd+R in Edit mode
+- **THEN** both pages turn a quarter turn clockwise, and their thumbnails show it
+
+#### Scenario: Current page when nothing is selected
+- **WHEN** no thumbnail is selected, page 4 is the current page, and the user chooses Rotate Left
+- **THEN** page 4 turns a quarter turn counterclockwise
+
+#### Scenario: From the read view
+- **WHEN** the user presses Cmd+L in the read view of an editable PDF
+- **THEN** Edit mode turns on and the page rotates
+
+### Requirement: Deleting pages
+
+Delete Page, or the Delete key with the sidebar's thumbnails focused in Edit mode, SHALL remove the selected pages (or the current page) without asking. When the selection covers every page, Delete Page SHALL be greyed out with the reason "A PDF needs at least one page.", and the Delete key SHALL beep and change nothing.
+
+#### Scenario: Deleting a page
+- **WHEN** the user selects page 2 of 5 and presses Delete in the sidebar in Edit mode
+- **THEN** page 2 disappears, the document has 4 pages and is marked as edited
+
+#### Scenario: Every page selected
+- **WHEN** all pages are selected
+- **THEN** Delete Page is greyed out and the Delete key beeps
+
+### Requirement: Reordering pages
+
+In Edit mode, dragging thumbnails in the sidebar SHALL move those pages to where they are dropped, keeping their relative order. In the read view and the Space panel, thumbnails SHALL only select and go to pages, never move them. Pages dragged in from outside the document SHALL be refused.
+
+#### Scenario: Dragging a page
+- **WHEN** in Edit mode the user drags page 5's thumbnail above page 1
+- **THEN** that page becomes page 1 and the others move down
+
+#### Scenario: Read view
+- **WHEN** the user drags a thumbnail in the read view
+- **THEN** no page moves
+
+### Requirement: Saving page changes
+
+Rotating, deleting and reordering SHALL be edits like the others: pending until Cmd+S, one undo step per command or drag, kept in the recovery copy and asked about on close. Undo SHALL bring back a deleted page even after the deletion was saved. Saving SHALL write rotation as each page's standard rotation and keep each page's annotations, form fields and links with it. Marks on a page SHALL go with the page when it's rotated, moved or deleted.
+
+#### Scenario: Saved and seen elsewhere
+- **WHEN** the user rotates page 1, deletes page 3, moves page 4 to the front and presses Cmd+S
+- **THEN** the file on disk has the new order without page 3, page 1 is rotated, and Preview shows the same
+
+#### Scenario: Undo after save
+- **WHEN** the user deletes page 2, saves, presses Undo and saves again
+- **THEN** page 2 is back in the file at its old place
+
+#### Scenario: A mark goes with its page
+- **WHEN** a text box was added on page 3 and the user drags page 3 to the front
+- **THEN** the text box is on the first page, and saving writes it there
+
+#### Scenario: Recovery
+- **WHEN** the user rotates and deletes pages and Peeker is force-quit before saving
+- **THEN** the next launch reopens the PDF in Edit mode with those page changes
+
+### Requirement: Page change permission
+
+When a PDF's permissions forbid page changes but allow comments and form filling, Edit mode SHALL still work for forms, text boxes, signatures and highlights, while Rotate Left, Rotate Right and Delete Page SHALL be greyed out with the reason "This PDF's permissions don't allow page changes." and dragging thumbnails SHALL move nothing.
+
+#### Scenario: Assembly forbidden
+- **WHEN** a PDF allows form filling but not page changes and the user turns Edit mode on
+- **THEN** form fields can be filled, and the page commands are greyed out with that reason
+
+### Requirement: Find in a PDF
+
+In a document window, Find… (Cmd+F) SHALL show a find bar above the pages with a search field, the match count, previous and next buttons and Done, with the cursor in the field. Typing SHALL search the whole document, ignoring case and accents, without stalling the window. Every match SHALL be highlighted and the current one selected and in view. Find SHALL work in the read view and in Edit mode and never change the file.
+
+#### Scenario: Searching
+- **WHEN** the user presses Cmd+F in a PDF window and types "invoice", which appears 3 times
+- **THEN** all 3 matches are highlighted, the first is selected and in view, and the bar says "1 of 3"
+
+#### Scenario: Case and accents ignored
+- **WHEN** the user searches for "cafe" in a PDF containing "Café"
+- **THEN** "Café" is a match
+
+#### Scenario: No text
+- **WHEN** the user searches a scanned PDF that has no text, or for a word that isn't there
+- **THEN** the bar says "Not found"
+
+#### Scenario: Edit mode
+- **WHEN** the user searches while in Edit mode
+- **THEN** matches are found and shown as in the read view, and nothing is added to the unsaved edits
+
+#### Scenario: Space panel
+- **WHEN** a PDF is shown in the Space panel
+- **THEN** Find is unavailable
+
+### Requirement: Moving between PDF matches
+
+Return, Find Next (Cmd+G) and the next button SHALL make the next match current; Shift+Return, Find Previous (Shift+Cmd+G) and the previous button the one before. Both SHALL wrap around at either end. Find Next and Find Previous SHALL work whether or not the bar's field has focus, and after the bar is closed they SHALL use the last search.
+
+#### Scenario: Wrapping around
+- **WHEN** the third of 3 matches is current and the user presses Cmd+G
+- **THEN** the first match becomes current and the bar says "1 of 3"
+
+#### Scenario: Previous match
+- **WHEN** the first of 3 matches is current and the user presses Shift+Return in the field
+- **THEN** the third match becomes current
+
+#### Scenario: After closing
+- **WHEN** the user closed the bar after searching and presses Cmd+G
+- **THEN** the next match of the last search is selected and in view
+
+### Requirement: Closing the PDF find bar
+
+Escape in the field or Done SHALL close the bar and clear the highlights, leaving the current match selected.
+
+#### Scenario: Escape
+- **WHEN** the user presses Escape in the find bar's field
+- **THEN** the bar closes, the highlights disappear and the current match stays selected
+
+### Requirement: Print a PDF
+
+Printing a PDF SHALL print its pages as they appear in the window, including filled form fields, text boxes, signatures and highlights not yet saved. Each page SHALL be scaled to fit the paper and turned to match the paper's orientation.
+
+#### Scenario: Unsaved text box prints
+- **WHEN** the user adds a text box reading "Approved" and prints without saving
+- **THEN** the printout shows "Approved" on that page
+
+#### Scenario: Landscape page on portrait paper
+- **WHEN** a PDF has a landscape page and the paper is portrait
+- **THEN** that page is turned and scaled to fill the paper
+
+### Requirement: Password-protected PDFs
+
+A PDF that needs a password SHALL show, in a document window, a lock with the file's name, a password field and Unlock. The right password SHALL show the PDF with thumbnails, info, Find and Print, view-only with Edit greyed out and the reason; a wrong one SHALL say "Wrong password." and clear the field. The password SHALL never be stored. The Space panel SHALL say the PDF is password protected and that Open unlocks it in a window.
+
+#### Scenario: Unlocking
+- **WHEN** the user opens a password-protected PDF, types its password and presses Return
+- **THEN** the pages, thumbnails and info appear and Edit is greyed out with the reason
+
+#### Scenario: Wrong password
+- **WHEN** the user types a wrong password and presses Unlock
+- **THEN** the tab says "Wrong password." and the field is empty
+
+#### Scenario: Space panel
+- **WHEN** the user presses Space on a password-protected PDF
+- **THEN** the panel says the PDF is password protected and that Open unlocks it in a window
