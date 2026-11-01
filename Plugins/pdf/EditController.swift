@@ -91,7 +91,8 @@ final class EditController {
         return PDFMark(id: PDFEdit.newID(), page: page, rect: rect, kind: .signature(strokes: signature.strokes))
     }
 
-    /// Edit mode turned off: finish what's in progress.
+    /// Finishes what's in progress and drops the selection: when Edit mode turns off, before a page edit or Don't Save,
+    /// and on Escape.
     func end() {
         if let drag {  // cut off by leaving Edit mode: put it back rather than record an edit in the read view
             PDFMarks.setBounds(drag.original, of: drag.annotation)

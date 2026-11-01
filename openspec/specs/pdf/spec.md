@@ -104,7 +104,7 @@ On Cmd+S, filled-in values SHALL be written into the form's fields as field valu
 
 ### Requirement: Text boxes add text anywhere on a page
 
-With Text Box chosen, a click on a page SHALL start a text box there for typing, and double-clicking a text box SHALL edit its text again. Text SHALL be black, in one system font, at a size set by a control shown with the box being edited, and the box SHALL grow to fit. An empty text box SHALL be removed when editing ends. On Cmd+S each text box SHALL be written as a standard free-text annotation.
+With Text Box chosen, a click on a page SHALL start a text box there for typing, and double-clicking a text box SHALL edit its text again. Text SHALL be black, in Helvetica, at a size set by a control shown with the box being edited, and the box SHALL grow to fit. An empty text box SHALL be removed when editing ends. On Cmd+S each text box SHALL be written as a standard free-text annotation.
 
 #### Scenario: Filling a flat form
 

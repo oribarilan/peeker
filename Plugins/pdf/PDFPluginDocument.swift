@@ -3,8 +3,8 @@ import os
 import PDFKit
 import PeekerKit
 
-/// A PDF in a continuous native view with thumbnails and info. In a window it has an edit mode: highlights, form
-/// fields, text boxes and signatures, saved on Cmd+S.
+/// A PDF in a continuous native view with thumbnails and info. In a window it has find and an edit mode: highlights,
+/// form fields, text boxes, signatures, and rotating, deleting and reordering pages, saved on Cmd+S.
 final class PDFPluginDocument: PluginDocument {
     let pdfView = PeekerPDFView()
     /// The PDF shown, unsaved edits included.

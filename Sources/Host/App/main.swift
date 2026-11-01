@@ -1,6 +1,7 @@
 import AppKit
 
-// A plugin process that dies mid-write must not take the host down with it.
+// A write to a closed pipe, such as stdout after the script that launched the app has exited, must fail rather than
+// kill the app.
 signal(SIGPIPE, SIG_IGN)
 
 let delegate = AppDelegate()

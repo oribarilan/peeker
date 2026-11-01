@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-/// POC instrumentation, active when `PEEKER_BENCH_OUT` is set: the app opens its file argument
+/// Benchmark mode, which the benchmark and the routing check use, active when `PEEKER_BENCH_OUT` is set: the app opens its file argument
 /// `PEEKER_BENCH_REPEAT` times in a `PEEKER_BENCH_MODE` ("window" or "panel"), appends one JSON line per open, and quits.
 struct Bench {
     let output: URL

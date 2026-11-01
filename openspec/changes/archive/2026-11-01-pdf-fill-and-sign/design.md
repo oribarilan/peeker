@@ -119,7 +119,7 @@ After Done, a translucent copy follows the pointer until a click places it, at a
 
 ### 8. Undo
 
-The plugin registers every change with the view's window `undoManager`, each with the inverse change (`.add` against `.delete`, old bounds, old text, old field value). Applying an inverse records a new pending edit, so undoing a saved change makes the document edited again. The history lives with the window, so it spans saves. `revertEdits()` (Don't Save) removes all of the document's undo actions.
+The plugin registers every change with the view's window `undoManager`, each with the inverse change (`.add` against `.delete`, old bounds, old text, old field value). Applying an inverse records a new pending edit, so undoing a saved change makes the document edited again. The history lives with the window, so it spans saves. `revertEdits()` (Don't Save) removes all of the document's undo actions. *As built:* the history is the document's own undo manager, which the view hands to the window while in Edit mode, since the window outlives the document (Open With, a reload).
 
 ### 9. Refusing to edit
 
@@ -145,7 +145,7 @@ Each file stays under about 300 lines.
 ## Risks / Trade-offs
 
 - [PDFKit gives no direct notice when a form field's value changes] → Compare against a snapshot after each widget interaction (decision 5), and test with a fixture form covering text, checkbox, radio and choice fields. If text-field edits can't be caught reliably, stop and bring it to the maintainer before working around it.
-- [Free-text annotations look different across apps (font substitution, padding)] → Use the system font, which Preview renders natively, check the saved file in Preview during the build, and record any differences.
+- [Free-text annotations look different across apps (font substitution, padding)] → Use the system font, which Preview renders natively, check the saved file in Preview during the build, and record any differences. *As built:* Helvetica, as described above.
 - [Rebuilding a resized signature's ink annotation could lose the `/NM`, or its place in the page's annotation order] → Keep the `/NM` explicitly and test that move, resize and save keep it, and that Preview still shows one annotation.
 - [Highlight shortcut users lose the one-step read-view highlight] → It's still one step: the shortcut turns Edit mode on and highlights (spec requirement).
 - [Undo spanning saves can surprise, since undoing turns the file back to edited] → That's the decided behavior, like Preview. The edited mark shows it.

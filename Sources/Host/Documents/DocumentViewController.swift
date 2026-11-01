@@ -23,7 +23,7 @@ final class DocumentViewController: NSSplitViewController {
     private let allowsEditing: Bool
     /// The open in progress, cancelled when the document closes.
     private var openTask: Task<Void, Never>?
-    /// What the plugin opened; nil while opening and after a failure. Readable so tests can drive edits.
+    /// What the plugin opened; nil while opening and after a failure.
     private(set) var pluginDocument: (any PluginDocument)?
     private(set) var isEdited = false {
         didSet {
