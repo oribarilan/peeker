@@ -2,9 +2,9 @@
 
 ## 1. Version numbers
 
-- [ ] 1.1 Add `MARKETING_VERSION: 0.0.0-dev` and `CURRENT_PROJECT_VERSION: 0` to `project.yml` with the Info.plist reading both; verify the built app's Info.plist has `0.0.0-dev` and `0`, and About Peeker shows it
-- [ ] 1.2 Write `scripts/release-version.sh <tag>` printing the version and build number (`X*10000 + Y*100 + Z`) and refusing anything else (no `v`, four parts, a part of 100 or more, leading zeros); verify with `v0.2.1` → `0.2.1 201`, `v1.0.0` → `1.0.0 10000`, and each refusal exiting non-zero with a message
-- [ ] 1.3 Add `CHANGELOG.md` (Keep a Changelog, an Unreleased section) and `scripts/changelog-notes.sh <version>` printing that version's section body; verify it prints a sample section, and fails with a message for a missing version and for Unreleased
+- [x] 1.1 Add `MARKETING_VERSION: 0.0.0-dev` and `CURRENT_PROJECT_VERSION: 0` to `project.yml` with the Info.plist reading both; verify the built app's Info.plist has `0.0.0-dev` and `0`, and About Peeker shows it
+- [x] 1.2 Write `scripts/release-version.sh <tag>` printing the version and build number (`X*10000 + Y*100 + Z`) and refusing anything else (no `v`, four parts, a part of 100 or more, leading zeros); verify with `v0.2.1` → `0.2.1 201`, `v1.0.0` → `1.0.0 10000`, and each refusal exiting non-zero with a message
+- [x] 1.3 Add `CHANGELOG.md` (Keep a Changelog, an Unreleased section) and `scripts/changelog-notes.sh <version>` printing that version's section body; verify it prints a sample section, and fails with a message for a missing version and for Unreleased
 
 ## 2. Config and updater
 

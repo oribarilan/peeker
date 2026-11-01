@@ -20,6 +20,10 @@ settings:
     CODE_SIGN_STYLE: Manual
     DEVELOPMENT_TEAM: ""
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+    # A release build gets its version and build number from the tag (scripts/release-version.sh); any other build
+    # is a development build.
+    MARKETING_VERSION: 0.0.0-dev
+    CURRENT_PROJECT_VERSION: 0
 
 targetTemplates:
   # An in-app plugin: a static framework that sees only PeekerKit. Testable, because the unit tests check plugin
@@ -61,6 +65,8 @@ targets:
       path: build/Info-Peeker.plist
       properties:
         CFBundleDisplayName: Peeker
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # Starts as a menu bar utility; the app switches to a regular one, with a Dock icon, while windows are open.
         LSUIElement: true
         NSPrincipalClass: NSApplication
