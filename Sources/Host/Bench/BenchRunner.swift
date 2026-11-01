@@ -54,7 +54,7 @@ final class BenchRunner {
         } else {
             // As when the user opens a file: Peeker turns into a regular app with its first window.
             Presence.update(documentWindows: 1, settingsOpen: false)
-            let controller = DocumentWindowController(url: url, catalog: catalog, config: config, allowsEditing: true, recovery: nil, recoveryClipboard: nil)
+            let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: nil, recoveryClipboard: nil)
             controller.onDocument = { $0.onReady = onReady; $0.onFailure = onFailure }
             self.controller = controller
             controller.showWindow(nil)

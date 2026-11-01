@@ -256,7 +256,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             alert.runModal()
             return
         }
-        let controller = DocumentWindowController(url: url, catalog: catalog, config: config, allowsEditing: true, recovery: .shared, recoveryClipboard: recoveryClipboard)
+        let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: .shared, recoveryClipboard: recoveryClipboard)
         controller.onBecameKey = { [weak self] in if let menu = self?.commandsMenu { MainMenu.rebuildCommands(menu, for: $0) } }
         controller.onClose = { [weak self] closed in
             self?.windows.removeAll { $0 === closed }

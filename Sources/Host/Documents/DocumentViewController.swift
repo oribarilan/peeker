@@ -144,7 +144,11 @@ final class DocumentViewController: NSSplitViewController {
 
     /// The commands the toolbar shows: edit tools only while Edit mode is on, or when there's no edit mode.
     var toolbarCommands: [(spec: CommandSpec, shortcut: Shortcut?)] {
-        commands.filter { !$0.spec.isEditTool || isEditing || editMode == .none }
+        commands.filter { showsInToolbar($0.spec) }
+    }
+
+    func showsInToolbar(_ spec: CommandSpec) -> Bool {
+        !spec.isEditTool || isEditing || editMode == .none
     }
 
     /// The Edit button and Cmd+E. Leaving calls `resolve`, which asks about unsaved edits and saves or drops them;

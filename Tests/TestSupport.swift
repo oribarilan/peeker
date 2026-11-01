@@ -70,8 +70,7 @@ func loadedDocument(_ url: URL, with plugin: any Plugin.Type, allowsEditing: Boo
 func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", waiting: Bool = true) async throws -> DocumentWindowController {
     let url = try TempFile.make(Data("x".utf8), name: name)
     let entry = PluginEntry(plugin)
-    let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(),
-                                              allowsEditing: true, recovery: nil, recoveryClipboard: nil)
+    let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(), recovery: nil, recoveryClipboard: nil)
     controller.show(with: entry)
     if waiting { try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil } }
     return controller

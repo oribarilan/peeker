@@ -7,7 +7,6 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     let url: URL
     private let catalog: PluginCatalog
     private var config: Config
-    private let allowsEditing: Bool
     private let recovery: RecoveryStore?
     private let recoveryClipboard: RecoveryClipboard?
     private(set) var current: DocumentViewController?
@@ -21,11 +20,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     var askToSave: (DocumentWindowController) async -> UnsavedChoice = { await $0.askToSaveInSheet() }
     private var keyMonitor: Any?
 
-    init(url: URL, catalog: PluginCatalog, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?) {
+    init(url: URL, catalog: PluginCatalog, config: Config, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?) {
         self.url = url
         self.catalog = catalog
         self.config = config
-        self.allowsEditing = allowsEditing
         self.recovery = recovery
         self.recoveryClipboard = recoveryClipboard
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
@@ -60,7 +58,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     func show(with entry: PluginEntry, restoring record: RecoveryRecord? = nil) {
         current?.close()
         let document = DocumentViewController(url: url, entry: entry, config: config,
-                                              allowsEditing: allowsEditing, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString)
+                                              allowsEditing: true, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString)
         document.onCommandsChanged = { [weak self] _ in
             self?.rebuildToolbar()
             if let self, self.window?.isKeyWindow == true { self.onBecameKey?(self) }
@@ -322,7 +320,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         guard let document = current else { return [Self.openWith] }
-        let tools = document.commands.indices.filter { index in document.toolbarCommands.contains { $0.spec == document.commands[index].spec } }
+        let tools = document.commands.indices.filter { document.showsInToolbar(document.commands[$0].spec) }
         return [Self.openWith] + (document.editMode == .none ? [] : [Self.edit]) + [.flexibleSpace] + tools.map { NSToolbarItem.Identifier("command.\($0)") }
     }
 
