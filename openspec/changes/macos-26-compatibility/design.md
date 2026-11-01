@@ -40,3 +40,12 @@ The branch and workflow are deleted once the decision below is made. Considered:
 ## Migration Plan
 
 Lands on `main` once every test passes on both systems; then the releases change resumes and its GitHub dry run passes its tests.
+
+## What the probe found (2026-11-01)
+
+One run on GitHub's `macos-26` runner (macOS 26.6.2) answered every question:
+- **`/NM` is lost on write.** It's set in memory and still there after `addAnnotation`, but `dataRepresentation()` leaves it out of the file: neither PDFKit nor CoreGraphics reads it back, and the bytes don't contain it. On macOS 27.0.1 it's written.
+- **A key of Peeker's own survives.** `/PeekerID` is written and read back by both PDFKit and CoreGraphics on macOS 26, as is the text-box style key `/DS`.
+- **A copied page has its own `pageRef`** on macOS 26; on 27 it shares the original's.
+
+**Outcome: fix it** (decision 2). `PDFMarks` writes a mark's id under `/PeekerID` as well as `/NM` and reads either, preferring `/NM`, so files from earlier builds keep working and other apps see the same `/NM` as before on macOS 27. `MovedPageRepair` carries `/PeekerID` across page moves like the other two keys. The fallback (decision 3) isn't needed, and the spec stays as written. Drags stay off on macOS 26 (decision 4), since a copy can't be matched to its original there. The probe branch stayed until the fix passed every test on its runner (432 of 432 on macOS 26.6.2), then went.

@@ -60,8 +60,9 @@ context: |
      updates from inside the app, on by default with a setting to turn them off, as common Mac apps do. To
      settle in the interview: the update framework (Sparkle is the usual choice), signing and notarization in
      CI, where releases and the update feed live, and how a Homebrew install and the app's own updater coexist.
-  8. macOS 26 compatibility (found 2026-11-01; next, before the first release; needs its interview): 15 PDF unit
-     tests fail on macOS 26, mostly saved annotations losing their names (openspec/gaps.md).
+  8. macOS 26 compatibility (decided 2026-11-01; openspec/changes/macos-26-compatibility): PDFKit on macOS 26 drops
+     /NM when saving, so marks also carry /PeekerID; thumbnail drags need macOS 27; unit tests run on macOS 26 on
+     every push to main.
 
   Open questions:
   - Text-based formats. Plain text, logs, source, structured data (JSON, YAML, XML), CSV and Markdown differ a
