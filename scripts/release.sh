@@ -38,16 +38,19 @@ ditto $OUT/dd/Build/Products/Release/Peeker.app $APP
 shipped=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' $APP/Contents/Info.plist)
 [[ $shipped == $version ]] || { echo "the app reports $shipped, not $version" >&2; exit 1; }
 
-# Peeker isn't sandboxed, so Sparkle's XPC services go; its helpers are signed inside out, as notarization needs.
+# Peeker isn't sandboxed, so Sparkle's XPC services go; its helpers are signed inside out, as notarization needs (ad
+# hoc in a dry run, so the app stays valid).
 SPARKLE=$APP/Contents/Frameworks/Sparkle.framework
 rm -rf $SPARKLE/Versions/B/XPCServices $SPARKLE/XPCServices
+stamp=()
+[[ $signing == yes ]] && stamp=(--timestamp)
+sign() { codesign --force --sign "${identity:--}" --options runtime $stamp "$@"; }
+sign $SPARKLE/Versions/B/Autoupdate
+sign $SPARKLE/Versions/B/Updater.app
+sign $SPARKLE
+sign --entitlements packaging/Peeker.entitlements $APP
+codesign --verify --deep --strict $APP
 if [[ $signing == yes ]]; then
-    sign() { codesign --force --sign "$identity" --options runtime --timestamp "$@"; }
-    sign $SPARKLE/Versions/B/Autoupdate
-    sign $SPARKLE/Versions/B/Updater.app
-    sign $SPARKLE
-    sign --entitlements packaging/Peeker.entitlements $APP
-    codesign --verify --deep --strict --verbose=2 $APP
     notarize() { xcrun notarytool submit "$1" "${notary[@]}" --wait --timeout 30m; }
     ditto -c -k --keepParent $APP $OUT/Peeker.zip
     echo "notarizing the app…"
