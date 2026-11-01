@@ -93,7 +93,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
         guard let url = link as? URL else { return false }
         guard url.scheme == MarkdownRenderer.taskScheme, let line = Int(url.host() ?? "") else {
-            NSWorkspace.shared.open(url)
+            open(url)
             return true
         }
         Task {
@@ -104,6 +104,34 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
             }
         }
         return true
+    }
+
+    /// Web pages and email. Any other link, such as `file:` or another app's scheme, could start an app from one click
+    /// in a downloaded file, so it asks first.
+    static func opensWithoutAsking(_ url: URL) -> Bool {
+        ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "")
+    }
+
+    /// Opens `url` with its default handler, asking first unless it's a web page or email. A link without a scheme,
+    /// such as a relative path, does nothing.
+    private func open(_ url: URL) {
+        guard url.scheme != nil else { return }
+        guard !Self.opensWithoutAsking(url) else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        let alert = NSAlert()
+        alert.messageText = "Open this link in another app?"
+        alert.informativeText = url.absoluteString
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+        guard let window = scrollView.window else {
+            if alert.runModal() == .alertFirstButtonReturn { NSWorkspace.shared.open(url) }
+            return
+        }
+        Task {
+            if await alert.beginSheetModal(for: window) == .alertFirstButtonReturn { NSWorkspace.shared.open(url) }
+        }
     }
 
     private func report(_ error: PluginError) {

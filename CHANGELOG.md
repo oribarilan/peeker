@@ -5,3 +5,5 @@ What changes in each release of Peeker, for the people who use it. The newest re
 update window. Add to Unreleased as you go; a release moves it into a section of its own.
 
 ## [Unreleased]
+
+- A Markdown link that isn't a web page or email address asks before it opens another app.

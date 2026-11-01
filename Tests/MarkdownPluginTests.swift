@@ -117,3 +117,15 @@ import UniformTypeIdentifiers
         #expect(document.pluginDocument === markdown)
     }
 }
+
+@Suite struct MarkdownLinks {
+    /// A downloaded file's link could start an app with one click, so only web pages and email open without asking.
+    @Test func onlyWebAndEmailLinksOpenWithoutAsking() throws {
+        for link in ["https://example.com", "http://example.com/a", "HTTPS://EXAMPLE.COM", "mailto:someone@example.com"] {
+            #expect(MarkdownDocument.opensWithoutAsking(try #require(URL(string: link))), "\(link)")
+        }
+        for link in ["file:///Applications/Calculator.app", "shortcuts://run-shortcut?name=x", "facetime:+15555550100", "x-custom:open"] {
+            #expect(!MarkdownDocument.opensWithoutAsking(try #require(URL(string: link))), "\(link)")
+        }
+    }
+}

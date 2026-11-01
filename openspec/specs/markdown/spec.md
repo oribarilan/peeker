@@ -17,12 +17,17 @@ The plugin SHALL open UTF-8 Markdown files and show them rendered: headings, par
 
 ### Requirement: Links open outside the app
 
-Clicking a link that has a scheme (a web address, `mailto:` and so on) SHALL open it with the system's default handler.
+Clicking a web link (`http:` or `https:`) or an email link (`mailto:`) SHALL open it with the system's default handler. A link with any other scheme, such as `file:` or another app's own, SHALL first ask, showing the address, and open only if the user chooses Open, since one click in a downloaded file could otherwise start an app. A link without a scheme SHALL do nothing.
 
 #### Scenario: Web link
 
 - **WHEN** the user clicks a link to a web page
 - **THEN** the page opens in the default browser
+
+#### Scenario: Link to another app
+
+- **WHEN** the user clicks a `file:` link or a link with another app's scheme
+- **THEN** Peeker asks whether to open it, showing the address, and opens it only after Open
 
 ### Requirement: Outline and info in the sidebar
 
