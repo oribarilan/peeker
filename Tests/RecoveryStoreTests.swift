@@ -63,6 +63,12 @@ private func text(of record: RecoveryRecord) -> String? {
         #expect(store.all().isEmpty)
     }
 
+    /// Restoring opens a record's URL as a file, so a record pointing anywhere else is skipped.
+    @Test func aRecordThatDoesntPointAtAFileIsSkipped() throws {
+        try store.write(try record("web", #"{"text":"unsaved"}"#, url: try #require(URL(string: "https://example.com/notes.txt"))))
+        #expect(store.all().isEmpty)
+    }
+
     @Test func onlyTheOwnerCanReadRecords() throws {
         try store.write(try record("r1", #"{"text":"unsaved"}"#))
         let manager = FileManager.default

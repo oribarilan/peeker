@@ -115,8 +115,9 @@ nonisolated final class RecoveryStore: Sendable {
         for file in files where file.pathExtension == "json" {
             do {
                 let record = try JSONDecoder().decode(RecoveryRecord.self, from: Data(contentsOf: file))
-                // A record must live in its own id's file, or removing it by id would leave it behind.
-                guard file.lastPathComponent == "\(record.id).json" else { throw CocoaError(.fileReadCorruptFile) }
+                // A record must live in its own id's file, or removing it by id would leave it behind. Its URL must be a
+                // file's: restoring opens it as one.
+                guard file.lastPathComponent == "\(record.id).json", record.url.isFileURL else { throw CocoaError(.fileReadCorruptFile) }
                 records.append((record, try file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate ?? .distantPast))
             } catch {
                 Self.log.error("skipped unreadable recovery record \(file.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
