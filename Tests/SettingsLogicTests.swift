@@ -119,13 +119,26 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
     }
 }
 
+@Suite struct UpdateSettings {
+    @Test func clearingTheCheckboxRewritesTheConfig() throws {
+        let file = try TempFile.make(Data("{}".utf8), name: "config.json")
+        let store = ConfigStore(url: file, plugins: plugins)
+        defer { store.stop() }
+        let model = SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"))
+        model.checkForUpdates = false
+        let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        #expect((saved["updates"] as? [String: Any])?["check"] as? Bool == false)
+        #expect(!model.checkForUpdates)
+    }
+}
+
 @Suite struct KeyRecording {
     /// While any recorder listens, the quick-look key is off; a second recorder taking over must not turn it back on.
     @Test func oneRecorderListensAtATime() throws {
         let file = try TempFile.make(Data("{}".utf8), name: "config.json")
         let store = ConfigStore(url: file, plugins: plugins)
         defer { store.stop() }
-        let model = SettingsModel(store: store, accessibility: AccessibilityStatus())
+        let model = SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"))
         var changes: [Bool] = []
         model.onRecordingChange = { changes.append($0) }
         model.recorder = "quickLook"

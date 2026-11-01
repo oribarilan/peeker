@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The quick-look key: on or off, and which key.
+/// The quick-look key (on or off, and which key) and update checks.
 struct GeneralPane: View {
     @Bindable var model: SettingsModel
 
@@ -23,6 +23,18 @@ struct GeneralPane: View {
                     .foregroundStyle(.secondary)
             }
             .disabled(!store.isUsable)
+            Section {
+                Toggle("Check for updates automatically", isOn: $model.checkForUpdates)
+                    .disabled(!store.isUsable)
+                LabeledContent(model.updater.versionLine) {
+                    Button("Check Now") { model.updater.checkNow() }
+                }
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text("Peeker checks once a day and shows what's new before installing anything.")
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }

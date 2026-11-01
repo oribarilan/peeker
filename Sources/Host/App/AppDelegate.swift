@@ -178,7 +178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func makeSettings() -> SettingsWindowController {
-        let model = SettingsModel(store: configStore, accessibility: accessibility)
+        let model = SettingsModel(store: configStore, accessibility: accessibility, updater: updater)
         // While a recorder listens, the current quick-look key must reach it rather than open the panel.
         model.onRecordingChange = { [weak self] recording in
             if recording { self?.hotkey?.stop() } else { self?.hotkey?.start() }

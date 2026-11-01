@@ -16,6 +16,7 @@ enum SettingsPane: Hashable {
 final class SettingsModel {
     let store: ConfigStore
     let accessibility: AccessibilityStatus
+    @ObservationIgnored let updater: Updater
     var selection: SettingsPane? = .general
     /// The key recorder listening for keys, by an id such as `quickLook` or `pdf.zoom-in`. One at a time: starting
     /// another stops this one.
@@ -25,9 +26,16 @@ final class SettingsModel {
     /// Told when recording starts or stops, so the quick-look key doesn't fire meanwhile.
     @ObservationIgnored var onRecordingChange: ((Bool) -> Void)?
 
-    init(store: ConfigStore, accessibility: AccessibilityStatus) {
+    init(store: ConfigStore, accessibility: AccessibilityStatus, updater: Updater) {
         self.store = store
         self.accessibility = accessibility
+        self.updater = updater
+    }
+
+    /// The "Check for updates automatically" checkbox: the config's `updates.check`.
+    var checkForUpdates: Bool {
+        get { store.config.checkForUpdates }
+        set { save { $0.checkForUpdates = newValue } }
     }
 
     var plugins: [PluginEntry] { store.plugins }
