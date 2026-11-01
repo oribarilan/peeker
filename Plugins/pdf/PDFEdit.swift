@@ -149,25 +149,3 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
         return edits.lastIndex { if case .add(let mark) = $0 { mark.id == id } else { false } }.flatMap { $0 > start ? $0 : nil }
     }
 }
-
-/// A document's unsaved changes, as recovery records keep them.
-nonisolated enum PDFEdits: Codable, Sendable, Equatable {
-    case operations([PDFEdit])
-    /// The shape records had before edit mode: `{"pdfHighlights":{"_0":[…]}}`. Still decoded, never written.
-    case pdfHighlights([LegacyHighlight])
-
-    /// Old highlights come back as new marks, each with a new name.
-    var operations: [PDFEdit] {
-        switch self {
-        case .operations(let edits): edits
-        case .pdfHighlights(let highlights):
-            highlights.map { .add(PDFMark(id: PDFEdit.newID(), page: $0.page, rect: $0.rect, kind: .highlight($0.color))) }
-        }
-    }
-}
-
-nonisolated struct LegacyHighlight: Codable, Sendable, Equatable {
-    let page: Int
-    let rect: CGRect
-    let color: RGBA
-}

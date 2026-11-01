@@ -63,7 +63,7 @@ private func textBox(_ id: String = "peeker-1", text: String = "Hi") -> PDFMark 
 
 @Suite struct PDFEditEncoding {
     @Test func operationsRoundTrip() throws {
-        let edits = PDFEdits.operations([
+        let edits: [PDFEdit] = [
             .add(PDFMark(id: "peeker-h", page: 1, rect: box, kind: .highlight(RGBA(red: 1, green: 0.8, blue: 0, alpha: 1)))),
             .add(textBox()),
             .add(PDFMark(id: "peeker-s", page: 0, rect: box, kind: .signature(strokes: [[CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0.5)]]))),
@@ -71,18 +71,8 @@ private func textBox(_ id: String = "peeker-1", text: String = "Hi") -> PDFMark 
             .setText(id: "peeker-1", page: 0, text: "Hello", fontSize: 14, rect: box),
             .delete(id: "peeker-h", type: .highlight, page: 1),
             .field(name: "Name", value: "Ori"),
-        ])
-        #expect(try JSONDecoder().decode(PDFEdits.self, from: JSONEncoder().encode(edits)) == edits)
-    }
-
-    /// Records written before edit mode stored highlights in this shape.
-    @Test func oldHighlightRecordsDecodeIntoAdds() throws {
-        let old = #"{"pdfHighlights":{"_0":[{"page":0,"rect":[[72,600],[200,14]],"color":{"red":1,"green":0.8,"blue":0,"alpha":1}}]}}"#
-        let operations = try JSONDecoder().decode(PDFEdits.self, from: Data(old.utf8)).operations
-        guard operations.count == 1, case .add(let mark) = operations[0] else { Issue.record("got \(operations)"); return }
-        #expect(mark.id.hasPrefix("peeker-") && mark.page == 0)
-        #expect(mark.rect == CGRect(x: 72, y: 600, width: 200, height: 14))
-        #expect(mark.kind == .highlight(RGBA(red: 1, green: 0.8, blue: 0, alpha: 1)))
+        ]
+        #expect(try JSONDecoder().decode([PDFEdit].self, from: JSONEncoder().encode(edits)) == edits)
     }
 
     @Test func newIDsArePeekerNames() {

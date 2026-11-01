@@ -16,7 +16,7 @@ private func highlight(_ id: String = PDFEdit.newID(), page: Int = 0, rect: CGRe
 }
 
 private func encoded(_ edits: [PDFEdit]) throws -> Data {
-    try JSONEncoder().encode(PDFEdits.operations(edits))
+    try JSONEncoder().encode(edits)
 }
 
 private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginDocument {
@@ -147,11 +147,9 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
     @Test func restoreRefusesAnAbsurdPage() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
         #expect(!document.restore(encoded: try encoded([highlight(page: Int.max)])))
-        let old = #"{"pdfHighlights":{"_0":[{"page":9223372036854775807,"rect":[[72,600],[200,14]],"color":{"red":1,"green":0.8,"blue":0,"alpha":1}}]}}"#
-        #expect(!document.restore(encoded: Data(old.utf8)))
     }
 
-    /// Old highlight records come from builds that edited any PDF; a signed one must not take them.
+    /// A record from before the PDF was signed must not apply to it.
     @Test func aPDFThatCantBeEditedRefusesRecoveredEdits() async throws {
         let document = try await open(try FormPDF.make(acroForm: "/SigFlags 3"))
         #expect(!document.restore(encoded: try encoded([highlight()])))
@@ -206,15 +204,6 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         let annotations = try #require(document.pdfView.document?.page(at: 0)?.annotations)
         #expect(annotations.count == 1)
         #expect(annotations.first?.bounds.minY == rect.minY)
-    }
-
-    /// Records written before edit mode stored highlights in this shape.
-    @Test func restoresEditsInThePreviousRecordFormat() async throws {
-        let document = try await open(try TempFile.makePDF(pages: 1))
-        let old = #"{"pdfHighlights":{"_0":[{"page":0,"rect":[[72,600],[200,14]],"color":{"red":1,"green":0.8,"blue":0,"alpha":1}}]}}"#
-        #expect(document.restore(encoded: Data(old.utf8)))
-        guard case .add(let mark) = document.pendingEdits.first else { Issue.record("nothing restored"); return }
-        #expect(mark.rect == rect && mark.kind == .highlight(yellow))
     }
 }
 

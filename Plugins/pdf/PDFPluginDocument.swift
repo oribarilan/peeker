@@ -174,14 +174,14 @@ final class PDFPluginDocument: PluginDocument {
     func unsavedEdits() -> UnsavedEdits? {
         let edits = pendingEdits
         guard !edits.isEmpty, let last = pending.last else { return nil }
-        return UnsavedEdits(PDFSnapshot(edits: .operations(edits), through: last.number))
+        return UnsavedEdits(PDFSnapshot(edits: edits, through: last.number))
     }
 
     func restore(encoded edits: Data) -> Bool {
-        // Old records come from builds that highlighted any PDF; a signed or locked one must not take them.
-        guard editMode == .available, let decoded = try? JSONDecoder().decode(PDFEdits.self, from: edits) else { return false }
+        // A file signed or locked since the record was written must not take its edits.
+        guard editMode == .available, let decoded = try? JSONDecoder().decode([PDFEdit].self, from: edits) else { return false }
         var applied = false
-        for edit in decoded.operations {
+        for edit in decoded {
             if change(edit) {
                 applied = true
             } else if edit.movesPages {
@@ -193,7 +193,7 @@ final class PDFPluginDocument: PluginDocument {
 
     func save(_ edits: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError) {
         guard let snapshot = edits.value as? PDFSnapshot else { throw PluginError("These changes aren't PDF edits.") }
-        try await PDFPlugin.write(snapshot.edits.operations, to: url.path)
+        try await PDFPlugin.write(snapshot.edits, to: url.path)
         pending.removeAll { $0.number <= snapshot.through }  // edits made during the save stay pending
         if let checked = try? await PDFPlugin.check(url) { info = checked.info }
     }
@@ -297,7 +297,7 @@ final class PDFPluginDocument: PluginDocument {
 /// What `unsavedEdits()` hands out: the folded edits, and the number of the last one, so saving knows which pending
 /// edits it wrote. Encodes as the edits alone.
 nonisolated struct PDFSnapshot: Encodable, Sendable {
-    let edits: PDFEdits
+    let edits: [PDFEdit]
     let through: Int
 
     func encode(to encoder: any Encoder) throws {

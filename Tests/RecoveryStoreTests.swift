@@ -77,7 +77,7 @@ private func text(of record: RecoveryRecord) -> String? {
     }
 
     @Test func nestedEditsRoundTrip() throws {
-        let edits = #"{"pdfHighlights":{"_0":[{"page":2,"rect":[[1.5,2],[3,4]],"color":{"red":1,"green":0.8,"blue":0,"alpha":1},"note":null,"bold":true}]}}"#
+        let edits = #"{"marks":{"list":[{"page":2,"rect":[[1.5,2],[3,4]],"color":{"red":1,"green":0.8,"blue":0,"alpha":1},"note":null,"bold":true}]}}"#
         let pdf = try record("p1", edits, url: URL(filePath: "/tmp/a.pdf"), plugin: "pdf", fileModified: Date(timeIntervalSince1970: 1_700_000_000.123456789))
         try store.write(pdf)
         let read = try #require(store.all().first)
@@ -149,7 +149,7 @@ private func text(of record: RecoveryRecord) -> String? {
         let store = RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("peeker-test-\(UUID().uuidString)"))
         defer { pasteboard.releaseGlobally() }
-        let pdf = try record("p", #"{"pdfHighlights":{"_0":[]}}"#, url: URL(filePath: "/tmp/a.pdf"), plugin: "pdf")
+        let pdf = try record("p", "[]", url: URL(filePath: "/tmp/a.pdf"), plugin: "pdf")
         try store.write(pdf)
         #expect(RecoveryClipboard(pasteboard: pasteboard, store: store, text: text(of:)).add([pdf]))
         #expect(store.all() == [pdf])
@@ -170,7 +170,7 @@ private func text(of record: RecoveryRecord) -> String? {
         try FileManager.default.setAttributes([.modificationDate: Date.distantPast], ofItemAtPath: directory.appending(path: "old.json").path)
         try store.write(try record("new", #"{"text":"newer"}"#, url: file))
         try store.write(try record("gone", #"{"text":"lost text"}"#, url: missing.appending(path: "a.txt")))
-        try store.write(try record("lost", #"{"pdfHighlights":{"_0":[]}}"#, url: missing.appending(path: "a.pdf"), plugin: "pdf"))
+        try store.write(try record("lost", "[]", url: missing.appending(path: "a.pdf"), plugin: "pdf"))
         var opened: [String] = [], told: [String] = []
         RecoveryRestore(store: store, clipboard: RecoveryClipboard(pasteboard: pasteboard, store: store, text: text(of:)),
                         canOpen: { $0.pluginID == "text" }, hasText: { text(of: $0) != nil },

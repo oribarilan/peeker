@@ -121,8 +121,7 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
             .deletePages(pages: [1], token: "t"), .restorePages(pages: [1], token: "t", data: Data([1, 2])),
             .setBounds(id: "peeker-a", type: .highlight, page: 1, rect: CGRect(x: 5, y: 6, width: 7, height: 8)),
         ]
-        let decoded = try JSONDecoder().decode(PDFEdits.self, from: JSONEncoder().encode(PDFEdits.operations(edits)))
-        #expect(decoded == .operations(edits))
+        #expect(try JSONDecoder().decode([PDFEdit].self, from: JSONEncoder().encode(edits)) == edits)
         var moved = mark
         moved.rect = CGRect(x: 5, y: 6, width: 7, height: 8)
         #expect(PDFEdit.folded(edits) == [.add(moved)] + edits[1...4])
@@ -224,7 +223,7 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
 
     @Test func recoveryStopsAfterASkippedPageMove() async throws {
         let document = try await open(try TempFile.makePDF(pages: 3))
-        let record = try JSONEncoder().encode(PDFEdits.operations([.reorderPages(order: [1, 0]), .deletePages(pages: [0], token: "t")]))
+        let record = try JSONEncoder().encode([PDFEdit.reorderPages(order: [1, 0]), .deletePages(pages: [0], token: "t")])
         #expect(!document.restore(encoded: record))
         #expect(shown(document) == ["Page 1", "Page 2", "Page 3"])
     }
