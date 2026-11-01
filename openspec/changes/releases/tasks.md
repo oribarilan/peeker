@@ -36,7 +36,7 @@
 
 ## 7. Guide and checks
 
-- [ ] 7.1 Write `docs/releasing.md` (design decision 12) with the one-time setup, the secret names the workflow reads, each release's steps and how to pull a bad release; link it from `AGENTS.md` and the README's install section, and add the install command to the README marked as coming with 0.1.0
+- [x] 7.1 Write `docs/releasing.md` (design decision 12) with the one-time setup, the secret names the workflow reads, each release's steps and how to pull a bad release; link it from `AGENTS.md` and the README's install section, and add the install command to the README marked as coming with 0.1.0
 - [ ] 7.2 Run `scripts/build.sh test` (no new warnings), `scripts/check-plugin-imports.sh`, `openspec validate --all --strict` and, with the maintainer's go, `scripts/screen-test.sh`; verify all pass
 
 ## Workflow follow-up

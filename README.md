@@ -19,6 +19,16 @@ Space in Finder shows a PDF in 14 ms and a 12 MP photo in 125 ms.
 Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Peeker until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
 <!-- bench:end -->
 
+## Install
+
+Coming with the first release, 0.1.0:
+
+```sh
+brew install --cask oribarilan/tap/peeker
+```
+
+or the DMG from [Releases](https://github.com/oribarilan/peeker/releases). Peeker checks for a new version once a day and shows what's new before installing it; turn that off in Settings > General. Until then, build it yourself as below. Maintainers: [docs/releasing.md](docs/releasing.md).
+
 ## Build and run
 
 Needs Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
