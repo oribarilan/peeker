@@ -25,7 +25,7 @@
 
 ## 5. Release build and DMG
 
-- [ ] 5.1 Write `scripts/release.sh <tag>` (design decision 6): versioned Release build, Developer ID signing with `--timestamp`, signature check, DMG with an Applications link, DMG signing, `notarytool` submission and stapling for the app and the DMG, and a clear stop before signing when no Developer ID identity or notarization key is set; verify locally that the dry run produces a DMG that mounts, holds Peeker.app and the link, and whose app reports the tag's version
+- [x] 5.1 Write `scripts/release.sh <tag>` (design decision 6): versioned Release build, Developer ID signing with `--timestamp`, signature check, DMG with an Applications link, DMG signing, `notarytool` submission and stapling for the app and the DMG, and a clear stop before signing when no Developer ID identity or notarization key is set; verify locally that the dry run produces a DMG that mounts, holds Peeker.app and the link, and whose app reports the tag's version
 - [ ] 5.2 Add `packaging/peeker.rb` (design decision 9) and a script that fills in version and checksum; verify the filled cask passes `brew style` and `brew audit --cask` run against a local tap copy, apart from checks that need the release to exist
 
 ## 6. Workflow and feed
