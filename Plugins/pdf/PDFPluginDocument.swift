@@ -16,6 +16,7 @@ final class PDFPluginDocument: PluginDocument {
     let editMode: EditMode
     private(set) var isEditing = false
     var onEdit: (() -> Void)?
+    var onActiveCommandChange: (() -> Void)?
     /// Edit mode's parts, made when it first turns on.
     private(set) var tools: EditController?
     private var fields: FormFields?
@@ -89,6 +90,7 @@ final class PDFPluginDocument: PluginDocument {
         pdfView.editUndoManager = on ? undoManager : nil
         if on, tools == nil {
             let tools = EditController(document: self)
+            tools.onToolChange = { [weak self] in self?.onActiveCommandChange?() }
             self.tools = tools
             pdfView.tools = tools
             let fields = FormFields(view: pdfView)
@@ -113,6 +115,16 @@ final class PDFPluginDocument: PluginDocument {
     func widgetClicked(_ widget: PDFAnnotation) {
         guard isEditing else { return }
         fields?.clicked(widget)
+    }
+
+    /// The tool waiting for its click or drag, as its command.
+    var activeCommand: String? {
+        switch tools?.tool ?? .none {
+        case .textBox: "text-box"
+        case .signature: "sign"
+        case .highlighter: "highlight"
+        case .none: nil
+        }
     }
 
     func perform(_ id: String) -> Bool {

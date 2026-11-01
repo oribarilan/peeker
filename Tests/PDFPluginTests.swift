@@ -312,3 +312,34 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         #expect(PDFPlugin.commands.first { $0.id == "highlight" }?.title == "Highlight")
     }
 }
+
+/// The tool waiting for its click or drag is the document's active command, for the window to show as selected.
+@Suite struct PDFActiveTool {
+    @Test func theWaitingToolIsTheActiveCommand() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1))
+        document.setEditing(true)
+        var changes = 0
+        document.onActiveCommandChange = { changes += 1 }
+        let tools = try #require(document.tools)
+        #expect(document.activeCommand == nil)
+        #expect(document.perform("highlight"))
+        #expect(document.activeCommand == "highlight")
+        tools.chooseTextBox()
+        #expect(document.activeCommand == "text-box")
+        tools.startPlacing(try #require(Signature(strokes: [[CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 40)]])))
+        #expect(document.activeCommand == "sign")
+        document.setEditing(false)
+        #expect(document.activeCommand == nil)
+        #expect(changes == 4)
+    }
+
+    @Test func usingTheHighlighterEndsIt() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1))
+        document.setEditing(true)
+        #expect(document.perform("highlight"))
+        let page = try #require(document.pdfView.document?.page(at: 0))
+        document.pdfView.setCurrentSelection(page.selection(for: page.bounds(for: .mediaBox)), animate: false)
+        try #require(document.tools).selectionEnded()
+        #expect(document.activeCommand == nil)
+    }
+}

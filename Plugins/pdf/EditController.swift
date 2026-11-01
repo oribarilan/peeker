@@ -14,7 +14,11 @@ final class EditController {
 
     private unowned let document: PDFPluginDocument
     private var view: PeekerPDFView { document.pdfView }
-    private(set) var tool = Tool.none
+    private(set) var tool = Tool.none {
+        didSet { onToolChange?() }
+    }
+    /// Called whenever the tool changes, for the window's selected toolbar button.
+    var onToolChange: (() -> Void)?
     private(set) var selectedID: String?
     private var selectedPage = 0
     /// A move or resize in progress: what's dragged, from where, and its bounds when the drag began.
