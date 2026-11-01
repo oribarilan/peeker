@@ -66,6 +66,12 @@ public struct OpenContext: Sendable {
     /// PDF unlocked from its lock screen. The default ignores it.
     var onReplace: ((any PluginDocument) -> Void)? { get set }
 
+    /// The command waiting for the user, such as a tool waiting for its click or drag; the window shows it as selected.
+    /// Nil when none, the default.
+    var activeCommand: String? { get }
+    /// Set by the host: call it whenever `activeCommand` changes. The default ignores it.
+    var onActiveCommandChange: (() -> Void)? { get set }
+
     // Editing. A view-only document keeps the defaults.
 
     /// Called after each change the user makes.
@@ -103,6 +109,11 @@ public extension PluginDocument {
     var onReplace: ((any PluginDocument) -> Void)? {
         get { nil }
         set {}  // a document that never replaces itself ignores it
+    }
+    var activeCommand: String? { nil }
+    var onActiveCommandChange: (() -> Void)? {
+        get { nil }
+        set {}  // a document without an active command never calls it
     }
     var onEdit: (() -> Void)? {
         get { nil }

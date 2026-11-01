@@ -62,6 +62,8 @@ final class DocumentViewController: NSSplitViewController {
     var onReady: ((DocumentViewController, Duration) -> Void)?
     var onFailure: ((DocumentViewController, String) -> Void)?
     var onCommandsChanged: ((DocumentViewController) -> Void)?
+    /// Called when the document's active command changes.
+    var onActiveCommandChanged: ((DocumentViewController) -> Void)?
     var onRecovery: ((DocumentViewController, RecoveryResult) -> Void)?
     /// Edit mode was asked for but the document can't be edited; the string says why.
     var onEditRefused: ((DocumentViewController, String) -> Void)?
@@ -339,6 +341,7 @@ final class DocumentViewController: NSSplitViewController {
         isEditing = false
         document.onEdit = { [weak self] in self?.didEdit() }
         document.onReplace = { [weak self] replacement in self?.show(replacement) }
+        document.onActiveCommandChange = { [weak self] in self.map { $0.onActiveCommandChanged?($0) } }
         content.show(document.contentView)
         if let focus = document.focusView { view.window?.makeFirstResponder(focus) }
         if isReady { installSidebar(document.sidebar) } else { sidebarPending = true }

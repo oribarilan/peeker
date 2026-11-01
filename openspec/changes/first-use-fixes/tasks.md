@@ -6,7 +6,7 @@
 
 ## 2. Tool hints
 
-- [ ] 2.1 Add `activeCommand` and `onActiveCommandChange` to `PluginDocument` with defaults, and show the active command as the toolbar's selected item and checked in the Commands menu (design decision 6); tests first with a stub document: naming a command selects its toolbar item and checks its menu item, naming none clears both
+- [x] 2.1 Add `activeCommand` and `onActiveCommandChange` to `PluginDocument` with defaults, and show the active command as the toolbar's selected item and checked in the Commands menu (design decision 6); tests first with a stub document: naming a command selects its toolbar item and checks its menu item, naming none clears both
 - [ ] 2.2 Have `PDFPluginDocument` name its active tool (text-box, sign, highlight) from `EditController`, reporting each change (design decision 6); tests first: arming the highlighter or choosing Text Box or Sign names it, using or dismissing the tool names none
 - [ ] 2.3 Show each waiting tool's cursor over the page (design decision 7); verify on screen with screenshots of the toolbar and the pointer while Highlight and Text Box wait (with the maintainer's go)
 

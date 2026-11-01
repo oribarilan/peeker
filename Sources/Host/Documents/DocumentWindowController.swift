@@ -67,6 +67,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         }
         document.onRecovery = { [weak self] _, result in self?.report(result) }
         document.onEditRefused = { [weak self] _, reason in self?.showMessage(reason) }
+        document.onActiveCommandChanged = { [weak self] _ in self?.showActiveCommand() }
         // Before loading, so closing the window while the file opens keeps the record for the next launch.
         if let record { document.restore(record) }
         self.current = document
@@ -127,6 +128,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSToolbarItem)?.tag ?? -1
         guard let document = current, document.commands.indices.contains(tag) else { return }
         document.run(document.commands[tag].spec)
+        showActiveCommand()  // clicking a toolbar command selects it; only the document's active one stays selected
+    }
+
+    /// Shows the document's active command as the toolbar's selected item, or none.
+    private func showActiveCommand() {
+        let active = current?.pluginDocument?.activeCommand
+        let index = current?.commands.firstIndex { $0.spec.id == active }
+        window?.toolbar?.selectedItemIdentifier = index.map { NSToolbarItem.Identifier("command.\($0)") }
     }
 
     @objc private func reopenWith(_ sender: NSPopUpButton) {
@@ -177,6 +186,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         case #selector(saveDocument(_:)):
             return current?.isEdited == true && current?.isSaving == false
         case #selector(runCommand(_:)):
+            let id = current.flatMap { $0.commands.indices.contains(menuItem.tag) ? $0.commands[menuItem.tag].spec.id : nil }
+            menuItem.state = id != nil && id == current?.pluginDocument?.activeCommand ? .on : .off
             return unavailableReason(forCommandAt: menuItem.tag) == nil
         case #selector(printDocument(_:)):
             return current?.pluginDocument?.printJob != nil
@@ -306,6 +317,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         toolbar.displayMode = .iconOnly
         window?.toolbar = toolbar
         window?.toolbarStyle = .unified
+        showActiveCommand()
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -316,6 +328,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    /// The commands: the document's active one shows selected, the toolbar's native look for one choice at a time.
+    func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar).filter { $0.rawValue.hasPrefix("command.") }
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
