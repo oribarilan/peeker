@@ -40,7 +40,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// One for the whole app, so recovered texts that land on the clipboard during a launch don't replace each other.
     private lazy var recoveryClipboard = RecoveryClipboard(pasteboard: .general, store: .shared) { [weak self] in self?.catalog.recoveryText($0) }
 
+    /// Whether macOS launched Peeker as a login item, from the launch's Apple event (only current until launching ends).
+    private var launchedAtLogin = false
+
     func applicationWillFinishLaunching(_ notification: Notification) {
+        let launch = NSAppleEventManager.shared().currentAppleEvent
+        launchedAtLogin = launch?.eventID == kAEOpenApplication
+            && launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
         let menu = MainMenu.make(target: self)
         commandsMenu = menu.item(withTitle: "Commands")?.submenu
         NSApp.mainMenu = menu
@@ -67,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         restoreRecoveredDocuments()
         files.forEach(openInWindow)
         startHotkey()
+        if Self.showsSettingsAtLaunch(openedWindows: windows.count, atLogin: launchedAtLogin) { showSettings(nil) }
         DispatchQueue.main.async { [weak self] in self?.updater.start() }
         do {
             try ConfigSchema.write(nextTo: Config.defaultURL, plugins: catalog.entries)
@@ -88,6 +95,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    /// Opening Peeker by hand with nothing to show brings up Settings, so it doesn't look as if it didn't start. A launch
+    /// at login stays quiet.
+    static func showsSettingsAtLaunch(openedWindows: Int, atLogin: Bool) -> Bool {
+        openedWindows == 0 && !atLogin
+    }
+
+    /// Opening Peeker again while it runs with no window showing (from the Dock, Launchpad or Spotlight) shows Settings.
+    static func showsSettingsOnReopen(hasVisibleWindows: Bool) -> Bool { !hasVisibleWindows }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if Self.showsSettingsOnReopen(hasVisibleWindows: flag) { showSettings(nil) }
+        return true
+    }
 
     /// Asks about each window with unsaved edits in turn, bringing it to the front; the first Cancel stops the quit.
     /// A window is closed as soon as it's resolved, so a cancelled quit leaves no window whose edits were discarded.

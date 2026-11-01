@@ -18,7 +18,7 @@
 
 ## 4. Settings on a hand launch
 
-- [ ] 4.1 Add `showsSettingsAtLaunch` and the reopen handling (design decision 4), reading the login marker in `applicationWillFinishLaunching`; tests first for the decision (nothing opened and not at login: show; a file or a recovered window opened: don't; at login: don't)
+- [x] 4.1 Add `showsSettingsAtLaunch` and the reopen handling (design decision 4), reading the login marker in `applicationWillFinishLaunching`; tests first for the decision (nothing opened and not at login: show; a file or a recovered window opened: don't; at login: don't)
 - [ ] 4.2 Make `record-flows.sh` check that its launch with no file shows Settings and close it before the Space checks; verify the full screen-test suite passes (with the maintainer's go)
 
 ## 5. Checks
