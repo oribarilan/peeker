@@ -141,7 +141,7 @@ private func texts(_ document: PDFDocument) -> [String] {
         shown.thumbnails.deleteBackward(nil)
         #expect(shown.shown == ["Page 1", "Page 2", "Page 3"])
         shown.document.setEditing(true)
-        #expect(shown.thumbnails.allowsDragging && shown.thumbnails.menu != nil)
+        #expect(shown.thumbnails.allowsDragging == PageThumbnails.dragsReorderPages && shown.thumbnails.menu != nil)
         #expect(shown.thumbnails.menu?.items.map(\.title) == ["Rotate Left", "Rotate Right", "Delete Page"])
         try shown.select([1])
         shown.thumbnails.deleteBackward(nil)
@@ -176,7 +176,27 @@ private func texts(_ document: PDFDocument) -> [String] {
     }
 }
 
-@Suite(.serialized) struct PDFThumbnailDrags {
+/// On macOS 26 a dragged page's copy can't be told from a page dropped in from elsewhere, so reordering by drag needs
+/// macOS 27; the page commands work everywhere.
+@Suite struct PDFThumbnailDragSupport {
+    @Test(.enabled(if: !PageThumbnails.dragsReorderPages, "macOS 26 only"))
+    func thumbnailsDontDragOnMacOS26() async throws {
+        let shown = try await Shown(try TempFile.makePDF(pages: 3))
+        defer { shown.window.close() }
+        #expect(!shown.thumbnails.allowsDragging)
+        try shown.select([1])
+        #expect(shown.document.perform("rotate-right"))
+        #expect(shown.rotation(1) == 90)
+    }
+
+    @Test func dragsReorderFromMacOS27() {
+        let atLeast27 = ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 27, minorVersion: 0, patchVersion: 0))
+        #expect(PageThumbnails.dragsReorderPages == atLeast27)
+    }
+}
+
+@Suite(.serialized, .enabled(if: PageThumbnails.dragsReorderPages, "PDFKit's drop on macOS 27"))
+struct PDFThumbnailDrags {
     /// What PDFKit's thumbnail view does on a drop: insert a copy of the dragged page where it's dropped and leave the
     /// original where it was (seen with mouse and synthetic drags on macOS 27).
     private func drag(_ page: Int, to index: Int, in document: PDFDocument) {
