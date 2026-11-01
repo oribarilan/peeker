@@ -1,6 +1,5 @@
 import Foundation
 import Markdown
-import PeekerKit
 
 /// Converts swift-markdown's AST into the block tree the view lays out. Lines are 1-based source lines, used for
 /// outline anchors and task toggling.
@@ -38,18 +37,6 @@ nonisolated enum MarkdownTree {
         }
         visit(blocks)
         return (done, total)
-    }
-
-    /// Flips the task checkbox on a 1-based source line and saves the file.
-    static func toggleTask(atLine line: Int, inFile path: String) throws(PluginError) {
-        var lines = try PluginError.catching { try String(contentsOfFile: path, encoding: .utf8) }.components(separatedBy: "\n")
-        guard lines.indices.contains(line - 1),
-              let match = lines[line - 1].prefixMatch(of: /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/) else {
-            throw PluginError("Line \(line) has no task to tick. The file may have changed.")
-        }
-        lines[line - 1].replaceSubrange(match.range, with: "\(match.1)[\(match.2 == " " ? "x" : " ")]")
-        let data = Data(lines.joined(separator: "\n").utf8)
-        try FileReplacement.replaceContents(ofFileAt: path, with: data)
     }
 
     private static func block(_ markup: Markup) -> MarkdownBlock? {

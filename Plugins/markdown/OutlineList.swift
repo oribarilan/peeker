@@ -1,8 +1,7 @@
 import AppKit
 
 /// The sidebar outline: one row per heading, a click jumps there. A table, not a stack of buttons: it only creates the visible rows, so 4,000 headings stay instant.
-final class OutlineList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
-    let scrollView = NSScrollView()
+final class OutlineList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
     private let table = NSTableView()
     private let items: [OutlineItem]
     private let onAnchor: (Int) -> Void
@@ -10,7 +9,7 @@ final class OutlineList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     init(items: [OutlineItem], onAnchor: @escaping (Int) -> Void) {
         self.items = items
         self.onAnchor = onAnchor
-        super.init()
+        super.init(frame: .zero)
         table.addTableColumn(NSTableColumn(identifier: .init("title")))
         table.headerView = nil
         table.style = .sourceList
@@ -19,11 +18,12 @@ final class OutlineList: NSObject, NSTableViewDataSource, NSTableViewDelegate {
         table.delegate = self
         table.target = self
         table.action = #selector(clicked)
-        scrollView.documentView = table
-        scrollView.hasVerticalScroller = true
-        scrollView.drawsBackground = false
-        objc_setAssociatedObject(scrollView, Unmanaged.passUnretained(self).toOpaque(), self, .OBJC_ASSOCIATION_RETAIN)
+        documentView = table
+        hasVerticalScroller = true
+        drawsBackground = false
     }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
 
     func numberOfRows(in tableView: NSTableView) -> Int { items.count }
 

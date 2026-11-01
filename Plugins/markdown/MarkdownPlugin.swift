@@ -28,7 +28,14 @@ public enum MarkdownPlugin: Plugin {
         return Parsed(blocks: blocks, outline: MarkdownTree.outline(of: blocks), info: info)
     }
 
+    /// Flips the task checkbox on a 1-based source line and saves the file, off the main thread.
     @concurrent nonisolated static func toggleTask(atLine line: Int, in url: URL) async throws(PluginError) {
-        try MarkdownTree.toggleTask(atLine: line, inFile: url.path)
+        var lines = try PluginError.catching { try String(contentsOf: url, encoding: .utf8) }.components(separatedBy: "\n")
+        guard lines.indices.contains(line - 1),
+              let match = lines[line - 1].prefixMatch(of: /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/) else {
+            throw PluginError("Line \(line) has no task to tick. The file may have changed.")
+        }
+        lines[line - 1].replaceSubrange(match.range, with: "\(match.1)[\(match.2 == " " ? "x" : " ")]")
+        try FileReplacement.replaceContents(ofFileAt: url.path, with: Data(lines.joined(separator: "\n").utf8))
     }
 }

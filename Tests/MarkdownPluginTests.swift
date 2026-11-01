@@ -28,21 +28,21 @@ import UniformTypeIdentifiers
         #expect(spans.contains(Span(text: "a link", style: [], link: "https://example.com")))
     }
 
-    @Test func togglingATaskEditsOnlyThatLine() throws {
+    @Test func togglingATaskEditsOnlyThatLine() async throws {
         let file = FileManager.default.temporaryDirectory.appending(path: "peeker-test-\(UUID().uuidString).md")
         try "# Plan\n- [ ] first\n- [ ] second\n".write(to: file, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: file) }
-        try MarkdownTree.toggleTask(atLine: 3, inFile: file.path)
+        try await MarkdownPlugin.toggleTask(atLine: 3, in: file)
         #expect(try String(contentsOf: file, encoding: .utf8) == "# Plan\n- [ ] first\n- [x] second\n")
-        #expect(throws: PluginError.self) { try MarkdownTree.toggleTask(atLine: 1, inFile: file.path) }
+        await #expect(throws: PluginError.self) { try await MarkdownPlugin.toggleTask(atLine: 1, in: file) }
     }
 
-    @Test func togglingATaskKeepsSymlinksAndPermissions() throws {
+    @Test func togglingATaskKeepsSymlinksAndPermissions() async throws {
         let target = try TempFile.make(Data("- [ ] task\n".utf8), name: "target.md")
         try FileManager.default.setAttributes([.posixPermissions: 0o640], ofItemAtPath: target.path)
         let link = target.deletingLastPathComponent().appending(path: "link.md")
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
-        try MarkdownTree.toggleTask(atLine: 1, inFile: link.path)
+        try await MarkdownPlugin.toggleTask(atLine: 1, in: link)
         #expect(try String(contentsOf: target, encoding: .utf8) == "- [x] task\n")
         #expect(try FileManager.default.attributesOfItem(atPath: link.path)[.type] as? FileAttributeType == .typeSymbolicLink)
         #expect(try FileManager.default.attributesOfItem(atPath: target.path)[.posixPermissions] as? Int == 0o640)
