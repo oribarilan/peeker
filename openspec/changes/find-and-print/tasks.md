@@ -23,7 +23,7 @@
 
 - [x] 4.1 Update `openspec/gaps.md` (PDF search and printing leave "Missing next to Preview"; Find and Print in the Space panel go under future work) and the README's feature lines if they list what each plugin does; verify `openspec validate --all --strict` passes
 - [x] 4.2 Run `scripts/build.sh test` and `scripts/check-plugin-imports.sh`; verify all tests pass and the build has no warnings
-- [ ] 4.3 In the built app (needs the maintainer's hands-off go): Cmd+F in a PDF finds and steps through matches, Cmd+P opens the print panel sheet for each format and its preview shows the expected page; verify by screenshots
+- [x] 4.3 In the built app (needs the maintainer's hands-off go): Cmd+F in a PDF finds and steps through matches, Cmd+P opens the print panel sheet for each format and its preview shows the expected page; verify by screenshots
 
 ## Workflow follow-up
 

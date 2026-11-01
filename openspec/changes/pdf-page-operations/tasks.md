@@ -19,7 +19,7 @@
 
 - [x] 4.1 Update the README's PDF line, `openspec/config.yaml`'s roadmap (page operations under way) and `openspec/gaps.md` if it lists page operations; verify `openspec validate --all --strict` passes
 - [x] 4.2 Run `scripts/build.sh test` and `scripts/check-plugin-imports.sh`; verify all tests pass with no warnings
-- [ ] 4.3 In the built app (needs the maintainer's hands-off go): rotate, delete and drag pages, save, and check the file in Preview; verify by screenshots
+- [x] 4.3 In the built app (needs the maintainer's hands-off go): rotate, delete and drag pages, save, and check the file in Preview; verify by screenshots
 
 ## Workflow follow-up
 

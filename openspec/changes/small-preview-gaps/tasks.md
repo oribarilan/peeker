@@ -16,5 +16,5 @@
 ## 4. Wrap-up
 
 - [x] 4.1 Update README, `openspec/gaps.md` (remove the closed gaps, correct the highlight line, explain why Find and Print in the Space panel wait) and `openspec/config.yaml`; verify `openspec validate --all --strict`
-- [ ] 4.2 Run `scripts/build.sh test` and `scripts/check-plugin-imports.sh`; verify all pass with no warnings
-- [ ] 4.3 In the built app (needs the maintainer's hands-off go): unlock a PDF, Actual Size and zoom out on an image, play and pause a GIF; verify by screenshots
+- [x] 4.2 Run `scripts/build.sh test` and `scripts/check-plugin-imports.sh`; verify all pass with no warnings
+- [x] 4.3 In the built app (needs the maintainer's hands-off go): unlock a PDF, Actual Size and zoom out on an image, play and pause a GIF; verify by screenshots

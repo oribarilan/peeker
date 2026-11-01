@@ -24,7 +24,7 @@
 
 - [x] 5.1 Update the README's image line, the roadmap in `openspec/config.yaml` and `openspec/gaps.md`; verify `openspec validate --all --strict` passes
 - [x] 5.2 Run `scripts/build.sh test` and `scripts/check-plugin-imports.sh`; verify all tests pass and the build has no warnings
-- [ ] 5.3 In the built app (needs the maintainer's hands-off go): crop, rotate, flip and resize a photo, save, and check it in Preview with its metadata; verify by screenshots
+- [x] 5.3 In the built app (needs the maintainer's hands-off go): crop, rotate, flip and resize a photo, save, and check it in Preview with its metadata; verify by screenshots
 
 ## Workflow follow-up
 
