@@ -55,18 +55,10 @@ nonisolated final class RecoveryStore: Sendable {
         self.directory = directory
     }
 
-    /// Writes atomically, replacing any record with the same id.
+    /// Writes atomically, replacing any record with the same id, and waits. The app writes through
+    /// `writeInBackground`; tests set up records with this.
     func write(_ record: RecoveryRecord) throws {
         try queue.sync { try writeNow(record) }
-    }
-
-    /// `write` without waiting; a failure goes to the log.
-    func writeInBackground(_ record: RecoveryRecord) {
-        queue.async { [self] in
-            do { try writeNow(record) } catch {
-                Self.log.error("can't write recovery record \(record.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            }
-        }
     }
 
     /// Encodes `edits` and writes their record on the store's queue, so neither runs on the main thread. A failure goes

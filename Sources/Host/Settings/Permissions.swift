@@ -19,8 +19,6 @@ enum PermissionState: Equatable {
 
 /// Reads the permissions Space in Finder needs, and opens where they're granted.
 enum PermissionChecks {
-    static var accessibility: PermissionState { AXIsProcessTrusted() ? .granted : .notGranted }
-
     /// Whether Peeker may send Finder Apple Events. With `asking`, macOS shows its request when it hasn't asked yet.
     /// Can block, so call it off the main thread.
     nonisolated static func finderStatus(asking: Bool) -> OSStatus {
