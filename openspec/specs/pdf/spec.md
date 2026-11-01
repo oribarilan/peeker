@@ -38,20 +38,6 @@ The sidebar SHALL show page thumbnails that jump to a page when clicked, and an 
 - **WHEN** the user clicks the thumbnail of page 40
 - **THEN** the view scrolls to page 40
 
-### Requirement: Highlighting a selection is an edit
-
-Highlight Selection (Ctrl+Cmd+H) SHALL be an Edit mode tool: from the read view it SHALL turn Edit mode on first. It SHALL cover each line of the current text selection with an opaque yellow highlight, clear the selection, and mark the document edited. With no selection it SHALL change nothing. Highlights SHALL stay pending until Cmd+S, follow the document rules for prompts and crash recovery, and disappear on Don't Save.
-
-#### Scenario: Highlight across two lines
-
-- **WHEN** the user selects text spanning two lines and presses Ctrl+Cmd+H
-- **THEN** both lines are highlighted and the window shows the edited mark
-
-#### Scenario: From the read view
-
-- **WHEN** a PDF is in its read view and the user selects a sentence and presses Ctrl+Cmd+H
-- **THEN** Edit mode turns on and the sentence is highlighted
-
 ### Requirement: Highlights are saved as standard PDF annotations
 
 On Cmd+S, the plugin SHALL write each pending highlight into the file as a standard highlight annotation, so it appears in Preview and other PDF apps. The plugin SHALL refuse the whole save, writing nothing, when a highlight names a page the file doesn't have or has an invalid position or color, or when the file is no longer a readable PDF or is locked.
@@ -355,3 +341,36 @@ A PDF that needs a password SHALL show, in a document window, a lock with the fi
 #### Scenario: Space panel
 - **WHEN** the user presses Space on a password-protected PDF
 - **THEN** the panel says the PDF is password protected and that Open unlocks it in a window
+
+### Requirement: Highlight is a highlighter for one drag
+
+Highlight (Ctrl+Cmd+H) SHALL be an Edit mode tool that, from the read view, turns Edit mode on first. Choosing it SHALL arm the highlighter: the next drag over text SHALL cover each line it selects with an opaque yellow highlight, clear the selection, mark the document edited and disarm it. Text already selected SHALL be highlighted at once, leaving the highlighter armed for one drag. Escape, another tool or leaving Edit mode SHALL disarm it. Highlights SHALL stay pending until Cmd+S.
+
+#### Scenario: Highlighting by dragging
+
+- **WHEN** in Edit mode the user clicks Highlight and drags over a sentence spanning two lines
+- **THEN** both lines are highlighted, the window shows the edited mark, and a second drag only selects text
+
+#### Scenario: A selection made first
+
+- **WHEN** the user selects a word and presses Ctrl+Cmd+H in the read view
+- **THEN** Edit mode turns on, the word is highlighted, and the next drag over text highlights it too
+
+#### Scenario: Changing one's mind
+
+- **WHEN** the user clicks Highlight and presses Escape before dragging
+- **THEN** the next drag only selects text
+
+### Requirement: A waiting tool shows itself
+
+While Text Box, Sign or Highlight waits for its click or drag, its toolbar button SHALL show as selected and its Commands menu item SHALL be checked, and the pointer over a page SHALL show the tool: a crosshair for Text Box, a highlighter for Highlight, and the signature following it for Sign. Once the tool is used or dismissed, both SHALL go back.
+
+#### Scenario: Arming the highlighter
+
+- **WHEN** the user clicks Highlight in Edit mode
+- **THEN** the Highlight button shows as selected and the pointer over the page becomes a highlighter, until the drag that highlights or Escape
+
+#### Scenario: Placing a text box
+
+- **WHEN** the user clicks Text Box and then clicks on the page
+- **THEN** the button shows as selected with a crosshair pointer until that click, then neither
