@@ -44,6 +44,21 @@ private func write(_ edits: [PDFEdit], to file: URL) async throws {
 }
 
 @Suite struct PDFSavingEdits {
+    /// PDFKit fills a new annotation's author with the Mac account's full name, which would go out with every shared file.
+    @Test func savedMarksCarryNoAuthor() async throws {
+        let file = try TempFile.makePDF(pages: 1)
+        try await write([
+            .add(PDFMark(id: "peeker-h", page: 0, rect: place, kind: .highlight(yellow))),
+            .add(PDFMark(id: "peeker-t", page: 0, rect: place.offsetBy(dx: 0, dy: 100), kind: .textBox(text: "Hello", fontSize: 12))),
+            .add(PDFMark(id: "peeker-s", page: 0, rect: place.offsetBy(dx: 0, dy: 200), kind: .signature(strokes: [stroke]))),
+        ], to: file)
+        let saved = try annotations(file)
+        #expect(saved.count == 3)
+        #expect(saved.allSatisfy { ($0.userName ?? "").isEmpty })
+        let name = NSFullUserName(), raw = String(decoding: try Data(contentsOf: file), as: UTF8.self)
+        #expect(name.isEmpty || !raw.contains(name))
+    }
+
     @Test func aHighlightIsSavedWithItsName() async throws {
         let file = try TempFile.makePDF(pages: 1)
         try await write([.add(PDFMark(id: "peeker-h", page: 0, rect: place, kind: .highlight(yellow)))], to: file)

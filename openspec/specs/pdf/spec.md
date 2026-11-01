@@ -184,6 +184,15 @@ A highlight, text box or signature Peeker saved SHALL be found again as Peeker's
 - **WHEN** on macOS 26 the PDF holds a highlight another app made, next to one Peeker saved
 - **THEN** only Peeker's can be selected in Edit mode
 
+### Requirement: Peeker's annotations carry no author
+
+A highlight, text box or signature Peeker saves SHALL have no author name, so the Mac account's name never goes out with a shared file. Annotations already in the file SHALL keep their own author.
+
+#### Scenario: Sharing a highlighted PDF
+
+- **WHEN** the user highlights text, saves and sends the PDF to someone
+- **THEN** the highlight shows no author in their PDF app
+
 ### Requirement: Reordering pages by dragging needs macOS 27
 
 On macOS 26, thumbnails SHALL NOT be draggable, in Edit mode or out of it; Rotate Left, Rotate Right and Delete Page SHALL keep working from the toolbar, the Commands menu and the thumbnails' menu. On macOS 27 and later, dragging SHALL reorder pages as before.

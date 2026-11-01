@@ -7,3 +7,4 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 ## [Unreleased]
 
 - A Markdown link that isn't a web page or email address asks before it opens another app.
+- Highlights, text boxes and signatures saved in a PDF no longer carry your Mac account's name as their author.

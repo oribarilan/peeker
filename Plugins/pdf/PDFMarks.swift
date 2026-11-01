@@ -53,6 +53,7 @@ nonisolated enum PDFMarks {
             for path in paths(strokes, size: mark.rect.size) { annotation.add(path) }
         }
         setID(mark.id, on: annotation)
+        annotation.userName = nil  // PDFKit fills in the Mac account's full name, which would go out with the file
         return annotation
     }
 
