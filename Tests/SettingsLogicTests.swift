@@ -7,7 +7,7 @@ private enum StubPDF: Plugin {
     static let id = "pdf"
     static let name = "PDF"
     static let defaultExtensions = ["pdf"]
-    static let commands = [CommandSpec(id: "zoom-in", title: "Zoom In", shortcut: "cmd+="), CommandSpec(id: "highlight", title: "Highlight Selection", shortcut: "ctrl+cmd+h")]
+    static let commands = [CommandSpec(id: "zoom-in", title: "Zoom In", shortcut: "cmd+="), CommandSpec(id: "highlight", title: "Highlight", shortcut: "ctrl+cmd+h")]
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { throw PluginError("not used") }
 }
 
@@ -129,6 +129,19 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
         #expect((saved["updates"] as? [String: Any])?["check"] as? Bool == false)
         #expect(!model.checkForUpdates)
+    }
+}
+
+@Suite struct ShortcutClearing {
+    @Test func clearingAShortcutWritesOff() throws {
+        let file = try TempFile.make(Data("{}".utf8), name: "config.json")
+        let store = ConfigStore(url: file, plugins: plugins)
+        defer { store.stop() }
+        let model = SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"))
+        model.save { $0.clearShortcut(for: Config.keyID(plugin: "pdf", command: "zoom-in")) }
+        let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        let pdf = try #require((saved["plugins"] as? [String: [String: Any]])?["pdf"])
+        #expect((pdf["commands"] as? [String: [String: String]])?["zoom-in"] == ["shortcut": "off"])
     }
 }
 

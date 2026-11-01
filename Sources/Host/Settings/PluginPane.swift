@@ -50,6 +50,13 @@ struct PluginPane: View {
                             conflict: { shortcutConflict($0, command: command.id, plugin: plugin, config: store.config, menu: menuShortcuts(in: NSApp.mainMenu ?? NSMenu())) },
                             listening: $model.recorder, id: key,
                             onRecord: { shortcut in model.save { $0.recordShortcut(shortcut, for: key) } })
+                if current != nil {
+                    Button { model.save { $0.clearShortcut(for: key) } } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                        .help("No shortcut")
+                        .accessibilityLabel("Clear the shortcut for \(command.title)")
+                }
                 Button("Reset") { model.save { $0.resetShortcut(for: key) } }
                     .disabled(current == defaultShortcut)
                     .help("Back to \(defaultShortcut.map(\.displayText) ?? "no shortcut")")
