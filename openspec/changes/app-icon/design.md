@@ -35,7 +35,7 @@ The geometry, on a 100-unit square (scale by 10.24 to the 1024 px canvas; the sy
   - middle card: `rect x=22 y=24 w=46 h=60 rx=6`, with lines `rect x=28 y=36|45|54 w=20|15|18 h=4 rx=2`
   - top card: the middle card's rect inside `rotate(18 68 84)` (it pivots on its bottom-right corner and tilts right), with lines `rect x=28 y=34 w=22 h=4 rx=2` and `rect x=28 y=42 w=15 h=4 rx=2`
 
-Layers are grouped for depth: group 1 is the back and middle cards with the middle card's lines, group 2 the top card and its lines, group 3 the brackets.
+Layers are grouped for depth: group 1 is the back and middle cards with the middle card's lines, group 2 the top card and its lines, group 3 the brackets. Each layer is one color, so its dark value can be set as a fill. The two card groups have the glass's see-through turned off; with it on, the middle card's lines showed through the top card.
 
 Colors (indigo `#4a52d4` throughout):
 

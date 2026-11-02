@@ -38,7 +38,7 @@ final class MenuBarItem {
         }
         item.menu = Self.menu(target: target, lines: [problemsItem, accessibilityItem])
         guard let button = item.button else { return }
-        let image = NSImage(systemSymbolName: "eye", accessibilityDescription: "Peeker")
+        let image = NSImage(systemSymbolName: "viewfinder", accessibilityDescription: "Peeker")
         image?.isTemplate = true
         button.image = image
         button.wantsLayer = true

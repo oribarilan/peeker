@@ -74,6 +74,9 @@ targets:
         # Notarization needs the hardened runtime; every build has it, so the screen tests drive what ships.
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_ENTITLEMENTS: packaging/Peeker.entitlements
+        # The icon is Resources/AppIcon.icon (Icon Composer); the accent applies under a Multicolor system accent.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     info:
       path: build/Info-Peeker.plist
       properties:
@@ -138,7 +141,7 @@ targets:
     sources:
       - path: Tests
       - path: Sources/Host
-        excludes: [App/main.swift]
+        excludes: [App/main.swift, "Resources/**"]
     dependencies:
       - target: PeekerKit
       - target: PeekerImage
