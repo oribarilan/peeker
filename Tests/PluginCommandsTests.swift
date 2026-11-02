@@ -34,4 +34,8 @@ import Testing
         #expect(TextPlugin.commands.map(\.id) == ["zoom-in", "zoom-out", "toggle-wrap"])
         #expect(MarkdownPlugin.commands.isEmpty)
     }
+
+    @Test func signLeavesControlCommandSToTheSidebar() {
+        #expect(PDFPlugin.commands.first { $0.id == "sign" }?.shortcut == nil)
+    }
 }

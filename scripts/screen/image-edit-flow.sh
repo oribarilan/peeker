@@ -1,7 +1,7 @@
 #!/bin/bash
 # The image editing flow on screen: in Edit mode, crop a 400 × 200 PNG with the Crop button by the rectangle, turn it
 # with R and flip it with H in Rotate & Resize, resize it to 100 pixels wide with the proportions kept, and save. Checks
-# that Rotate & Resize opens below the toolbar, the size fields after the turn,
+# the menus (View and Tools, no Commands), that Rotate & Resize opens below the toolbar, the size fields after the turn,
 # the saved file's pixel size, resolution and color profile, the info panel's Dimensions, that Preview opens the
 # saved file, and that closing after the save asks nothing. Writes screenshots and
 # results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
@@ -24,13 +24,20 @@ saved_size() { sips -g pixelWidth -g pixelHeight "$FILE" | awk '/pixelWidth/ { w
 shown_dimensions() { "$DRIVE" tree Peeker 12 | grep -o 'Dimensions	[0-9]* × [0-9]*' | cut -f2; }
 
 launch "$FILE"
-# macOS doesn't always bring an app opened from a terminal to the front, and its Commands menu fills in only then.
+# macOS doesn't always bring an app opened from a terminal to the front, and its View and Tools menus fill in only then.
 osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
 sleep 0.5
 "$DRIVE" type Peeker "" || { echo "Peeker didn't come to the front; nothing was sent"; exit 2; }
 record image-edit 60
-"$DRIVE" menu Peeker Commands "Edit Mode"
+"$DRIVE" menu Peeker Tools "Edit Mode"
 "$DRIVE" wait Peeker control "Crop"
+
+# The menus: View holds the view commands, Tools the edit tools, and there's no Commands menu.
+check "The menu bar has View and Tools, no Commands" "$("$DRIVE" menuitems Peeker | paste -sd ' ' -)" "Peeker File Edit View Tools Window Help"
+view_items=$("$DRIVE" menuitems Peeker View)
+check "View lists Zoom In" "$(grep -cx 'Zoom In' <<< "$view_items")" 1
+check "View has one full-screen item" "$(grep -c 'Full Screen' <<< "$view_items")" 1
+check "Tools lists Crop" "$("$DRIVE" menuitems Peeker Tools | grep -cx 'Crop (C)')" 1
 
 # Crop: a drag across roughly the left half of the image area; the overlay keeps the rectangle inside the image.
 read -r x y w h <<< "$("$DRIVE" frame Peeker AXScrollArea || echo "0 0 0 0")"

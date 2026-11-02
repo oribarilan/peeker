@@ -56,11 +56,12 @@ private final class LetterDocument: PluginDocument {
     @Test func theMenuShowsTheLetterInsteadOfAKeyEquivalent() async throws {
         let controller = try await window()
         defer { controller.close() }
-        let menu = NSMenu(title: "Commands")
-        MainMenu.rebuildCommands(menu, for: controller)
-        let crop = try #require(menu.items.first { $0.title.hasPrefix("Crop") })
+        let main = MainMenu.make(target: nil)
+        let view = try #require(main.item(withTitle: "View")?.submenu), tools = try #require(main.item(withTitle: "Tools")?.submenu)
+        MainMenu.rebuildCommands(view: view, tools: tools, for: controller)
+        let crop = try #require(tools.items.first { $0.title.hasPrefix("Crop") })
         #expect(crop.title == "Crop (C)" && crop.keyEquivalent == "")
-        let zoom = try #require(menu.items.first { $0.title == "Zoom" })
+        let zoom = try #require(view.items.first { $0.title == "Zoom" })
         #expect(zoom.keyEquivalent == "=")
     }
 

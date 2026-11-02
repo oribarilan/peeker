@@ -224,6 +224,10 @@ private struct ConfigReader {
                 let isEditTool = plugin.commands.first { $0.id == command }?.isEditTool == true
                 if let refusal = (isEditTool ? Shortcut.Rules.editTool : .command).refusal(for: shortcut) {
                     problem("\(path).shortcut", "“\(text)” can't be used here. \(refusal)")
+                } else if let item = MainMenu.fixedShortcuts.first(where: { $0.shortcut == shortcut }) {
+                    // The menu item keeps its key; the command gets none rather than one that never fires.
+                    problem("\(path).shortcut", "“\(text)” is used by \(item.title). Choose another key; until then the command has none.")
+                    config.noShortcut.insert(Config.keyID(plugin: plugin.id, command: command))
                 } else {
                     config.keys[Config.keyID(plugin: plugin.id, command: command)] = shortcut
                 }

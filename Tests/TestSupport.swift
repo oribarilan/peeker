@@ -82,10 +82,13 @@ func loadedDocument(_ url: URL, with plugin: any Plugin.Type, allowsEditing: Boo
 
 /// A document window on a new file named `name`, shown with `plugin`. Waits for the document to open unless `waiting`
 /// is false.
-func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", waiting: Bool = true) async throws -> DocumentWindowController {
+/// The window's sidebar choice is remembered only in `sidebar`, never in the test run's preferences.
+func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", waiting: Bool = true,
+                    sidebar: SidebarMemory = SidebarMemory(defaults: nil)) async throws -> DocumentWindowController {
     let url = try TempFile.make(Data("x".utf8), name: name)
     let entry = PluginEntry(plugin)
-    let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(), recovery: nil, recoveryClipboard: nil)
+    let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(), recovery: nil,
+                                              recoveryClipboard: nil, sidebarMemory: sidebar)
     controller.show(with: entry)
     if waiting { try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil } }
     return controller

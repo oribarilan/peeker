@@ -1,10 +1,11 @@
 #!/bin/bash
-# The viewer flow on screen: find in a PDF (its bar below the toolbar), the print panel for each format, unlocking a
-# password-protected PDF, Actual Size and zooming out on an image, and an animated GIF playing, pausing on a click and
-# playing on. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
+# The viewer flow on screen: find in a PDF (its bar below the toolbar), the print panel for each format, hiding the
+# sidebar from the View menu (still hidden after a save) and showing it from the toolbar, Wrap Lines' checkmark,
+# unlocking a password-protected PDF, Actual Size and zooming out on an image, and an animated GIF playing, pausing on
+# a click and playing on. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
 # recording with SCREEN_RECORD=1.
 #
-# Takes over the mouse and keyboard for about 40 seconds: the screen must be unlocked and left alone. Clicks and keys
+# Takes over the mouse and keyboard for about 50 seconds: the screen must be unlocked and left alone. Clicks and keys
 # are sent only while Peeker is in front.
 # usage: viewer-flow.sh [path/to/Peeker.app]
 FLOW=viewer
@@ -60,10 +61,28 @@ for file in "$PAGES" "$NOTES" "$MD" "$PHOTO"; do
     step=$((step + 1))
 done
 
+# The sidebar on a text file: View > Hide Sidebar hides it, an edit and Cmd+S keep it hidden, and the toolbar's
+# sidebar button shows it again. Then Wrap Lines shows in View whether it's on.
+sidebar() { "$DRIVE" tree Peeker 14 | grep -c 'Line endings'; }
+show "$NOTES"
+check "A text file shows its sidebar" "$([ "$(sidebar)" -gt 0 ] && echo yes)" yes
+"$DRIVE" menu Peeker View "Hide Sidebar" && sleep 0.5
+check "View > Hide Sidebar hides it" "$(sidebar)" 0
+"$DRIVE" type Peeker "More. "
+"$DRIVE" keys Peeker cmd+s && sleep 1
+check "It stays hidden after a save" "$(sidebar)" 0
+button=$("$DRIVE" tree Peeker 12 | grep -o 'AXButton “[^”]*[Ss]idebar[^”]*”' | head -1 | sed 's/AXButton “\(.*\)”/\1/')
+"$DRIVE" press Peeker "$button" && sleep 0.5
+check "The toolbar's sidebar button shows it again" "$([ "$(sidebar)" -gt 0 ] && echo yes)" yes
+check "View checks Wrap Lines while lines wrap" "$("$DRIVE" menuitems Peeker View | grep -cx '✓ Wrap Lines')" 1
+"$DRIVE" menu Peeker View "Wrap Lines" && sleep 0.3
+check "and unchecks it once turned off" "$("$DRIVE" menuitems Peeker View | grep -cx 'Wrap Lines')" 1
+"$DRIVE" shot Peeker "$OUT/6-sidebar-and-wrap.png" notes.txt
+
 # A password-protected PDF opens on a lock screen and shows its pages once unlocked.
 show "$LOCKED"
 check "A locked PDF asks for its password" "$("$DRIVE" tree Peeker 12 | grep -c '“Unlock”')" 1
-"$DRIVE" shot Peeker "$OUT/6-locked.png" locked.pdf
+"$DRIVE" shot Peeker "$OUT/7-locked.png" locked.pdf
 read -r fx fy fw fh <<< "$("$DRIVE" frame Peeker AXTextField Password || echo "0 0 0 0")"
 "$DRIVE" click Peeker $((fx + fw / 2)) $((fy + fh / 2))
 "$DRIVE" type Peeker secret
@@ -71,17 +90,17 @@ read -r fx fy fw fh <<< "$("$DRIVE" frame Peeker AXTextField Password || echo "0
 "$DRIVE" wait Peeker control Unlock --gone
 sleep 1
 check "Unlocking shows the three pages" "$(thumbnails)" 3
-"$DRIVE" shot Peeker "$OUT/7-unlocked.png" locked.pdf
+"$DRIVE" shot Peeker "$OUT/8-unlocked.png" locked.pdf
 
 # An image: fitted, at Actual Size, then zoomed out below fit; each shows the image differently.
 show "$PHOTO"
 fit=$(looks photo.png)
 "$DRIVE" keys Peeker cmd+0 && sleep 0.5
 actual=$(looks photo.png)
-"$DRIVE" shot Peeker "$OUT/8-actual-size.png" photo.png
+"$DRIVE" shot Peeker "$OUT/9-actual-size.png" photo.png
 "$DRIVE" keys Peeker cmd+- && sleep 0.3 && "$DRIVE" keys Peeker cmd+- && sleep 0.3 && "$DRIVE" keys Peeker cmd+- && sleep 0.5
 smaller=$(looks photo.png)
-"$DRIVE" shot Peeker "$OUT/9-zoomed-out.png" photo.png
+"$DRIVE" shot Peeker "$OUT/10-zoomed-out.png" photo.png
 check "Actual Size changes the view" "$([ "$fit" != "$actual" ] && echo yes)" yes
 check "Zooming out changes it again" "$([ "$smaller" != "$actual" ] && [ "$smaller" != "$fit" ] && echo yes)" yes
 
@@ -93,7 +112,7 @@ read -r x y w h <<< "$("$DRIVE" frame Peeker AXScrollArea || echo "0 0 0 0")"
 "$DRIVE" click Peeker $((x + w / 2)) $((y + h / 2))
 sleep 0.3
 check "A click pauses it" "$(frames)" 1
-"$DRIVE" shot Peeker "$OUT/10-gif-paused.png" blink.gif
+"$DRIVE" shot Peeker "$OUT/11-gif-paused.png" blink.gif
 "$DRIVE" click Peeker $((x + w / 2)) $((y + h / 2))
 sleep 0.3
 check "Another click plays it on" "$([ "$(frames)" -gt 1 ] && echo yes)" yes

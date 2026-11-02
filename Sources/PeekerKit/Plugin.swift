@@ -73,6 +73,10 @@ public struct OpenContext: Sendable {
     var activeCommand: String? { get }
     /// Set by the host: call it whenever `activeCommand` changes. The default ignores it.
     var onActiveCommandChange: (() -> Void)? { get set }
+    /// Whether a command that turns something on and off, such as Wrap Lines, is on now: the host checks its menu item
+    /// and draws its toolbar button pressed while it is. Nil, the default, for a command that isn't such a switch. Asked
+    /// on every menu check, so it must be cheap.
+    func isOn(_ command: String) -> Bool?
 
     // Editing. A view-only document keeps the defaults.
 
@@ -115,6 +119,7 @@ public extension PluginDocument {
         set {}  // a document that never replaces itself ignores it
     }
     var activeCommand: String? { nil }
+    func isOn(_ command: String) -> Bool? { nil }
     var onActiveCommandChange: (() -> Void)? {
         get { nil }
         set {}  // a document without an active command never calls it

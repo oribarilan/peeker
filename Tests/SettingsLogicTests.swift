@@ -71,7 +71,7 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         #expect(conflict("cmd+j", for: "highlight") == nil)
     }
 
-    @Test func theAppMenuShortcutsAreReadFromTheMenuOutsideCommands() {
+    @Test func theMenuShortcutsSkipPluginCommands() {
         let main = NSMenu()
         let file = NSMenu(title: "File")
         file.addItem(NSMenuItem(title: "Save", action: nil, keyEquivalent: "s"))
@@ -79,12 +79,28 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         redo.keyEquivalentModifierMask = [.command, .shift]
         file.addItem(redo)
         main.addItem(withTitle: "File", action: nil, keyEquivalent: "").submenu = file
-        let commands = NSMenu(title: "Commands")
-        commands.addItem(NSMenuItem(title: "Zoom In", action: nil, keyEquivalent: "="))
-        main.addItem(withTitle: "Commands", action: nil, keyEquivalent: "").submenu = commands
+        let view = NSMenu(title: "View")
+        let sidebar = NSMenuItem(title: "Show Sidebar", action: nil, keyEquivalent: "s")
+        sidebar.keyEquivalentModifierMask = [.control, .command]
+        view.addItem(sidebar)
+        view.addItem(NSMenuItem(title: "Zoom In", action: #selector(DocumentWindowController.runCommand(_:)), keyEquivalent: "="))
+        main.addItem(withTitle: "View", action: nil, keyEquivalent: "").submenu = view
         let shortcuts = menuShortcuts(in: main)
-        #expect(shortcuts.map(\.title) == ["Save", "Redo"])
-        #expect(shortcuts.map(\.shortcut) == [Shortcut(parsing: "cmd+s"), Shortcut(parsing: "cmd+shift+z")])
+        #expect(shortcuts.map(\.title) == ["Save", "Redo", "Show Sidebar"])
+        #expect(shortcuts.map(\.shortcut) == [Shortcut(parsing: "cmd+s"), Shortcut(parsing: "cmd+shift+z"), Shortcut(parsing: "ctrl+cmd+s")])
+    }
+
+    @Test func theFixedKeysCoverViewAndToolsButNoPluginDefault() {
+        let fixed = MainMenu.fixedShortcuts
+        #expect(fixed.contains { $0.title == "Show Sidebar" && $0.shortcut == Shortcut(parsing: "ctrl+cmd+s") })
+        #expect(fixed.contains { $0.title == "Edit Mode" && $0.shortcut == .editMode })
+        #expect(fixed.contains { $0.title == "Save" && $0.shortcut == Shortcut(parsing: "cmd+s") })
+        for plugin in PluginCatalog.builtIn {
+            for command in plugin.commands {
+                guard let key = command.shortcut.flatMap(Shortcut.init(parsing:)) else { continue }
+                #expect(!fixed.contains { $0.shortcut == key }, "\(plugin.id).\(command.id) defaults to a menu key")
+            }
+        }
     }
 
     @Test func settingsRefusesPrintAndFindPreviousForCommands() {

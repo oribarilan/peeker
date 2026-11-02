@@ -51,19 +51,20 @@ drag_page_above() {
 }
 
 launch "$FILE"
-# macOS doesn't always bring an app opened from a terminal to the front, and its Commands menu fills in only then.
+# macOS doesn't always bring an app opened from a terminal to the front, and its View and Tools menus fill in only then.
 osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
 sleep 0.5
 "$DRIVE" type Peeker "" || { echo "Peeker didn't come to the front; nothing was sent"; exit 2; }
 record pdf-pages 90
-"$DRIVE" menu Peeker Commands "Edit Mode"
-"$DRIVE" wait Peeker control "Rotate Right"
+"$DRIVE" menu Peeker Tools "Edit Mode"
+# The page commands are chosen from Tools: at this window size the toolbar has no room for their buttons.
+"$DRIVE" wait Peeker control "Text Box"
 check "Four thumbnails" "$(thumbnails)" 4
 
 pick_page 2
-"$DRIVE" press Peeker "Rotate Right"
+"$DRIVE" menu Peeker Tools "Rotate Right"
 pick_page 4
-"$DRIVE" press Peeker "Delete Page"
+"$DRIVE" menu Peeker Tools "Delete Page"
 sleep 0.5
 check "Deleting a page removes its thumbnail" "$(thumbnails)" 3
 drag_page_above 3 1
@@ -87,14 +88,14 @@ check_saved "The saved file has the deleted page back" "Page 1 / Page 2 (90) / P
 
 # Unsaved page edits, then leaving Edit mode with Don't Save: the view goes back to the file.
 pick_page 1
-"$DRIVE" press Peeker "Rotate Right"
+"$DRIVE" menu Peeker Tools "Rotate Right"
 pick_page 4
-"$DRIVE" press Peeker "Delete Page"
-"$DRIVE" menu Peeker Commands "Edit Mode"
+"$DRIVE" menu Peeker Tools "Delete Page"
+"$DRIVE" menu Peeker Tools "Edit Mode"
 "$DRIVE" wait Peeker sheet
 "$DRIVE" shot Peeker "$OUT/3-leave-edit-mode.png"
 "$DRIVE" press Peeker "Don't Save"
-"$DRIVE" wait Peeker control "Rotate Right" --gone
+"$DRIVE" wait Peeker control "Text Box" --gone
 check "Don't Save shows the file's pages again" "$(thumbnails)" 4
 check "Don't Save leaves the file as saved" "$(saved_pages)" "Page 1 / Page 2 (90) / Page 3 / Page 4"
 "$DRIVE" shot Peeker "$OUT/4-reverted.png"

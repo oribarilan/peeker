@@ -26,7 +26,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var hotkeyShortcut: Shortcut?
     private let accessibility = AccessibilityStatus()
     private var askedForTrust = false
-    private var commandsMenu: NSMenu?
+    /// The menus the front document's commands fill.
+    private var viewMenu: NSMenu?
+    private var toolsMenu: NSMenu?
+    private var openWithMenu: NSMenu?
+    private lazy var recentFiles = RecentFiles { [weak self] in self?.openInWindow($0) }
+    static let helpURL = URL(string: "https://github.com/oribarilan/peeker")!
     private var benchRunner: BenchRunner?
     private var settings: SettingsWindowController?
     private var menuBarItem: MenuBarItem?
@@ -49,8 +54,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         launchedAtLogin = launch?.eventID == kAEOpenApplication
             && launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
         let menu = MainMenu.make(target: self)
-        commandsMenu = menu.item(withTitle: MainMenu.commandsTitle)?.submenu
+        viewMenu = menu.item(withTitle: "View")?.submenu
+        toolsMenu = menu.item(withTitle: "Tools")?.submenu
+        openWithMenu = menu.item(withTitle: "File")?.submenu?.item(withTitle: "Open With")?.submenu
+        menu.item(withTitle: "File")?.submenu?.item(withTitle: "Open Recent")?.submenu?.delegate = recentFiles
         NSApp.mainMenu = menu
+        NSApp.windowsMenu = menu.item(withTitle: "Window")?.submenu
+        NSApp.helpMenu = menu.item(withTitle: "Help")?.submenu
+    }
+
+    /// Fills View and Tools with the front document's commands, or leaves only their fixed items, and File > Open With
+    /// with its plugins. Filled ahead of time, not as the menus open, so Accessibility sees them too.
+    private func showCommands(of controller: DocumentWindowController?) {
+        guard let viewMenu, let toolsMenu, let openWithMenu else { return }
+        MainMenu.rebuildCommands(view: viewMenu, tools: toolsMenu, for: controller)
+        if let controller { controller.fillOpenWith(openWithMenu) } else { openWithMenu.removeAllItems() }
+    }
+
+    @objc func showHelp(_ sender: Any?) {
+        NSWorkspace.shared.open(Self.helpURL)
     }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
@@ -258,9 +280,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
         let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: .shared, recoveryClipboard: recoveryClipboard)
-        controller.onBecameKey = { [weak self] in if let menu = self?.commandsMenu { MainMenu.rebuildCommands(menu, for: $0) } }
+        controller.onBecameKey = { [weak self] in self?.showCommands(of: $0) }
         controller.onClose = { [weak self] closed in
             self?.windows.removeAll { $0 === closed }
+            if self?.windows.isEmpty == true { self?.showCommands(of: nil) }
             self?.updatePresence()
         }
         windows.append(controller)

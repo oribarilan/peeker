@@ -1,7 +1,7 @@
 #!/bin/bash
 # Records the user-facing flows as evidence: Settings on a launch by hand, Space in Finder on files Peeker opens and
-# on files it leaves to Quick Look, Open With in a document window, a config clash in the menu bar icon, and changes
-# made in Settings (a plugin off and on, moving an extension and Reset, the quick-look key recorder and Off, the update
+# on files it leaves to Quick Look, Open With in a document window (the toolbar and File menu) and Revert to Saved…,
+# a config clash in the menu bar icon, and changes made in Settings (a plugin off and on, moving an extension and Reset, the quick-look key recorder and Off, the update
 # checkbox and a development build's Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one
 # recorder listening at a time). Writes screenshots
 # and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1;
@@ -64,15 +64,28 @@ space 2-space-dotfile "$F/.zshrc" Peeker
 space 3-space-mp4 "$F/movie.mp4" "Quick Look"
 space 4-space-folder "$F/folder" "Quick Look"
 
-# Open With in a document window: Markdown, then Plain Text, then Image (which can't read it and says so).
+# Open With in a document window: Markdown, then Plain Text from the File menu, then Image from the toolbar (which
+# can't read it and says so). In Plain Text, an edit and Revert to Saved… bring the file's text back.
 open -a "$APP" "$F/notes.md"
 "$DRIVE" wait Peeker window notes.md
 "$DRIVE" shot Peeker "$OUT/5-window-markdown.png" notes.md
 openwith() { "$DRIVE" tree Peeker 20 | grep -m1 AXPopUpButton | sed 's/.*= //'; }
 check "A .md opens in Markdown" "$(openwith)" "Markdown"
-"$DRIVE" choose Peeker "Plain Text" && sleep 1.5
+# In front, so its window is the key one and File > Open With lists its plugins.
+osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1 && sleep 0.5
+"$DRIVE" menu Peeker File "Plain Text" && sleep 1.5
 "$DRIVE" shot Peeker "$OUT/6-openwith-plaintext.png" notes.md
-check "Open With shows Plain Text" "$(openwith)" "Plain Text"
+check "File > Open With switches to Plain Text" "$(openwith)" "Plain Text"
+# At the start, where the window's text shows in the Accessibility tree (it's cut off after 120 characters).
+"$DRIVE" keys Peeker cmd+up
+"$DRIVE" type Peeker "Typed then reverted. "
+typed() { "$DRIVE" tree Peeker 20 | grep -c 'Typed then reverted'; }
+check "The edit shows" "$(typed)" 1
+"$DRIVE" menu Peeker File "Revert to Saved…"
+check "Revert to Saved… asks first" "$("$DRIVE" wait Peeker sheet --timeout 5 2>/dev/null && echo yes)" yes
+"$DRIVE" press Peeker Revert
+"$DRIVE" wait Peeker sheet --gone
+check "Reverting brings the saved text back" "$(typed)" 0
 "$DRIVE" choose Peeker "Image" && sleep 1.5
 "$DRIVE" shot Peeker "$OUT/7-openwith-image.png" notes.md
 check "Open With shows Image" "$(openwith)" "Image"

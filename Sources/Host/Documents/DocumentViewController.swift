@@ -17,6 +17,9 @@ final class DocumentViewController: NSSplitViewController {
     private var config: Config
     private let content = HolderViewController()
     private var sidebarItem: NSSplitViewItem?
+    private var sidebarHolder: HolderViewController?
+    /// Document windows share whether the sidebar shows and its width; the quick-look panel and the benchmark don't.
+    private let sidebarMemory: SidebarMemory?
     /// A document just opened: its sidebar is built after the content is on screen, so it doesn't delay it.
     private var sidebarPending = false
     /// Document windows edit; the quick-look panel and the benchmark only view.
@@ -61,6 +64,7 @@ final class DocumentViewController: NSSplitViewController {
     /// First content on screen, with the time since `load()`.
     var onReady: ((DocumentViewController, Duration) -> Void)?
     var onFailure: ((DocumentViewController, String) -> Void)?
+    /// Called when the commands change, or whether there's a sidebar: the window rebuilds its toolbar.
     var onCommandsChanged: ((DocumentViewController) -> Void)?
     /// Called when the document's active command changes.
     var onActiveCommandChanged: ((DocumentViewController) -> Void)?
@@ -70,12 +74,16 @@ final class DocumentViewController: NSSplitViewController {
 
     /// `journalDelay` is how long after the last edit the recovery copy is written.
     init(url: URL, entry: PluginEntry, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString,
-         journalDelay: TimeInterval = 2) {
+         journalDelay: TimeInterval = 2, sidebarMemory: SidebarMemory? = nil) {
         self.url = url
         self.entry = entry
         self.config = config
         self.allowsEditing = allowsEditing
+        self.sidebarMemory = sidebarMemory
         super.init(nibName: nil, bundle: nil)
+        if let sidebarMemory {
+            NotificationCenter.default.addObserver(self, selector: #selector(applySidebarMemory), name: SidebarMemory.didChange, object: sidebarMemory)
+        }
         journal = recovery.map { RecoveryJournal(store: $0, id: recoveryID, url: url, pluginID: entry.id, delay: journalDelay) { [weak self] in self?.journalContents } }
     }
 
@@ -84,6 +92,9 @@ final class DocumentViewController: NSSplitViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         addSplitViewItem(NSSplitViewItem(viewController: content))
+        if sidebarMemory != nil {
+            NotificationCenter.default.addObserver(self, selector: #selector(sidebarResized), name: NSSplitView.didResizeSubviewsNotification, object: splitView)
+        }
     }
 
     /// How long an open runs before its window shows a spinner; quicker opens never draw one.
@@ -358,17 +369,28 @@ final class DocumentViewController: NSSplitViewController {
         document.onActiveCommandChange = { [weak self] in self.map { $0.onActiveCommandChanged?($0) } }
         content.show(document.contentView)
         if let focus = document.focusView { view.window?.makeFirstResponder(focus) }
-        if isReady { installSidebar(document.makeSidebar()) } else { sidebarPending = true }
-        setCommands(document.commands)
-        if wasEditing { onCommandsChanged?(self) }  // the toolbar drops the tools even when the commands are the same
+        let hadSidebar = hasSidebar
+        firstOpenPending = false
+        if isReady { installSidebar(document.makeSidebar(), notify: false) } else { sidebarPending = true }
+        // The toolbar drops the tools even when the commands are the same, and shows the sidebar button only with one.
+        if !setCommands(document.commands), wasEditing || hadSidebar != hasSidebar { onCommandsChanged?(self) }
         markReady()
         applyRecoveredEdits()
     }
 
-    private func setCommands(_ specs: [CommandSpec]) {
-        guard specs != commands.map(\.spec) else { return }
+    /// Until the first open ends, a sidebar is assumed, so the window's first toolbar already has the sidebar button and
+    /// isn't rebuilt on the way to the first paint.
+    private var firstOpenPending = true
+
+    /// Whether the document shows a sidebar, or will a frame after its content.
+    var hasSidebar: Bool { sidebarItem != nil || sidebarPending || firstOpenPending }
+
+    /// True when the commands changed, and the window was told.
+    @discardableResult private func setCommands(_ specs: [CommandSpec]) -> Bool {
+        guard specs != commands.map(\.spec) else { return false }
         commands = specs.map(withShortcut)
         onCommandsChanged?(self)
+        return true
     }
 
     /// Takes a newly saved config: command shortcuts change in place.
@@ -383,19 +405,54 @@ final class DocumentViewController: NSSplitViewController {
         (spec, config.shortcut(for: spec, of: entry.id))
     }
 
-    private func installSidebar(_ panels: [SidebarPanel]) {
+    /// Shows `panels` in the sidebar. After a save or reload the existing sidebar takes the new panels, so whether
+    /// it's hidden and its width stay as they were.
+    private func installSidebar(_ panels: [SidebarPanel], notify: Bool = true) {
+        let hadSidebar = hasSidebar
         sidebarPending = false
-        if let sidebarItem { removeSplitViewItem(sidebarItem) }
-        sidebarItem = nil
-        guard let view = Sidebar.make(panels) else { return }
+        // A sidebar that comes or goes changes the toolbar's sidebar button.
+        defer { if notify, hadSidebar != hasSidebar { onCommandsChanged?(self) } }
+        guard let view = Sidebar.make(panels) else { return removeSidebar() }
+        if let sidebarHolder { return sidebarHolder.show(view) }
         let holder = HolderViewController()
         holder.loadViewIfNeeded()
         holder.show(view)
+        if let width = sidebarMemory?.width { holder.view.frame.size.width = width }
         let item = NSSplitViewItem(sidebarWithViewController: holder)
         item.minimumThickness = 170
         item.maximumThickness = 320
+        item.isCollapsed = sidebarMemory?.isHidden ?? false
         insertSplitViewItem(item, at: 0)
         sidebarItem = item
+        sidebarHolder = holder
+    }
+
+    private func removeSidebar() {
+        if let sidebarItem { removeSplitViewItem(sidebarItem) }
+        sidebarItem = nil
+        sidebarHolder = nil
+    }
+
+    /// The user hid, showed or resized the sidebar here (or the memory's own change arrived, which changes nothing).
+    @objc private func sidebarResized() {
+        guard let item = sidebarItem, let memory = sidebarMemory else { return }
+        let width = item.viewController.view.frame.width
+        memory.remember(hidden: item.isCollapsed, width: item.isCollapsed || width < item.minimumThickness ? nil : width)
+    }
+
+    /// Another window changed the choice: follow it.
+    @objc private func applySidebarMemory() {
+        guard let item = sidebarItem, let memory = sidebarMemory else { return }
+        if item.isCollapsed != memory.isHidden { item.isCollapsed = memory.isHidden }
+        if !memory.isHidden, let width = memory.width, abs(item.viewController.view.frame.width - width) >= 1 {
+            splitView.setPosition(width, ofDividerAt: 0)
+        }
+    }
+
+    /// Show/Hide Sidebar only where there's a sidebar.
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(toggleSidebar(_:)), sidebarItem == nil { return false }
+        return super.validateUserInterfaceItem(item)
     }
 
     /// Same rule for every plugin: ready once the window has drawn the content and the run loop has turned.
@@ -427,15 +484,16 @@ final class DocumentViewController: NSSplitViewController {
             return
         }
         pluginDocument = nil
-        sidebarPending = false
         isEditing = false
-        setCommands([])  // the failure view has nothing to run
+        let hadSidebar = hasSidebar
+        firstOpenPending = false
+        sidebarPending = false
+        removeSidebar()
+        if !setCommands([]), hadSidebar { onCommandsChanged?(self) }  // the failure view has nothing to run, and no sidebar
         content.show(FailureView(message: message) { [weak self] in
             guard let self else { return }
             Task.immediate { await self.load() }
         })
-        if let sidebarItem { removeSplitViewItem(sidebarItem) }
-        sidebarItem = nil
         onFailure?(self, message)
     }
 }

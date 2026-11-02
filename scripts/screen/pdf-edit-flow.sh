@@ -17,7 +17,7 @@ saved() { "$PDF" inspect "$FORM" | grep -c "^$1\$"; }
 frame() { "$DRIVE" frame Peeker "$@" || echo "0 0 0 0"; }
 
 launch "$FORM"
-# macOS doesn't always bring an app opened from a terminal to the front, and its Commands menu fills in only then.
+# macOS doesn't always bring an app opened from a terminal to the front, and its View and Tools menus fill in only then.
 osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
 sleep 0.5
 "$DRIVE" type Peeker "" || { echo "Peeker didn't come to the front; nothing was sent"; exit 2; }
@@ -35,7 +35,7 @@ check "The read view hides the tools" "$(tools_shown)" 0
 "$DRIVE" click Peeker $(at 20 0) && "$DRIVE" type Peeker "nope"
 sleep 0.5
 
-"$DRIVE" menu Peeker Commands "Edit Mode"
+"$DRIVE" menu Peeker Tools "Edit Mode"
 "$DRIVE" wait Peeker control "Text Box"
 check "Edit Mode shows the tools" "$([ "$(tools_shown)" -gt 0 ] && echo yes)" yes
 "$DRIVE" shot Peeker "$OUT/2-edit-mode.png"
@@ -48,7 +48,7 @@ sleep 0.3
 "$DRIVE" click Peeker $(at 8 52)  # the checkbox, which also ends typing in the field
 sleep 0.5
 
-"$DRIVE" menu Peeker Commands "Text Box"
+"$DRIVE" menu Peeker Tools "Text Box"
 "$DRIVE" click Peeker $(at 0 200)  # the Date: line
 sleep 0.5
 "$DRIVE" type Peeker "31 Oct 2026"
@@ -56,7 +56,7 @@ sleep 0.5
 sleep 0.5
 "$DRIVE" shot Peeker "$OUT/3-filled.png"
 
-"$DRIVE" menu Peeker Commands "Sign"
+"$DRIVE" menu Peeker Tools "Sign"
 "$DRIVE" wait Peeker sheet
 read -r dx dy dw dh <<< "$(frame AXButton Done)"
 "$DRIVE" drag Peeker $((dx - 380)) $((dy - 60)) $((dx - 330)) $((dy - 110)) $((dx - 290)) $((dy - 50)) $((dx - 240)) $((dy - 100)) $((dx - 190)) $((dy - 55))
@@ -65,7 +65,7 @@ read -r dx dy dw dh <<< "$(frame AXButton Done)"
 "$DRIVE" wait Peeker sheet --gone
 "$DRIVE" click Peeker $(at 120 250)  # the Signature: line
 sleep 0.5
-"$DRIVE" menu Peeker Commands "Sign"
+"$DRIVE" menu Peeker Tools "Sign"
 "$DRIVE" wait Peeker sheet
 check "Sign offers the last signature" "$("$DRIVE" tree Peeker 12 | grep -c '“Use Last Signature”')" 1
 "$DRIVE" press Peeker "Use Last Signature"
@@ -82,7 +82,7 @@ check "The checkbox is saved" "$(saved 'field Agree = Yes')" 1
 check "The text box is a free-text annotation" "$(saved 'annotation FreeText peeker = 31 Oct 2026')" 1
 check "Both signatures are ink annotations" "$(saved 'annotation Ink peeker')" 2
 
-"$DRIVE" menu Peeker Commands "Edit Mode"
+"$DRIVE" menu Peeker Tools "Edit Mode"
 "$DRIVE" wait Peeker control "Text Box" --gone
 check "Leaving a saved Edit mode asks nothing and hides the tools" "$(tools_shown)" 0
 "$DRIVE" shot Peeker "$OUT/6-saved-read-view.png"

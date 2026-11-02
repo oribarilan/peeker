@@ -9,6 +9,9 @@
 //        drive tree <process> [depth]              print the Accessibility tree of the process's windows
 //        drive choose <process> <item>             pick <item> in the front window's toolbar pop-up (Open With)
 //        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close", and wait for the menu to close
+//        drive menuitems <process> [menu]          print the menu bar's menus, or open <menu> and print its items, "✓ "
+//                                                  before checked ones, then close it (DRIVE_HOLD=<s> waits first);
+//                                                  needs <process> in front
 //        drive menuextra <process> [item]          open the process's menu bar icon menu and print it, or press <item>
 //        drive row <process> <title>               select the sidebar row titled <title> in any window
 //        drive press <process> <label> [role]      press the control (button, switch) labeled <label> in any window,
@@ -20,7 +23,7 @@
 //        drive click <process> <x> <y> [count]     click at a screen point, only while <process> is in front
 //        drive type <process> <text>               type <text>, only while <process> is in front
 //        drive drag <process> <x y>...             press at the first point, drag through the rest, release at the last
-//        drive keys <process> <combo>              press a combo such as opt+space, ctrl+cmd+h or return, only while <process> is in front
+//        drive keys <process> <combo>              press a combo such as opt+space, ctrl+cmd+h, return or cmd+up, only while <process> is in front
 //        drive wait <process> <kind> [label] [--gone] [--timeout s]
 //                                                  wait (5 s by default) for a window (title containing label), sheet,
 //                                                  menu or control (labeled like press finds it) to appear, or with
@@ -129,7 +132,8 @@ func drag(through points: [CGPoint]) {
 
 /// ANSI key codes for the keys a combo can name.
 let comboKeys: [String: CGKeyCode] = {
-    var keys: [String: CGKeyCode] = ["space": 49, "return": 36, "tab": 48, "escape": 53, "delete": 51]
+    var keys: [String: CGKeyCode] = ["space": 49, "return": 36, "tab": 48, "escape": 53, "delete": 51,
+                                     "left": 123, "right": 124, "down": 125, "up": 126]
     for (key, code) in zip("asdfhgzxcv", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) { keys[String(key)] = CGKeyCode(code) }
     for (key, code) in zip("bqweryt123465=97-80]ou[ip", [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]) { keys[String(key)] = CGKeyCode(code) }
     for (key, code) in zip("lj'k;\\,/nm.", [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]) { keys[String(key)] = CGKeyCode(code) }
@@ -317,6 +321,27 @@ case "menu":
         usleep(50_000)
         waits += 1
     }
+case "menuitems":
+    guard let bar: AXUIElement = attr(application(arg(1)), kAXMenuBarAttribute) else { fail("no menu bar") }
+    let menus = children(bar).filter { label($0) != "Apple" }
+    guard args.count > 2 else {
+        menus.map(label).forEach { print($0) }
+        break
+    }
+    guard let menu = menus.first(where: { label($0) == arg(2) }) else { fail("no menu \(arg(2))") }
+    requireFront(arg(1))
+    // Opening it has the app check its items, which is when their checkmarks are set. A menu tracks modally, so the
+    // press reports "cannot complete" though it opened.
+    AXUIElementSetMessagingTimeout(menu, 0.5)
+    _ = AXUIElementPerformAction(menu, kAXPressAction as CFString)
+    usleep(400_000)
+    for item in children(menu).flatMap(children) where role(item) == kAXMenuItemRole && !label(item).isEmpty {
+        let mark: String? = attr(item, kAXMenuItemMarkCharAttribute)
+        print((mark?.isEmpty == false ? "✓ " : "") + label(item))
+    }
+    // DRIVE_HOLD=<seconds> keeps the menu open, for a screenshot taken meanwhile.
+    usleep(UInt32((Double(ProcessInfo.processInfo.environment["DRIVE_HOLD"] ?? "") ?? 0) * 1_000_000))
+    press(comboKeys["escape"]!)
 case "menuextra":
     guard let extras: AXUIElement = attr(application(arg(1)), "AXExtrasMenuBar"), let icon = children(extras).first else { fail("no menu bar icon") }
     pick(in: icon, item: args.count > 2 ? args[2] : nil)

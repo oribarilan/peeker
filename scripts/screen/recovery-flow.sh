@@ -30,7 +30,7 @@ record recovery 60
 open -a "$APP" "$FORM"
 "$DRIVE" wait Peeker window form.pdf
 front
-"$DRIVE" menu Peeker Commands "Edit Mode"
+"$DRIVE" menu Peeker Tools "Edit Mode"
 "$DRIVE" wait Peeker control "Text Box"
 read -r fx fy fw fh <<< "$("$DRIVE" frame Peeker AXTextField || echo "0 0 0 0")"
 "$DRIVE" click Peeker $((fx + 20)) $((fy + fh / 2))

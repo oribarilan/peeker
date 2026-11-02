@@ -203,21 +203,75 @@ private final class PlainDocument: PluginDocument {
 }
 
 @Suite(.serialized) struct EditModeMenu {
-    @Test func editModeIsListedOnlyForDocumentsWithOne() async throws {
+    private func menus() throws -> (view: NSMenu, tools: NSMenu) {
+        let main = MainMenu.make(target: nil)
+        return (try #require(main.item(withTitle: "View")?.submenu), try #require(main.item(withTitle: "Tools")?.submenu))
+    }
+
+    private func titles(_ menu: NSMenu) -> [String] { menu.items.map { $0.isSeparatorItem ? "-" : $0.title } }
+
+    @Test func viewCommandsGoInViewAndEditToolsInTools() async throws {
+        EditablePlugin.nextMode = .available
+        let editable = try await documentWindow(for: EditablePlugin.self)
+        defer { editable.close() }
+        let (view, tools) = try menus()
+        MainMenu.rebuildCommands(view: view, tools: tools, for: editable)
+        #expect(titles(view) == ["Show Sidebar", "Show Toolbar", "Enter Full Screen", "-", "Zoom"])
+        #expect(titles(tools) == ["Edit Mode", "-", "Mark"])
+        let mark = try #require(tools.items.last)
+        #expect(mark.keyEquivalent == "m" && mark.keyEquivalentModifierMask == [.control, .command] && mark.target === editable)
+    }
+
+    @Test func rebuildingReplacesTheLastDocumentsCommands() async throws {
         EditablePlugin.nextMode = .available
         let editable = try await documentWindow(for: EditablePlugin.self)
         let plain = try await documentWindow(for: PlainPlugin.self)
         defer { editable.close(); plain.close() }
-        let menu = NSMenu(title: "Commands")
-        MainMenu.rebuildCommands(menu, for: editable)
-        let item = try #require(menu.items.first)
-        #expect(item.title == "Edit Mode" && item.keyEquivalent == "e" && item.keyEquivalentModifierMask == .command)
-        #expect(item.state == .off)
-        #expect(menu.items.compactMap { $0.isSeparatorItem ? nil : $0.title } == ["Edit Mode", "Zoom", "Mark"])
+        let (view, tools) = try menus()
+        MainMenu.rebuildCommands(view: view, tools: tools, for: editable)
+        MainMenu.rebuildCommands(view: view, tools: tools, for: editable)
+        #expect(titles(view).filter { $0 == "Zoom" }.count == 1 && titles(tools) == ["Edit Mode", "-", "Mark"])
+        MainMenu.rebuildCommands(view: view, tools: tools, for: plain)
+        #expect(titles(tools) == ["Edit Mode"])
+        MainMenu.rebuildCommands(view: view, tools: tools, for: nil)
+        #expect(titles(view) == ["Show Sidebar", "Show Toolbar", "Enter Full Screen"])
+    }
+
+    @Test func editModeTargetsTheFrontDocumentWindow() async throws {
+        EditablePlugin.nextMode = .available
+        let editable = try await documentWindow(for: EditablePlugin.self)
+        defer { editable.close() }
+        let (view, tools) = try menus()
+        MainMenu.rebuildCommands(view: view, tools: tools, for: editable)
+        #expect(tools.items.first?.target === editable)
+        MainMenu.rebuildCommands(view: view, tools: tools, for: nil)
+        #expect(tools.items.first?.target == nil)
+    }
+
+    @Test func itemsMacOSAddsSurviveARebuild() async throws {
+        EditablePlugin.nextMode = .available
+        let editable = try await documentWindow(for: EditablePlugin.self)
+        defer { editable.close() }
+        let (view, tools) = try menus()
+        // AppKit puts Show Tab Bar and Show All Tabs at the top of a View menu.
+        view.insertItem(NSMenuItem(title: "Show Tab Bar", action: nil, keyEquivalent: ""), at: 0)
+        view.insertItem(.separator(), at: 1)
+        MainMenu.rebuildCommands(view: view, tools: tools, for: editable)
+        MainMenu.rebuildCommands(view: view, tools: tools, for: editable)
+        #expect(titles(view) == ["Show Tab Bar", "-", "Show Sidebar", "Show Toolbar", "Enter Full Screen", "-", "Zoom"])
+        MainMenu.rebuildCommands(view: view, tools: tools, for: nil)
+        #expect(titles(view) == ["Show Tab Bar", "-", "Show Sidebar", "Show Toolbar", "Enter Full Screen"])
+    }
+
+    @Test func editModeIsCheckedWhileOnAndGreyedOutWithoutOne() async throws {
+        EditablePlugin.nextMode = .available
+        let editable = try await documentWindow(for: EditablePlugin.self)
+        let plain = try await documentWindow(for: PlainPlugin.self)
+        defer { editable.close(); plain.close() }
+        let edit = try #require(try menus().tools.items.first)
+        #expect(editable.validateMenuItem(edit) && edit.state == .off)
         await editable.current?.toggleEditing { true }
-        MainMenu.rebuildCommands(menu, for: editable)
-        #expect(menu.items.first?.state == .on)
-        MainMenu.rebuildCommands(menu, for: plain)
-        #expect(menu.items.map(\.title) == ["Zoom"])
+        #expect(editable.validateMenuItem(edit) && edit.state == .on)
+        #expect(!plain.validateMenuItem(edit))
     }
 }

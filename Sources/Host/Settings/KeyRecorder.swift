@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// What already uses `shortcut`, for a recorder of `command`: a menu item outside Commands, or another command of
+/// What already uses `shortcut`, for a recorder of `command`: a fixed menu item, or another command of
 /// the same plugin (with its shortcut as the config has it now), or Edit Mode's Cmd+E. Nil when it's free.
 func shortcutConflict(_ shortcut: Shortcut, command: String, plugin: PluginEntry, config: Config, menu: [(title: String, shortcut: Shortcut)]) -> String? {
     if shortcut == .editMode { return "Edit Mode" }
@@ -11,10 +11,11 @@ func shortcutConflict(_ shortcut: Shortcut, command: String, plugin: PluginEntry
     }?.title
 }
 
-/// The shortcuts of every item in `menu` and its submenus, except the Commands menu, which plugins fill.
+/// The shortcuts of every item in `menu` and its submenus, except plugin commands, which the document fills in.
 func menuShortcuts(in menu: NSMenu) -> [(title: String, shortcut: Shortcut)] {
     menu.items.flatMap { item -> [(title: String, shortcut: Shortcut)] in
-        if let submenu = item.submenu { return submenu.title == MainMenu.commandsTitle ? [] : menuShortcuts(in: submenu) }
+        if let submenu = item.submenu { return menuShortcuts(in: submenu) }
+        guard item.action != #selector(DocumentWindowController.runCommand(_:)) else { return [] }
         guard let character = item.keyEquivalent.first, item.keyEquivalent.count == 1 else { return [] }
         var modifiers = item.keyEquivalentModifierMask.intersection([.control, .option, .shift, .command])
         if character.isUppercase { modifiers.insert(.shift) }  // AppKit reads an uppercase key equivalent as Shift

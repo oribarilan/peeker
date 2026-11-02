@@ -126,6 +126,16 @@ private func config(_ json: String) throws -> Config {
         #expect(reading.problems.map(\.path) == ["plugins.pdf.commands.highlight.shortcut"])
     }
 
+    @Test func aKeyAMenuItemUsesLeavesTheCommandWithoutOne() throws {
+        let reading = read(#"{"plugins": {"pdf": {"commands": {"highlight": {"shortcut": "ctrl+cmd+s"}, "zoom-in": {"shortcut": "cmd+s"}}}}}"#)
+        let config = try #require(reading.config)
+        #expect(reading.problems.map(\.path) == ["plugins.pdf.commands.highlight.shortcut", "plugins.pdf.commands.zoom-in.shortcut"])
+        #expect(reading.problems.first?.message.contains("Show Sidebar") == true)
+        #expect(reading.problems.last?.message.contains("Save") == true)
+        let zoomIn = try #require(StubPDF.commands.first { $0.id == "zoom-in" })
+        #expect(config.shortcut(for: zoomIn, of: "pdf") == nil, "not even its default")
+    }
+
     @Test func unknownPluginsAndCommandsAreProblems() {
         let reading = read(#"{"plugins": {"pfd": {"enabled": false}, "pdf": {"commands": {"hilight": {"shortcut": "cmd+h"}}}}}"#)
         #expect(reading.problems.map(\.path) == ["plugins.pdf.commands.hilight", "plugins.pfd"])

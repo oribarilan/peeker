@@ -9,6 +9,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     private var config: Config
     private let recovery: RecoveryStore?
     private let recoveryClipboard: RecoveryClipboard?
+    private let sidebarMemory: SidebarMemory
     private(set) var current: DocumentViewController?
     /// Called for every new document view controller (first open and "Open With" switches).
     var onDocument: ((DocumentViewController) -> Void)?
@@ -18,9 +19,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     enum UnsavedChoice { case save, discard, cancel }
     /// Asks Save, Don't Save or Cancel about unsaved edits, as a sheet on the window. Tests answer directly.
     var askToSave: (DocumentWindowController) async -> UnsavedChoice = { await $0.askToSaveInSheet() }
+    /// Asks whether to drop the unsaved edits for Revert to Saved, as a sheet. Tests answer directly.
+    var confirmRevert: (DocumentWindowController) async -> Bool = {
+        await $0.confirm("Revert to the last saved version?", "Your unsaved changes will be lost.", button: "Revert")
+    }
     private var keyMonitor: Any?
 
-    init(url: URL, catalog: PluginCatalog, config: Config, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?) {
+    init(url: URL, catalog: PluginCatalog, config: Config, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?,
+         sidebarMemory: SidebarMemory = .shared) {
+        self.sidebarMemory = sidebarMemory
         self.url = url
         self.catalog = catalog
         self.config = config
@@ -58,7 +65,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     func show(with entry: PluginEntry, restoring record: RecoveryRecord? = nil) {
         current?.close()
         let document = DocumentViewController(url: url, entry: entry, config: config,
-                                              allowsEditing: true, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString)
+                                              allowsEditing: true, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString,
+                                              sidebarMemory: sidebarMemory)
         document.onCommandsChanged = { [weak self] _ in
             self?.rebuildToolbar()
             if let self, self.window?.isKeyWindow == true { self.onBecameKey?(self) }
@@ -122,11 +130,31 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         }
     }
 
+    /// Reached when the window itself has the keyboard, so the split view controller isn't in the responder chain.
+    @objc func toggleSidebar(_ sender: Any?) {
+        current?.toggleSidebar(sender)
+    }
+
     @objc func runCommand(_ sender: Any?) {
-        let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSToolbarItem)?.tag ?? -1
+        let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSToolbarItem)?.tag ?? (sender as? NSControl)?.tag ?? -1
         guard let document = current, document.commands.indices.contains(tag) else { return }
         document.run(document.commands[tag].spec)
         showActiveCommand()  // clicking a toolbar command selects it; only the document's active one stays selected
+        showCommandStates()
+    }
+
+    /// Presses the toolbar buttons of commands that are on, and releases the others.
+    private func showCommandStates() {
+        guard let document = current?.pluginDocument else { return }
+        for item in window?.toolbar?.items ?? [] {
+            guard let button = item.view as? NSButton, let index = commandIndex(item.itemIdentifier), let commands = current?.commands,
+                  commands.indices.contains(index), let on = document.isOn(commands[index].spec.id) else { continue }
+            button.state = on ? .on : .off
+        }
+    }
+
+    private func commandIndex(_ identifier: NSToolbarItem.Identifier) -> Int? {
+        identifier.rawValue.hasPrefix("command.") ? Int(identifier.rawValue.dropFirst("command.".count)) : nil
     }
 
     /// Shows the document's active command as the toolbar's selected item, or none.
@@ -139,13 +167,34 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     @objc private func reopenWith(_ sender: NSPopUpButton) {
         let candidates = catalog.openWithChoices(for: url)
         guard candidates.indices.contains(sender.indexOfSelectedItem) else { return }
-        let entry = candidates[sender.indexOfSelectedItem]
+        reopen(with: candidates[sender.indexOfSelectedItem]) { [weak self] in
+            if let index = candidates.firstIndex(where: { $0.id == self?.current?.entry.id }) { sender.selectItem(at: index) }
+        }
+    }
+
+    /// File > Open With: the submenu's items, by their tag in the choices. The submenu itself is filled as it's checked.
+    @objc func reopenWithMenu(_ sender: NSMenuItem) {
+        let candidates = catalog.openWithChoices(for: url)
+        guard sender.submenu == nil, candidates.indices.contains(sender.tag) else { return }
+        reopen(with: candidates[sender.tag])
+    }
+
+    /// Reopens the tab with `entry` once unsaved edits are resolved; `onCancel` runs when the user cancels.
+    private func reopen(with entry: PluginEntry, onCancel: @escaping () -> Void = {}) {
         Task {
-            guard await resolveUnsavedEdits() else {
-                if let index = candidates.firstIndex(where: { $0.id == current?.entry.id }) { sender.selectItem(at: index) }
-                return
-            }
+            guard await resolveUnsavedEdits() else { return onCancel() }
             show(with: entry)
+        }
+    }
+
+    /// Lists the plugins in File > Open With's submenu; the check on the current one comes with each menu check.
+    func fillOpenWith(_ menu: NSMenu) {
+        menu.removeAllItems()
+        for (index, entry) in catalog.openWithChoices(for: url).enumerated() {
+            let item = NSMenuItem(title: entry.name, action: #selector(reopenWithMenu(_:)), keyEquivalent: "")
+            item.tag = index
+            item.target = self
+            menu.addItem(item)
         }
     }
 
@@ -155,6 +204,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         guard let document = current else { return }
         finishTyping()
         Task { _ = await save(document) }
+    }
+
+    @objc func revertDocument(_ sender: Any?) {
+        Task { await revert() }
+    }
+
+    /// Goes back to the file as last saved or loaded, once the user confirms.
+    func revert() async {
+        finishTyping()
+        guard let document = current, document.isEdited, window?.attachedSheet == nil, await confirmRevert(self) else { return }
+        document.discardEdits()
     }
 
     // MARK: Printing
@@ -181,14 +241,22 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
-        case #selector(saveDocument(_:)):
+        case #selector(saveDocument(_:)), #selector(revertDocument(_:)):
             return current?.isEdited == true && current?.isSaving == false
         case #selector(runCommand(_:)):
             let id = current.flatMap { $0.commands.indices.contains(menuItem.tag) ? $0.commands[menuItem.tag].spec.id : nil }
-            menuItem.state = id != nil && id == current?.pluginDocument?.activeCommand ? .on : .off
+            let on = id.flatMap { current?.pluginDocument?.isOn($0) } ?? false
+            menuItem.state = on || (id != nil && id == current?.pluginDocument?.activeCommand) ? .on : .off
             return unavailableReason(forCommandAt: menuItem.tag) == nil
         case #selector(printDocument(_:)):
             return current?.pluginDocument?.printJob != nil
+        case #selector(reopenWithMenu(_:)):
+            if let submenu = menuItem.submenu { fillOpenWith(submenu); return current != nil }
+            let candidates = catalog.openWithChoices(for: url)
+            menuItem.state = candidates.indices.contains(menuItem.tag) && candidates[menuItem.tag].id == current?.entry.id ? .on : .off
+            return true
+        case #selector(NSSplitViewController.toggleSidebar(_:)):
+            return current?.validateUserInterfaceItem(menuItem) ?? false
         case #selector(toggleEditMode(_:)):
             menuItem.state = current?.isEditing == true ? .on : .off
             return current.map { $0.editMode != .none } ?? false  // enabled when unavailable, to say why
@@ -321,7 +389,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         guard let document = current else { return [Self.openWith] }
         let tools = document.commands.indices.filter { document.showsInToolbar(document.commands[$0].spec) }
-        return [Self.openWith] + (document.editMode == .none ? [] : [Self.edit]) + [.flexibleSpace] + tools.map { NSToolbarItem.Identifier("command.\($0)") }
+        return (document.hasSidebar ? [.toggleSidebar] : []) + [Self.openWith] + (document.editMode == .none ? [] : [Self.edit]) + [.flexibleSpace]
+            + tools.map { NSToolbarItem.Identifier("command.\($0)") }
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -330,7 +399,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     /// The commands: the document's active one shows selected, the toolbar's native look for one choice at a time.
     func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        toolbarDefaultItemIdentifiers(toolbar).filter { $0.rawValue.hasPrefix("command.") }
+        toolbarDefaultItemIdentifiers(toolbar).filter { identifier in
+            commandIndex(identifier).map { isSwitch(at: $0) == false } ?? false
+        }
+    }
+
+    /// Whether the command turns something on and off, so its button shows that instead of being selectable.
+    private func isSwitch(at index: Int) -> Bool {
+        guard let document = current, document.commands.indices.contains(index) else { return false }
+        return document.pluginDocument?.isOn(document.commands[index].spec.id) != nil
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
@@ -344,6 +421,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             popup.action = #selector(reopenWith(_:))
             item.view = popup
             item.label = "Open With"
+            item.toolTip = "Open With"
             return item
         }
         if identifier == Self.edit, let document = current {
@@ -366,7 +444,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let spec = document.commands[index].spec
         item.label = spec.title
         item.toolTip = spec.title
-        item.image = spec.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: spec.title) }
+        let image = spec.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: spec.title) }
+        if let on = document.pluginDocument?.isOn(spec.id) {
+            let button = NSButton(image: image ?? NSImage(), target: self, action: #selector(runCommand(_:)))
+            button.setButtonType(.pushOnPushOff)
+            button.bezelStyle = .toolbar
+            button.state = on ? .on : .off
+            button.tag = index
+            item.view = button
+        } else {
+            item.image = image
+        }
         item.tag = index
         item.target = self
         item.action = #selector(runCommand(_:))

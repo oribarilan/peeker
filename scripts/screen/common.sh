@@ -111,3 +111,17 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 quit_app || { echo "Peeker from $APP won't quit (a Save prompt?): close it first"; exit 2; }
+
+# Document windows remember whether the sidebar shows, and its width, in the app's preferences, which the build under
+# test shares with an installed Peeker. Each run starts with the sidebar shown and puts the user's choice back at the end.
+PREFS=dev.peeker.Peeker
+SIDEBAR_HIDDEN=$(defaults read "$PREFS" sidebarHidden 2>/dev/null)
+SIDEBAR_WIDTH=$(defaults read "$PREFS" sidebarWidth 2>/dev/null)
+restore_sidebar() {
+    if [ -n "$SIDEBAR_HIDDEN" ]; then defaults write "$PREFS" sidebarHidden -bool "$([ "$SIDEBAR_HIDDEN" = 1 ] && echo YES || echo NO)"
+    else defaults delete "$PREFS" sidebarHidden 2>/dev/null; fi
+    if [ -n "$SIDEBAR_WIDTH" ]; then defaults write "$PREFS" sidebarWidth -float "$SIDEBAR_WIDTH"
+    else defaults delete "$PREFS" sidebarWidth 2>/dev/null; fi
+}
+trap 'cleanup; restore_sidebar' EXIT
+defaults write "$PREFS" sidebarHidden -bool NO

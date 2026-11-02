@@ -168,6 +168,8 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         onEdit?()
     }
 
+    func isOn(_ command: String) -> Bool? { command == "toggle-wrap" ? wraps : nil }
+
     func perform(_ id: String) -> Bool {
         switch id {
         case "zoom-in": setFontSize(fontSize + 1)
