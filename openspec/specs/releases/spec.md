@@ -7,7 +7,7 @@ How Peeker's versions are numbered, built, signed and published, and how Homebre
 
 ### Requirement: Versions follow semantic versioning from git tags
 
-A release SHALL be a git tag `vMAJOR.MINOR.PATCH`, and the app built from it SHALL report that version, with a build number of MAJOR × 10000 + MINOR × 100 + PATCH so each release's number is higher than the last. A build not made from a release tag SHALL report version `0.0.0-dev`.
+A release SHALL be a git tag `vMAJOR.MINOR.PATCH`, and the app built from it SHALL report that version, with a build number of MAJOR × 10000 + MINOR × 100 + PATCH so each release's number is higher than the last. A build not made from a release tag SHALL report the next planned version with `-dev` added, such as `0.1.0-dev`.
 
 #### Scenario: Building a release
 
@@ -17,7 +17,7 @@ A release SHALL be a git tag `vMAJOR.MINOR.PATCH`, and the app built from it SHA
 #### Scenario: A local build
 
 - **WHEN** a contributor runs `scripts/build.sh`
-- **THEN** the app reports version 0.0.0-dev
+- **THEN** the app reports a version ending in -dev, such as 0.1.0-dev, and Settings shows it as a development build
 
 ### Requirement: A release needs passing tests and changelog notes
 

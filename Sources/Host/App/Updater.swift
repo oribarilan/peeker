@@ -2,7 +2,8 @@ import AppKit
 import Sparkle
 
 /// Peeker's updates, through Sparkle: a daily check while the config allows it, and a check whenever the user asks.
-/// A development build (version 0.0.0-dev) never starts Sparkle and never contacts the update feed.
+/// A development build (a version ending in -dev, such as 0.1.0-dev) never starts Sparkle and never contacts the
+/// update feed.
 final class Updater {
     static let developmentVersion = "0.0.0-dev"
     /// The version and build number this app reports, such as "0.1.0" and "100".
@@ -29,7 +30,7 @@ final class Updater {
     }
 
     /// Whether this build updates itself: only released builds do.
-    var updatesThisBuild: Bool { version != Self.developmentVersion }
+    var updatesThisBuild: Bool { !version.hasSuffix("-dev") }
     /// Whether Sparkle is running.
     var isRunning: Bool { controller != nil }
     /// "Version 0.1.0 (100)", for Settings.

@@ -67,7 +67,7 @@ An update check SHALL request the feed without sending system details (hardware,
 
 ### Requirement: Development builds don't check for updates
 
-A build reporting version `0.0.0-dev` SHALL make no update checks, automatic or by hand. Its Check for Updates… and Check Now SHALL say that updates come only with released builds.
+A build whose version ends in `-dev` SHALL make no update checks, automatic or by hand. Its Check for Updates… and Check Now SHALL say that updates come only with released builds.
 
 #### Scenario: Running a local build
 

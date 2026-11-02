@@ -3,8 +3,9 @@ import Testing
 
 /// Released builds are only checked here as far as they don't start Sparkle: a test run must never reach the feed.
 @Suite struct UpdaterTests {
-    @Test func aDevelopmentBuildNeverStartsOrChecks() {
-        let updater = Updater(version: Updater.developmentVersion, build: "0")
+    @Test(arguments: ["0.0.0-dev", "0.1.0-dev"])
+    func aDevelopmentBuildNeverStartsOrChecks(version: String) {
+        let updater = Updater(version: version, build: "0")
         var told: [String] = []
         updater.tell = { message, _ in told.append(message) }
         updater.start()
@@ -27,7 +28,7 @@ import Testing
 
     @Test func theVersionLineNamesTheBuild() {
         #expect(Updater(version: "0.1.0", build: "100").versionLine == "Version 0.1.0 (100)")
-        #expect(Updater(version: Updater.developmentVersion, build: "0").versionLine == "Development build (0.0.0-dev)")
+        #expect(Updater(version: "0.1.0-dev", build: "0").versionLine == "Development build (0.1.0-dev)")
         #expect(Updater(version: "0.1.0", build: "100").updatesThisBuild)
     }
 
