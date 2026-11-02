@@ -117,7 +117,7 @@ Highest user impact first; sizes in the tables.
 
 | ID | Finding | Where | Rule | Direction | Size | Status |
 |---|---|---|---|---|---|---|
-| G1 | Peeker has no app icon: no asset catalog and no Icon Composer file. The Dock, Finder, the About panel, Login Items and every Open With menu show the generic app icon. | `project.yml` (no icon setting); no `.icon` or `.xcassets` in the repo | Apple, [HIG: App icons](https://developer.apple.com/design/human-interface-guidelines/app-icons) (a layered icon with default, dark, clear and tinted appearances) | Design a layered icon in Icon Composer and add it to the app target. The look is the maintainer's call. | M | in progress (openspec/changes/app-icon) |
+| G1 | Peeker has no app icon: no asset catalog and no Icon Composer file. The Dock, Finder, the About panel, Login Items and every Open With menu show the generic app icon. | `project.yml` (no icon setting); no `.icon` or `.xcassets` in the repo | Apple, [HIG: App icons](https://developer.apple.com/design/human-interface-guidelines/app-icons) (a layered icon with default, dark, clear and tinted appearances) | Design a layered icon in Icon Composer and add it to the app target. The look is the maintainer's call. | M | fixed (e63d772) |
 
 ## What already holds up
 
