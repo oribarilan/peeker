@@ -274,9 +274,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard let entry = plugin(for: url, restoring: record) else {
             NSApp.activate()  // with no windows open, Peeker isn't the frontmost app
             let alert = NSAlert()
-            alert.messageText = "No enabled plugin opens \(url.lastPathComponent)"
-            alert.informativeText = "Add its extension to a plugin's extensions in your config, or turn on the plugin that has it."
-            alert.runModal()
+            alert.messageText = "No enabled plugin opens “\(url.lastPathComponent)”"
+            alert.informativeText = "Add its extension to a plugin in Settings, or turn on the plugin that has it."
+            alert.addButton(withTitle: "Open Settings")
+            alert.addButton(withTitle: "OK")
+            if alert.runModal() == .alertFirstButtonReturn { showSettings(pane: Self.settingsPane(forUnopenable: url, in: catalog)) }
             return
         }
         let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: .shared, recoveryClipboard: recoveryClipboard)
@@ -296,6 +298,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         controller.show(with: entry, restoring: record)
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
+    }
+
+    /// Where Open Settings goes for a file no enabled plugin opens: the turned-off plugin whose list has its extension,
+    /// or else Plain Text, where the extension can be added.
+    static func settingsPane(forUnopenable url: URL, in catalog: PluginCatalog) -> SettingsPane {
+        .plugin(catalog.listing(url)?.id ?? "text")
     }
 
     /// The record's plugin if it's still enabled (Open With may have picked any), else the file's owner.

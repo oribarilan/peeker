@@ -4,7 +4,8 @@
 # menu) and Revert to Saved…, a config clash in the menu bar icon, and changes made in Settings (a plugin off and on,
 # moving an extension and Reset, the Peek panel key recorder and Off, the update checkbox and a development build's
 # Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one recorder listening at a time, reopening on
-# the last pane, General holding Open at Login and Default app, the add-extension field's placeholder). Writes
+# the last pane, General holding Open at Login and Default app, the add-extension field's placeholder), and the
+# no-plugin alert's Open Settings. Writes
 # screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with
 # SCREEN_RECORD=1; scripts/screen-test.sh runs it with the other flows.
 #
@@ -231,6 +232,13 @@ check "Broken JSON locks the switches" "$("$DRIVE" enabled Peeker "Peek panel")"
 echo '{}' > "$CONFIG"
 sleep 1.5
 check "Fixing the file unlocks them" "$("$DRIVE" enabled Peeker "Peek panel")" true
+
+# A file no plugin opens: the alert's Open Settings shows the Plain Text pane, where its extension can be added.
+open -a "$APP" "$F/movie.mp4"
+"$DRIVE" wait Peeker control "Open Settings"
+"$DRIVE" shot Peeker "$OUT/14-no-plugin-alert.png"
+"$DRIVE" press Peeker "Open Settings" && sleep 1
+check "Open Settings shows the Plain Text pane" "$("$DRIVE" enabled Peeker "Open files with Plain Text" 2>/dev/null)" true
 
 echo '{}' > "$CONFIG"
 finish

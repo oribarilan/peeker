@@ -78,6 +78,12 @@ check "View checks Wrap Lines while lines wrap" "$("$DRIVE" menuitems Peeker Vie
 "$DRIVE" menu Peeker View "Wrap Lines" && sleep 0.3
 check "and unchecks it once turned off" "$("$DRIVE" menuitems Peeker View | grep -cx 'Wrap Lines')" 1
 "$DRIVE" shot Peeker "$OUT/6-sidebar-and-wrap.png" notes.txt
+# A window stops shrinking at its minimum size (480 × 320 of content).
+osascript -e 'tell application "System Events" to tell process "Peeker" to set size of front window to {200, 150}' >/dev/null 2>&1
+sleep 0.5
+read -r _ _ ww wh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
+check "A window stops at its minimum size" "$([ "$ww" -ge 480 ] && [ "$ww" -le 490 ] && [ "$wh" -ge 320 ] && echo yes)" yes
+osascript -e 'tell application "System Events" to tell process "Peeker" to set size of front window to {960, 720}' >/dev/null 2>&1
 
 # A password-protected PDF opens on a lock screen and shows its pages once unlocked.
 show "$LOCKED"

@@ -90,7 +90,8 @@ func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", waiting
     let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(), recovery: nil,
                                               recoveryClipboard: nil, sidebarMemory: sidebar)
     controller.show(with: entry)
-    if waiting { try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil } }
+    // Until the content has shown, the toolbar has no command buttons yet.
+    if waiting { try await waitUntil(seconds: 2) { controller.current?.hasShownContent == true } }
     return controller
 }
 

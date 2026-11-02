@@ -63,6 +63,11 @@ final class DocumentViewController: NSSplitViewController {
 
     /// First content on screen, with the time since `load()`.
     var onReady: ((DocumentViewController, Duration) -> Void)?
+    /// Called once the first content is on screen, after `onReady` (which the benchmark owns): the window adds its
+    /// command buttons then, so building them isn't part of opening.
+    var onContentShown: ((DocumentViewController) -> Void)?
+    /// Whether the first content has been on screen.
+    private(set) var hasShownContent = false
     var onFailure: ((DocumentViewController, String) -> Void)?
     /// Called when the commands change, or whether there's a sidebar: the window rebuilds its toolbar.
     var onCommandsChanged: ((DocumentViewController) -> Void)?
@@ -169,7 +174,7 @@ final class DocumentViewController: NSSplitViewController {
     }
 
     func showsInToolbar(_ spec: CommandSpec) -> Bool {
-        !spec.isEditTool || isEditing || editMode == .none
+        spec.showsInToolbar && (!spec.isEditTool || isEditing || editMode == .none)
     }
 
     /// The Edit button and Cmd+E. Leaving calls `resolve`, which asks about unsaved edits and saves or drops them;
@@ -463,6 +468,8 @@ final class DocumentViewController: NSSplitViewController {
         view.window?.displayIfNeeded()
         DispatchQueue.main.async {
             self.onReady?(self, .now - self.opened)
+            self.hasShownContent = true
+            self.onContentShown?(self)
             self.startWatching()  // after the timing: watching isn't part of showing the file
             self.reloadIfChangedOnDisk()  // a change made before the watcher started
         }

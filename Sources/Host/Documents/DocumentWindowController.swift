@@ -19,6 +19,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     enum UnsavedChoice { case save, discard, cancel }
     /// Asks Save, Don't Save or Cancel about unsaved edits, as a sheet on the window. Tests answer directly.
     var askToSave: (DocumentWindowController) async -> UnsavedChoice = { await $0.askToSaveInSheet() }
+    /// Shows a notice with a short title and its reason, as a sheet. Tests read it instead.
+    var present: (DocumentWindowController, _ title: String, _ detail: String) async -> Void = { await $0.showInSheet($1, $2) }
     /// Asks whether to drop the unsaved edits for Revert to Saved, as a sheet. Tests answer directly.
     var confirmRevert: (DocumentWindowController) async -> Bool = {
         await $0.confirm("Revert to the last saved version?", "Your unsaved changes will be lost.", button: "Revert")
@@ -42,6 +44,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         window.representedURL = url
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName("DocumentWindow")
+        window.contentMinSize = NSSize(width: 480, height: 320)  // room for the toolbar's first items and some content
         super.init(window: window)
         window.delegate = self
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -67,10 +70,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let document = DocumentViewController(url: url, entry: entry, config: config,
                                               allowsEditing: true, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString,
                                               sidebarMemory: sidebarMemory)
-        document.onCommandsChanged = { [weak self] _ in
-            self?.rebuildToolbar()
-            if let self, self.window?.isKeyWindow == true { self.onBecameKey?(self) }
+        document.onCommandsChanged = { [weak self] document in
+            // While a file opens, its commands wait for its content (onContentShown); a failure shows at once.
+            guard document.hasShownContent || document.pluginDocument == nil else { return }
+            self?.commandsChanged()
         }
+        document.onContentShown = { [weak self] _ in self?.commandsChanged() }
         document.onRecovery = { [weak self] _, result in self?.report(result) }
         document.onEditRefused = { [weak self] _, reason in self?.showMessage(reason) }
         document.onActiveCommandChanged = { [weak self] _ in self?.showActiveCommand() }
@@ -89,7 +94,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     /// Tells the user when recovered edits went onto a newer file, or couldn't be applied in this view.
-    private func report(_ result: RecoveryResult) {
+    func report(_ result: RecoveryResult) {
         let name = url.lastPathComponent
         let message: String
         switch result {
@@ -107,16 +112,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
                 message = "“\(name)” can't take back its unsaved changes in this view."
             }
         }
-        showMessage(message)
+        showMessage("Recovered edits for “\(name)”", message)
     }
 
-    private func showMessage(_ message: String) {
-        Task {
-            guard let window, window.attachedSheet == nil else { return }
-            let alert = NSAlert()
-            alert.messageText = message
-            _ = await alert.beginSheetModal(for: window)
-        }
+    private func showMessage(_ title: String, _ detail: String = "") {
+        Task { await present(self, title, detail) }
+    }
+
+    private func showInSheet(_ title: String, _ detail: String) async {
+        guard let window, window.attachedSheet == nil else { return }
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = detail
+        _ = await alert.beginSheetModal(for: window)
     }
 
     /// The Edit button and Edit Mode (Cmd+E).
@@ -128,6 +136,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             let button = window?.toolbar?.items.first { $0.itemIdentifier == Self.edit }?.view as? NSButton
             button?.state = current?.isEditing == true ? .on : .off
         }
+    }
+
+    /// Puts the document's commands in the toolbar, and in the menus when this window is in front.
+    private func commandsChanged() {
+        rebuildToolbar()
+        if window?.isKeyWindow == true { onBecameKey?(self) }
     }
 
     /// Reached when the window itself has the keyboard, so the split view controller isn't in the responder chain.
@@ -317,9 +331,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         case .saved: return true
         case .cancelled: return false
         case .failed(let message):
-            let alert = NSAlert()
-            alert.messageText = message
-            if let window { _ = await alert.beginSheetModal(for: window) }
+            await present(self, "Couldn't save “\(url.lastPathComponent)”", message)
             return false
         }
     }
@@ -388,9 +400,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         guard let document = current else { return [Self.openWith] }
-        let tools = document.commands.indices.filter { document.showsInToolbar(document.commands[$0].spec) }
+        let shown = document.commands.indices.filter { document.showsInToolbar(document.commands[$0].spec) }
+        let identifier = { (index: Int) in NSToolbarItem.Identifier("command.\(index)") }
+        let view = shown.filter { !document.commands[$0].spec.isEditTool }.map(identifier)
+        let tools = shown.filter { document.commands[$0].spec.isEditTool }.map(identifier)
+        // A space between the two runs puts view commands and edit tools on separate pieces of glass.
         return (document.hasSidebar ? [.toggleSidebar] : []) + [Self.openWith] + (document.editMode == .none ? [] : [Self.edit]) + [.flexibleSpace]
-            + tools.map { NSToolbarItem.Identifier("command.\($0)") }
+            + view + (view.isEmpty || tools.isEmpty ? [] : [.space]) + tools
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {

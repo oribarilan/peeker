@@ -22,3 +22,8 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 - Open at Login and the Default app list moved from Permissions to General.
 - The field for adding an extension shows "Add an extension".
 - When the shortcut recorder refuses a key, the reason stays on screen until you record again, and VoiceOver reads it.
+- The toolbar keeps view commands and edit tools apart, and zoom moved to the View menu only, so a PDF in Edit mode fits the toolbar.
+- Opening a file is a little faster: its toolbar buttons are added just after the file shows.
+- Document windows can't be shrunk below a usable size.
+- When no plugin opens a file, the alert offers Open Settings, which shows where to add its extension.
+- Alerts about recovered edits and failed saves have short titles, with the details below.

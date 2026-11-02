@@ -55,6 +55,12 @@ final class PluginCatalog {
 
     var enabled: [PluginEntry] { entries.filter { !config.disabled.contains($0.id) } }
 
+    /// The plugin whose list has `url`'s extension, whether it's on or off. Nil for a folder or an extension no list has.
+    func listing(_ url: URL) -> PluginEntry? {
+        guard let key = Self.listEntry(for: url), let id = owners[key] else { return nil }
+        return entries.first { $0.id == id }
+    }
+
     /// The plugin that opens `url`: the one whose list has its extension, if it's enabled. Nil for a folder.
     func owner(for url: URL) -> PluginEntry? {
         guard let key = Self.listEntry(for: url), let id = owners[key] else { return nil }

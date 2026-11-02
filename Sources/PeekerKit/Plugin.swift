@@ -199,12 +199,16 @@ public struct CommandSpec: Sendable, Equatable {
     /// An Edit mode tool: in the toolbar only while Edit mode is on, and run from the read view (by its shortcut or
     /// menu item) it turns Edit mode on first.
     public let isEditTool: Bool
+    /// False keeps the command out of the toolbar: it's in its menu, with its shortcut, only. Zoom commands are.
+    public let showsInToolbar: Bool
 
-    public init(id: String, title: String, symbol: String? = nil, shortcut: String? = nil, isEditTool: Bool = false) {
+    public init(id: String, title: String, symbol: String? = nil, shortcut: String? = nil, isEditTool: Bool = false,
+                showsInToolbar: Bool = true) {
         self.id = id
         self.title = title
         self.symbol = symbol
         self.shortcut = shortcut
         self.isEditTool = isEditTool
+        self.showsInToolbar = showsInToolbar
     }
 }
