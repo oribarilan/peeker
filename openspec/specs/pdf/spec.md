@@ -277,11 +277,15 @@ When a PDF's permissions forbid page changes but allow comments and form filling
 
 ### Requirement: Find in a PDF
 
-In a document window, Find… (Cmd+F) SHALL show a find bar above the pages with a search field, the match count, previous and next buttons and Done, with the cursor in the field. Typing SHALL search the whole document, ignoring case and accents, without stalling the window. Every match SHALL be highlighted and the current one selected and in view. Find SHALL work in the read view and in Edit mode and never change the file.
+In a document window, Find… (Cmd+F) SHALL show a find bar above the pages and below the toolbar, never under it, with a search field, the match count, previous and next buttons and Done, with the cursor in the field. Typing SHALL search the whole document, ignoring case and accents, without stalling the window. Every match SHALL be highlighted and the current one selected and in view. Find SHALL work in the read view and in Edit mode and never change the file.
 
 #### Scenario: Searching
 - **WHEN** the user presses Cmd+F in a PDF window and types "invoice", which appears 3 times
 - **THEN** all 3 matches are highlighted, the first is selected and in view, and the bar says "1 of 3"
+
+#### Scenario: Bar below the toolbar
+- **WHEN** the user presses Cmd+F in a PDF window
+- **THEN** the whole find bar, its field and match count included, shows below the toolbar and the window title
 
 #### Scenario: Case and accents ignored
 - **WHEN** the user searches for "cafe" in a PDF containing "Café"
