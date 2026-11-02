@@ -2,7 +2,7 @@ import AppKit
 import CoreGraphics
 import Testing
 
-/// What the quick-look key monitor does with each key: Space must stay a space everywhere but Finder's file list.
+/// What the Peek panel key monitor does with each key: Space must stay a space everywhere but Finder's file list.
 @Suite struct HotkeyDecisions {
     private static let space: Int64 = 49, escape: Int64 = 53, down: Int64 = 125
 
@@ -22,7 +22,7 @@ import Testing
     }
 
     private static let cases: [Case] = [
-        Case(name: "Space in Finder opens the panel", want: .trigger),
+        Case(name: "Space in Finder opens the Peek panel", want: .trigger),
         Case(name: "Space while renaming in Finder stays a space", typing: true, want: .pass),
         Case(name: "Space in another app stays a space", finderInFront: false, want: .pass),
         Case(name: "Space with the panel up closes it", panelVisible: true, want: .dismiss),

@@ -40,7 +40,7 @@ enum TempFile {
 
 // MARK: Setup
 
-/// What `plugin` opens for `url`, as `type`. `editing` is false for the Space panel's view-only documents.
+/// What `plugin` opens for `url`, as `type`. `editing` is false for the Peek panel's view-only documents.
 func openDocument<Document>(_ url: URL, with plugin: any Plugin.Type, as type: Document.Type, editing: Bool = true,
                             maxPixels: Int = 0) async throws -> Document {
     try #require(try await plugin.open(url, context: OpenContext(maxPixels: maxPixels, allowsEditing: editing)) as? Document)

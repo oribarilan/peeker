@@ -1,7 +1,7 @@
 import AppKit
 
 /// Peeker's icon in the menu bar, there whenever it runs: Settings, Check for Updates, Open at Login and Quit, and a red dot while the
-/// config has problems or Space in Finder is missing Accessibility, with a menu line saying which.
+/// config has problems or the Peek panel is missing Accessibility, with a menu line saying which.
 final class MenuBarItem {
     /// What the icon and its menu show.
     struct State: Equatable {
@@ -21,6 +21,9 @@ final class MenuBarItem {
         }
     }
 
+    /// The menu line shown while Accessibility is missing; it opens the Permissions pane.
+    static let accessibilityTitle = "The Peek panel needs Accessibility…"
+
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let problemsItem: NSMenuItem
     private let accessibilityItem: NSMenuItem
@@ -28,7 +31,7 @@ final class MenuBarItem {
 
     init(target: AppDelegate) {
         problemsItem = NSMenuItem(title: "", action: #selector(AppDelegate.showConfigFileSettings(_:)), keyEquivalent: "")
-        accessibilityItem = NSMenuItem(title: "Space in Finder needs Accessibility…", action: #selector(AppDelegate.showPermissionsSettings(_:)), keyEquivalent: "")
+        accessibilityItem = NSMenuItem(title: Self.accessibilityTitle, action: #selector(AppDelegate.showPermissionsSettings(_:)), keyEquivalent: "")
         for line in [problemsItem, accessibilityItem] {
             line.target = target
             line.isHidden = true

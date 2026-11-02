@@ -43,10 +43,15 @@ import Testing
         #expect(properties(try schema(), "open") == nil)
     }
 
+    @Test func thePanelKeyIsPeekPanel() throws {
+        let schema = try schema()
+        #expect(properties(schema, "peekPanel") != nil && properties(schema, "quickLook") == nil)
+    }
+
     @Test func refusesKeysItDoesNotDescribe() throws {
         let schema = try schema()
         #expect(schema["additionalProperties"] as? Bool == false)
-        #expect(properties(schema, "quickLook")?["additionalProperties"] as? Bool == false)
+        #expect(properties(schema, "peekPanel")?["additionalProperties"] as? Bool == false)
         #expect(properties(schema, "plugins")?["additionalProperties"] as? Bool == false)
         #expect(properties(schema, "updates")?["additionalProperties"] as? Bool == false)
     }

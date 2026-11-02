@@ -43,7 +43,7 @@ private func config(_ json: String) throws -> Config {
         let config = try config("""
             {
               "$schema": "schema.json",
-              "quickLook": { "key": "opt+space" },
+              "peekPanel": { "key": "opt+space" },
               "plugins": {
                 "text": { "enabled": false, "extensions": ["txt", "log", "noExtension"] },
                 "pdf": { "commands": { "highlight": { "shortcut": "cmd+shift+h" } } }
@@ -53,23 +53,30 @@ private func config(_ json: String) throws -> Config {
         #expect(config.disabled == ["text"])
         #expect(config.extensions == ["text": ["txt", "log", noExtension]])
         #expect(config.keys["pdf.highlight"] == Shortcut(key: .character("h"), modifiers: [.command, .shift]))
-        #expect(config.quickLookKey == Shortcut(key: .space, modifiers: [.option]))
+        #expect(config.peekPanelKey == Shortcut(key: .space, modifiers: [.option]))
     }
 
     @Test func missingKeysKeepTheirDefaults() throws {
         let config = try config("{}")
         #expect(config.disabled.isEmpty && config.extensions.isEmpty && config.keys.isEmpty)
-        #expect(config.quickLookKey == Shortcut(key: .space))
+        #expect(config.peekPanelKey == Shortcut(key: .space))
     }
 
     @Test func noFileMeansDefaultsWithoutProblems() throws {
         let reading = Config.read(nil, plugins: plugins)
         #expect(reading.problems.isEmpty)
-        #expect(try #require(reading.config).quickLookKey == Shortcut(key: .space))
+        #expect(try #require(reading.config).peekPanelKey == Shortcut(key: .space))
     }
 
-    @Test func quickLookCanBeTurnedOff() throws {
-        #expect(try config(#"{"quickLook": {"key": "off"}}"#).quickLookKey == nil)
+    @Test func theOldQuickLookKeyIsUnknown() throws {
+        let reading = read(#"{"quickLook": {"key": "opt+space"}}"#)
+        #expect(try #require(reading.config).peekPanelKey == Shortcut(key: .space))
+        #expect(reading.problems.map(\.path) == ["quickLook"])
+        #expect(reading.problems.first?.message.contains("not a known setting") == true)
+    }
+
+    @Test func peekPanelCanBeTurnedOff() throws {
+        #expect(try config(#"{"peekPanel": {"key": "off"}}"#).peekPanelKey == nil)
     }
 
     @Test func updateChecksAreOnUnlessTheConfigTurnsThemOff() throws {
@@ -107,10 +114,10 @@ private func config(_ json: String) throws -> Config {
     }
 
     @Test func wrongKindsKeepTheDefault() throws {
-        let reading = read(#"{"plugins": {"text": {"enabled": "no", "extensions": "txt"}}, "quickLook": {"key": 5}}"#)
+        let reading = read(#"{"plugins": {"text": {"enabled": "no", "extensions": "txt"}}, "peekPanel": {"key": 5}}"#)
         let config = try #require(reading.config)
-        #expect(config.disabled.isEmpty && config.extensions.isEmpty && config.quickLookKey == Shortcut(key: .space))
-        #expect(Set(reading.problems.map(\.path)) == ["plugins.text.enabled", "plugins.text.extensions", "quickLook.key"])
+        #expect(config.disabled.isEmpty && config.extensions.isEmpty && config.peekPanelKey == Shortcut(key: .space))
+        #expect(Set(reading.problems.map(\.path)) == ["plugins.text.enabled", "plugins.text.extensions", "peekPanel.key"])
     }
 
     @Test func badUpdateSettingsKeepChecksOn() throws {
@@ -252,7 +259,7 @@ private func config(_ json: String) throws -> Config {
     @Test func defaultsWriteEverySetting() throws {
         let root = try object(Config())
         #expect(root["$schema"] as? String == "schema.json")
-        #expect((root["quickLook"] as? [String: Any])?["key"] as? String == "space")
+        #expect((root["peekPanel"] as? [String: Any])?["key"] as? String == "space")
         #expect((root["updates"] as? [String: Any])?["check"] as? Bool == true)
         let pluginSettings = try #require(root["plugins"] as? [String: [String: Any]])
         #expect(pluginSettings.keys.sorted() == ["markdown", "pdf", "text"])
@@ -265,14 +272,14 @@ private func config(_ json: String) throws -> Config {
 
     @Test func readingTheRenderingGivesBackTheSameSettings() throws {
         let original = try config("""
-            {"quickLook": {"key": "off"}, "updates": {"check": false},
+            {"peekPanel": {"key": "off"}, "updates": {"check": false},
              "plugins": {"text": {"enabled": false, "extensions": ["txt", "log"]},
                          "pdf": {"commands": {"highlight": {"shortcut": "cmd+shift+h"}}}}}
             """)
         let reading = read(rendered(original))
         #expect(reading.problems.isEmpty)
         let back = try #require(reading.config)
-        #expect(back.quickLookKey == nil)
+        #expect(back.peekPanelKey == nil)
         #expect(back.checkForUpdates == false)
         #expect(back.disabled == ["text"])
         #expect(back.extensions["text"] == ["txt", "log"])
@@ -283,7 +290,7 @@ private func config(_ json: String) throws -> Config {
     @Test func keysComeOutSortedWithATrailingNewline() {
         let text = rendered(Config())
         #expect(text.hasSuffix("}\n"))
-        let order = ["\"$schema\"", "\"plugins\"", "\"quickLook\""].compactMap { text.range(of: $0)?.lowerBound }
+        let order = ["\"$schema\"", "\"peekPanel\"", "\"plugins\""].compactMap { text.range(of: $0)?.lowerBound }
         #expect(order.count == 3 && order == order.sorted())
     }
 

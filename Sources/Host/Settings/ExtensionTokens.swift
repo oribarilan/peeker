@@ -34,7 +34,7 @@ struct ExtensionTokens: View {
                 }
             }
             HStack {
-                TextField("Add an extension", text: $draft)
+                TextField("Add an extension", text: $draft, prompt: Text("Add an extension"))
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 200)

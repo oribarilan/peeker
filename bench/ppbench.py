@@ -9,7 +9,7 @@
     bench/ppbench.py space [--app APP] [--runs 5]                                        Space: Quick Look vs Peeker
 
 Suites (all open real windows; nothing needs extra permissions):
-    inapp   inside the app, per file, in the quick-look panel and a window: warm open, app memory
+    inapp   inside the app, per file, in the Peek panel and a window: warm open, app memory
     launch  from `open` (app not running) until the content is drawn
     apple   Preview / TextEdit launch-to-window, for the README only (quits those apps between runs)
 
@@ -66,7 +66,7 @@ def ensure_tools():
             subprocess.run(["swiftc", "-O", str(source), "-o", str(binary)], check=True)
     if not all((FIXTURES / f).exists() for f in FILES):
         subprocess.run([str(TOOLS / "make-fixtures")], cwd=ROOT, check=True)
-    CONFIG.write_text('{"quickLook": {"key": "off"}}\n')
+    CONFIG.write_text('{"peekPanel": {"key": "off"}}\n')
 
 
 def apple_app(file):
@@ -269,7 +269,7 @@ def readme_highlights(results):
             lines.append(f"| {DESCRIPTIONS[file]} | {name} {theirs:.0f} ms | {ours:.0f} ms | {verdict if verdict == 'about the same' else f'**{verdict}**'} |")
     pdf, photo = m.get("inapp.panel.small.pdf.warm_open"), m.get("inapp.panel.photo.jpg.warm_open")
     if pdf and photo:
-        lines += ["", f"Space in Finder shows a PDF in {pdf:.0f} ms and a 12 MP photo in {photo:.0f} ms."]
+        lines += ["", f"The Peek panel shows a PDF in {pdf:.0f} ms and a 12 MP photo in {photo:.0f} ms."]
     lines += ["", f"{results['machine']}, {results['date']}. Apple's apps are timed until their window appears, Peeker "
                   "until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md)."]
     return "\n".join(lines)
@@ -292,7 +292,7 @@ def benchmarks_page(results):
             name, theirs, ours, verdict = row
             out.append(f"| {DESCRIPTIONS[file]} | {name} | {theirs:.0f} ms | {ours:.0f} ms | {verdict} |")
     out += ["", "## Inside the app", "",
-            "The app is already running. *Space*: the quick look panel in Finder. *Window*: the file opens in a new "
+            "The app is already running. *Space*: the Peek panel in Finder. *Window*: the file opens in a new "
             "window. *Memory*: the app's footprint with the file open in the panel.", "",
             "| File | Space | Window | Memory |", "|---|---|---|---|"]
     for file in FILES:
@@ -380,8 +380,8 @@ def space(app, runs):
     subprocess.run(["pkill", "-x", "Peeker"], capture_output=True)
     time.sleep(0.8)
     quicklook = measure(lambda owner: owner != "Peeker")
-    config = Path(tempfile.gettempdir()) / "ppbench-space-config"
-    config.write_text("quicklook.key = space\n")
+    config = Path(tempfile.gettempdir()) / "ppbench-space-config.json"
+    config.write_text('{"peekPanel": {"key": "space"}}\n')
     subprocess.run(["open", "-F", "--env", f"PEEKER_CONFIG={config}", "-a", str(Path(app).resolve())], check=True)
     time.sleep(3)
     peeker = measure(lambda owner: owner == "Peeker")

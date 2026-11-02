@@ -1,11 +1,12 @@
 #!/bin/bash
-# Records the user-facing flows as evidence: Settings on a launch by hand, Space in Finder on files Peeker opens and
-# on files it leaves to Quick Look, Open With in a document window (the toolbar and File menu) and Revert to Saved…,
-# a config clash in the menu bar icon, and changes made in Settings (a plugin off and on, moving an extension and Reset, the quick-look key recorder and Off, the update
-# checkbox and a development build's Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one
-# recorder listening at a time). Writes screenshots
-# and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1;
-# scripts/screen-test.sh runs it with the other flows.
+# Records the user-facing flows as evidence: Settings on a launch by hand, the Peek panel on Space in Finder for files
+# Peeker opens, Finder's Quick Look for files it leaves alone, Open With in a document window (the toolbar and File
+# menu) and Revert to Saved…, a config clash in the menu bar icon, and changes made in Settings (a plugin off and on,
+# moving an extension and Reset, the Peek panel key recorder and Off, the update checkbox and a development build's
+# Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one recorder listening at a time, reopening on
+# the last pane, General holding Open at Login and Default app, the add-extension field's placeholder). Writes
+# screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with
+# SCREEN_RECORD=1; scripts/screen-test.sh runs it with the other flows.
 #
 # Takes over the keyboard and Finder for about two minutes: the screen must be unlocked and left alone.
 # usage: record-flows.sh [path/to/Peeker.app]
@@ -36,7 +37,7 @@ sleep 1
 record flows 300
 sleep 1
 
-# Presses Space on a file in Finder and reports which app's window appeared: Peeker's panel or Finder's Quick Look.
+# Presses Space on a file in Finder and reports which app's window appeared: the Peek panel or Finder's Quick Look.
 space() {
     local name=$1 file=$2 want=$3
     # Space on whatever else Finder has selected would test the wrong file.
@@ -47,7 +48,7 @@ space() {
     "$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
     "$DRIVE" keys Finder space
     sleep 3
-    # Peeker's panel belongs to Peeker; Finder's Quick Look is a Finder window above the normal layer (macOS 27 gives
+    # The Peek panel belongs to Peeker; Finder's Quick Look is a Finder window above the normal layer (macOS 27 gives
     # it no title; older versions titled it with the file's name).
     local owner; owner=$("$DRIVE" windows | awk -v name="$(basename "$file")" 'NR == FNR { seen[$1] = 1; next }
         !($1 in seen) && $2 == "Peeker" { print "Peeker"; exit }
@@ -107,6 +108,10 @@ cfg() { python3 -c 'import json, sys; c = json.load(open(sys.argv[1])); print(ev
 "$DRIVE" menuextra Peeker "Settings…"
 "$DRIVE" wait Peeker window Settings
 "$DRIVE" shot Peeker "$OUT/9-settings-general.png"
+# General names the Peek panel and holds Open at Login and the Default app list.
+check "General's toggle reads Peek panel" "$("$DRIVE" enabled Peeker "Peek panel" 2>/dev/null)" true
+general=$("$DRIVE" tree Peeker 16)
+check "General has Open at Login and Default app" "$(grep -c 'Open at Login' <<< "$general" | awk '{print ($1 > 0) ? "yes" : "no"}')$(grep -c 'Default app' <<< "$general" | awk '{print ($1 > 0) ? "yes" : "no"}')" yesyes
 "$DRIVE" row Peeker Image && sleep 0.8
 "$DRIVE" press Peeker "Open files with Image" && sleep 1
 check "Turning Image off writes enabled false" "$(cfg "c['plugins']['image']['enabled']")" False
@@ -123,6 +128,7 @@ front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; 
 # Adding md with Return offers to move it; Reset on either pane gives it back to Markdown.
 front
 "$DRIVE" row Peeker "Plain Text" && sleep 0.8
+check "The add-extension field shows its placeholder" "$("$DRIVE" placeholders Peeker | grep -cx 'Add an extension')" 1
 # Setting the field's text through Accessibility doesn't reach SwiftUI's binding, so focus it and type.
 "$DRIVE" fill Peeker "Add an extension" "" && sleep 0.3 && "$DRIVE" type Peeker md && "$DRIVE" keys Peeker return && sleep 1
 "$DRIVE" shot Peeker "$OUT/11-settings-move-md.png"
@@ -137,10 +143,10 @@ check "Reset on Markdown takes md back" "$(cfg "'md' in c['plugins']['markdown']
 "$DRIVE" press Peeker "Reset to Defaults" && sleep 1
 check "Reset on Plain Text gives md back to Markdown" "$(cfg "'md' in c['plugins']['markdown']['extensions'] and 'md' not in c['plugins']['text']['extensions']")" True
 
-# The quick-look key: record Option-Space, use it, record it again while it's the key, then Off.
+# The Peek panel key: record Option-Space, use it, record it again while it's the key, then Off.
 "$DRIVE" row Peeker General && sleep 0.8
 "$DRIVE" press Peeker "Shortcut Space, click to record" && sleep 0.5 && "$DRIVE" keys Peeker opt+space && sleep 1
-check "Recording Option-Space writes it" "$(cfg "c['quickLook']['key']")" opt+space
+check "Recording Option-Space writes it" "$(cfg "c['peekPanel']['key']")" opt+space
 "$DRIVE" select "$F/notes.md"
 sleep 1.2
 "$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
@@ -151,13 +157,13 @@ screencapture -x "$OUT/12a-option-space.png"
 front
 "$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
 "$DRIVE" press Peeker "Shortcut ⌥Space, click to record" && sleep 0.5 && "$DRIVE" keys Peeker opt+space && sleep 1.5
-check "Recording the current key records it, not the panel" "$("$DRIVE" windows | awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen) && $2 == "Peeker" { print "panel"; exit }' "$OUT/.before" -)$(cfg "c['quickLook']['key']")" opt+space
-"$DRIVE" press Peeker "Quick look panel" && sleep 1
-check "Off writes off" "$(cfg "c['quickLook']['key']")" off
+check "Recording the current key records it, not the panel" "$("$DRIVE" windows | awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen) && $2 == "Peeker" { print "panel"; exit }' "$OUT/.before" -)$(cfg "c['peekPanel']['key']")" opt+space
+"$DRIVE" press Peeker "Peek panel" && sleep 1
+check "Off writes off" "$(cfg "c['peekPanel']['key']")" off
 space 12b-space-key-off "$F/notes.md" "Quick Look"
 front
-"$DRIVE" press Peeker "Quick look panel" && sleep 1
-check "On again is Space" "$(cfg "c['quickLook']['key']")" space
+"$DRIVE" press Peeker "Peek panel" && sleep 1
+check "On again is Space" "$(cfg "c['peekPanel']['key']")" space
 
 # Updates: the checkbox writes updates.check, and a development build's Check for Updates… says it doesn't update.
 "$DRIVE" press Peeker "Check for updates automatically" && sleep 1
@@ -191,6 +197,13 @@ check "The new shortcut turns on Edit mode" "$("$DRIVE" tree Peeker 12 | grep -c
 "$DRIVE" shot Peeker "$OUT/12c-pdf-shortcut.png" form.pdf
 "$DRIVE" menu Peeker File Close && "$DRIVE" wait Peeker window form.pdf --gone
 
+# Settings reopens on the pane last shown, here PDF.
+front
+"$DRIVE" menu Peeker File Close && "$DRIVE" wait Peeker window Settings --gone
+"$DRIVE" menuextra Peeker "Settings…"
+"$DRIVE" wait Peeker window Settings
+check "Settings reopens on the PDF pane" "$("$DRIVE" enabled Peeker "Open files with PDF" 2>/dev/null)" true
+
 # Only one shortcut recorder listens at a time, the key goes to its command, and switching apps stops it, so Space
 # reaches the panel again either way.
 front
@@ -209,14 +222,15 @@ front
 
 "$DRIVE" row Peeker Permissions && sleep 2
 "$DRIVE" shot Peeker "$OUT/12-settings-permissions.png"
+check "Permissions holds only the permissions" "$("$DRIVE" tree Peeker 16 | grep -c -E 'Open at Login|Default app')" 0
 "$DRIVE" row Peeker General && sleep 0.8
 printf '{"plugins": ' > "$CONFIG"
 sleep 1.5
-check "Broken JSON locks the switches" "$("$DRIVE" enabled Peeker "Quick look panel")" false
+check "Broken JSON locks the switches" "$("$DRIVE" enabled Peeker "Peek panel")" false
 "$DRIVE" shot Peeker "$OUT/13-settings-locked.png"
 echo '{}' > "$CONFIG"
 sleep 1.5
-check "Fixing the file unlocks them" "$("$DRIVE" enabled Peeker "Quick look panel")" true
+check "Fixing the file unlocks them" "$("$DRIVE" enabled Peeker "Peek panel")" true
 
 echo '{}' > "$CONFIG"
 finish

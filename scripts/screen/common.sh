@@ -112,16 +112,30 @@ trap 'exit 130' INT TERM
 
 quit_app || { echo "Peeker from $APP won't quit (a Save prompt?): close it first"; exit 2; }
 
-# Document windows remember whether the sidebar shows, and its width, in the app's preferences, which the build under
-# test shares with an installed Peeker. Each run starts with the sidebar shown and puts the user's choice back at the end.
+# The app keeps some window state in its preferences, which the build under test shares with an installed Peeker:
+# whether the sidebar shows and its width, and Settings' last pane. Each run starts without them (sidebar shown,
+# Settings on General) and puts the user's back at the end.
 PREFS=dev.peeker.Peeker
-SIDEBAR_HIDDEN=$(defaults read "$PREFS" sidebarHidden 2>/dev/null)
-SIDEBAR_WIDTH=$(defaults read "$PREFS" sidebarWidth 2>/dev/null)
-restore_sidebar() {
-    if [ -n "$SIDEBAR_HIDDEN" ]; then defaults write "$PREFS" sidebarHidden -bool "$([ "$SIDEBAR_HIDDEN" = 1 ] && echo YES || echo NO)"
-    else defaults delete "$PREFS" sidebarHidden 2>/dev/null; fi
-    if [ -n "$SIDEBAR_WIDTH" ]; then defaults write "$PREFS" sidebarWidth -float "$SIDEBAR_WIDTH"
-    else defaults delete "$PREFS" sidebarWidth 2>/dev/null; fi
+PREF_KEYS="sidebarHidden sidebarWidth settingsPane"
+SAVED_PREFS=()
+for key in $PREF_KEYS; do
+    if value=$(defaults read "$PREFS" "$key" 2>/dev/null); then
+        SAVED_PREFS+=("$key" "$(defaults read-type "$PREFS" "$key" | awk '{print $NF}')" "$value")
+    fi
+done
+forget_prefs() { for key in $PREF_KEYS; do defaults delete "$PREFS" "$key" >/dev/null 2>&1; done; }
+restore_prefs() {
+    forget_prefs
+    [ ${#SAVED_PREFS[@]} -gt 0 ] || return 0  # bash 3.2 calls an empty array unbound under set -u
+    set -- "${SAVED_PREFS[@]}"
+    while [ $# -ge 3 ]; do
+        case $2 in
+            boolean) defaults write "$PREFS" "$1" -bool "$([ "$3" = 1 ] && echo YES || echo NO)" ;;
+            float) defaults write "$PREFS" "$1" -float "$3" ;;
+            *) defaults write "$PREFS" "$1" -string "$3" ;;
+        esac
+        shift 3
+    done
 }
-trap 'cleanup; restore_sidebar' EXIT
-defaults write "$PREFS" sidebarHidden -bool NO
+trap 'cleanup; restore_prefs' EXIT
+forget_prefs

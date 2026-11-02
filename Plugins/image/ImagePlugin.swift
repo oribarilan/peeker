@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 public enum ImagePlugin: Plugin {
     public static let id = "image"
     public static let name = "Image"
+    public static let symbol = "photo"
     /// The common formats ImageIO decodes, and camera RAW. Not SVG: ImageIO can't draw it.
     public static let defaultExtensions = [
         "png", "jpg", "jpeg", "jpe", "heic", "heif", "hif", "avif", "gif", "tif", "tiff", "webp", "bmp", "ico", "icns",

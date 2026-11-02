@@ -25,15 +25,66 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
     @Test func theSidebarListsGeneralThePluginsInOrderThenPermissionsAndConfigFile() {
         #expect(SettingsPane.all(plugins: plugins) == [.general, .plugin("pdf"), .plugin("text"), .permissions, .configFile])
     }
+
+    @Test func aPaneRoundTripsThroughItsStorageKey() {
+        for pane in SettingsPane.all(plugins: plugins) { #expect(SettingsPane(storageKey: pane.storageKey) == pane) }
+        #expect(SettingsPane.plugin("pdf").storageKey == "plugin.pdf")
+        #expect(SettingsPane(storageKey: "nonsense") == nil)
+    }
+}
+
+/// Settings reopens on the pane last shown, kept in the app's preferences.
+@Suite(.serialized) struct RememberedPane {
+    private func model(_ defaults: UserDefaults) throws -> SettingsModel {
+        let store = ConfigStore(url: try TempFile.make(Data("{}".utf8), name: "config.json"), plugins: plugins)
+        store.stop()
+        return SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"), defaults: defaults)
+    }
+
+    /// Preferences only this test reads, removed afterwards.
+    private func withDefaults(_ body: (UserDefaults) throws -> Void) throws {
+        let name = "dev.peeker.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        try body(defaults)
+    }
+
+    @Test func startsOnGeneralThenOnTheLastPane() throws {
+        try withDefaults { defaults in
+            let first = try model(defaults)
+            #expect(first.selection == .general)
+            first.selection = .plugin("pdf")
+            let reopened = try model(defaults)
+            #expect(reopened.selection == .plugin("pdf"))
+        }
+    }
+
+    @Test func theWindowResizesButCannotZoom() throws {
+        try withDefaults { defaults in
+            let controller = SettingsWindowController(model: try model(defaults))
+            defer { controller.close() }
+            let window = try #require(controller.window)
+            #expect(window.styleMask.contains(.resizable))
+            #expect(window.standardWindowButton(.zoomButton)?.isEnabled == false)
+        }
+    }
+
+    @Test func aPaneThatIsGoneFallsBackToGeneral() throws {
+        try withDefaults { defaults in
+            defaults.set("plugin.gone", forKey: "settingsPane")
+            let reopened = try model(defaults)
+            #expect(reopened.selection == .general)
+        }
+    }
 }
 
 @Suite struct RecorderRules {
     private func key(_ text: String) -> Shortcut { Shortcut(parsing: text)! }
 
-    @Test func theQuickLookKeyIsBareSpaceOrAKeyWithAModifier() {
-        #expect(Shortcut.Rules.quickLook.refusal(for: key("space")) == nil)
-        #expect(Shortcut.Rules.quickLook.refusal(for: key("opt+j")) == nil)
-        #expect(Shortcut.Rules.quickLook.refusal(for: key("j")) != nil)
+    @Test func thePeekPanelKeyIsBareSpaceOrAKeyWithAModifier() {
+        #expect(Shortcut.Rules.peekPanel.refusal(for: key("space")) == nil)
+        #expect(Shortcut.Rules.peekPanel.refusal(for: key("opt+j")) == nil)
+        #expect(Shortcut.Rules.peekPanel.refusal(for: key("j")) != nil)
     }
 
     @Test func aCommandNeedsAModifier() {
@@ -161,8 +212,23 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
     }
 }
 
+/// A refused key's reason stays under the recorder until the next recording, and VoiceOver hears it.
+@Suite struct RecorderRefusals {
+    @Test func aRefusalIsAnnouncedAndStays() async throws {
+        let note = RefusalNote()
+        var announced: [String] = []
+        note.announce = { announced.append($0) }
+        note.show("⌘P is used by Print….")
+        #expect(announced == ["⌘P is used by Print…."])
+        try await Task.sleep(for: .seconds(3.5))
+        #expect(note.text == "⌘P is used by Print….", "no longer clears itself after three seconds")
+        note.clear()
+        #expect(note.text == nil)
+    }
+}
+
 @Suite struct KeyRecording {
-    /// While any recorder listens, the quick-look key is off; a second recorder taking over must not turn it back on.
+    /// While any recorder listens, the Peek panel key is off; a second recorder taking over must not turn it back on.
     @Test func oneRecorderListensAtATime() throws {
         let file = try TempFile.make(Data("{}".utf8), name: "config.json")
         let store = ConfigStore(url: file, plugins: plugins)
@@ -170,7 +236,7 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         let model = SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"))
         var changes: [Bool] = []
         model.onRecordingChange = { changes.append($0) }
-        model.recorder = "quickLook"
+        model.recorder = "peekPanel"
         model.recorder = "pdf.zoom-in"
         #expect(changes == [true])
         model.recorder = nil
@@ -190,6 +256,7 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
 
 @Suite struct MenuBarStates {
     @Test func theDotShowsForProblemsOrMissingAccessibility() {
+        #expect(MenuBarItem.accessibilityTitle == "The Peek panel needs Accessibility…")
         #expect(MenuBarItem.State(problems: 0, needsAccessibility: false) == .init(dot: false, problemsLine: nil, accessibilityLine: false))
         #expect(MenuBarItem.State(problems: 2, needsAccessibility: false) == .init(dot: true, problemsLine: "Config has 2 problems", accessibilityLine: false))
         #expect(MenuBarItem.State(problems: 0, needsAccessibility: true) == .init(dot: true, problemsLine: nil, accessibilityLine: true))

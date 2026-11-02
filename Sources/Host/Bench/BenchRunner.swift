@@ -5,10 +5,10 @@ final class BenchRunner {
     private let bench: Bench
     private let catalog: PluginCatalog
     private let config: Config
-    private let panel: QuickLookPanel
+    private let panel: PeekPanel
     private var controller: DocumentWindowController?
 
-    init(bench: Bench, catalog: PluginCatalog, config: Config, panel: QuickLookPanel) {
+    init(bench: Bench, catalog: PluginCatalog, config: Config, panel: PeekPanel) {
         self.bench = bench
         self.catalog = catalog
         self.config = config

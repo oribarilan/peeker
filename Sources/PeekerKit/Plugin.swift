@@ -8,6 +8,8 @@ public nonisolated let noExtension = "noExtension"
 public protocol Plugin {
     static var id: String { get }
     static var name: String { get }
+    /// The SF Symbol beside the plugin's pane in Settings. Default: a puzzle piece.
+    static var symbol: String { get }
     /// The extensions this plugin opens unless the user's config gives it another list: lowercase, without the dot,
     /// and `noExtension` for files that have none. No two plugins list the same one.
     static var defaultExtensions: [String] { get }
@@ -16,7 +18,7 @@ public protocol Plugin {
     static var commands: [CommandSpec] { get }
 
     /// Reads and decodes `url` off the main thread, then builds the document's views. Checks for cancellation
-    /// between steps: the host cancels when the tab closes or the quick-look panel moves on.
+    /// between steps: the host cancels when the tab closes or the Peek panel moves on.
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument
 
     /// Recovered edits as plain text, for the clipboard when they can't go back into a document; nil when they have
@@ -25,13 +27,14 @@ public protocol Plugin {
 }
 
 public extension Plugin {
+    static var symbol: String { "puzzlepiece.extension" }
     static func recoveryText(from edits: Data) -> String? { nil }
 }
 
 public struct OpenContext: Sendable {
     /// The largest image dimension worth decoding: the biggest connected screen, in pixels.
     public let maxPixels: Int
-    /// False in the quick-look panel, which only views.
+    /// False in the Peek panel, which only views.
     public let allowsEditing: Bool
 
     public init(maxPixels: Int, allowsEditing: Bool) {

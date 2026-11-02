@@ -9,6 +9,26 @@ enum SettingsPane: Hashable {
     static func all(plugins: [PluginEntry]) -> [SettingsPane] {
         [.general] + plugins.map { .plugin($0.id) } + [.permissions, .configFile]
     }
+
+    /// How the pane is kept in preferences: `general`, `plugin.pdf`, `permissions` or `configFile`.
+    var storageKey: String {
+        switch self {
+        case .general: "general"
+        case .plugin(let id): "plugin.\(id)"
+        case .permissions: "permissions"
+        case .configFile: "configFile"
+        }
+    }
+
+    init?(storageKey: String) {
+        switch storageKey {
+        case "general": self = .general
+        case "permissions": self = .permissions
+        case "configFile": self = .configFile
+        case let key where key.hasPrefix("plugin.") && key.count > "plugin.".count: self = .plugin(String(key.dropFirst("plugin.".count)))
+        default: return nil
+        }
+    }
 }
 
 /// What every pane works with: the config store, the Accessibility status, and the selected pane.
@@ -17,19 +37,27 @@ final class SettingsModel {
     let store: ConfigStore
     let accessibility: AccessibilityStatus
     @ObservationIgnored let updater: Updater
-    var selection: SettingsPane? = .general
-    /// The key recorder listening for keys, by an id such as `quickLook` or `pdf.zoom-in`. One at a time: starting
+    /// Where the last pane shown is kept, so Settings reopens on it; nil remembers nothing.
+    @ObservationIgnored private let defaults: UserDefaults?
+    private static let paneKey = "settingsPane"
+    var selection: SettingsPane? = .general {
+        didSet { if let selection { defaults?.set(selection.storageKey, forKey: Self.paneKey) } }
+    }
+    /// The key recorder listening for keys, by an id such as `peekPanel` or `pdf.zoom-in`. One at a time: starting
     /// another stops this one.
     var recorder: String? {
         didSet { if (recorder == nil) != (oldValue == nil) { onRecordingChange?(recorder != nil) } }
     }
-    /// Told when recording starts or stops, so the quick-look key doesn't fire meanwhile.
+    /// Told when recording starts or stops, so the Peek panel key doesn't fire meanwhile.
     @ObservationIgnored var onRecordingChange: ((Bool) -> Void)?
 
-    init(store: ConfigStore, accessibility: AccessibilityStatus, updater: Updater) {
+    init(store: ConfigStore, accessibility: AccessibilityStatus, updater: Updater, defaults: UserDefaults? = nil) {
         self.store = store
         self.accessibility = accessibility
         self.updater = updater
+        self.defaults = defaults
+        let stored = defaults?.string(forKey: Self.paneKey).flatMap(SettingsPane.init(storageKey:))
+        if let stored, SettingsPane.all(plugins: store.plugins).contains(stored) { selection = stored }
     }
 
     /// The "Check for updates automatically" checkbox: the config's `updates.check`.
@@ -71,6 +99,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.center()
         window.setFrameAutosaveName("SettingsWindow")
+        window.standardWindowButton(.zoomButton)?.isEnabled = false  // it resizes, but there's nothing to zoom to
         super.init(window: window)
         window.delegate = self
     }
@@ -91,7 +120,7 @@ struct SettingsView: View {
                 Label("General", systemImage: "gearshape").tag(SettingsPane.general)
                 Section("Plugins") {
                     ForEach(model.plugins, id: \.id) { plugin in
-                        Label(plugin.name, systemImage: "puzzlepiece.extension").tag(SettingsPane.plugin(plugin.id))
+                        Label(plugin.name, systemImage: plugin.symbol).tag(SettingsPane.plugin(plugin.id))
                     }
                 }
                 Section {

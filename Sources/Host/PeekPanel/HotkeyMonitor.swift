@@ -2,7 +2,7 @@ import AppKit
 @preconcurrency import ApplicationServices
 @preconcurrency import CoreGraphics
 
-/// Watches the keyboard system-wide (needs the Accessibility permission) for the quick-look key.
+/// Watches the keyboard system-wide (needs the Accessibility permission) for the Peek panel key.
 ///
 /// A bare key (e.g. Space) only fires while Finder is frontmost and no text field has focus, so typing anywhere
 /// else is untouched. A key with modifiers fires from any app. While the panel is up, Escape and the same key

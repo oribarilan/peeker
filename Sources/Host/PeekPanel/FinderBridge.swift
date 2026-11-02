@@ -4,7 +4,7 @@ import os
 /// Reads Finder's selection over Apple Events (needs the Automation permission for Finder).
 final class FinderBridge {
     private let script: NSAppleScript?
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "quicklook")
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "peekpanel")
 
     init() {
         let source = """

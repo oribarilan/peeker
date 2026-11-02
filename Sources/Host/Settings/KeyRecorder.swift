@@ -23,8 +23,26 @@ func menuShortcuts(in menu: NSMenu) -> [(title: String, shortcut: Shortcut)] {
     }
 }
 
+/// Why the last key was refused, shown under the recorder until the next recording and announced to VoiceOver.
+@Observable
+final class RefusalNote {
+    private(set) var text: String?
+    /// Speaks the reason; tests replace it.
+    @ObservationIgnored var announce: (String) -> Void = { reason in
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: reason, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+    }
+
+    func show(_ reason: String) {
+        text = reason
+        announce(reason)
+    }
+
+    func clear() { text = nil }
+}
+
 /// A button showing a shortcut; click it, then press keys to record a new one. Escape cancels. A key the rules or
-/// `conflict` refuse is shown as a short message under it and the shortcut stays.
+/// `conflict` refuse is shown as a short message under it, announced, and the shortcut stays.
 struct KeyRecorder: View {
     let shortcut: Shortcut?
     let rules: Shortcut.Rules
@@ -36,7 +54,7 @@ struct KeyRecorder: View {
 
     private var isRecording: Bool { listening == id }
     @State private var monitor: Any?
-    @State private var refusal: String?
+    @State private var refusal = RefusalNote()
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 2) {
@@ -47,7 +65,7 @@ struct KeyRecorder: View {
             .buttonStyle(.bordered)
             .tint(isRecording ? .accentColor : nil)
             .accessibilityLabel(isRecording ? "Recording a shortcut" : "Shortcut \(shortcut.map(\.displayText) ?? "none"), click to record")
-            if let refusal { Text(refusal).font(.caption).foregroundStyle(.red).multilineTextAlignment(.trailing) }
+            if let text = refusal.text { Text(text).font(.caption).foregroundStyle(.red).multilineTextAlignment(.trailing) }
         }
         .onChange(of: isRecording) { _, recording in recording ? listen() : unlisten() }
         .onDisappear {
@@ -58,7 +76,7 @@ struct KeyRecorder: View {
     }
 
     private func start() {
-        refusal = nil
+        refusal.clear()
         listening = id
     }
 
@@ -89,10 +107,6 @@ struct KeyRecorder: View {
 
     private func refuse(_ reason: String) {
         stop()
-        refusal = reason
-        Task {
-            try? await Task.sleep(for: .seconds(3))
-            if refusal == reason { refusal = nil }
-        }
+        refusal.show(reason)
     }
 }

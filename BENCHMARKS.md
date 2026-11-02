@@ -19,7 +19,7 @@ From the `open` command. Apple's app is timed until its window appears; its cont
 | HEIC, 12 MP | Preview | 431 ms | 385 ms | 1.1× faster |
 | PNG, 48 MP | Preview | 1102 ms | 675 ms | 1.6× faster |
 
-## Quick look panel (Space in Finder)
+## Peek panel (Space in Finder)
 
 The app is running. *Plugin running*: its process is already up. *Plugin started on demand*: the process was stopped first, as after a minute idle.
 

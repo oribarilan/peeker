@@ -5,7 +5,7 @@ import PeekerKit
 ///
 ///     {
 ///       "$schema": "schema.json",
-///       "quickLook": { "key": "space" },          // bare key: Finder only, not while typing; with modifiers: anywhere; "off"
+///       "peekPanel": { "key": "space" },          // bare key: Finder only, not while typing; with modifiers: anywhere; "off"
 ///       "updates": { "check": true },             // false: no daily update check
 ///       "plugins": {
 ///         "image": { "enabled": false },
@@ -21,7 +21,7 @@ struct Config: Equatable {
     var keys: [String: Shortcut] = [:]
     /// `keyID(plugin:command:)` of each command the config leaves without a shortcut (`"off"`).
     var noShortcut: Set<String> = []
-    var quickLookKey: Shortcut? = Shortcut(key: .space)
+    var peekPanelKey: Shortcut? = Shortcut(key: .space)
     /// Whether Peeker checks for updates once a day by itself.
     var checkForUpdates = true
 
@@ -152,7 +152,7 @@ private struct ConfigReader {
         for (key, value) in sorted(sections) {
             switch key {
             case "$schema": break
-            case "quickLook": if let settings = object(value, at: key) { readQuickLook(settings) }
+            case "peekPanel": if let settings = object(value, at: key) { readPeekPanel(settings) }
             case "plugins": if let entries = object(value, at: key) { readPlugins(entries) }
             case "updates": if let settings = object(value, at: key) { readUpdates(settings) }
             default: unknown(key)
@@ -160,13 +160,13 @@ private struct ConfigReader {
         }
     }
 
-    private mutating func readQuickLook(_ settings: [String: JSONValue]) {
+    private mutating func readPeekPanel(_ settings: [String: JSONValue]) {
         for (key, value) in sorted(settings) {
-            let path = "quickLook.\(key)"
+            let path = "peekPanel.\(key)"
             guard key == "key" else { unknown(path); continue }
             guard let text = string(value, at: path) else { continue }
-            if text == "off" { config.quickLookKey = nil }
-            else if let shortcut = Shortcut(parsing: text) { config.quickLookKey = shortcut }
+            if text == "off" { config.peekPanelKey = nil }
+            else if let shortcut = Shortcut(parsing: text) { config.peekPanelKey = shortcut }
             else { problem(path, "“\(text)” isn't a key Peeker understands. Use one like space or opt+space, or off.") }
         }
     }

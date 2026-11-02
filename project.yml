@@ -92,7 +92,7 @@ targets:
         SUScheduledCheckInterval: 86400
         SUEnableSystemProfiling: false
         SUAllowsAutomaticUpdates: false
-        NSAppleEventsUsageDescription: Peeker reads which files are selected in Finder so it can show them when you press the quick-look key.
+        NSAppleEventsUsageDescription: Peeker reads which files are selected in Finder so it can show them when you press the Peek panel key.
         CFBundleDocumentTypes:
           - CFBundleTypeName: Text
             CFBundleTypeRole: Editor

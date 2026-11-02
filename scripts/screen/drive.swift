@@ -18,6 +18,7 @@
 //                                                  or only inside the first element with that role, e.g. AXScrollArea
 //        drive fill <process> <label> <text>       focus the field with that placeholder or label and set its text
 //        drive enabled <process> <label>           print whether the control labeled <label> is enabled
+//        drive placeholders <process>              print the placeholder of each text field in the process's windows
 //        drive frame <process> <role> [label]      print the screen frame (x y width height) of the first such element
 //                                                  whose label contains <label> or whose value is <label>
 //        drive click <process> <x> <y> [count]     click at a screen point, only while <process> is in front
@@ -355,6 +356,13 @@ case "row":
 case "press":
     guard let control = control(arg(1), arg(2), within: args.count > 3 ? args[3] : nil) else { fail("no control “\(arg(2))”") }
     press(control)
+case "placeholders":
+    func fields(_ element: AXUIElement, depth: Int = 0) -> [AXUIElement] {
+        (role(element) == kAXTextFieldRole ? [element] : []) + (depth < 30 ? children(element).flatMap { fields($0, depth: depth + 1) } : [])
+    }
+    for field in axWindows(application(arg(1))).flatMap({ fields($0) }) {
+        if let text: String = attr(field, kAXPlaceholderValueAttribute), !text.isEmpty { print(text) }
+    }
 case "fill":
     let isField = { (element: AXUIElement) in role(element) == kAXTextFieldRole }
     guard let field = axWindows(application(arg(1))).lazy.compactMap({ window in

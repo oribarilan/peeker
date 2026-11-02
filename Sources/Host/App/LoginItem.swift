@@ -2,7 +2,7 @@ import AppKit
 import os
 import ServiceManagement
 
-/// Launches the app at login, so Space in Finder keeps working. Backed by `SMAppService.mainApp`.
+/// Launches the app at login, so the Peek panel keeps working. Backed by `SMAppService.mainApp`.
 enum LoginItem {
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "login")
 

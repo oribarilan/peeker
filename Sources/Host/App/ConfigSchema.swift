@@ -23,8 +23,8 @@ enum ConfigSchema {
         })
         var schema = object("Peeker settings. Every key is optional; a missing one keeps its default.", [
             "$schema": ["type": "string", "description": "Where this schema is, for editors."],
-            "quickLook": object("The quick look panel on Space in Finder.", [
-                "key": ["type": "string", "description": "The key that opens the panel. A bare key works only in Finder and not while typing; one with modifiers works anywhere; \"off\" turns the panel off. Default: space."],
+            "peekPanel": object("The Peek panel: a key in Finder shows the selected file in Peeker.", [
+                "key": ["type": "string", "description": "The key that opens the Peek panel. A bare key works only in Finder and not while typing; one with modifiers works anywhere; \"off\" turns the panel off. Default: space."],
             ]),
             "plugins": object("Per-plugin settings, by plugin id.", pluginProperties),
             "updates": object("Checking for new versions of Peeker.", [

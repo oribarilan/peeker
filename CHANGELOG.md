@@ -17,3 +17,8 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 - File has Open Recent, Open With and Revert to Saved…; the Peeker menu has Hide Others and Show All, Window has Zoom and Bring All to Front, and Help opens the project page.
 - Wrap Lines shows whether it's on, with a checkmark in View and a pressed toolbar button.
 - Sign no longer has a default shortcut, since Ctrl+Cmd+S now shows and hides the sidebar. A shortcut in the config that a menu item already uses is reported as a problem.
+- The panel that opens on Space in Finder is now called the Peek panel, and its config key is `peekPanel` (it was `quickLook`). A config that still says `quickLook` reports it as an unknown key until it's renamed.
+- Settings reopens on the pane you last had open, shows an icon for each plugin, and no longer has a zoom button.
+- Open at Login and the Default app list moved from Permissions to General.
+- The field for adding an extension shows "Add an extension".
+- When the shortcut recorder refuses a key, the reason stays on screen until you record again, and VoiceOver reads it.

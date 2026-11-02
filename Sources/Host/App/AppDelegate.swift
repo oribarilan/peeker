@@ -15,8 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private lazy var catalog = PluginCatalog(entries: entries, config: config)
     private var windows: [DocumentWindowController] = []
-    private lazy var panel: QuickLookPanel = {
-        let panel = QuickLookPanel()
+    private lazy var panel: PeekPanel = {
+        let panel = PeekPanel()
         panel.onOpenInWindow = { [weak self] url in self?.openInWindow(url) }
         return panel
     }()
@@ -154,16 +154,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return .terminateLater
     }
 
-    // MARK: Quick look
+    // MARK: Peek panel
 
     private func startHotkey() {
-        hotkeyShortcut = config.quickLookKey
-        accessibility.watch(config.quickLookKey != nil)
+        hotkeyShortcut = config.peekPanelKey
+        accessibility.watch(config.peekPanelKey != nil)
         updateMenuBar()
-        guard let shortcut = config.quickLookKey else { return }
+        guard let shortcut = config.peekPanelKey else { return }
         let monitor = HotkeyMonitor(shortcut: shortcut)
         monitor.isPanelVisible = { [weak self] in self?.panel.isVisible == true }
-        monitor.onTrigger = { [weak self] in self?.quickLookFinderSelection() }
+        monitor.onTrigger = { [weak self] in self?.peekFinderSelection() }
         monitor.onDismiss = { [weak self] in self?.panel.dismiss() }
         monitor.onSelectionMayHaveChanged = { [weak self] in self?.followFinderSelection() }
         hotkey = monitor
@@ -184,7 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         menuBarItem?.show(MenuBarItem.State(problems: configStore.problems.count, needsAccessibility: accessibility.isMissing))
     }
 
-    /// Applies a saved config everywhere: routing for files opened next, the quick-look key, and command shortcuts in
+    /// Applies a saved config everywhere: routing for files opened next, the Peek panel key, and command shortcuts in
     /// open windows.
     private func configChanged(_ store: ConfigStore) {
         Self.logProblems(store.problems)
@@ -192,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         catalog.reload(config: store.config)
         updater.apply(store.config)
         windows.forEach { $0.apply(store.config) }
-        guard store.config.quickLookKey != hotkeyShortcut else { return }
+        guard store.config.peekPanelKey != hotkeyShortcut else { return }
         hotkey?.stop()
         hotkey = nil
         startHotkey()
@@ -222,8 +222,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func makeSettings() -> SettingsWindowController {
-        let model = SettingsModel(store: configStore, accessibility: accessibility, updater: updater)
-        // While a recorder listens, the current quick-look key must reach it rather than open the panel.
+        let model = SettingsModel(store: configStore, accessibility: accessibility, updater: updater, defaults: .standard)
+        // While a recorder listens, the current Peek panel key must reach it rather than open the panel.
         model.onRecordingChange = { [weak self] recording in
             if recording { self?.hotkey?.stop() } else { self?.hotkey?.start() }
         }
@@ -237,7 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     @objc func toggleOpenAtLogin(_ sender: Any?) { LoginItem.toggleReportingErrors() }
 
-    private func quickLookFinderSelection() {
+    private func peekFinderSelection() {
         guard let url = finder.selection().first, let entry = catalog.owner(for: url) else {
             hotkey?.passKeyToFinder()
             return

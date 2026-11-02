@@ -13,11 +13,11 @@ struct Shortcut: Equatable {
     /// Edit Mode's key, which no command may take.
     static let editMode = Shortcut(key: .character("e"), modifiers: .command)
 
-    /// Which shortcuts a place takes: the quick-look key, a command, or an edit tool. The config and the Settings
+    /// Which shortcuts a place takes: the Peek panel key, a command, or an edit tool. The config and the Settings
     /// recorders both check them.
     enum Rules {
-        /// The quick-look key: Space alone, or a key with Command, Option or Control.
-        case quickLook
+        /// The Peek panel key: Space alone, or a key with Command, Option or Control.
+        case peekPanel
         /// A plugin command: always with Command, Option or Control.
         case command
         /// An edit tool: like a command, or a single letter or digit, which works only in Edit mode.
@@ -28,7 +28,7 @@ struct Shortcut: Equatable {
         func refusal(for shortcut: Shortcut) -> String? {
             let hasModifier = !shortcut.modifiers.intersection([.command, .option, .control]).isEmpty
             switch self {
-            case .quickLook:
+            case .peekPanel:
                 if shortcut == Shortcut(key: .space) || hasModifier { return nil }
                 return "Use Space alone, or add Command, Option or Control."
             case .command:

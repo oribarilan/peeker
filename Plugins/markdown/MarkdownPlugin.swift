@@ -5,6 +5,7 @@ import PeekerKit
 public enum MarkdownPlugin: Plugin {
     public static let id = "markdown"
     public static let name = "Markdown"
+    public static let symbol = "number"
     public static let defaultExtensions = ["md", "markdown", "mdown"]
     public static let commands: [CommandSpec] = []
 

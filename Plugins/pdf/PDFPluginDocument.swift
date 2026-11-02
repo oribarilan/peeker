@@ -50,7 +50,7 @@ final class PDFPluginDocument: PluginDocument {
     private weak var thumbnails: PageThumbnails?
     private static let pageCommands: Set = ["rotate-left", "rotate-right", "delete-page"]
 
-    /// The pages, with the find bar above them from the first Cmd+F. No find in the Space panel.
+    /// The pages, with the find bar above them from the first Cmd+F. No find in the Peek panel.
     private lazy var container = PDFFindContainer(pdfView: pdfView, allowsFind: editable)
     var contentView: NSView { container }
     var focusView: NSView? { pdfView }
@@ -76,7 +76,7 @@ final class PDFPluginDocument: PluginDocument {
         return { [document] info in document.printOperation(for: info, scalingMode: .pageScaleToFit, autoRotate: true) }
     }
 
-    /// A view-only document (the Space panel) leaves out the edit tools.
+    /// A view-only document (the Peek panel) leaves out the edit tools.
     var commands: [CommandSpec] {
         editable ? PDFPlugin.commands : PDFPlugin.commands.filter { !$0.isEditTool }
     }

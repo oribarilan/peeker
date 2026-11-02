@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The quick-look key (on or off, and which key) and update checks.
+/// The Peek panel key (on or off, and which key), Open at Login, the default app per plugin, and update checks.
 struct GeneralPane: View {
     @Bindable var model: SettingsModel
 
@@ -10,19 +10,21 @@ struct GeneralPane: View {
         Form {
             ConfigLockedSection(store: store)
             Section {
-                Toggle("Quick look panel", isOn: Binding(
-                    get: { store.config.quickLookKey != nil },
-                    set: { on in model.save { $0.quickLookKey = on ? Shortcut(key: .space) : nil } }))
+                Toggle("Peek panel", isOn: Binding(
+                    get: { store.config.peekPanelKey != nil },
+                    set: { on in model.save { $0.peekPanelKey = on ? Shortcut(key: .space) : nil } }))
                 LabeledContent("Key") {
-                    KeyRecorder(shortcut: store.config.quickLookKey, rules: .quickLook, listening: $model.recorder, id: "quickLook",
-                                onRecord: { key in model.save { $0.quickLookKey = key } })
+                    KeyRecorder(shortcut: store.config.peekPanelKey, rules: .peekPanel, listening: $model.recorder, id: "peekPanel",
+                                onRecord: { key in model.save { $0.peekPanelKey = key } })
                 }
-                .disabled(store.config.quickLookKey == nil)
+                .disabled(store.config.peekPanelKey == nil)
             } footer: {
-                Text("Space opens the panel only in Finder, and not while you type there. A key with Command, Option or Control opens it from any app. Off leaves Space to Finder's Quick Look.")
+                Text("Space opens the Peek panel only in Finder, and not while you type there. A key with Command, Option or Control opens it from any app. Off leaves Space to Finder's Quick Look.")
                     .foregroundStyle(.secondary)
             }
             .disabled(!store.isUsable)
+            LoginSection()
+            DefaultAppSection(model: model)
             Section {
                 Toggle("Check for updates automatically", isOn: $model.checkForUpdates)
                     .disabled(!store.isUsable)

@@ -9,7 +9,7 @@ context: |
   Direction (decided 2026-10-30; the plugin structure is built):
   - A plugin is an in-app code module for its file types that users can turn on or off. It owns a fast view
     mode and a full editor (Edit mode in the same tab), plus reading and writing its files. The host owns
-    windows, tabs, routing, toggles, the Space panel, menus, and the plumbing for save prompts and crash
+    windows, tabs, routing, toggles, the Peek panel, menus, and the plumbing for save prompts and crash
     recovery. Plugins never share with each other; shared UI pieces come in by composition. Each plugin owns
     its own viewer, and a small host contract keeps common behavior consistent (zoom, find, scroll position,
     info sidebar, first-paint timing).
@@ -24,7 +24,7 @@ context: |
   1. Settings window (openspec/changes/settings-window), modeled on Tinycast's (decided 2026-10-30). The config file stays the only store. Only a
      change made in the window rewrites it: every setting, defaults included, with sorted keys; while the
      file isn't valid JSON the controls lock, and bad keys are dropped on rewrite. Panes: General (the
-     quick-look key, as a recorder that accepts bare Space, or Off); one pane per plugin (on/off, its
+     Peek panel key, as a recorder that accepts bare Space, or Off); one pane per plugin (on/off, its
      extensions as removable tokens with a free-text Add and Reset, where adding an extension another plugin
      has offers to move it; shortcut recorders that refuse keys taken in the same plugin or by a menu, with
      reset); Permissions (Accessibility and Finder with live status and Grant Access / Open; Open at Login,

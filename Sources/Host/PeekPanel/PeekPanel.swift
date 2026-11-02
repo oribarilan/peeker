@@ -1,8 +1,8 @@
 import AppKit
 
-/// Quick Look-style floating panel. It never activates the app, so Finder stays frontmost and keeps
+/// The Peek panel: a floating panel like Finder's Quick Look. It never activates the app, so Finder stays frontmost and keeps
 /// handling arrow keys; the hotkey monitor closes it on the same key or Escape.
-final class QuickLookPanel: NSPanel {
+final class PeekPanel: NSPanel {
     private(set) var document: DocumentViewController?
     var onOpenInWindow: ((URL) -> Void)?
 

@@ -11,7 +11,7 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
     let finder: PDFFinder
     private(set) var bar: PDFFindBar?
     private let pdfView: PDFView
-    /// False in the Space panel, which has no find.
+    /// False in the Peek panel, which has no find.
     private let allowsFind: Bool
     private var pagesAtTop: NSLayoutConstraint!
     private var pagesBelowBar: NSLayoutConstraint?

@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import PeekerImage
 import PeekerKit
 import PeekerMarkdown
@@ -33,6 +33,25 @@ import Testing
         #expect(PDFPlugin.commands.map(\.id) == ["zoom-in", "zoom-out", "text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
         #expect(TextPlugin.commands.map(\.id) == ["zoom-in", "zoom-out", "toggle-wrap"])
         #expect(MarkdownPlugin.commands.isEmpty)
+    }
+
+    @Test func eachPluginNamesItsSettingsIcon() {
+        #expect([ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TextPlugin.symbol] == ["photo", "doc.richtext", "number", "doc.plaintext"])
+        #expect(PluginEntry(PDFPlugin.self).symbol == "doc.richtext")
+        for symbol in [ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TextPlugin.symbol] {
+            #expect(NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil, "\(symbol) is an SF Symbol")
+        }
+    }
+
+    @Test func aPluginNamingNoIconGetsTheDefault() {
+        enum Plain: Plugin {
+            static let id = "plain"
+            static let name = "Plain"
+            static let defaultExtensions: [String] = []
+            static let commands: [CommandSpec] = []
+            static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { throw PluginError("not used") }
+        }
+        #expect(Plain.symbol == "puzzlepiece.extension" && PluginEntry(Plain.self).symbol == "puzzlepiece.extension")
     }
 
     @Test func signLeavesControlCommandSToTheSidebar() {

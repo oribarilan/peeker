@@ -17,7 +17,7 @@ enum PermissionState: Equatable {
     }
 }
 
-/// Reads the permissions Space in Finder needs, and opens where they're granted.
+/// Reads the permissions the Peek panel needs, and opens where they're granted.
 enum PermissionChecks {
     /// Whether Peeker may send Finder Apple Events. With `asking`, macOS shows its request when it hasn't asked yet.
     /// Can block, so call it off the main thread.

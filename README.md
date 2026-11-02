@@ -1,6 +1,6 @@
 # Peeker
 
-An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and a quick-look panel on Space. Every format is a plugin, a Swift module built into the app that owns its views and its file reading and writing. Plugins come from contributions to this repo; users turn them on and off and choose which file extensions each one opens.
+An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and the Peek panel on Space. Every format is a plugin, a Swift module built into the app that owns its views and its file reading and writing. Plugins come from contributions to this repo; users turn them on and off and choose which file extensions each one opens.
 
 The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Raw research is in [research/](research).
 
@@ -14,7 +14,7 @@ The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Ra
 | PNG, 48 MP | Preview 1102 ms | 675 ms | **1.6× faster** |
 | Markdown, 1 KB | TextEdit 286 ms | 285 ms | about the same |
 
-Space in Finder shows a PDF in 14 ms and a 12 MP photo in 125 ms.
+The Peek panel shows a PDF in 14 ms and a 12 MP photo in 125 ms.
 
 Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Peeker until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
 <!-- bench:end -->
@@ -42,8 +42,8 @@ open build/dd/Build/Products/Release/Peeker.app
 
 1. Build, then copy the app: `cp -R build/dd/Build/Products/Release/Peeker.app /Applications/`.
 2. In Finder, select a `.txt` file, press Cmd+I, pick Peeker under Open With and click Change All. Repeat for `.pdf` and the image types you want. Peeker stays an alternate handler, so nothing changes until you do this.
-3. Launch it from /Applications. macOS asks for Accessibility (to see the quick-look key) and, on first use of Space, for permission to control Finder (to read the selection). `scripts/build.sh` signs with your Apple Development certificate when you have one, so those grants survive rebuilds.
-4. Turn on Open at Login in Settings > Permissions (or from Peeker's menu bar icon). Space in Finder only works while the app is running; the same pane shows whether Peeker has the permissions it needs.
+3. Launch it from /Applications. macOS asks for Accessibility (to see the Peek panel key) and, on first use of Space, for permission to control Finder (to read the selection). `scripts/build.sh` signs with your Apple Development certificate when you have one, so those grants survive rebuilds.
+4. Turn on Open at Login in Settings > General (or from Peeker's menu bar icon). The Peek panel only works while the app is running; Settings > Permissions shows whether Peeker has the permissions it needs.
 
 Space on a supported file in Finder opens a panel. Open there moves it into a window, where text files are editable and Cmd+S saves.
 
@@ -54,7 +54,7 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change th
 ```json
 {
   "$schema": "schema.json",
-  "quickLook": { "key": "space" },
+  "peekPanel": { "key": "space" },
   "updates": { "check": true },
   "plugins": {
     "image": { "enabled": false },
@@ -65,7 +65,7 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change th
 }
 ```
 
-- `quickLook.key`: a bare key works only in Finder and not while typing; one with modifiers works anywhere; `"off"` turns the panel off.
+- `peekPanel.key`: the key that opens the Peek panel. A bare key works only in Finder and not while typing; one with modifiers works anywhere; `"off"` turns the Peek panel off.
 - `updates.check`: `false` stops the daily check for a new version; Check for Updates… still checks when you ask.
 - `plugins.<id>.enabled`: `false` turns a plugin off. Its files then open nowhere; no other plugin takes them.
 - `plugins.<id>.extensions`: every extension the plugin opens, without the dot, replacing its default list (`schema.json` lists each default). `noExtension` matches files with none, such as `.zshrc` and `Makefile`, and is on Plain Text's list. An extension belongs to one plugin: listed twice, it stays with the plugin that has it by default (above, `md` moves to Plain Text because Markdown's list drops it). Open With in a window can still pick any enabled plugin for one tab.

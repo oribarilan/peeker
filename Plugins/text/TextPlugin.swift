@@ -4,6 +4,7 @@ import PeekerKit
 public enum TextPlugin: Plugin {
     public static let id = "text"
     public static let name = "Plain Text"
+    public static let symbol = "doc.plaintext"
     /// Text, data and config formats, common source code, and files with no extension (dotfiles, `Makefile`).
     public static let defaultExtensions = [
         "txt", "text", "log", "csv", "tsv", "json", "jsonc", "xml", "yaml", "yml", "toml",

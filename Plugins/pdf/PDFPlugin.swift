@@ -6,6 +6,7 @@ import PeekerKit
 public enum PDFPlugin: Plugin {
     public static let id = "pdf"
     public static let name = "PDF"
+    public static let symbol = "doc.richtext"
     public static let defaultExtensions = ["pdf"]
     public static let commands = [
         CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+="),

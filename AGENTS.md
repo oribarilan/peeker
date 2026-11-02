@@ -26,16 +26,16 @@ Generated files stay out of git: `build/`, `Peeker.xcodeproj/` (XcodeGen output)
 ## Architecture rules
 
 - **Plugins are modules.** Each plugin is a Swift module in `Plugins/<id>/`, built into the app. It owns its views and reads and writes its own files. It may import only `PeekerKit`, Apple frameworks and its declared packages, and `scripts/build.sh test` checks that. Code two plugins need goes into `PeekerKit`, never from one plugin into another.
-- **The host knows no formats.** Windows, tabs, routing, on/off toggles, the Space panel, menus, save prompts and crash recovery live in the host. Anything specific to a format lives in its plugin. The contract is `Sources/PeekerKit/Plugin.swift`.
+- **The host knows no formats.** Windows, tabs, routing, on/off toggles, the Peek panel, menus, save prompts and crash recovery live in the host. Anything specific to a format lives in its plugin. The contract is `Sources/PeekerKit/Plugin.swift`.
 - **Slow work stays off the main thread.** Plugins read, decode and save off the main thread, and the host cancels an open when its tab closes. A crash in plugin code quits the app, so unsaved edits must always be in the recovery copy.
 - **The plugin that owns a format writes it.** Saving hands the plugin its own unsaved edits, and it writes the file through `FileReplacement`, keeping the encoding, line endings and permissions.
-- **Speed is a feature.** Opening must beat Preview and TextEdit head to head. The Space panel must be at least as fast as Finder's Quick Look on every file, so measure before adding work to the open path.
+- **Speed is a feature.** Opening must beat Preview and TextEdit head to head. The Peek panel must be at least as fast as Finder's Quick Look on every file, so measure before adding work to the open path.
 
 ## Code layout
 
 ```
 Sources/Host/        the app: App/, Plugins/ (catalog and routing), Documents/ (save, recovery, file watching),
-                     Components/ (sidebar and containers), QuickLook/ (Space panel), Bench/
+                     Components/ (sidebar and containers), PeekPanel/ (the Peek panel), Bench/
 Sources/PeekerKit/   what plugins may use: the plugin contract, safe file writes, the info sidebar panel
 Plugins/<id>/        one plugin each: <Id>Plugin.swift (entry point and default extensions) and its document views
 Tests/               Swift Testing suites

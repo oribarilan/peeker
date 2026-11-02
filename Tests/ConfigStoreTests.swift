@@ -97,7 +97,7 @@ import Testing
         let (store, file) = try store(#"{"plugins": {"text": {"enabeld": false}}}"#)
         defer { store.stop() }
         #expect(store.problems.count == 1)
-        try store.save { $0.quickLookKey = nil }
+        try store.save { $0.peekPanelKey = nil }
         let plugin = try #require((try contents(file)["plugins"] as? [String: [String: Any]])?["text"])
         #expect(plugin["enabeld"] == nil)
         #expect(store.problems.isEmpty)

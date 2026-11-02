@@ -3,11 +3,11 @@ import PDFKit
 import PeekerKit
 
 /// A password-protected PDF before it's unlocked: a lock, the file's name and a password field. The right password
-/// hands the host a view-only `PDFPluginDocument`; nothing keeps the password. The Space panel only says what it is.
+/// hands the host a view-only `PDFPluginDocument`; nothing keeps the password. The Peek panel only says what it is.
 final class LockedPDFDocument: PluginDocument {
     static let viewOnlyReason = "This PDF is password protected, so Peeker opens it view-only."
     private let url: URL
-    /// False in the Space panel, which can't take typing.
+    /// False in the Peek panel, which can't take typing.
     let canUnlock: Bool
     var onReplace: ((any PluginDocument) -> Void)?
     private let root = NSView()

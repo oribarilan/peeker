@@ -2,12 +2,12 @@ import ApplicationServices
 import Foundation
 import Observation
 
-/// Whether Peeker has Accessibility, which the quick-look key needs. While the key is on it's re-checked every
+/// Whether Peeker has Accessibility, which the Peek panel key needs. While the key is on it's re-checked every
 /// 2 seconds, so a grant (or a revoke) shows within moments: the red dots, and the key starting to work.
 @Observable
 final class AccessibilityStatus {
     private(set) var isTrusted = AXIsProcessTrusted()
-    /// True while the quick-look key is on, the only time Peeker needs the permission.
+    /// True while the Peek panel key is on, the only time Peeker needs the permission.
     private(set) var isNeeded = false
     /// Called when `isTrusted` changes.
     @ObservationIgnored var onChange: (() -> Void)?

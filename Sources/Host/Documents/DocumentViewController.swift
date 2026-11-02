@@ -10,7 +10,7 @@ enum RecoveryResult: Equatable {
     case rejected(RecoveryRecord)
 }
 
-/// One open file, shown by one plugin. Used by both document windows and the quick-look panel.
+/// One open file, shown by one plugin. Used by both document windows and the Peek panel.
 final class DocumentViewController: NSSplitViewController {
     let url: URL
     let entry: PluginEntry
@@ -18,11 +18,11 @@ final class DocumentViewController: NSSplitViewController {
     private let content = HolderViewController()
     private var sidebarItem: NSSplitViewItem?
     private var sidebarHolder: HolderViewController?
-    /// Document windows share whether the sidebar shows and its width; the quick-look panel and the benchmark don't.
+    /// Document windows share whether the sidebar shows and its width; the Peek panel and the benchmark don't.
     private let sidebarMemory: SidebarMemory?
     /// A document just opened: its sidebar is built after the content is on screen, so it doesn't delay it.
     private var sidebarPending = false
-    /// Document windows edit; the quick-look panel and the benchmark only view.
+    /// Document windows edit; the Peek panel and the benchmark only view.
     private let allowsEditing: Bool
     /// The open in progress, cancelled when the document closes.
     private var openTask: Task<Void, Never>?
@@ -115,7 +115,7 @@ final class DocumentViewController: NSSplitViewController {
         let context = OpenContext(maxPixels: Self.maxPixels, allowsEditing: allowsEditing)
         // Read before the plugin reads the file, so a write in between shows as a change and reloads.
         let modified = Self.modificationDate(of: url)
-        // A window with nothing to show yet gets a spinner once the open is slow; the Space panel never does.
+        // A window with nothing to show yet gets a spinner once the open is slow; the Peek panel never does.
         let spinner = allowsEditing && pluginDocument == nil ? Task { [weak self] in
             try? await Task.sleep(for: Self.spinnerDelay)
             guard let self, !Task.isCancelled, !isClosed, pluginDocument == nil else { return }
