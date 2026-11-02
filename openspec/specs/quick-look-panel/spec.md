@@ -63,12 +63,17 @@ For every benchmark file, Space with Peeker running SHALL show the panel no slow
 
 ### Requirement: The app asks for the permissions the panel needs
 
-The panel needs Accessibility (to see the key system-wide) and Automation for Finder (to read the selection). Without Accessibility, the app SHALL ask once, then start watching the key as soon as it's granted, without a relaunch.
+The panel needs Accessibility (to see the key system-wide) and Automation for Finder (to read the selection). Without Accessibility, the app SHALL ask once, then start watching the key as soon as it's granted, without a relaunch. The Permissions pane in Settings SHALL show both permissions' status and lead to where each is granted.
 
 #### Scenario: Granting Accessibility later
 
 - **WHEN** the user grants Accessibility after launching the app
 - **THEN** Space in Finder starts working within a few seconds, without restarting Peeker
+
+#### Scenario: Finding out why Space does nothing
+
+- **WHEN** Space in Finder does nothing and the user opens the Permissions pane
+- **THEN** the pane shows which permission is missing, with Grant Access next to it
 
 ### Requirement: The app can open at login
 
