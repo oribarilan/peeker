@@ -58,12 +58,17 @@ Opening a PDF with the app not running SHALL draw its content no later than Prev
 
 ### Requirement: PDFs have an edit mode with Text Box, Sign and Highlight
 
-A PDF opened in a window SHALL have an edit mode. Its tools SHALL be Text Box, Sign and Highlight Selection, each with a shortcut that can be rebound like other plugin commands. Zoom In and Zoom Out SHALL work in both modes. The Space panel SHALL never offer Edit mode.
+A PDF opened in a window SHALL have an edit mode. Its tools SHALL be Text Box (Ctrl+Cmd+T), Sign and Highlight Selection (Ctrl+Cmd+H); Sign SHALL have no shortcut by default, leaving Ctrl+Cmd+S to Show/Hide Sidebar. Each tool's shortcut can be set or rebound like other plugin commands. Zoom In and Zoom Out SHALL work in both modes. The Space panel SHALL never offer Edit mode.
 
 #### Scenario: The tools
 
 - **WHEN** the user turns on Edit mode for a PDF
 - **THEN** the toolbar offers Text Box, Sign and Highlight Selection
+
+#### Scenario: Ctrl+Cmd+S in a PDF
+
+- **WHEN** a PDF is in front and the config sets no shortcut for Sign
+- **THEN** Ctrl+Cmd+S shows or hides the sidebar, and Tools > Sign shows no shortcut
 
 ### Requirement: Form fields can be filled only in Edit mode
 
@@ -195,7 +200,7 @@ A highlight, text box or signature Peeker saves SHALL have no author name, so th
 
 ### Requirement: Reordering pages by dragging needs macOS 27
 
-On macOS 26, thumbnails SHALL NOT be draggable, in Edit mode or out of it; Rotate Left, Rotate Right and Delete Page SHALL keep working from the toolbar, the Commands menu and the thumbnails' menu. On macOS 27 and later, dragging SHALL reorder pages as before.
+On macOS 26, thumbnails SHALL NOT be draggable, in Edit mode or out of it; Rotate Left, Rotate Right and Delete Page SHALL keep working from the toolbar, the Tools menu and the thumbnails' menu. On macOS 27 and later, dragging SHALL reorder pages as before.
 
 #### Scenario: Dragging on macOS 26
 
@@ -209,7 +214,7 @@ On macOS 26, thumbnails SHALL NOT be draggable, in Edit mode or out of it; Rotat
 
 ### Requirement: Page commands
 
-In a document window, the PDF plugin SHALL offer Rotate Left (Cmd+L), Rotate Right (Cmd+R) and Delete Page, in the Commands menu and a right-click menu on the thumbnails, with Rotate and Delete buttons in the toolbar in Edit mode. Run from the read view, they SHALL turn Edit mode on first. Each SHALL act on the selected thumbnails (Shift- and Cmd-click select several), or on the current page when none is selected. The Space panel SHALL have no page commands.
+In a document window, the PDF plugin SHALL offer Rotate Left (Cmd+L), Rotate Right (Cmd+R) and Delete Page, in the Tools menu and a right-click menu on the thumbnails, with Rotate and Delete buttons in the toolbar in Edit mode. Run from the read view, they SHALL turn Edit mode on first. Each SHALL act on the selected thumbnails (Shift- and Cmd-click select several), or on the current page when none is selected. The Space panel SHALL have no page commands.
 
 #### Scenario: Rotating selected pages
 - **WHEN** pages 2 and 3 are selected in the sidebar and the user presses Cmd+R in Edit mode
@@ -376,7 +381,7 @@ Highlight (Ctrl+Cmd+H) SHALL be an Edit mode tool that, from the read view, turn
 
 ### Requirement: A waiting tool shows itself
 
-While Text Box, Sign or Highlight waits for its click or drag, its toolbar button SHALL show as selected and its Commands menu item SHALL be checked, and the pointer over a page SHALL show the tool: a crosshair for Text Box, a highlighter for Highlight, and the signature following it for Sign. Once the tool is used or dismissed, both SHALL go back.
+While Text Box, Sign or Highlight waits for its click or drag, its toolbar button SHALL show as selected and its Tools menu item SHALL be checked, and the pointer over a page SHALL show the tool: a crosshair for Text Box, a highlighter for Highlight, and the signature following it for Sign. Once the tool is used or dismissed, both SHALL go back.
 
 #### Scenario: Arming the highlighter
 
