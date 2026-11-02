@@ -194,3 +194,12 @@ When the app reopens a document with recovered unsaved edits and the document ha
 
 - **WHEN** the app quits unexpectedly with an unsaved signature in a PDF and is launched again
 - **THEN** the PDF reopens in Edit mode with the signature, marked edited
+
+### Requirement: Document windows have a minimum size
+
+A document window SHALL NOT shrink below about 480 by 320 points.
+
+#### Scenario: Shrinking a window
+
+- **WHEN** the user drags a document window's corner inward as far as it goes
+- **THEN** the window stops at its minimum size, with the toolbar and content still shown
