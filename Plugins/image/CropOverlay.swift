@@ -1,13 +1,18 @@
 import AppKit
 
 /// Choosing a crop: drag a rectangle over the image, then move it or pull its corners and edges. The outside is
-/// dimmed and the size shows in the full image's pixels. Return crops, Escape cancels.
+/// dimmed and the size shows in the full image's pixels. Crop and Cancel buttons follow the rectangle; Return crops,
+/// Escape cancels.
 final class CropOverlay: NSView {
     /// The rectangle as fractions of the image, from the top left; nil until one is dragged.
     private(set) var selection: CGRect?
     private let pixelSize: CGSize
     private let onFinish: (CGRect?) -> Void
     private weak var canvas: ImageCanvas?
+    private weak var scrollView: NSScrollView?
+    /// Added to the scroll view, hidden until there's a rectangle.
+    let controls = CropControls()
+    private var scrollObserver: NSObjectProtocol?
     private var drag: Drag?
     private static let handle: CGFloat = 8
 
@@ -19,14 +24,38 @@ final class CropOverlay: NSView {
         case move(from: CGPoint, CGRect)
     }
 
-    init(canvas: ImageCanvas, pixelSize: CGSize, onFinish: @escaping (CGRect?) -> Void) {
+    init(canvas: ImageCanvas, in scrollView: NSScrollView, pixelSize: CGSize, onFinish: @escaping (CGRect?) -> Void) {
         self.canvas = canvas
+        self.scrollView = scrollView
         self.pixelSize = pixelSize
         self.onFinish = onFinish
         super.init(frame: canvas.bounds)
         autoresizingMask = [.width, .height]
         setAccessibilityRole(.group)
         setAccessibilityLabel("Crop")
+        controls.onCrop = { [weak self] in self?.finish(self?.selection) }
+        controls.onCancel = { [weak self] in self?.finish(nil) }
+        scrollView.addSubview(controls)
+        // Scrolling and zooming move the rectangle on screen; the buttons follow.
+        scrollObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: scrollView.contentView,
+                                                                queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.placeControls() }
+        }
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        placeControls()
+    }
+
+    /// Shows the buttons beside the rectangle, or hides them while there's none.
+    private func placeControls() {
+        guard let scrollView else { return }
+        guard let rect = shownRect else { return controls.isHidden = true }
+        let visible = scrollView.contentView.frame.intersection(scrollView.safeAreaRect)
+        controls.frame = CropControls.frame(size: controls.frame.size, selection: convert(rect, to: scrollView), visible: visible,
+                                          flipped: scrollView.isFlipped)
+        controls.isHidden = false
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -82,6 +111,7 @@ final class CropOverlay: NSView {
             rect = start.offsetBy(dx: dx, dy: dy)
         }
         selection = rect.width >= 1 && rect.height >= 1 ? Self.fractions(of: rect, in: imageRect) : nil
+        placeControls()
         needsDisplay = true
     }
 
@@ -101,6 +131,9 @@ final class CropOverlay: NSView {
 
     /// Ends cropping: crops to `rect`, or cancels when nil.
     func finish(_ rect: CGRect?) {
+        scrollObserver.map(NotificationCenter.default.removeObserver)
+        scrollObserver = nil
+        controls.removeFromSuperview()
         removeFromSuperview()
         onFinish(rect.flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil })
     }

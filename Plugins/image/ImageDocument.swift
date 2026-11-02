@@ -128,7 +128,7 @@ final class ImageDocument: PluginDocument {
     private func startCrop() {
         transformPanel?.popover.close()
         cropOverlay?.finish(nil)
-        let overlay = CropOverlay(canvas: canvas, pixelSize: pixelSize) { [weak self] rect in
+        let overlay = CropOverlay(canvas: canvas, in: scrollView, pixelSize: pixelSize) { [weak self] rect in
             guard let self else { return }
             cropOverlay = nil
             if let rect { apply(.crop(rect)) }

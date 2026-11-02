@@ -11,7 +11,8 @@
 //        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close", and wait for the menu to close
 //        drive menuextra <process> [item]          open the process's menu bar icon menu and print it, or press <item>
 //        drive row <process> <title>               select the sidebar row titled <title> in any window
-//        drive press <process> <label>             press the control (button, switch) labeled <label> in any window
+//        drive press <process> <label> [role]      press the control (button, switch) labeled <label> in any window,
+//                                                  or only inside the first element with that role, e.g. AXScrollArea
 //        drive fill <process> <label> <text>       focus the field with that placeholder or label and set its text
 //        drive enabled <process> <label>           print whether the control labeled <label> is enabled
 //        drive frame <process> <role> [label]      print the screen frame (x y width height) of the first such element
@@ -257,11 +258,12 @@ func pick(in owner: AXUIElement, item: String?) {
 }
 
 /// The first button, switch, checkbox or menu button labeled `title` in any of the process's windows.
-func control(_ process: String, _ title: String) -> AXUIElement? {
+func control(_ process: String, _ title: String, within container: String? = nil) -> AXUIElement? {
     let roles: Set<String> = [kAXButtonRole, kAXCheckBoxRole, "AXSwitch", kAXMenuButtonRole, kAXRadioButtonRole]
     let isControl = { (element: AXUIElement) in roles.contains(role(element)) }
     return axWindows(application(process)).lazy.compactMap { window in
-        find(window, where: { isControl($0) && label($0) == title }) ?? controlAfterText(title, in: window, isControl: isControl)
+        guard let root = container.map({ wanted in find(window, where: { role($0) == wanted }) }) ?? window else { return nil }
+        return find(root, where: { isControl($0) && label($0) == title }) ?? controlAfterText(title, in: root, isControl: isControl)
     }.first
 }
 
@@ -326,7 +328,7 @@ case "row":
     let result = AXUIElementSetAttributeValue(row, kAXSelectedAttribute as CFString, kCFBooleanTrue)
     if result != .success { fail("can't select “\(arg(2))”: \(result.rawValue)") }
 case "press":
-    guard let control = control(arg(1), arg(2)) else { fail("no control “\(arg(2))”") }
+    guard let control = control(arg(1), arg(2), within: args.count > 3 ? args[3] : nil) else { fail("no control “\(arg(2))”") }
     press(control)
 case "fill":
     let isField = { (element: AXUIElement) in role(element) == kAXTextFieldRole }

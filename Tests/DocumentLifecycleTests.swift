@@ -17,6 +17,8 @@ private enum Stub: Plugin {
     static var reloadFails = false
     /// The next open fails, once.
     static var failNextOpen = false
+    /// How long each open takes.
+    static var openTime: Duration = .zero
 
     static func reset() {
         duringOpen = nil
@@ -24,11 +26,13 @@ private enum Stub: Plugin {
         reloadTimes = []
         reloadFails = false
         failNextOpen = false
+        openTime = .zero
     }
 
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let text = StubDocument.read(url)
         await Task.yield()  // a real open reads off the main thread, so it always suspends
+        try? await Task.sleep(for: openTime)
         if failNextOpen {
             failNextOpen = false
             throw PluginError("The file can't be read.")
@@ -172,6 +176,70 @@ private final class StubDocument: PluginDocument {
     private static func button(titled title: String, in view: NSView) -> NSButton? {
         if let button = view as? NSButton, button.title == title { return button }
         return view.subviews.lazy.compactMap { button(titled: title, in: $0) }.first
+    }
+}
+
+@Suite(.serialized) struct DocumentLoadingState {
+    /// A document starting to open `file` in a window, and the open running.
+    private func startLoading(_ file: URL, allowsEditing: Bool = true) -> (DocumentViewController, NSWindow, Task<Void, Never>) {
+        let document = DocumentViewController(url: file, entry: PluginEntry(Stub.self), config: Config(), allowsEditing: allowsEditing,
+                                              recovery: nil, recoveryID: UUID().uuidString, journalDelay: 2)
+        let window = offscreenWindow(holding: document.view)
+        return (document, window, Task.immediate { await document.load() })
+    }
+
+    private static func first<View: NSView>(_ type: View.Type, in view: NSView) -> View? {
+        if let match = view as? View { return match }
+        return view.subviews.lazy.compactMap { first(type, in: $0) }.first
+    }
+
+    private static func spinner(in view: NSView) -> NSProgressIndicator? { first(NSProgressIndicator.self, in: view) }
+
+    @Test func aSlowOpenShowsASpinnerUntilTheFileShows() async throws {
+        Stub.reset()
+        Stub.openTime = .milliseconds(1200)
+        let (document, window, loading) = startLoading(try TempFile.make(Data("text".utf8), name: "f.stub"))
+        defer { document.close(); window.close() }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(Self.spinner(in: document.view) == nil, "not yet")
+        try await Task.sleep(for: .milliseconds(500))
+        let spinner = try #require(Self.spinner(in: document.view))
+        #expect(spinner.style == .spinning)
+        await loading.value
+        #expect(document.pluginDocument != nil)
+        #expect(Self.spinner(in: document.view) == nil)
+    }
+
+    @Test func aSlowFailureReplacesTheSpinner() async throws {
+        Stub.reset()
+        Stub.openTime = .milliseconds(900)
+        Stub.failNextOpen = true
+        let (document, window, loading) = startLoading(try TempFile.make(Data("text".utf8), name: "f.stub"))
+        defer { document.close(); window.close() }
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(Self.spinner(in: document.view) != nil)
+        await loading.value
+        #expect(Self.spinner(in: document.view) == nil)
+        #expect(Self.first(FailureView.self, in: document.view) != nil)
+    }
+
+    @Test func aFastOpenNeverShowsOne() async throws {
+        Stub.reset()
+        let (document, window, loading) = startLoading(try TempFile.make(Data("text".utf8), name: "f.stub"))
+        defer { document.close(); window.close() }
+        await loading.value
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(Self.spinner(in: document.view) == nil)
+    }
+
+    @Test func theSpacePanelShowsNone() async throws {
+        Stub.reset()
+        Stub.openTime = .milliseconds(900)
+        let (document, window, loading) = startLoading(try TempFile.make(Data("text".utf8), name: "f.stub"), allowsEditing: false)
+        defer { document.close(); window.close() }
+        try await Task.sleep(for: .milliseconds(700))
+        #expect(Self.spinner(in: document.view) == nil)
+        await loading.value
     }
 }
 

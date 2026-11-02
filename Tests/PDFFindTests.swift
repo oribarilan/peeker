@@ -88,6 +88,17 @@ private func menuItem(_ action: NSFindPanelAction) -> NSMenuItem {
         #expect(document.pendingEdits.isEmpty && document.unsavedEdits() == nil)
         #expect(document.undoManager.canUndo == false)
     }
+
+    @Test func theBarSitsBelowTheToolbar() async throws {
+        let document = try await open(["invoice"])
+        let window = toolbarWindow(holding: document.contentView)
+        let container = try container(document)
+        container.showBar()
+        let bar = try #require(container.bar)
+        let barInWindow = bar.convert(bar.bounds, to: nil)
+        #expect(window.contentLayoutRect.height < window.frame.height)  // the toolbar takes a strip
+        #expect(barInWindow.maxY <= window.contentLayoutRect.maxY)
+    }
 }
 
 @Suite(.serialized) struct PDFFindBarTests {

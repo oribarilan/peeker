@@ -85,7 +85,7 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
         bar.translatesAutoresizingMaskIntoConstraints = false
         addSubview(bar)
         NSLayoutConstraint.activate([
-            bar.topAnchor.constraint(equalTo: topAnchor),
+            bar.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
             bar.leadingAnchor.constraint(equalTo: leadingAnchor),
             bar.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])

@@ -86,6 +86,9 @@ final class DocumentViewController: NSSplitViewController {
         addSplitViewItem(NSSplitViewItem(viewController: content))
     }
 
+    /// How long an open runs before its window shows a spinner; quicker opens never draw one.
+    private static let spinnerDelay: Duration = .milliseconds(500)
+
     /// Pixel size the image plugin should decode to: the largest screen, so fit-to-window stays sharp.
     private static var maxPixels: Int {
         let screens = NSScreen.screens.map { max($0.frame.width, $0.frame.height) * $0.backingScaleFactor }
@@ -101,6 +104,12 @@ final class DocumentViewController: NSSplitViewController {
         let context = OpenContext(maxPixels: Self.maxPixels, allowsEditing: allowsEditing)
         // Read before the plugin reads the file, so a write in between shows as a change and reloads.
         let modified = Self.modificationDate(of: url)
+        // A window with nothing to show yet gets a spinner once the open is slow; the Space panel never does.
+        let spinner = allowsEditing && pluginDocument == nil ? Task { [weak self] in
+            try? await Task.sleep(for: Self.spinnerDelay)
+            guard let self, !Task.isCancelled, !isClosed, pluginDocument == nil else { return }
+            content.show(LoadingView())
+        } : nil
         // The result is shown inside the task, in the same main-actor turn the plugin returns in. Awaiting the task
         // and showing afterwards would take one more turn, which can land after a display pass and delay first paint.
         let task = Task.immediate { [weak self] in
@@ -110,6 +119,7 @@ final class DocumentViewController: NSSplitViewController {
             } catch {
                 result = .failure(error)
             }
+            spinner?.cancel()
             guard let self, !isClosed, !Task.isCancelled else { return }
             openTask = nil
             openDuration = .now - opened

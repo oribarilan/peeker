@@ -1,8 +1,8 @@
 #!/bin/bash
-# The viewer flow on screen: find in a PDF, the print panel for each format, unlocking a password-protected PDF,
-# Actual Size and zooming out on an image, and an animated GIF playing, pausing on a click and playing on. Writes
-# screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with
-# SCREEN_RECORD=1.
+# The viewer flow on screen: find in a PDF (its bar below the toolbar), the print panel for each format, unlocking a
+# password-protected PDF, Actual Size and zooming out on an image, and an animated GIF playing, pausing on a click and
+# playing on. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
+# recording with SCREEN_RECORD=1.
 #
 # Takes over the mouse and keyboard for about 40 seconds: the screen must be unlocked and left alone. Clicks and keys
 # are sent only while Peeker is in front.
@@ -38,6 +38,9 @@ find_status() { "$DRIVE" tree Peeker 14 | grep -oE '[0-9]+ of [0-9]+|[0-9]+ matc
 "$DRIVE" type Peeker "Page"
 for _ in $(seq 30); do [ "$(find_status)" = "1 of 4" ] && break; sleep 0.1; done
 check "Find shows the first of four matches" "$(find_status)" "1 of 4"
+read -r _ ty _ th <<< "$("$DRIVE" frame Peeker AXToolbar || echo "0 0 0 0")"
+read -r _ fy _ _ <<< "$("$DRIVE" frame Peeker AXTextField || echo "0 -1 0 0")"
+check "The find bar sits below the toolbar" "$([ "$th" -gt 0 ] && [ "$fy" -ge $((ty + th)) ] && echo yes)" yes
 "$DRIVE" keys Peeker cmd+g && sleep 0.5
 check "Find Next steps to the second" "$(find_status)" "2 of 4"
 "$DRIVE" shot Peeker "$OUT/1-find.png" pages.pdf

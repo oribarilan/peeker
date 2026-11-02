@@ -8,3 +8,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 - A Markdown link that isn't a web page or email address asks before it opens another app.
 - Highlights, text boxes and signatures saved in a PDF no longer carry your Mac account's name as their author.
+- The PDF find bar sits below the toolbar instead of under it.
+- Rotate & Resize opens below the toolbar instead of covering it.
+- Crop and Cancel buttons appear next to a crop rectangle, so a crop can be finished with the mouse.
+- A file that takes a moment to open shows a spinner instead of an empty window.

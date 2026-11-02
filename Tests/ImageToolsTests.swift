@@ -71,6 +71,79 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(document.cropOverlay == nil && document.edits.isEmpty)
     }
 
+    /// Drags a rectangle over the image's left half.
+    private func dragLeftHalf(_ overlay: CropOverlay, of document: ImageDocument) {
+        let image = document.canvas.imageRect
+        overlay.mouseDown(with: mouse(.leftMouseDown, CGPoint(x: image.minX, y: image.maxY), in: overlay))
+        overlay.mouseDragged(with: mouse(.leftMouseDragged, CGPoint(x: image.midX, y: image.minY), in: overlay))
+        overlay.mouseUp(with: mouse(.leftMouseUp, CGPoint(x: image.midX, y: image.minY), in: overlay))
+    }
+
+    /// Starts a crop and drags a rectangle over the image's left half.
+    private func croppingLeftHalf(_ document: ImageDocument) throws -> CropOverlay {
+        #expect(document.perform("crop"))
+        let overlay = try #require(document.cropOverlay)
+        dragLeftHalf(overlay, of: document)
+        return overlay
+    }
+
+    @Test func cropButtonsShowOnlyOnceThereIsARectangle() async throws {
+        let (document, window) = try await shown()
+        defer { window.close() }
+        #expect(document.perform("crop"))
+        let overlay = try #require(document.cropOverlay)
+        let controls = overlay.controls
+        #expect(controls.superview === document.contentView, "in the scroll view, not on the zoomed image")
+        #expect(controls.isHidden)
+        dragLeftHalf(overlay, of: document)
+        #expect(!controls.isHidden)
+        #expect(document.contentView.bounds.contains(controls.frame))
+    }
+
+    @Test func cropButtonsSitBelowTheRectangle() async throws {
+        let (document, window) = try await shown()
+        defer { window.close() }
+        #expect(document.perform("crop"))
+        let overlay = try #require(document.cropOverlay)
+        let image = document.canvas.imageRect
+        let top = CGPoint(x: image.minX + 20, y: image.maxY - 20), bottom = CGPoint(x: image.midX, y: image.midY)
+        overlay.mouseDown(with: mouse(.leftMouseDown, top, in: overlay))
+        overlay.mouseDragged(with: mouse(.leftMouseDragged, bottom, in: overlay))
+        let rectangle = overlay.convert(CGRect(x: top.x, y: bottom.y, width: bottom.x - top.x, height: top.y - bottom.y), to: nil)
+        let buttons = overlay.controls.convert(overlay.controls.bounds, to: nil)
+        #expect(buttons.maxY <= rectangle.minY, "below, in the window's upward coordinates")
+        #expect(abs(buttons.maxX - rectangle.maxX) <= 1)
+    }
+
+    @Test func theCropButtonCrops() async throws {
+        let (document, window) = try await shown()
+        defer { window.close() }
+        let controls = try croppingLeftHalf(document).controls
+        controls.crop.performClick(nil)
+        #expect(document.cropOverlay == nil && controls.superview == nil)
+        #expect(document.edits.count == 1)
+        #expect(document.pixelSize == CGSize(width: 200, height: 200), "the left half")
+    }
+
+    @Test func theCancelButtonChangesNothing() async throws {
+        let (document, window) = try await shown()
+        defer { window.close() }
+        let controls = try croppingLeftHalf(document).controls
+        controls.cancel.performClick(nil)
+        #expect(document.cropOverlay == nil && controls.superview == nil)
+        #expect(document.edits.isEmpty)
+    }
+
+    @Test func cropButtonsKeepTheirSizeWhenZoomed() async throws {
+        let (document, window) = try await shown()
+        defer { window.close() }
+        let controls = try croppingLeftHalf(document).controls
+        let size = controls.frame.size
+        #expect(document.perform("zoom-in") && document.perform("zoom-in"))
+        #expect(controls.convert(controls.bounds, to: nil).size == size)
+        #expect(document.contentView.bounds.contains(controls.frame))
+    }
+
     @Test func panelKeysTurnAndFlip() async throws {
         let (document, window) = try await shown()
         defer { window.close() }
@@ -89,6 +162,16 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         panel.view.keyDown(with: key("r", code: 15, window: window))
         panel.applySize(nil)
         #expect(document.edits == [.rotate(by: 90)])
+    }
+
+    @Test func rotateAndResizeHangsBelowTheToolbar() async throws {
+        let document = try await open(try imageFile(try cornerImage(width: 400, height: 200), type: .png))
+        let window = toolbarWindow(holding: document.contentView, width: 400, height: 300)
+        defer { window.close() }
+        let anchor = document.contentView.convert(TransformPanel.anchor(in: document.contentView), to: nil)
+        #expect(window.contentLayoutRect.height < window.frame.height)  // the toolbar takes a strip
+        #expect(anchor.maxY <= window.contentLayoutRect.maxY)
+        #expect(abs(anchor.midX - window.contentLayoutRect.midX) <= 1)
     }
 
     @Test func sizesFollowTheLockAndUnit() {
@@ -112,5 +195,40 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
             panel.view.keyDown(with: event)
         }
         #expect(edits == [.rotate(by: -90), .rotate(by: 90), .flip(horizontal: true), .flip(horizontal: false)])
+    }
+}
+
+/// Where the Crop and Cancel buttons sit next to the crop rectangle.
+@Suite struct CropControlsPlacement {
+    let size = CGSize(width: 120, height: 24)
+    let visible = CGRect(x: 0, y: 0, width: 400, height: 300)
+
+    @Test func belowTheBottomRightCornerWhenThereIsRoom() {
+        let frame = CropControls.frame(size: size, selection: CGRect(x: 100, y: 100, width: 200, height: 100), visible: visible, flipped: false)
+        #expect(frame == CGRect(x: 180, y: 70, width: 120, height: 24))
+    }
+
+    @Test func insideTheCornerWhenThereIsNoRoomBelow() {
+        let frame = CropControls.frame(size: size, selection: CGRect(x: 100, y: 10, width: 200, height: 100), visible: visible, flipped: false)
+        #expect(frame == CGRect(x: 180, y: 16, width: 120, height: 24))
+    }
+
+    @Test func keptInsideTheVisibleAreaSideways() {
+        let narrow = CropControls.frame(size: size, selection: CGRect(x: 0, y: 100, width: 50, height: 50), visible: visible, flipped: false)
+        #expect(narrow.minX == 0)
+        let pastTheRight = CropControls.frame(size: size, selection: CGRect(x: 300, y: 100, width: 200, height: 50), visible: visible, flipped: false)
+        #expect(pastTheRight.maxX == 400)
+    }
+
+    @Test func belowMeansLargerYInAFlippedView() {
+        let frame = CropControls.frame(size: size, selection: CGRect(x: 100, y: 100, width: 200, height: 100), visible: visible, flipped: true)
+        #expect(frame == CGRect(x: 180, y: 206, width: 120, height: 24))
+        let noRoom = CropControls.frame(size: size, selection: CGRect(x: 100, y: 190, width: 200, height: 100), visible: visible, flipped: true)
+        #expect(noRoom == CGRect(x: 180, y: 260, width: 120, height: 24))
+    }
+
+    @Test func keptInsideTheVisibleAreaWhenTheBottomIsScrolledAway() {
+        let frame = CropControls.frame(size: size, selection: CGRect(x: 100, y: -200, width: 200, height: 400), visible: visible, flipped: false)
+        #expect(frame.minY == 0)
     }
 }

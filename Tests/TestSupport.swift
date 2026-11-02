@@ -55,6 +55,21 @@ func offscreenWindow(holding view: NSView, width: CGFloat = 700, height: CGFloat
     return window
 }
 
+/// An off-screen window shaped like a document window: content runs under a unified toolbar, whose strip
+/// `contentLayoutRect` leaves out.
+func toolbarWindow(holding view: NSView, width: CGFloat = 700, height: CGFloat = 900) -> NSWindow {
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height), styleMask: [.titled, .fullSizeContentView],
+                          backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    window.toolbar = NSToolbar(identifier: "test-\(UUID().uuidString)")
+    window.toolbarStyle = .unified
+    view.frame = window.contentView!.bounds
+    view.autoresizingMask = [.width, .height]
+    window.contentView!.addSubview(view)
+    window.contentView!.layoutSubtreeIfNeeded()
+    return window
+}
+
 /// A document view controller on `url`, opened through `plugin`, with its content (or the failure view) showing.
 func loadedDocument(_ url: URL, with plugin: any Plugin.Type, allowsEditing: Bool = true, recovery: RecoveryStore? = nil,
                     recoveryID: String = UUID().uuidString, journalDelay: TimeInterval = 2) async -> DocumentViewController {

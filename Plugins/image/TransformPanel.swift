@@ -62,12 +62,17 @@ final class TransformPanel: NSObject, NSTextFieldDelegate {
         fillSize()
     }
 
-    /// Shows the panel hanging from the top of `view`, with the keyboard on its buttons.
+    /// Shows the panel hanging from the top of `view`, below the toolbar, with the keyboard on its buttons.
     func show(below view: NSView) {
         fillSize()
-        popover.show(relativeTo: NSRect(x: view.bounds.midX, y: view.isFlipped ? 0 : view.bounds.maxY - 1, width: 1, height: 1),
-                     of: view, preferredEdge: view.isFlipped ? .maxY : .minY)
+        popover.show(relativeTo: Self.anchor(in: view), of: view, preferredEdge: view.isFlipped ? .maxY : .minY)
         self.view.window?.makeFirstResponder(self.view)
+    }
+
+    /// The point the panel hangs from: the middle of the top edge of `view`'s safe area, which leaves out the toolbar.
+    static func anchor(in view: NSView) -> NSRect {
+        let safe = view.safeAreaRect
+        return NSRect(x: safe.midX, y: view.isFlipped ? safe.minY : safe.maxY - 1, width: 1, height: 1)
     }
 
     /// The pixel size the fields ask for. With the lock on, the side not edited follows the edited one.

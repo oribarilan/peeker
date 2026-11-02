@@ -1,6 +1,7 @@
 #!/bin/bash
-# The image editing flow on screen: in Edit mode, crop a 400 × 200 PNG, turn it with R and flip it with H in Rotate &
-# Resize, resize it to 100 pixels wide with the proportions kept, and save. Checks the size fields after the turn,
+# The image editing flow on screen: in Edit mode, crop a 400 × 200 PNG with the Crop button by the rectangle, turn it
+# with R and flip it with H in Rotate & Resize, resize it to 100 pixels wide with the proportions kept, and save. Checks
+# that Rotate & Resize opens below the toolbar, the size fields after the turn,
 # the saved file's pixel size, resolution and color profile, the info panel's Dimensions, that Preview opens the
 # saved file, and that closing after the save asks nothing. Writes screenshots and
 # results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
@@ -37,12 +38,16 @@ read -r x y w h <<< "$("$DRIVE" frame Peeker AXScrollArea || echo "0 0 0 0")"
 sleep 0.3
 "$DRIVE" drag Peeker $((x + w / 10)) $((y + h / 10)) $((x + w / 4)) $((y + h / 2)) $((x + w / 2)) $((y + h * 9 / 10))
 "$DRIVE" shot Peeker "$OUT/1-crop.png"
-"$DRIVE" keys Peeker return
+# The Crop button beside the rectangle, not the toolbar's Crop, which has the same name.
+"$DRIVE" press Peeker Crop AXScrollArea
 sleep 0.5
 
 # Rotate & Resize: the fields show the cropped size, then the turned size after R.
 "$DRIVE" keys Peeker cmd+r
 "$DRIVE" wait Peeker control "Apply"
+read -r _ ty _ th <<< "$("$DRIVE" frame Peeker AXToolbar || echo "0 0 0 0")"
+read -r _ py _ _ <<< "$("$DRIVE" frame Peeker AXPopover || echo "0 -1 0 0")"
+check "Rotate & Resize opens below the toolbar" "$([ "$th" -gt 0 ] && [ "$py" -ge $((ty + th)) ] && echo yes)" yes
 width=$(field Width) height=$(field Height)
 check "The crop made the image smaller" "$([ "${width:-0}" -gt 0 ] && [ "$width" -lt 400 ] && echo yes)" yes
 "$DRIVE" type Peeker r  # the letter, so the input source doesn't matter
