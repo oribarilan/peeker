@@ -58,7 +58,7 @@ Opening a PDF with the app not running SHALL draw its content no later than Prev
 
 ### Requirement: PDFs have an edit mode with Text Box, Sign and Highlight
 
-A PDF opened in a window SHALL have an edit mode. Its tools SHALL be Text Box (Ctrl+Cmd+T), Sign and Highlight Selection (Ctrl+Cmd+H); Sign SHALL have no shortcut by default, leaving Ctrl+Cmd+S to Show/Hide Sidebar. Each tool's shortcut can be set or rebound like other plugin commands. Zoom In and Zoom Out SHALL work in both modes. The Space panel SHALL never offer Edit mode.
+A PDF opened in a window SHALL have an edit mode. Its tools SHALL be Text Box (Ctrl+Cmd+T), Sign and Highlight Selection (Ctrl+Cmd+H); Sign SHALL have no shortcut by default, leaving Ctrl+Cmd+S to Show/Hide Sidebar. Each tool's shortcut can be set or rebound like other plugin commands. Zoom In and Zoom Out SHALL work in both modes. The Peek panel SHALL never offer Edit mode.
 
 #### Scenario: The tools
 
@@ -214,7 +214,7 @@ On macOS 26, thumbnails SHALL NOT be draggable, in Edit mode or out of it; Rotat
 
 ### Requirement: Page commands
 
-In a document window, the PDF plugin SHALL offer Rotate Left (Cmd+L), Rotate Right (Cmd+R) and Delete Page, in the Tools menu and a right-click menu on the thumbnails, with Rotate and Delete buttons in the toolbar in Edit mode. Run from the read view, they SHALL turn Edit mode on first. Each SHALL act on the selected thumbnails (Shift- and Cmd-click select several), or on the current page when none is selected. The Space panel SHALL have no page commands.
+In a document window, the PDF plugin SHALL offer Rotate Left (Cmd+L), Rotate Right (Cmd+R) and Delete Page, in the Tools menu and a right-click menu on the thumbnails, with Rotate and Delete buttons in the toolbar in Edit mode. Run from the read view, they SHALL turn Edit mode on first. Each SHALL act on the selected thumbnails (Shift- and Cmd-click select several), or on the current page when none is selected. The Peek panel SHALL have no page commands.
 
 #### Scenario: Rotating selected pages
 - **WHEN** pages 2 and 3 are selected in the sidebar and the user presses Cmd+R in Edit mode
@@ -242,7 +242,7 @@ Delete Page, or the Delete key with the sidebar's thumbnails focused in Edit mod
 
 ### Requirement: Reordering pages
 
-In Edit mode, dragging thumbnails in the sidebar SHALL move those pages to where they are dropped, keeping their relative order. In the read view and the Space panel, thumbnails SHALL only select and go to pages, never move them. Pages dragged in from outside the document SHALL be refused.
+In Edit mode, dragging thumbnails in the sidebar SHALL move those pages to where they are dropped, keeping their relative order. In the read view and the Peek panel, thumbnails SHALL only select and go to pages, never move them. Pages dragged in from outside the document SHALL be refused.
 
 #### Scenario: Dragging a page
 - **WHEN** in Edit mode the user drags page 5's thumbnail above page 1
@@ -304,8 +304,8 @@ In a document window, Find… (Cmd+F) SHALL show a find bar above the pages and 
 - **WHEN** the user searches while in Edit mode
 - **THEN** matches are found and shown as in the read view, and nothing is added to the unsaved edits
 
-#### Scenario: Space panel
-- **WHEN** a PDF is shown in the Space panel
+#### Scenario: Peek panel
+- **WHEN** a PDF is shown in the Peek panel
 - **THEN** Find is unavailable
 
 ### Requirement: Moving between PDF matches
@@ -346,7 +346,7 @@ Printing a PDF SHALL print its pages as they appear in the window, including fil
 
 ### Requirement: Password-protected PDFs
 
-A PDF that needs a password SHALL show, in a document window, a lock with the file's name, a password field and Unlock. The right password SHALL show the PDF with thumbnails, info, Find and Print, view-only with Edit greyed out and the reason; a wrong one SHALL say "Wrong password." and clear the field. The password SHALL never be stored. The Space panel SHALL say the PDF is password protected and that Open unlocks it in a window.
+A PDF that needs a password SHALL show, in a document window, a lock with the file's name, a password field and Unlock. The right password SHALL show the PDF with thumbnails, info, Find and Print, view-only with Edit greyed out and the reason; a wrong one SHALL say "Wrong password." and clear the field. The password SHALL never be stored. The Peek panel SHALL say the PDF is password protected and that Open unlocks it in a window.
 
 #### Scenario: Unlocking
 - **WHEN** the user opens a password-protected PDF, types its password and presses Return
@@ -356,7 +356,7 @@ A PDF that needs a password SHALL show, in a document window, a lock with the fi
 - **WHEN** the user types a wrong password and presses Unlock
 - **THEN** the tab says "Wrong password." and the field is empty
 
-#### Scenario: Space panel
+#### Scenario: Peek panel
 - **WHEN** the user presses Space on a password-protected PDF
 - **THEN** the panel says the PDF is password protected and that Open unlocks it in a window
 

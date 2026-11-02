@@ -49,7 +49,7 @@ Opening an image with the app not running SHALL draw it no later than Preview sh
 
 ### Requirement: Image Edit mode
 
-In a document window, an image Peeker can edit SHALL open in a read view that never changes the file, with the host's Edit button and Cmd+E to turn Edit mode on. The image tools SHALL show in the toolbar only in Edit mode. The Space panel SHALL have no Edit mode.
+In a document window, an image Peeker can edit SHALL open in a read view that never changes the file, with the host's Edit button and Cmd+E to turn Edit mode on. The image tools SHALL show in the toolbar only in Edit mode. The Peek panel SHALL have no Edit mode.
 
 #### Scenario: Turning Edit mode on
 - **WHEN** the user opens a PNG and presses Cmd+E
@@ -161,7 +161,7 @@ Actual Size (Cmd+0) SHALL show the image at one image pixel per screen pixel, ce
 
 ### Requirement: Animated images
 
-An image with several frames that its format animates (GIF, animated PNG, WebP, HEIC sequence) SHALL play in a loop with the frame timing its file gives, in document windows and the Space panel. A click on the image SHALL pause it and another click resume it. A multi-page TIFF SHALL keep showing its first page.
+An image with several frames that its format animates (GIF, animated PNG, WebP, HEIC sequence) SHALL play in a loop with the frame timing its file gives, in document windows and the Peek panel. A click on the image SHALL pause it and another click resume it. A multi-page TIFF SHALL keep showing its first page.
 
 #### Scenario: Playing
 - **WHEN** the user opens an animated GIF

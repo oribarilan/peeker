@@ -27,8 +27,8 @@
 
 - [x] 5.1 Add Unreleased lines to `CHANGELOG.md` (the Peek panel name and config key, Settings remembering its pane, plugin icons, Open at Login and Default app in General, the placeholder, the recorder's announced reason) and mark S1 to S6 and A2 in progress in `docs/design-review-2026-11-01.md`; verify `openspec validate --all --strict`
 - [x] 5.2 Run `scripts/build.sh` and `scripts/build.sh test`; verify all tests pass with no new warnings
-- [ ] 5.3 With the maintainer's go, run `scripts/screen-test.sh`; verify every flow passes and look at the Settings captures
-- [ ] 5.4 With the maintainer's go, run `scripts/bench-ab.sh main` once; verify no regression on the open benchmarks
+- [x] 5.3 With the maintainer's go, run `scripts/screen-test.sh`; verify every flow passes and look at the Settings captures
+- [x] 5.4 With the maintainer's go, run `scripts/bench-ab.sh main` once; verify no regression on the open benchmarks
 
 ## Workflow follow-up
 

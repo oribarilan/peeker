@@ -35,7 +35,7 @@ A plugin's code SHALL be able to use only the shared plugin kit, never the host'
 
 ### Requirement: Slow file work never freezes the app
 
-Reading, decoding and saving a file SHALL run off the main thread. While a file opens in a document window and nothing of it shows yet, a spinner SHALL appear in the middle of the content once the open has taken about half a second, and go away when the file or its failure appears. An open that finishes sooner SHALL never show it, and the Space panel SHALL show none. The rest of the app SHALL keep responding.
+Reading, decoding and saving a file SHALL run off the main thread. While a file opens in a document window and nothing of it shows yet, a spinner SHALL appear in the middle of the content once the open has taken about half a second, and go away when the file or its failure appears. An open that finishes sooner SHALL never show it, and the Peek panel SHALL show none. The rest of the app SHALL keep responding.
 
 #### Scenario: Opening a large log
 
@@ -59,11 +59,11 @@ Reading, decoding and saving a file SHALL run off the main thread. While a file 
 
 ### Requirement: Closing cancels pending work
 
-Closing a tab or window, or moving the Space panel to another file, SHALL cancel that document's open in progress, and nothing from it SHALL be applied afterwards.
+Closing a tab or window, or moving the Peek panel to another file, SHALL cancel that document's open in progress, and nothing from it SHALL be applied afterwards.
 
 #### Scenario: Browsing past a large photo
 
-- **WHEN** the Space panel starts opening a 48 MP photo and the user presses the down arrow
+- **WHEN** the Peek panel starts opening a 48 MP photo and the user presses the down arrow
 - **THEN** the panel shows the next file, and the photo never replaces it
 
 ### Requirement: A plugin error stays in its tab
@@ -120,7 +120,7 @@ The File menu SHALL have Print (Cmd+P). In a document window it SHALL show the s
 - **THEN** the printout shows the document with those edits
 
 #### Scenario: Nothing to print
-- **WHEN** the front window is the Space panel or the Settings window, or the document is still opening
+- **WHEN** the front window is the Peek panel or the Settings window, or the document is still opening
 - **THEN** Print is greyed out
 
 ### Requirement: Find menu items

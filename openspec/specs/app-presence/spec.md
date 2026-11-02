@@ -31,7 +31,7 @@ While the config has problems, the menu bar icon SHALL show a small red dot, and
 
 ### Requirement: Dock icon and menus only while windows are open
 
-Peeker SHALL show its Dock icon, its app menus and a place in Cmd+Tab while a document window or the Settings window is open, and hide all three once the last such window closes. The quick-look panel SHALL NOT count as a window here, so pressing Space never makes a Dock icon appear.
+Peeker SHALL show its Dock icon, its app menus and a place in Cmd+Tab while a document window or the Settings window is open, and hide all three once the last such window closes. The Peek panel SHALL NOT count as a window here, so pressing Space never makes a Dock icon appear.
 
 #### Scenario: Opening and closing a file
 
@@ -45,7 +45,7 @@ Peeker SHALL show its Dock icon, its app menus and a place in Cmd+Tab while a do
 
 ### Requirement: The menu bar icon shows a missing Accessibility permission
 
-While the quick-look key is on and Accessibility isn't granted, the menu bar icon SHALL show the same red dot it shows for config problems, and its menu SHALL say that Space in Finder needs Accessibility, opening the Permissions pane when chosen. Both SHALL go away once Accessibility is granted or the key is turned off.
+While the Peek panel key is on and Accessibility isn't granted, the menu bar icon SHALL show the same red dot it shows for config problems, and its menu SHALL say that the Peek panel needs Accessibility, opening the Permissions pane when chosen. Both SHALL go away once Accessibility is granted or the key is turned off.
 
 #### Scenario: First launch
 

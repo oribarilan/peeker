@@ -17,7 +17,7 @@ Each open file SHALL get its own document window, and document windows SHALL joi
 
 ### Requirement: Edits happen in windows and show as edited
 
-Only document windows SHALL allow edits; the quick-look panel SHALL only view. A document that has an edit mode SHALL allow edits only while Edit mode is on. A document with unsaved edits SHALL show the standard edited mark in its window's close button, and File > Save SHALL be enabled only while there are unsaved edits and no save is running.
+Only document windows SHALL allow edits; the Peek panel SHALL only view. A document that has an edit mode SHALL allow edits only while Edit mode is on. A document with unsaved edits SHALL show the standard edited mark in its window's close button, and File > Save SHALL be enabled only while there are unsaved edits and no save is running.
 
 #### Scenario: First edit
 
