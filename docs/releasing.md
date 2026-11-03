@@ -4,7 +4,7 @@ A release is a version tag. Pushing `v0.2.0` runs `.github/workflows/release.yml
 
 ## Versions
 
-Versions follow [semantic versioning](https://semver.org): a patch release fixes things, a minor release adds things. Peeker stays at 0.x until it replaces Preview for daily use, then becomes 1.0.0. The tag sets the version and the build number Sparkle compares (major × 10000 + minor × 100 + patch), so minor and patch stay under 100. Builds made any other way carry the next planned version with `-dev` added (`MARKETING_VERSION` in `project.yml`, such as `0.1.0-dev`) and never check for updates; bump it after each release.
+Versions follow [semantic versioning](https://semver.org): a patch release fixes things, a minor release adds things. Peeker stays at 0.x until it replaces Preview for daily use, then becomes 1.0.0. The tag sets the version and the build number Sparkle compares (major × 10000 + minor × 100 + patch), so minor and patch stay under 100. Builds made any other way carry the next planned version with `-dev` added (`MARKETING_VERSION` in `project.yml`, such as `0.1.0-dev`) and never check for updates; bump its minor version with each feature and after each release.
 
 ## One-time setup
 

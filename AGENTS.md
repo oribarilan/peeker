@@ -72,6 +72,8 @@ Work that needs the screen and waits for the maintainer's go is listed in `.loca
 
 A release is a version tag (`v0.2.0`): `.github/workflows/release.yml` builds, signs, notarizes and publishes it, then updates the update feed and the Homebrew tap. Notes come from `CHANGELOG.md`, so a user-facing change adds a line under Unreleased. [docs/releasing.md](docs/releasing.md) has the setup and the steps. Only the maintainer decides when to tag.
 
+Each feature is a new version: a change that adds something users see bumps the minor version of `MARKETING_VERSION` in `project.yml` (`0.2.0-dev` becomes `0.3.0-dev`), in its own commit after the feature's.
+
 ## Benchmarks
 
 `scripts/bench-ab.sh <base-ref>` compares your branch with a base on the same machine and fails on clear regressions (worse by more than 15% and 10 ms). CI runs it on every pull request (`.github/workflows/bench.yml`). A full run takes several minutes, so run it once per change, not after every edit. Published README numbers come only from a reference Mac through the `publishing-benchmarks` skill, never from CI.
