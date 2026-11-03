@@ -42,7 +42,7 @@ private func pending(_ document: TextDocument) -> String? {
         #expect(try await document.reload())
         #expect(document.contentView === view)
         #expect(!document.isEditable)
-        #expect(document.note == TextPlugin.readOnlyNote)
+        #expect(document.note == TextFile.readOnlyNote)
     }
 
     @Test func viewOnlyDocumentTakesNoEdits() async throws {

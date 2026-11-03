@@ -33,12 +33,12 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private static let defaultFontSize: CGFloat = 12
     private static let fontSizes: ClosedRange<CGFloat> = 6...72
 
-    init(url: URL, loaded: TextPlugin.Loaded, allowsEditing: Bool) {
+    init(url: URL, loaded: TextFile.Loaded, allowsEditing: Bool) {
         self.url = url
         self.allowsEditing = allowsEditing
         baseline = loaded.text
         format = loaded.format
-        info = loaded.info
+        info = TextPlugin.info(lineCount: loaded.lineCount, format: loaded.format, byteCount: loaded.byteCount)
         let layoutManager = NSLayoutManager()
         layoutManager.allowsNonContiguousLayout = true
         storage.addLayoutManager(layoutManager)
@@ -101,10 +101,10 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     /// Shows the file as it is on disk now, keeping zoom, wrap and the scroll position. A growing log can cross a size
     /// limit, so editability and the note can change too.
     func reload() async throws(PluginError) -> Bool {
-        let loaded = try await TextPlugin.load(url)
+        let loaded = try await TextFile.load(url)
         guard unsavedEdits() == nil else { return true }  // typing that started meanwhile wins
         format = loaded.format
-        info = loaded.info
+        info = TextPlugin.info(lineCount: loaded.lineCount, format: loaded.format, byteCount: loaded.byteCount)
         apply(editable: loaded.editable, note: loaded.note)
         update(text: loaded.text)
         return true
@@ -128,15 +128,16 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     }
 
     func save(_ edits: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError) {
-        guard isEditable, let text = (edits.value as? TextEdits)?.text else { throw PluginError(readOnlyReason ?? TextPlugin.readOnlyNote) }
-        let target = offer == TextPlugin.saveAsUTF8 ? TextFormat(encoding: .utf8, hasBOM: false, lineEnding: format.lineEnding) : format
+        guard isEditable, let text = (edits.value as? TextEdits)?.text else { throw PluginError(readOnlyReason ?? TextFile.readOnlyNote) }
+        let target = offer == TextFile.saveAsUTF8 ? TextFormat(encoding: .utf8, hasBOM: false, lineEnding: format.lineEnding) : format
         // Bytes, not String ==, which treats canonically equivalent text as equal. Unchanged text writes nothing, so a
         // file with mixed line endings stays byte for byte the same.
         guard target != format || Data(text.utf8) != Data(baseline.utf8) else {
             baseline = text
             return
         }
-        info = try await TextPlugin.write(text, as: target, to: url.path)
+        let byteCount = try await TextFile.write(text, as: target, to: url.path)
+        info = TextPlugin.info(lineCount: TextCodec.lineCount(of: text), format: target, byteCount: byteCount)
         format = target
         baseline = text
     }
@@ -159,7 +160,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     }
 
     private func apply(editable: Bool, note: String?) {
-        readOnlyReason = editable ? nil : note ?? TextPlugin.readOnlyNote
+        readOnlyReason = editable ? nil : note ?? TextFile.readOnlyNote
         textView.isEditable = allowsEditing && editable
         noteLabel.stringValue = note ?? ""
         noteLabel.isHidden = note == nil

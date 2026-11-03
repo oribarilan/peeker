@@ -338,6 +338,10 @@ final class DocumentViewController: NSSplitViewController {
         pluginDocument = document
         document.onEdit = { [weak self] in self?.didEdit() }
         document.onReplace = { [weak self] replacement in self?.show(replacement) }
+        document.onSidebarChange = { [weak self, weak document] in
+            guard let self, let document, !isClosed, pluginDocument === document, !sidebarPending else { return }
+            installSidebar(document.makeSidebar())
+        }
         document.onActiveToolChange = { [weak self] in self.map { $0.onActiveToolChanged?($0) } }
         // The note is the Editor's; the Peek panel only views, so it has nothing to explain.
         if allowsEditing, case .readOnly(let reason) = document.editability {

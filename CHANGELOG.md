@@ -6,6 +6,9 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Markdown files open in a window ready to edit, as source styled while you type: headings larger, bold and italic shown, code in a monospaced font, and the Markdown markers dimmed. The Peek panel on Space still shows them rendered, and printing prints them rendered.
+- Ticking a Markdown task is now an edit: click the box in a window, then save with Cmd+S. The Peek panel's task boxes no longer react to clicks. In a window, Cmd-click opens a link.
+- Markdown files saved in Windows-1252, Mac Roman or UTF-16 open, and saving keeps their encoding and line endings.
 - Windows open every file ready to edit: there's no Edit button, Edit Mode item or Cmd+E any more. PDF form fields fill in directly, as in Preview, and C crops an image right after it opens. The Peek panel on Space still only views.
 - A file Peeker can't edit, such as a digitally signed PDF or an animated GIF, shows its edit tools greyed out with the reason, and a note under the toolbar says why.
 - The Peek panel's button reads Open in Peeker, so it's easy to tell from Finder's Quick Look.

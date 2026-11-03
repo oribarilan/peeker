@@ -10,7 +10,7 @@ private func open(_ file: URL) async throws -> TextDocument {
 
 /// Saves `text` as `document`'s new contents, accepting the UTF-8 offer when `utf8` is set.
 private func save(_ text: String, in document: TextDocument, utf8: Bool = false) async throws {
-    try await document.save(UnsavedEdits(TextEdits.text(text)), accepting: utf8 ? TextPlugin.saveAsUTF8 : nil)
+    try await document.save(UnsavedEdits(TextEdits.text(text)), accepting: utf8 ? TextFile.saveAsUTF8 : nil)
 }
 
 private func failure(_ body: () async throws -> Void) async -> PluginError? {
@@ -51,7 +51,7 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))   // "café" in Windows-1252
         let document = try await open(file)
         let error = await failure { try await save("🙂", in: document) }
-        #expect(error?.code == .cannotEncode && error?.offer == TextPlugin.saveAsUTF8)
+        #expect(error?.code == .cannotEncode && error?.offer == TextFile.saveAsUTF8)
         try await save("🙂", in: document, utf8: true)
         #expect(try Data(contentsOf: file) == Data("🙂".utf8))
     }
@@ -144,7 +144,7 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
     @Test func largeFilesOpenReadOnly() async throws {
         let file = try TempFile.make(Data((0...TextLimits.editableBytes).map { $0 % 100 == 99 ? 0x0A : 0x61 }))   // short lines
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let loaded = try await TextPlugin.load(file)
+        let loaded = try await TextFile.load(file)
         #expect(!loaded.editable)
         #expect(loaded.note == "Read-only: files over 10 MB open for viewing only.")
     }
@@ -155,15 +155,16 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         while bytes.count <= TextLimits.displayBytes + 1_048_576 { bytes.append(line) }
         let file = try TempFile.make(bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let loaded = try await TextPlugin.load(file)
+        let loaded = try await TextFile.load(file)
         let shown = Data(loaded.text.utf8)
         #expect(shown.count <= TextLimits.displayBytes && shown.count > TextLimits.displayBytes - line.count)
         #expect(shown.last == 0x0A && bytes.starts(with: shown))
         let size = ByteCountFormatter.string(fromByteCount: Int64(bytes.count), countStyle: .file)
         #expect(loaded.note == "Showing the first 16 MB of \(size). Read-only.")
         #expect(!loaded.editable)
-        #expect(loaded.info.first { $0.label == "Size" }?.value == size)
-        #expect(loaded.info.first { $0.label == "Lines" }?.value == (bytes.count / line.count).formatted())
+        let info = TextPlugin.info(lineCount: loaded.lineCount, format: loaded.format, byteCount: loaded.byteCount)
+        #expect(info.first { $0.label == "Size" }?.value == size)
+        #expect(info.first { $0.label == "Lines" }?.value == (bytes.count / line.count).formatted())
     }
 
     /// 9 MB of "€" in Windows-1252 (3 UTF-8 bytes each, or 2 as Mac Roman "Ä") is within the edit limit on disk but
@@ -185,7 +186,7 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         let bytes = Data(repeating: 0x61, count: TextLimits.longLineDisplayBytes - 1) + Data("é".utf8) + Data(repeating: 0x62, count: 10)
         let file = try TempFile.make(bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        #expect(try await TextPlugin.load(file).text.utf8.count == TextLimits.longLineDisplayBytes - 1)
+        #expect(try await TextFile.load(file).text.utf8.count == TextLimits.longLineDisplayBytes - 1)
     }
 
     /// TextKit lays out a line in one piece, so a file with a line over 1 MB shows only its first 4 MB.
@@ -197,7 +198,7 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         bytes.append(Data(repeating: 0x62, count: 5 * 1_048_576))
         let file = try TempFile.make(bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let loaded = try await TextPlugin.load(file)
+        let loaded = try await TextFile.load(file)
         #expect(loaded.text.utf8.count == 1000 * shortLines.count)
         #expect(!loaded.editable)
         #expect(loaded.note == "Showing the first 4 MB of \(ByteCountFormatter.string(fromByteCount: Int64(bytes.count), countStyle: .file)). Read-only.")
@@ -209,7 +210,7 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         while bytes.count < 6 * 1_048_576 { bytes.append(shortLine) }
         let file = try TempFile.make(bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let shown = Data(try await TextPlugin.load(file).text.utf8)
+        let shown = Data(try await TextFile.load(file).text.utf8)
         #expect(shown.count <= TextLimits.longLineDisplayBytes && shown.count > TextLimits.longLineDisplayBytes - shortLine.count)
         #expect(shown.last == 0x0A && bytes.starts(with: shown))
     }
@@ -220,7 +221,7 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         for _ in 0..<5 { bytes.append(line) }
         let file = try TempFile.make(bytes)
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
-        let loaded = try await TextPlugin.load(file)
+        let loaded = try await TextFile.load(file)
         #expect(loaded.text.utf8.count == bytes.count)
         #expect(loaded.editable && loaded.note == nil)
     }

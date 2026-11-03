@@ -2,7 +2,7 @@ import Foundation
 import Markdown
 
 /// Converts swift-markdown's AST into the block tree the view lays out. Lines are 1-based source lines, used for
-/// outline anchors and task toggling.
+/// outline anchors.
 nonisolated enum MarkdownTree {
     static func blocks(from source: String) -> [MarkdownBlock] {
         Document(parsing: source).children.compactMap(block)

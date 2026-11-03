@@ -1,4 +1,4 @@
-/// The parsed document: blocks with the 1-based source lines that outline anchors and task toggling need.
+/// The parsed document: blocks with the 1-based source lines that outline anchors need.
 nonisolated indirect enum MarkdownBlock: Sendable, Equatable {
     case heading(level: Int, spans: [Span], line: Int)
     case paragraph([Span])

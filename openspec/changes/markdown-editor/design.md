@@ -50,11 +50,17 @@ Above 1 MB (`MarkdownLimits.styledBytes`) no styling runs and the text uses the 
 
 Alternative: a line-by-line regular-expression highlighter. Cheaper per keystroke, but wrong on nested emphasis, fences and lists spanning lines, and it would disagree with the renderer the panel uses. Alternative: incremental reparsing of the edited block. Faster on big files, but swift-markdown has no incremental API and the 1 MB cap bounds a full parse; revisit if typing on large styled files lags.
 
+### The sidebar follows typing through a new contract hook
+
+The host rebuilds the sidebar only on open, save and reload. `PluginDocument` gains `onSidebarChange`, set by the host and ignored by default; the Markdown Editor calls it after a restyle whose outline, word count or task count changed, and the host calls `makeSidebar()` again. Rebuilding only on a change keeps the outline's scroll position while typing ordinary text.
+
+Alternative: the editor updating the panels it made in place. Rejected: an outline that starts empty has no panel to update, and the host owns which panels show.
+
 ### Clicks: a text view subclass
 
 `MarkdownTextView` overrides `mouseDown`. It finds the character under the click, and:
 - for a plain single click inside a task-box range from the last parse (and an editable document), replaces the box's middle character through `shouldChangeText`, `replaceCharacters` and `didChangeText`, so it's undoable and reported as an edit;
-- for a Cmd-click inside a link range, opens the link through the existing ask-first rule (`opensWithoutAsking`), moved to a shared helper both views call;
+- for a Cmd-click inside a link range, opens the link through the existing ask-first rule (`opensWithoutAsking`), moved to a shared `LinkOpener` both views call;
 - otherwise passes the click to `NSTextView`, so a plain click on a link places the cursor.
 
 Links in the Editor carry a color, not a `.link` attribute, so `NSTextView` never opens them on a plain click. The Peek panel keeps `.link` attributes and its delegate.

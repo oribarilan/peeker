@@ -20,7 +20,15 @@
 //        drive enabled <process> <label>           print whether the control labeled <label> is enabled
 //        drive placeholders <process>              print the placeholder of each text field in the process's windows
 //        drive frame <process> <role> [label]      print the screen frame (x y width height) of the first such element
-//                                                  whose label contains <label> or whose value is <label>
+//                                                  whose label contains <label> or whose value is <label> once leading
+//                                                  and trailing spaces are dropped (an outline row's indented title)
+//        drive value <process>                     print the text of the process's focused text area, or else the first
+//                                                  text area in its key window, then in any window (the Peek panel's)
+//        drive textframe <process> <text>          print the screen frame (x y width height, as frame does) of the
+//                                                  first <text> in that text area
+//        drive selection <process>                 print that text area's selected range and the line it starts on,
+//                                                  as "location length line N": UTF-16 offsets and a 0-based line
+//                                                  counted as laid out, so a wrapped line counts more than once
 //        drive click <process> <x> <y> [count]     click at a screen point, only while <process> is in front
 //        drive type <process> <text>               type <text>, only while <process> is in front
 //        drive drag <process> <x y>...             press at the first point, drag through the rest, release at the last
@@ -235,6 +243,24 @@ func find(_ element: AXUIElement, depth: Int = 0, where match: (AXUIElement) -> 
     return nil
 }
 
+func parameterized<T>(_ element: AXUIElement, _ name: String, _ parameter: CFTypeRef) -> T? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyParameterizedAttributeValue(element, name as CFString, parameter, &value) == .success else { return nil }
+    return value as? T
+}
+
+/// The process's focused text area, or else the first one in its key window, then in any of its windows.
+func textArea(_ process: String) -> AXUIElement {
+    let app = application(process)
+    let isArea = { (element: AXUIElement) in role(element) == kAXTextAreaRole }
+    if let focused: AXUIElement = attr(app, kAXFocusedUIElementAttribute), isArea(focused) { return focused }
+    let key: AXUIElement? = attr(app, kAXFocusedWindowAttribute)
+    guard let area = ([key].compactMap { $0 } + axWindows(app)).lazy.compactMap({ find($0, where: isArea) }).first else {
+        fail("no text area in \(process)")
+    }
+    return area
+}
+
 func press(_ element: AXUIElement, _ action: String = kAXPressAction) {
     let result = AXUIElementPerformAction(element, action as CFString)
     // A button that closes its sheet is gone by the time the call returns, which reports an error after it worked.
@@ -381,13 +407,38 @@ case "frame":
     // Every window, front first: a panel or another document may be in front of the one wanted.
     guard let element = axWindows(application(arg(1))).lazy.compactMap({ window in
         find(window, where: { element in
-            role(element) == arg(2) && (wanted.map { label(element).contains($0) || (attr(element, kAXValueAttribute) as String?) == $0 } ?? true)
+            role(element) == arg(2) && (wanted.map { want in
+                label(element).contains(want) || (attr(element, kAXValueAttribute) as String?)?.trimmingCharacters(in: .whitespaces) == want
+            } ?? true)
         })
     }).first else { fail("no \(arg(2)) \(wanted ?? "")") }
     var origin = CGPoint.zero, size = CGSize.zero
     if let value: AXValue = attr(element, kAXPositionAttribute) { AXValueGetValue(value, .cgPoint, &origin) }
     if let value: AXValue = attr(element, kAXSizeAttribute) { AXValueGetValue(value, .cgSize, &size) }
     print(Int(origin.x), Int(origin.y), Int(size.width), Int(size.height))
+case "value":
+    guard let text: String = attr(textArea(arg(1)), kAXValueAttribute) else { fail("the text area has no text") }
+    print(text)
+case "textframe":
+    let area = textArea(arg(1))
+    let found = (((attr(area, kAXValueAttribute) as String?) ?? "") as NSString).range(of: arg(2))
+    guard found.location != NSNotFound else { fail("no “\(arg(2))” in the text area") }
+    var range = CFRange(location: found.location, length: found.length)
+    guard let bounds: AXValue = parameterized(area, kAXBoundsForRangeParameterizedAttribute, AXValueCreate(.cfRange, &range)!) else {
+        fail("no screen frame for “\(arg(2))”")
+    }
+    var rect = CGRect.zero
+    AXValueGetValue(bounds, .cgRect, &rect)
+    print(Int(rect.origin.x), Int(rect.origin.y), Int(rect.width), Int(rect.height))
+case "selection":
+    let area = textArea(arg(1))
+    guard let selected: AXValue = attr(area, kAXSelectedTextRangeAttribute) else { fail("the text area has no selection") }
+    var range = CFRange()
+    AXValueGetValue(selected, .cfRange, &range)
+    guard let line: Int = parameterized(area, kAXLineForIndexParameterizedAttribute, NSNumber(value: range.location)) else {
+        fail("no line for index \(range.location)")
+    }
+    print(range.location, range.length, "line", line)
 case "click":
     requireFront(arg(1))
     guard let x = Double(arg(2)), let y = Double(arg(3)) else { fail("click needs numbers") }
@@ -436,5 +487,5 @@ case "focus":
     print("key window: \(window.map { (attr($0, kAXTitleAttribute) as String?) ?? "untitled" } ?? "none")")
     print("focused: \(focused.map { "\(role($0)) \(label($0))" } ?? "none")")
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|click|type|keys|drag|wait|focus ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|focus ...; see the top of drive.swift")
 }

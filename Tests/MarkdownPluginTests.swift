@@ -5,9 +5,10 @@ import Testing
 import UniformTypeIdentifiers
 
 @Suite struct MarkdownEditability {
-    @Test func renderedMarkdownIsNeverEdited() async throws {
+    @Test func theEditorEditsAndThePeekPanelOnlyViews() async throws {
         let file = try TempFile.make(Data("# Title\n".utf8), name: "f.md")
-        #expect(try await MarkdownPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)).editability == .notEditable)
+        #expect(try await MarkdownPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)).editability == .editable)
+        #expect(try await MarkdownPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: false)).editability == .notEditable)
     }
 }
 
@@ -34,32 +35,12 @@ import UniformTypeIdentifiers
         #expect(spans.contains(Span(text: "code", style: .code, link: nil)))
         #expect(spans.contains(Span(text: "a link", style: [], link: "https://example.com")))
     }
-
-    @Test func togglingATaskEditsOnlyThatLine() async throws {
-        let file = FileManager.default.temporaryDirectory.appending(path: "peeker-test-\(UUID().uuidString).md")
-        try "# Plan\n- [ ] first\n- [ ] second\n".write(to: file, atomically: true, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(at: file) }
-        try await MarkdownPlugin.toggleTask(atLine: 3, in: file)
-        #expect(try String(contentsOf: file, encoding: .utf8) == "# Plan\n- [ ] first\n- [x] second\n")
-        await #expect(throws: PluginError.self) { try await MarkdownPlugin.toggleTask(atLine: 1, in: file) }
-    }
-
-    @Test func togglingATaskKeepsSymlinksAndPermissions() async throws {
-        let target = try TempFile.make(Data("- [ ] task\n".utf8), name: "target.md")
-        try FileManager.default.setAttributes([.posixPermissions: 0o640], ofItemAtPath: target.path)
-        let link = target.deletingLastPathComponent().appending(path: "link.md")
-        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
-        try await MarkdownPlugin.toggleTask(atLine: 1, in: link)
-        #expect(try String(contentsOf: target, encoding: .utf8) == "- [x] task\n")
-        #expect(try FileManager.default.attributesOfItem(atPath: link.path)[.type] as? FileAttributeType == .typeSymbolicLink)
-        #expect(try FileManager.default.attributesOfItem(atPath: target.path)[.posixPermissions] as? Int == 0o640)
-    }
 }
 
 @Suite struct MarkdownDocumentTests {
     private func open(_ text: String) async throws -> (URL, MarkdownDocument) {
         let file = try TempFile.make(Data(text.utf8), name: "f.md")
-        let document = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownDocument.self)
+        let document = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownDocument.self, editing: false)
         return (file, document)
     }
 
@@ -70,12 +51,19 @@ import UniformTypeIdentifiers
         #expect(document.info.contains(PeekerKit.InfoRow(label: "Tasks", value: "1 of 2 done")))
     }
 
-    @Test func tickingATaskWritesTheFileAtOnceAndIsNoEdit() async throws {
-        let (file, document) = try await open("# Plan\n- [ ] first\n")
-        try await document.toggleTask(atLine: 2)
-        #expect(try String(contentsOf: file, encoding: .utf8) == "# Plan\n- [x] first\n")
-        #expect(document.info.contains(PeekerKit.InfoRow(label: "Tasks", value: "1 of 1 done")))
-        #expect(document.unsavedEdits() == nil)
+    @Test func taskBoxesInThePeekPanelDontReactToClicks() async throws {
+        let (_, document) = try await open("- [ ] first\n- [x] second\n")
+        let text = try #require((document.contentView as? NSScrollView)?.documentView as? NSTextView).attributedString()
+        var links = 0
+        text.enumerateAttribute(.link, in: NSRange(location: 0, length: text.length)) { value, _, _ in if value != nil { links += 1 } }
+        #expect(links == 0)
+        #expect(document.renderedText.contains("first"))
+    }
+
+    @Test func thePeekPanelReadsTheEncodingsPlainTextReads() async throws {
+        let file = try TempFile.make(Data([0x23, 0x20, 0x63, 0x61, 0x66, 0xE9, 0x0A]), name: "f.md")   // "# café\n" in Windows-1252
+        let document = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownDocument.self, editing: false)
+        #expect(document.renderedText.contains("café"))
     }
 
     @Test func reloadPicksUpChangesInPlace() async throws {
@@ -99,7 +87,7 @@ import UniformTypeIdentifiers
         #expect(document.renderedText == once)
     }
 
-    @Test func textThatIsNotUTF8IsRefused() async throws {
+    @Test func aFileThatIsntTextIsRefused() async throws {
         let file = try TempFile.make(Data([0xFF, 0xFE, 0x00, 0xD8]), name: "f.md")
         await #expect(throws: PluginError.self) {
             _ = try await MarkdownPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true))
@@ -118,9 +106,9 @@ import UniformTypeIdentifiers
         document.loadViewIfNeeded()
         await document.load()
         try await waitUntil(seconds: 2) { ready }
-        let markdown = try #require(document.pluginDocument as? MarkdownDocument)
+        let markdown = try #require(document.pluginDocument as? MarkdownEditor)
         try Data("after\n".utf8).write(to: file, options: .atomic)
-        try await waitUntil(seconds: 3) { markdown.renderedText.contains("after") }
+        try await waitUntil(seconds: 3) { markdown.text.contains("after") }
         #expect(document.pluginDocument === markdown)
     }
 }
@@ -129,10 +117,10 @@ import UniformTypeIdentifiers
     /// A downloaded file's link could start an app with one click, so only web pages and email open without asking.
     @Test func onlyWebAndEmailLinksOpenWithoutAsking() throws {
         for link in ["https://example.com", "http://example.com/a", "HTTPS://EXAMPLE.COM", "mailto:someone@example.com"] {
-            #expect(MarkdownDocument.opensWithoutAsking(try #require(URL(string: link))), "\(link)")
+            #expect(LinkOpener.opensWithoutAsking(try #require(URL(string: link))), "\(link)")
         }
         for link in ["file:///Applications/Calculator.app", "shortcuts://run-shortcut?name=x", "facetime:+15555550100", "x-custom:open"] {
-            #expect(!MarkdownDocument.opensWithoutAsking(try #require(URL(string: link))), "\(link)")
+            #expect(!LinkOpener.opensWithoutAsking(try #require(URL(string: link))), "\(link)")
         }
     }
 }

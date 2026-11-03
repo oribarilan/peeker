@@ -52,6 +52,9 @@ public struct OpenContext: Sendable {
     /// Builds the sidebar panels. The host calls it when the document appears, after a save and after a reload, and
     /// replaces the panels it showed before.
     func makeSidebar() -> [SidebarPanel]
+    /// Set by the host: call it when the sidebar's contents changed at another time, such as an outline that follows
+    /// typing; the host then calls `makeSidebar()` again. The default ignores it.
+    var onSidebarChange: (() -> Void)? { get set }
     var tools: [ToolSpec] { get }
     /// Runs the tool with `id`. Returns false for an id it doesn't know.
     func perform(_ id: String) -> Bool
@@ -113,6 +116,10 @@ public extension PluginDocument {
     func unavailableReason(for tool: String) -> String? { nil }
     func reload() async throws(PluginError) -> Bool { false }
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? { nil }
+    var onSidebarChange: (() -> Void)? {
+        get { nil }
+        set {}  // a sidebar that changes only on save or reload never calls it
+    }
     var onReplace: ((any PluginDocument) -> Void)? {
         get { nil }
         set {}  // a document that never replaces itself ignores it

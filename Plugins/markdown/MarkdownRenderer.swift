@@ -2,8 +2,6 @@ import AppKit
 
 /// Lays out the block tree as native attributed text, with each heading's source line mapped to where it starts.
 enum MarkdownRenderer {
-    static let taskScheme = "peeker-task"
-
     static func render(_ blocks: some Collection<MarkdownBlock>, leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
         var context = Context()
         if leadingBreak { context.out.append(NSAttributedString(string: "\n")) }
@@ -75,7 +73,7 @@ enum MarkdownRenderer {
             let prefix = NSMutableAttributedString(string: marker + "\t", attributes: [.font: Self.body, .foregroundColor: NSColor.secondaryLabelColor])
             if let checked = item.checked {
                 prefix.setAttributedString(NSAttributedString(string: (checked ? "☑" : "☐") + "\t", attributes: [
-                    .font: NSFont.systemFont(ofSize: 15), .link: URL(string: "\(taskScheme)://\(item.line)")!,
+                    .font: NSFont.systemFont(ofSize: 15), .foregroundColor: NSColor.secondaryLabelColor,
                 ]))
             }
             guard let first = item.blocks.first else {

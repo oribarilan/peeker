@@ -7,10 +7,38 @@ public enum MarkdownPlugin: Plugin {
     public static let name = "Markdown"
     public static let symbol = "number"
     public static let defaultExtensions = ["md", "markdown", "mdown"]
-    public static let tools: [ToolSpec] = []
+    public static let tools = [
+        ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
+        ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
+    ]
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
-        MarkdownDocument(url: url, parsed: try await parse(url))
+        guard context.allowsEditing else { return MarkdownDocument(url: url, parsed: try await parse(url)) }
+        return MarkdownEditor(url: url, source: try await load(url))
+    }
+
+    public static func recoveryText(from edits: Data) -> String? {
+        (try? JSONDecoder().decode(TextEdits.self, from: edits))?.text
+    }
+
+    /// A file for the Editor: its text, and the parse that styles it and fills the sidebar.
+    struct Source: Sendable {
+        let file: TextFile.Loaded
+        let style: MarkdownStyle
+        /// Small enough to style while typing.
+        let styled: Bool
+    }
+
+    /// Reads, decodes and parses the file off the main thread.
+    @concurrent nonisolated static func load(_ url: URL) async throws(PluginError) -> Source {
+        let file = try await TextFile.load(url)
+        return Source(file: file, style: MarkdownStyler.style(file.text), styled: file.text.utf8.count <= MarkdownLimits.styledBytes)
+    }
+
+    nonisolated static func info(words: Int, tasks: (done: Int, total: Int)) -> [InfoRow] {
+        var info = [InfoRow(label: "Words", value: words.formatted())]
+        if tasks.total > 0 { info.append(InfoRow(label: "Tasks", value: "\(tasks.done) of \(tasks.total) done")) }
+        return info
     }
 
     struct Parsed: Sendable {
@@ -21,22 +49,14 @@ public enum MarkdownPlugin: Plugin {
 
     /// Reads and parses the file off the main thread.
     @concurrent nonisolated static func parse(_ url: URL) async throws(PluginError) -> Parsed {
-        let source = try PluginError.catching { try String(contentsOf: url, encoding: .utf8) }
+        let source = try TextCodec.decode(try PluginError.catching { try Data(contentsOf: url, options: .alwaysMapped) }).text
         let blocks = MarkdownTree.blocks(from: source)
-        let tasks = MarkdownTree.taskCounts(in: blocks)
-        var info = [InfoRow(label: "Words", value: source.split { $0.isWhitespace }.count.formatted())]
-        if tasks.total > 0 { info.append(InfoRow(label: "Tasks", value: "\(tasks.done) of \(tasks.total) done")) }
+        let info = info(words: source.split { $0.isWhitespace }.count, tasks: MarkdownTree.taskCounts(in: blocks))
         return Parsed(blocks: blocks, outline: MarkdownTree.outline(of: blocks), info: info)
     }
+}
 
-    /// Flips the task checkbox on a 1-based source line and saves the file, off the main thread.
-    @concurrent nonisolated static func toggleTask(atLine line: Int, in url: URL) async throws(PluginError) {
-        var lines = try PluginError.catching { try String(contentsOf: url, encoding: .utf8) }.components(separatedBy: "\n")
-        guard lines.indices.contains(line - 1),
-              let match = lines[line - 1].prefixMatch(of: /^(\s*(?:>\s*)*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/) else {
-            throw PluginError("Line \(line) has no task to tick. The file may have changed.")
-        }
-        lines[line - 1].replaceSubrange(match.range, with: "\(match.1)[\(match.2 == " " ? "x" : " ")]")
-        try FileReplacement.replaceContents(ofFileAt: url.path, with: Data(lines.joined(separator: "\n").utf8))
-    }
+nonisolated enum MarkdownLimits {
+    /// Larger files open unstyled in the Editor, so typing never waits on parsing them.
+    static let styledBytes = 1_048_576
 }

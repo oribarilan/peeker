@@ -5,12 +5,12 @@
 #
 # Needs an unlocked screen left alone (about three minutes without video), Accessibility and Screen Recording for the
 # terminal, and no other copy of Peeker running.
-# usage: scripts/screen-test.sh [--record] [--no-build] [routing|flows|pdf-edit|pdf-pages|image-edit|recovery|viewer ...]
+# usage: scripts/screen-test.sh [--record] [--no-build] [routing|flows|pdf-edit|pdf-pages|image-edit|markdown-edit|recovery|viewer ...]
 #   --record     also save a screen recording of each flow (slower: a recording runs to its time limit)
 #   --no-build   test the app already in build/ instead of building first
 set -u
 cd "$(dirname "$0")/.."
-all=(routing flows pdf-edit pdf-pages image-edit recovery viewer)
+all=(routing flows pdf-edit pdf-pages image-edit markdown-edit recovery viewer)
 script() {
     case $1 in
     routing) echo scripts/screen/e2e-routing.sh ;;
@@ -18,6 +18,7 @@ script() {
     pdf-edit) echo scripts/screen/pdf-edit-flow.sh ;;
     pdf-pages) echo scripts/screen/pdf-pages-flow.sh ;;
     image-edit) echo scripts/screen/image-edit-flow.sh ;;
+    markdown-edit) echo scripts/screen/markdown-edit-flow.sh ;;
     recovery) echo scripts/screen/recovery-flow.sh ;;
     viewer) echo scripts/screen/viewer-flow.sh ;;
     *) return 1 ;;
@@ -44,7 +45,7 @@ RUN="$PWD/build/evidence/run-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$RUN"
 export SCREEN_RUN="$RUN" SCREEN_RECORD=$record
 summary="$RUN/summary.txt"
-printf '%-10s %4s %5s\n' flow ok FAIL > "$summary"
+printf '%-13s %4s %5s\n' flow ok FAIL > "$summary"
 status=0
 for flow in "${chosen[@]}"; do
     echo "running ${flow}…"
@@ -57,7 +58,7 @@ for flow in "${chosen[@]}"; do
     # A flow that stopped without failing a check (a guard, a broken script) didn't test anything after that point.
     if [ "$code" -ne 0 ] && [ "$failed" -eq 0 ]; then note="  didn't finish: $(grep -v '^ok' "$RUN/$flow/output.txt" | tail -1)"; fi
     [ "$code" -eq 0 ] && [ "$failed" -eq 0 ] || status=1
-    printf '%-10s %4s %5s%s\n' "$flow" "$ok" "$failed" "$note" >> "$summary"
+    printf '%-13s %4s %5s%s\n' "$flow" "$ok" "$failed" "$note" >> "$summary"
 done
 
 echo
