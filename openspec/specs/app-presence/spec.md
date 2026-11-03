@@ -36,7 +36,7 @@ While the config has problems, the menu bar icon SHALL show a small red dot, and
 
 ### Requirement: Dock icon and menus only while windows are open
 
-Peeker SHALL show its Dock icon, its app menus and a place in Cmd+Tab while a document window or the Settings window is open, and hide all three once the last such window closes. The Peek panel SHALL NOT count as a window here, so pressing Space never makes a Dock icon appear.
+Peeker SHALL show its Dock icon, its app menus and a place in Cmd+Tab while an Editor window or the Settings window is open, and hide all three once the last such window closes. The Peek panel SHALL NOT count as a window here, so pressing Space never makes a Dock icon appear.
 
 #### Scenario: Opening and closing a file
 

@@ -47,17 +47,9 @@ Opening an image with the app not running SHALL draw it no later than Preview sh
 - **WHEN** the benchmark opens the 48 MP PNG fixture in Peeker and in Preview
 - **THEN** Peeker's content time is lower than Preview's window time, or at most 10% higher
 
-### Requirement: Image Edit mode
-
-In a document window, an image Peeker can edit SHALL open in a read view that never changes the file, with the host's Edit button and Cmd+E to turn Edit mode on. The image tools SHALL show in the toolbar only in Edit mode. The Peek panel SHALL have no Edit mode.
-
-#### Scenario: Turning Edit mode on
-- **WHEN** the user opens a PNG and presses Cmd+E
-- **THEN** Edit mode turns on and the Crop and Rotate & Resize tools show
-
 ### Requirement: Cropping an image
 
-In Edit mode, Crop (C) SHALL let the user drag a rectangle on the image, adjust it with corner and edge handles, see its size in the image's pixels, and see the area outside it dimmed. Once a rectangle exists, Crop and Cancel buttons SHALL follow it, at the same size whatever the zoom. Crop or Return SHALL crop to it, as one edit; Cancel or Escape SHALL change nothing. A rectangle SHALL stay within the image.
+In the Editor, Crop (C) SHALL let the user drag a rectangle on the image, adjust it with corner and edge handles, see its size in the image's pixels, and see the area outside it dimmed. Once a rectangle exists, Crop and Cancel buttons SHALL follow it, at the same size whatever the zoom. Crop or Return SHALL crop to it, as one edit; Cancel or Escape SHALL change nothing. A rectangle SHALL stay within the image.
 
 #### Scenario: Cropping
 - **WHEN** the user presses C, drags a rectangle over the image's left half and presses Return
@@ -89,7 +81,7 @@ In Edit mode, Crop (C) SHALL let the user drag a rectangle on the image, adjust 
 
 ### Requirement: Rotate & Resize panel
 
-Rotate & Resize (Cmd+R) SHALL open a panel just below the toolbar, with buttons to rotate left, rotate right, flip horizontally and flip vertically (also L, R, H and V while it's open), width and height fields in pixels or percent, and an aspect lock, on by default. Applying a new size SHALL resize the image as one edit; enlarging SHALL be allowed. Escape SHALL close the panel. Run from the read view, Cmd+R SHALL turn Edit mode on first.
+Rotate & Resize (Cmd+R) SHALL open a panel just below the toolbar, with buttons to rotate left, rotate right, flip horizontally and flip vertically (also L, R, H and V while it's open), width and height fields in pixels or percent, and an aspect lock, on by default. Applying a new size SHALL resize the image as one edit; enlarging SHALL be allowed. Escape SHALL close the panel.
 
 #### Scenario: Turning twice
 - **WHEN** the user presses Cmd+R, then R twice
@@ -117,19 +109,7 @@ Image edits SHALL be pending until Cmd+S, undoable one by one back to the last s
 
 #### Scenario: Recovery
 - **WHEN** the user crops and rotates an image and Peeker is force-quit before saving
-- **THEN** the next launch reopens it in Edit mode with those edits
-
-### Requirement: Images Peeker can't edit
-
-Edit SHALL be greyed out with the reason for an image whose format Peeker can't write without loss (anything but JPEG, PNG, GIF, TIFF, HEIC, AVIF, BMP and JPEG 2000: camera RAW, WebP, JPEG XL, PSD and EXR among them), for an image with more than one frame (an animated GIF, a multi-page TIFF), and for an image over 100 megapixels.
-
-#### Scenario: An animated GIF
-- **WHEN** the user opens an animated GIF in a window
-- **THEN** the Edit button is disabled and says the image has several frames
-
-#### Scenario: Camera RAW
-- **WHEN** the user opens a DNG
-- **THEN** the Edit button is disabled and says Peeker can't save this format
+- **THEN** the next launch reopens it with those edits
 
 ### Requirement: Print an image
 
@@ -161,7 +141,7 @@ Actual Size (Cmd+0) SHALL show the image at one image pixel per screen pixel, ce
 
 ### Requirement: Animated images
 
-An image with several frames that its format animates (GIF, animated PNG, WebP, HEIC sequence) SHALL play in a loop with the frame timing its file gives, in document windows and the Peek panel. A click on the image SHALL pause it and another click resume it. A multi-page TIFF SHALL keep showing its first page.
+An image with several frames that its format animates (GIF, animated PNG, WebP, HEIC sequence) SHALL play in a loop with the frame timing its file gives, in the Editor and the Peek panel. A click on the image SHALL pause it and another click resume it. A multi-page TIFF SHALL keep showing its first page.
 
 #### Scenario: Playing
 - **WHEN** the user opens an animated GIF
@@ -170,3 +150,26 @@ An image with several frames that its format animates (GIF, animated PNG, WebP, 
 #### Scenario: Pausing
 - **WHEN** the user clicks a playing animation
 - **THEN** it stops on the current frame, and a second click plays it on from there
+
+### Requirement: Image edit tools
+
+In the Editor, an image Peeker can edit SHALL show Crop and Rotate & Resize in the toolbar and the Tools menu from the start. The Peek panel SHALL have no edit tools.
+
+#### Scenario: Opening a PNG
+
+- **WHEN** the user opens a PNG in the Editor
+- **THEN** Crop and Rotate & Resize are in the toolbar, and pressing C starts cropping
+
+### Requirement: Images Peeker can't edit are read-only
+
+An image SHALL be read-only, with the reason, when its format is one Peeker can't write without loss (anything but JPEG, PNG, GIF, TIFF, HEIC, AVIF, BMP and JPEG 2000: camera RAW, WebP, JPEG XL, PSD and EXR among them), when it has more than one frame (an animated GIF, a multi-page TIFF), and when it's over 100 megapixels.
+
+#### Scenario: An animated GIF
+
+- **WHEN** the user opens an animated GIF in the Editor
+- **THEN** Crop and Rotate & Resize are greyed out, and the note says the image has several frames
+
+#### Scenario: Camera RAW
+
+- **WHEN** the user opens a DNG
+- **THEN** the edit tools are greyed out, and the note says Peeker can't save this format

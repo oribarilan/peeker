@@ -45,7 +45,7 @@ The text SHALL appear in a native text view in the system monospaced font, with 
 
 ### Requirement: Editing keeps the file's format
 
-Text files SHALL be editable in document windows, with undo and redo. Saving SHALL write the text in the file's original encoding and byte-order mark, write every line break as the file's dominant line ending, and keep the trailing newline as it is in the text. A save with no change to the text SHALL write nothing, so a file with mixed line endings stays byte for byte the same.
+Text files SHALL be editable in the Editor, with undo and redo. Saving SHALL write the text in the file's original encoding and byte-order mark, write every line break as the file's dominant line ending, and keep the trailing newline as it is in the text. A save with no change to the text SHALL write nothing, so a file with mixed line endings stays byte for byte the same.
 
 #### Scenario: Editing a CRLF file
 

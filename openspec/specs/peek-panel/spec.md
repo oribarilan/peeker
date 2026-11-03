@@ -42,15 +42,6 @@ The Peek panel SHALL float above other windows without activating the app, so Fi
 - **WHEN** the Peek panel shows a file and the user presses the down arrow
 - **THEN** Finder selects the next file and the panel shows it
 
-### Requirement: The Peek panel views; Open moves the file to a window
-
-The Peek panel SHALL only view, never edit. Its Open button SHALL close the panel and open the file in a document window, where it can be edited.
-
-#### Scenario: Edit from the Peek panel
-
-- **WHEN** the user clicks Open in the Peek panel on a text file
-- **THEN** the panel closes and the file opens in an editable window
-
 ### Requirement: The Peek panel is at least as fast as Quick Look
 
 For every benchmark file, Space with Peeker running SHALL show the Peek panel no slower than Finder's Quick Look shows its own for the same file: faster, or within 10% (the benchmarks' "about the same"). Both SHALL be timed the same way by `bench/spacebench.swift`.
@@ -85,5 +76,14 @@ Open at Login, in the menu bar icon's menu and in Settings' General pane, SHALL 
 
 #### Scenario: The app menu
 
-- **WHEN** a document window is open and the user opens the Peeker menu
+- **WHEN** an Editor window is open and the user opens the Peeker menu
 - **THEN** it has Settings… but no Open at Login
+
+### Requirement: The Peek panel views; Open in Peeker moves the file to the Editor
+
+The Peek panel SHALL only view, never edit. Its button SHALL read Open in Peeker, so the panel can be told apart from Quick Look, and SHALL close the panel and open the file in the Editor, ready to edit.
+
+#### Scenario: Editing from the Peek panel
+
+- **WHEN** the user clicks Open in Peeker in the Peek panel on a PDF
+- **THEN** the panel closes and the PDF opens in the Editor with its edit tools in the toolbar

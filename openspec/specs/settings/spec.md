@@ -57,15 +57,6 @@ The General pane SHALL show a "Check for updates automatically" checkbox bound t
 - **WHEN** automatic checks are off and the user clicks Check Now
 - **THEN** Peeker checks right away and says what it found
 
-### Requirement: A command's shortcut can be cleared
-
-Each command's shortcut in a plugin pane SHALL have a clear button that leaves the command without a shortcut, applied at once and written as `"shortcut": "off"`. Reset SHALL bring the default back. A command without a shortcut SHALL show that it has none.
-
-#### Scenario: Clearing a shortcut
-
-- **WHEN** the user clicks the clear button beside Zoom In's shortcut in the PDF pane
-- **THEN** `config.json` has `"shortcut": "off"` for zoom-in, Cmd+= no longer zooms a PDF, and the recorder shows no shortcut
-
 ### Requirement: Settings is a sidebar of panes
 
 The Settings window SHALL show a sidebar of panes and the selected pane beside it. The sidebar SHALL list General, then one pane per plugin in sidebar order (Image, PDF, Markdown, Plain Text), each with the icon its plugin names, then Permissions and Config File. It SHALL open on General the first time, and afterwards on the pane last shown, also after a relaunch. The window SHALL resize but its zoom button SHALL be disabled.
@@ -150,25 +141,6 @@ When the user adds an extension that another plugin opens, the pane SHALL name t
 
 - **WHEN** the user adds `md` in the Plain Text pane
 - **THEN** the pane says Markdown opens `md` and offers Move; after Move, `.md` files open in Plain Text and `md` is gone from the Markdown pane
-
-### Requirement: A plugin pane rebinds the plugin's commands
-
-Each plugin pane SHALL list the plugin's commands, each with its shortcut in a key recorder and a reset to the default. The recorder SHALL refuse a key without a modifier, and a shortcut that another command of the same plugin or an app menu item already uses, naming it. A refusal's reason SHALL stay shown until the next recording and SHALL be announced to VoiceOver. A recorded shortcut SHALL work in open windows at once.
-
-#### Scenario: Rebinding Highlight Selection
-
-- **WHEN** the user records Command-Shift-H for Highlight Selection in the PDF pane
-- **THEN** Command-Shift-H highlights the selection in PDFs, including ones already open
-
-#### Scenario: A taken key
-
-- **WHEN** the user records Command-S for a command
-- **THEN** the recorder refuses it, saying the Save menu item uses it, and the shortcut stays as it was
-
-#### Scenario: The reason stays and is heard
-
-- **WHEN** the recorder refuses Command-P while VoiceOver runs
-- **THEN** VoiceOver reads that Print uses it, and the reason stays under the recorder until the user records again
 
 ### Requirement: Permissions shows what the Peek panel needs
 
@@ -266,3 +238,31 @@ The General pane SHALL show, in this order, the Peek panel key, Open at Login, t
 
 - **WHEN** the user opens the General pane
 - **THEN** it shows the Peek panel section first, then Open at Login, Default app and Updates
+
+### Requirement: A tool's shortcut can be cleared
+
+Each tool's shortcut in a plugin pane SHALL have a clear button that leaves the tool without a shortcut, applied at once and written as `"shortcut": "off"`. Reset SHALL bring the default back. A tool without a shortcut SHALL show that it has none.
+
+#### Scenario: Clearing a shortcut
+
+- **WHEN** the user clicks the clear button beside Text Box's shortcut in the PDF pane
+- **THEN** `config.json` has `"shortcut": "off"` for text-box, Ctrl+Cmd+T no longer starts a text box, and the recorder shows no shortcut
+
+### Requirement: A plugin pane rebinds the plugin's tools
+
+Each plugin pane SHALL list the plugin's tools, each with its shortcut in a key recorder and a reset to the default. The recorder SHALL refuse a key without a modifier (except single keys for edit tools), and a shortcut that another tool of the same plugin or an app menu item already uses, naming it. A refusal's reason SHALL stay shown until the next recording and SHALL be announced to VoiceOver. A recorded shortcut SHALL work in open windows at once.
+
+#### Scenario: Rebinding Highlight Selection
+
+- **WHEN** the user records Command-Shift-H for Highlight Selection in the PDF pane
+- **THEN** Command-Shift-H highlights the selection in PDFs, including ones already open
+
+#### Scenario: A taken key
+
+- **WHEN** the user records Command-S for a tool
+- **THEN** the recorder refuses it, saying the Save menu item uses it, and the shortcut stays as it was
+
+#### Scenario: The reason stays and is heard
+
+- **WHEN** the recorder refuses Command-P while VoiceOver runs
+- **THEN** VoiceOver reads that Print uses it, and the reason stays under the recorder until the user records again
