@@ -48,7 +48,9 @@ quit_app() {
 # Launches the build under test with this run's config and crash-recovery folder, so the user's own are never read
 # or written (both settings apply only to a fresh launch), and waits for it: for the file's window when given one.
 launch() {
-    open --env PEEKER_CONFIG="$CONFIG" --env PEEKER_RECOVERY="$OUT/recovery" -a "$APP" "$@"
+    # Right after a copy is killed, LaunchServices can still be tearing it down and refuse (error -600); try once more.
+    open --env PEEKER_CONFIG="$CONFIG" --env PEEKER_RECOVERY="$OUT/recovery" -a "$APP" "$@" \
+        || { sleep 1; open --env PEEKER_CONFIG="$CONFIG" --env PEEKER_RECOVERY="$OUT/recovery" -a "$APP" "$@"; }
     for _ in $(seq 100); do pgrep -f "$BIN" >/dev/null && break; sleep 0.1; done
     if [ $# -gt 0 ]; then "$DRIVE" wait Peeker window "$(basename "$1")" --timeout 10; else sleep 1; fi
 }
