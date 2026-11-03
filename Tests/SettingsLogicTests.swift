@@ -262,3 +262,16 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         #expect(MenuBarItem.State(problems: 1, needsAccessibility: true) == .init(dot: true, problemsLine: "Config has 1 problem", accessibilityLine: true))
     }
 }
+
+@Suite struct TextThemeSettings {
+    @Test func pickingAThemeRewritesTheConfig() throws {
+        let file = try TempFile.make(Data("{}".utf8), name: "config.json")
+        let store = ConfigStore(url: file, plugins: plugins)
+        defer { store.stop() }
+        let model = SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"))
+        model.textTheme = "paper"
+        let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        #expect(saved["textTheme"] as? String == "paper")
+        #expect(model.textTheme == "paper")
+    }
+}

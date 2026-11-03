@@ -1,5 +1,6 @@
 import AppKit
 import os
+import PeekerKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "config")
@@ -50,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var launchedAtLogin = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
+        TextTheme.current = config.theme  // before any window or the Peek panel draws text
         let launch = NSAppleEventManager.shared().currentAppleEvent
         launchedAtLogin = launch?.eventID == kAEOpenApplication
             && launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
@@ -191,6 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         updateMenuBar()
         catalog.reload(config: store.config)
         updater.apply(store.config)
+        TextTheme.current = store.config.theme  // recolors only when the theme changed
         windows.forEach { $0.apply(store.config) }
         guard store.config.peekPanelKey != hotkeyShortcut else { return }
         hotkey?.stop()

@@ -118,7 +118,6 @@ private func large(_ size: Int) -> Data {
         editor.type("## Notes\n")
         await editor.restyle()
         #expect(editor.fontSize(at: 8) > body)
-        #expect((editor.attributes(at: 6)[.foregroundColor] as? NSColor) == .tertiaryLabelColor, "the ## is dimmed")
     }
 
     @Test func aParseOfOlderTextIsDropped() async throws {

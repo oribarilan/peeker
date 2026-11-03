@@ -362,3 +362,30 @@ private func config(_ json: String) throws -> Config {
         #expect(back.owners(of: plugins).problems.isEmpty)
     }
 }
+
+@Suite struct TextThemeConfig {
+    @Test func readsRendersAndRoundTripsTheTheme() throws {
+        #expect(try config("{}").textTheme == "system")
+        let chosen = try config(#"{"textTheme": "tokyo-night"}"#)
+        #expect(chosen.textTheme == "tokyo-night")
+        let root = try #require(try JSONSerialization.jsonObject(with: chosen.json(plugins: plugins)) as? [String: Any])
+        #expect(root["textTheme"] as? String == "tokyo-night")
+        #expect(try config(String(decoding: chosen.json(plugins: plugins), as: UTF8.self)).textTheme == "tokyo-night")
+    }
+
+    @Test func anUnknownThemeIsReportedAndSystemIsUsed() throws {
+        let reading = read(#"{"textTheme": "tokyonight"}"#)
+        #expect(try #require(reading.config).textTheme == "system")
+        #expect(reading.problems.map(\.path) == ["textTheme"])
+        let message = try #require(reading.problems.first?.message)
+        #expect(["system", "paper", "slate", "graphite", "ink", "catppuccin", "tokyo-night", "high-contrast"].allSatisfy { message.contains($0) })
+        #expect(read(#"{"textTheme": 3}"#).problems.map(\.path) == ["textTheme"])
+    }
+}
+
+@Suite @MainActor struct TextThemeFromConfig {
+    @Test func theConfigNamesTheTheme() throws {
+        #expect(try config(#"{"textTheme": "graphite"}"#).theme.id == "graphite")
+        #expect(Config().theme.id == "system")
+    }
+}

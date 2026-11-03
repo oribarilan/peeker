@@ -22,6 +22,7 @@ extension Config {
             "$schema": "schema.json",
             "peekPanel": ["key": peekPanelKey?.configText ?? "off"],
             "updates": ["check": checkForUpdates],
+            "textTheme": textTheme,
             "plugins": pluginSettings,
         ]
         // Can't fail: the tree holds only strings, booleans, arrays and dictionaries.

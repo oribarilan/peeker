@@ -72,3 +72,13 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: missing.deletingLastPathComponent().path))
     }
 }
+
+@Suite struct TextThemeSchema {
+    @Test func listsTheThemeNames() throws {
+        let schema = try #require(try JSONSerialization.jsonObject(with: ConfigSchema.data(plugins: [])) as? [String: Any])
+        let theme = try #require((schema["properties"] as? [String: Any])?["textTheme"] as? [String: Any])
+        #expect(theme["type"] as? String == "string")
+        #expect(theme["enum"] as? [String] == ["system", "paper", "slate", "graphite", "ink", "catppuccin", "tokyo-night", "high-contrast"])
+        #expect(theme["default"] as? String == "system")
+    }
+}

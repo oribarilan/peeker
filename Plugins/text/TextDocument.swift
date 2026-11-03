@@ -76,6 +76,9 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         applyFont()
         apply(editable: loaded.editable, note: loaded.note)
         textView.string = loaded.text
+        applyTheme()
+        // Selector-based, so the observation ends with the document.
+        NotificationCenter.default.addObserver(self, selector: #selector(applyTheme), name: TextTheme.didChange, object: nil)
     }
 
     var contentView: NSView { root }
@@ -192,6 +195,15 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         fontSize = clamped
         applyFont()
         if !wraps { applyWrap() }
+    }
+
+    /// The theme's colors. A plain-text view has one text color, so this doesn't touch the text or its undo history.
+    @objc private func applyTheme() {
+        let theme = TextTheme.current
+        textView.backgroundColor = theme.background
+        textView.textColor = theme.text
+        textView.insertionPointColor = theme.cursor
+        textView.selectedTextAttributes = [.backgroundColor: theme.selection]
     }
 
     private func applyFont() {

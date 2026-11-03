@@ -1,9 +1,10 @@
 import AppKit
+import PeekerKit
 
 /// Lays out the block tree as native attributed text, with each heading's source line mapped to where it starts.
 enum MarkdownRenderer {
-    static func render(_ blocks: some Collection<MarkdownBlock>, leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
-        var context = Context()
+    static func render(_ blocks: some Collection<MarkdownBlock>, theme: TextTheme, leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
+        var context = Context(theme: theme)
         if leadingBreak { context.out.append(NSAttributedString(string: "\n")) }
         for block in blocks { context.render(block, indent: 0) }
         if context.out.length > 0 { context.out.deleteCharacters(in: NSRange(location: context.out.length - 1, length: 1)) }
@@ -29,6 +30,7 @@ enum MarkdownRenderer {
     }
 
     private struct Context {
+        let theme: TextTheme
         let out = NSMutableAttributedString()
         var anchors: [Int: Int] = [:]
 
@@ -42,7 +44,7 @@ enum MarkdownRenderer {
                 let level = min(max(level, 1), 6)
                 anchors[line] = out.length
                 let font = NSFont.systemFont(ofSize: Self.headingSizes[level - 1], weight: .bold)
-                paragraph(spans, font: font, indent: indent, before: level <= 2 ? 14 : 8, prefix: prefix)
+                paragraph(spans, font: font, color: theme.heading, indent: indent, before: level <= 2 ? 14 : 8, prefix: prefix)
             case .paragraph(let spans):
                 paragraph(spans, font: Self.body, indent: indent, before: 0, prefix: prefix)
             case .list(let ordered, let start, let items):
@@ -54,15 +56,15 @@ enum MarkdownRenderer {
                 style.paragraphSpacing = 10
                 let code = text.trimmingCharacters(in: .newlines)
                 out.append(NSAttributedString(string: code + "\n", attributes: [
-                    .font: Self.mono, .foregroundColor: NSColor.labelColor, .backgroundColor: NSColor.quaternarySystemFill, .paragraphStyle: style,
+                    .font: Self.mono, .foregroundColor: theme.text, .backgroundColor: theme.codeBackground, .paragraphStyle: style,
                 ]))
             case .quote(let children):
                 let start = out.length
                 for child in children { render(child, indent: indent + 18) }
-                out.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: NSRange(location: start, length: out.length - start))
+                out.addAttribute(.foregroundColor, value: theme.marker, range: NSRange(location: start, length: out.length - start))
             case .rule:
                 out.append(NSAttributedString(string: String(repeating: "─", count: 24) + "\n", attributes: [
-                    .foregroundColor: NSColor.separatorColor, .paragraphStyle: paragraphStyle(indent: indent, before: 6),
+                    .foregroundColor: theme.marker, .paragraphStyle: paragraphStyle(indent: indent, before: 6),
                 ]))
             case .table(let rows):
                 table(rows, indent: indent)
@@ -70,10 +72,10 @@ enum MarkdownRenderer {
         }
 
         private mutating func listItem(_ item: ListItem, marker: String, indent: CGFloat) {
-            let prefix = NSMutableAttributedString(string: marker + "\t", attributes: [.font: Self.body, .foregroundColor: NSColor.secondaryLabelColor])
+            let prefix = NSMutableAttributedString(string: marker + "\t", attributes: [.font: Self.body, .foregroundColor: theme.marker])
             if let checked = item.checked {
                 prefix.setAttributedString(NSAttributedString(string: (checked ? "☑" : "☐") + "\t", attributes: [
-                    .font: NSFont.systemFont(ofSize: 15), .foregroundColor: NSColor.secondaryLabelColor,
+                    .font: NSFont.systemFont(ofSize: 15), .foregroundColor: theme.marker,
                 ]))
             }
             guard let first = item.blocks.first else {
@@ -85,7 +87,7 @@ enum MarkdownRenderer {
             for child in item.blocks.dropFirst() { render(child, indent: indent + 22) }
         }
 
-        private mutating func paragraph(_ spans: [Span], font: NSFont, indent: CGFloat, before: CGFloat, prefix: NSAttributedString?) {
+        private mutating func paragraph(_ spans: [Span], font: NSFont, color: NSColor? = nil, indent: CGFloat, before: CGFloat, prefix: NSAttributedString?) {
             let start = out.length
             let style = paragraphStyle(indent: indent, before: before)
             if let prefix {
@@ -93,7 +95,7 @@ enum MarkdownRenderer {
                 style.tabStops = [NSTextTab(textAlignment: .left, location: indent)]
                 out.append(prefix)
             }
-            appendSpans(spans, font: font)
+            appendSpans(spans, font: font, color: color ?? theme.text)
             out.append(NSAttributedString(string: "\n"))
             out.addAttribute(.paragraphStyle, value: style, range: NSRange(location: start, length: out.length - start))
         }
@@ -106,20 +108,20 @@ enum MarkdownRenderer {
                 let start = out.length
                 for (column, cell) in row.enumerated() {
                     if column > 0 { out.append(NSAttributedString(string: "\t")) }
-                    appendSpans(cell, font: index == 0 ? .systemFont(ofSize: 13, weight: .semibold) : .systemFont(ofSize: 13))
+                    appendSpans(cell, font: index == 0 ? .systemFont(ofSize: 13, weight: .semibold) : .systemFont(ofSize: 13), color: theme.text)
                 }
                 out.append(NSAttributedString(string: "\n"))
                 out.addAttribute(.paragraphStyle, value: style, range: NSRange(location: start, length: out.length - start))
             }
         }
 
-        private func appendSpans(_ spans: [Span], font: NSFont) {
+        private func appendSpans(_ spans: [Span], font: NSFont, color: NSColor) {
             for span in spans {
-                var attributes: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.labelColor]
+                var attributes: [NSAttributedString.Key: Any] = [.foregroundColor: color]
                 let style = span.style
-                if style.contains(.code) { attributes[.backgroundColor] = NSColor.quaternarySystemFill }
+                if style.contains(.code) { attributes[.backgroundColor] = theme.codeBackground }
                 if style.contains(.strikethrough) { attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
-                if style.contains(.image) { attributes[.foregroundColor] = NSColor.secondaryLabelColor }
+                if style.contains(.image) { attributes[.foregroundColor] = theme.marker }
                 if let link = span.link, let url = URL(string: link) { attributes[.link] = url }
                 attributes[.font] = MarkdownRenderer.font(font, style)
                 out.append(NSAttributedString(string: style.contains(.image) ? "[\(span.text)]" : span.text, attributes: attributes))

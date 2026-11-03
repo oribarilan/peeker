@@ -71,6 +71,17 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
         storage.setAttributedString(NSAttributedString(string: source.file.text, attributes: baseAttributes))
+        applyTheme()
+        // Selector-based, so the observation ends with the document.
+        NotificationCenter.default.addObserver(self, selector: #selector(applyTheme), name: TextTheme.didChange, object: nil)
+    }
+
+    /// The theme's colors for the view, then a style pass for the text's.
+    @objc private func applyTheme() {
+        let theme = TextTheme.current
+        textView.backgroundColor = theme.background
+        textView.insertionPointColor = theme.cursor
+        textView.selectedTextAttributes = [.backgroundColor: theme.selection]
         applyStyle()
     }
 
@@ -98,7 +109,7 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         { [weak self] info in self.flatMap { TextPrinting.job(for: $0.printText, info: info) } }
     }
 
-    var printText: NSAttributedString { MarkdownRenderer.render(MarkdownTree.blocks(from: textView.string)).text }
+    var printText: NSAttributedString { MarkdownRenderer.render(MarkdownTree.blocks(from: textView.string), theme: .system).text }
 
     // MARK: Editing
 
@@ -240,7 +251,7 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
     // MARK: Styling
 
     private var bodyFont: NSFont { .systemFont(ofSize: baseSize) }
-    private var baseAttributes: [NSAttributedString.Key: Any] { [.font: bodyFont, .foregroundColor: NSColor.labelColor] }
+    private var baseAttributes: [NSAttributedString.Key: Any] { [.font: bodyFont, .foregroundColor: TextTheme.current.text] }
     private static let headingScales: [CGFloat] = [1.7, 1.45, 1.25, 1.1, 1, 0.95]
 
     /// Sets every attribute from the base and the last parse, in one batch. Attribute changes made on the storage
@@ -250,27 +261,29 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         storage.beginEditing()
         storage.setAttributes(baseAttributes, range: whole)
         if styled {
-            for run in style.runs where NSMaxRange(run.range) <= storage.length { apply(run) }
+            let theme = TextTheme.current
+            for run in style.runs where NSMaxRange(run.range) <= storage.length { apply(run, theme) }
         }
         storage.endEditing()
         // Otherwise typing takes the style of the text before the cursor, so a heading keeps its size as it grows.
         if storage.length == 0 { textView.typingAttributes = baseAttributes }
     }
 
-    private func apply(_ run: StyleRun) {
+    private func apply(_ run: StyleRun, _ theme: TextTheme) {
         let range = run.range
         switch run.kind {
         case .heading(let level):
-            storage.addAttribute(.font, value: NSFont.systemFont(ofSize: (baseSize * Self.headingScales[level - 1]).rounded(), weight: .bold), range: range)
+            storage.addAttributes([.font: NSFont.systemFont(ofSize: (baseSize * Self.headingScales[level - 1]).rounded(), weight: .bold),
+                                   .foregroundColor: theme.heading], range: range)
         case .strong: addTrait(.boldFontMask, in: range)
         case .emphasis: addTrait(.italicFontMask, in: range)
         case .strikethrough: storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range)
         case .code, .codeBlock:
             storage.addAttributes([.font: NSFont.monospacedSystemFont(ofSize: baseSize - 1.5, weight: .regular),
-                                   .backgroundColor: NSColor.quaternarySystemFill], range: range)
-        case .link: storage.addAttribute(.foregroundColor, value: NSColor.linkColor, range: range)
-        case .quote, .taskBox: storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: range)
-        case .marker: storage.addAttribute(.foregroundColor, value: NSColor.tertiaryLabelColor, range: range)
+                                   .backgroundColor: theme.codeBackground], range: range)
+        case .link: storage.addAttribute(.foregroundColor, value: theme.link, range: range)
+        case .taskBox, .marker: storage.addAttribute(.foregroundColor, value: theme.marker, range: range)
+        case .quote: break  // its > markers are dimmed; the quoted text stays readable
         }
     }
 

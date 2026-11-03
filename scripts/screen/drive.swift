@@ -7,7 +7,8 @@
 //        drive shot <owner> <out.png> [title]      screenshot of the owner's largest window (or the one with that title)
 //        drive select <path>                       activate Finder and select <path>
 //        drive tree <process> [depth]              print the Accessibility tree of the process's windows
-//        drive choose <process> <item>             pick <item> in the front window's toolbar pop-up (Open With)
+//        drive choose <process> <item> [label]     pick <item> in the front window's toolbar pop-up (Open With), or in
+//                                                  the pop-up labeled <label> in any window (a Settings pop-up)
 //        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close", and wait for the menu to close
 //        drive menuitems <process> [menu]          print the menu bar's menus, or open <menu> and print its items, "✓ "
 //                                                  before checked ones, then close it (DRIVE_HOLD=<s> waits first);
@@ -38,6 +39,8 @@
 //                                                  menu or control (labeled like press finds it) to appear, or with
 //                                                  --gone to go away; exit 1 naming what it waited for on timeout
 //        drive focus <process>                     print the front app, the process's key window and focused element
+//        drive pixel <png> <x> <y>                 print the sRGB color (RRGGBB) at a point of an image given as fractions
+//                                                  of its width and height from the top left: 0.5 0.5 is the middle
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -333,8 +336,12 @@ case "tree":
     let app = application(arg(1))
     for window in axWindows(app) { dump(window, depth: 0, max: args.count > 2 ? Int(args[2]) ?? 12 : 12) }
 case "choose":
-    guard let window = axWindows(application(arg(1))).first else { fail("no window") }
-    guard let popup = find(window, where: { role($0) == kAXPopUpButtonRole }) else { fail("no pop-up in the front window") }
+    let isPopUp = { (element: AXUIElement) in role(element) == kAXPopUpButtonRole }
+    let appWindows = axWindows(application(arg(1)))
+    let popup = args.count > 3
+        ? appWindows.lazy.compactMap { find($0, where: { isPopUp($0) && label($0) == arg(3) }) ?? controlAfterText(arg(3), in: $0, isControl: isPopUp) }.first
+        : appWindows.first.flatMap { find($0, where: isPopUp) }
+    guard let popup else { fail(args.count > 3 ? "no pop-up “\(arg(3))”" : "no pop-up in the front window") }
     pick(in: popup, item: arg(2))
 case "menu":
     guard let bar: AXUIElement = attr(application(arg(1)), kAXMenuBarAttribute),
@@ -486,6 +493,15 @@ case "focus":
     print("front: \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "nothing")")
     print("key window: \(window.map { (attr($0, kAXTitleAttribute) as String?) ?? "untitled" } ?? "none")")
     print("focused: \(focused.map { "\(role($0)) \(label($0))" } ?? "none")")
+case "pixel":
+    guard let x = Double(arg(2)), let y = Double(arg(3)), (0...1).contains(x), (0...1).contains(y) else { fail("pixel needs fractions from 0 to 1") }
+    // Screenshots are in the display's color space; converting gives the sRGB values the app drew with.
+    guard let data = try? Data(contentsOf: URL(filePath: arg(1))),
+          let image = NSBitmapImageRep(data: data)?.converting(to: .sRGB, renderingIntent: .default) else { fail("can't read \(arg(1))") }
+    let color = image.colorAt(x: min(Int(x * Double(image.pixelsWide)), image.pixelsWide - 1),
+                              y: min(Int(y * Double(image.pixelsHigh)), image.pixelsHigh - 1))
+    guard let color else { fail("no color there") }
+    print([color.redComponent, color.greenComponent, color.blueComponent].map { String(format: "%02X", Int(($0 * 255).rounded())) }.joined())
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|focus ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|focus|pixel ...; see the top of drive.swift")
 }

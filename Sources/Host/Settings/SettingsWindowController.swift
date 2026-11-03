@@ -66,6 +66,12 @@ final class SettingsModel {
         set { save { $0.checkForUpdates = newValue } }
     }
 
+    /// The Text theme pop-up: the config's `textTheme`.
+    var textTheme: String {
+        get { store.config.textTheme }
+        set { save { $0.textTheme = newValue } }
+    }
+
     var plugins: [PluginEntry] { store.plugins }
 
     /// Saves a change to the config, reporting a failure; the controls then show the settings still in use.

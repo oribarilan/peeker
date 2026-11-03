@@ -27,6 +27,8 @@ enum ConfigSchema {
                 "key": ["type": "string", "description": "The key that opens the Peek panel. A bare key works only in Finder and not while typing; one with modifiers works anywhere; \"off\" turns the panel off. Default: space."],
             ]),
             "plugins": object("Per-plugin settings, by plugin id.", pluginProperties),
+            "textTheme": ["type": "string", "enum": TextTheme.ids, "default": "system",
+                          "description": "The colors of Markdown and text, in windows and the Peek panel. Each theme has a light and a dark variant. Default: system."],
             "updates": object("Checking for new versions of Peeker.", [
                 "check": ["type": "boolean", "default": true, "description": "True checks for a new version once a day and offers it with its release notes; false checks only when you ask. Default: true."],
             ]),

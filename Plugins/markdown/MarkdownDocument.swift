@@ -11,6 +11,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private var renders = 0
     private(set) var outline: [OutlineItem] = []
     private(set) var info: [InfoRow] = []
+    private var blocks: [MarkdownBlock] = []
 
     init(url: URL, parsed: MarkdownPlugin.Parsed) {
         self.url = url
@@ -20,17 +21,31 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
         textView.delegate = self
         textView.textContainerInset = NSSize(width: 28, height: 22)
         textView.usesFindBar = true
-        textView.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .cursor: NSCursor.pointingHand]
+        applyThemeColors()
         apply(parsed)
+        // Selector-based, so the observation ends with the document.
+        NotificationCenter.default.addObserver(self, selector: #selector(themeChanged), name: TextTheme.didChange, object: nil)
+    }
+
+    @objc private func themeChanged() {
+        applyThemeColors()
+        update(blocks: blocks)
+    }
+
+    private func applyThemeColors() {
+        let theme = TextTheme.current
+        textView.backgroundColor = theme.background
+        textView.selectedTextAttributes = [.backgroundColor: theme.selection]
+        textView.linkTextAttributes = [.foregroundColor: theme.link, .cursor: NSCursor.pointingHand]
     }
 
     var contentView: NSView { scrollView }
     var focusView: NSView? { textView }
     var renderedText: String { textView.string }
 
-    /// The rendered text, printed in the light appearance.
+    /// The document rendered in the system colors, printed in the light appearance, whatever the theme.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
-        { [textView] info in TextPrinting.job(for: NSAttributedString(attributedString: textView.attributedString()), info: info) }
+        { [blocks] info in TextPrinting.job(for: MarkdownRenderer.render(blocks, theme: .system).text, info: info) }
     }
 
     func makeSidebar() -> [SidebarPanel] {
@@ -50,6 +65,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private func apply(_ parsed: MarkdownPlugin.Parsed) {
         outline = parsed.outline
         info = parsed.info
+        blocks = parsed.blocks
         update(blocks: parsed.blocks)
     }
 
@@ -61,7 +77,8 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
         renders += 1
         let render = renders
         let visible = scrollView.contentView.bounds.origin
-        let head = MarkdownRenderer.render(blocks.prefix(Self.firstPaintBlocks))
+        let theme = TextTheme.current
+        let head = MarkdownRenderer.render(blocks.prefix(Self.firstPaintBlocks), theme: theme)
         anchors = head.anchors
         textView.textStorage?.setAttributedString(head.text)
         scrollView.contentView.scroll(to: visible)
@@ -70,7 +87,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
         // One frame later, so the first screen is drawn and shown before the rest is laid out.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak self] in
             guard let self, renders == render else { return }
-            let tail = MarkdownRenderer.render(blocks.dropFirst(Self.firstPaintBlocks), leadingBreak: true)
+            let tail = MarkdownRenderer.render(blocks.dropFirst(Self.firstPaintBlocks), theme: theme, leadingBreak: true)
             self.textView.textStorage?.append(tail.text)
             for (line, location) in tail.anchors { self.anchors[line] = location + offset }
             self.scrollView.contentView.scroll(to: visible)

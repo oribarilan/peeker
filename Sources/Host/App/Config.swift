@@ -7,6 +7,7 @@ import PeekerKit
 ///       "$schema": "schema.json",
 ///       "peekPanel": { "key": "space" },          // bare key: Finder only, not while typing; with modifiers: anywhere; "off"
 ///       "updates": { "check": true },             // false: no daily update check
+///       "textTheme": "system",                    // colors for Markdown and text: one of TextTheme.ids
 ///       "plugins": {
 ///         "image": { "enabled": false },
 ///         "text": { "extensions": ["txt", "md", "noExtension"] },   // replaces the plugin's default list
@@ -24,6 +25,10 @@ struct Config: Equatable {
     var peekPanelKey: Shortcut? = Shortcut(key: .space)
     /// Whether Peeker checks for updates once a day by itself.
     var checkForUpdates = true
+    /// A `TextTheme` id.
+    var textTheme = "system"
+
+    @MainActor var theme: TextTheme { TextTheme.named(textTheme) ?? .system }
 
     /// Where `keys` holds a tool's shortcut: "pluginID.toolID".
     static func keyID(plugin: String, command: String) -> String { "\(plugin).\(command)" }
@@ -155,6 +160,7 @@ private struct ConfigReader {
             case "peekPanel": if let settings = object(value, at: key) { readPeekPanel(settings) }
             case "plugins": if let entries = object(value, at: key) { readPlugins(entries) }
             case "updates": if let settings = object(value, at: key) { readUpdates(settings) }
+            case "textTheme": readTextTheme(value)
             default: unknown(key)
             }
         }
@@ -169,6 +175,14 @@ private struct ConfigReader {
             else if let shortcut = Shortcut(parsing: text) { config.peekPanelKey = shortcut }
             else { problem(path, "“\(text)” isn't a key Peeker understands. Use one like space or opt+space, or off.") }
         }
+    }
+
+    private mutating func readTextTheme(_ value: JSONValue) {
+        guard let name = string(value, at: "textTheme") else { return }
+        guard TextTheme.ids.contains(name) else {
+            return problem("textTheme", "“\(name)” isn't a theme Peeker has. Use one of: \(TextTheme.ids.joined(separator: ", ")).")
+        }
+        config.textTheme = name
     }
 
     private mutating func readUpdates(_ settings: [String: JSONValue]) {
