@@ -1,7 +1,8 @@
 #!/bin/bash
-# The text theme flow on screen: picking Paper in Settings > General's Text theme pop-up writes "textTheme": "paper"
-# to config.json and recolors an open Markdown file and a text file at once, without reopening them; Space on a
-# Markdown file then shows the Peek panel in Paper too; and a config naming a theme Peeker doesn't have is reported in
+# The text theme flow on screen: clicking the Paper card in Settings > Appearance writes "textTheme": "paper" to
+# config.json and recolors an open Markdown file and a text file at once, without reopening them; Space on a Markdown
+# file then shows the Peek panel in Paper too. Appearance Dark turns the app dark, and Text appearance Light then gives
+# the Markdown window Paper's light page in the dark app. A config naming a theme Peeker doesn't have is reported in
 # the menu bar icon while the files go back to System. Writes screenshots and results.txt (one ok/FAIL line per check)
 # to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
 #
@@ -35,6 +36,14 @@ near() {
         [ ${d#-} -le 3 ] || return 1
     done
 }
+# Whether an RRGGBB color is dark: every channel under 0x60.
+darkish() {
+    local i
+    [ ${#1} = 6 ] || return 1
+    for i in 0 2 4; do [ $((16#${1:i:2})) -lt 96 ] || return 1; done
+}
+# The Settings window's title: "Settings" when it opens, the pane's name once a pane is clicked.
+settings() { "$DRIVE" windows Peeker | grep -oE '(Settings|Appearance)$' | head -1; }
 fingerprint() { shasum "$OUT/$1.png" 2>/dev/null | cut -c1-12; }
 # Presses Space on peek.md in Finder and prints the Peek panel's background, leaving its screenshot in <shot>.png.
 peek() {
@@ -58,13 +67,15 @@ system_txt=$(background notes.txt 2-system-text)
 system_peek=$(peek 3-system-peek-panel)
 check "With no theme, the files aren't Paper" "$(near "$system_md" "$paper" || near "$system_txt" "$paper" || echo no)" no
 
-# Settings > General's Text theme pop-up: Paper is written to the file at once.
+# Settings > Appearance's Paper card: Paper is written to the file at once.
 "$DRIVE" menuextra Peeker "Settings…"
 "$DRIVE" wait Peeker window Settings
-"$DRIVE" choose Peeker Paper "Text theme"
+"$DRIVE" row Peeker Appearance
+"$DRIVE" wait Peeker control Paper
+"$DRIVE" press Peeker Paper
 for _ in $(seq 20); do [ "$(cfg "c.get('textTheme')")" = paper ] && break; sleep 0.1; done
 check "Picking Paper writes textTheme paper" "$(cfg "c.get('textTheme')")" paper
-"$DRIVE" shot Peeker "$OUT/4-settings-paper.png" Settings
+"$DRIVE" shot Peeker "$OUT/4-settings-paper.png" "$(settings)"
 
 # Both files take Paper's colors without being reopened, and so does the Peek panel.
 show "$MD"
@@ -79,7 +90,29 @@ paper_peek=$(peek 7-paper-peek-panel)
 check "The Peek panel changes" "$([ "$(fingerprint 3-system-peek-panel)" != "$(fingerprint 7-paper-peek-panel)" ] && echo yes)" yes
 check "The Peek panel has Paper's background" "$(near "$paper_peek" "$paper" && echo yes || echo "$paper_peek (System was $system_peek)")" yes
 
-# A theme Peeker doesn't have is a config problem, and the files go back to System.
+# Appearance Dark: written to the file, and Settings turns dark. Settings reopens on Appearance, the last pane shown.
+"$DRIVE" menuextra Peeker "Settings…"
+"$DRIVE" wait Peeker control Paper
+"$DRIVE" press Peeker Dark "AXRadioGroup=Appearance"
+for _ in $(seq 20); do [ "$(cfg "c.get('appearance')")" = dark ] && break; sleep 0.1; done
+check "Picking Dark writes appearance dark" "$(cfg "c.get('appearance')")" dark
+sleep 0.5
+"$DRIVE" shot Peeker "$OUT/11-settings-dark.png" "$(settings)"
+settings_dark=$("$DRIVE" pixel "$OUT/11-settings-dark.png" 0.1 0.9 || echo none)
+check "Settings turns dark" "$(darkish "$settings_dark" && echo yes || echo "$settings_dark")" yes
+
+# Text appearance Light: the Markdown window shows Paper's light page while its sidebar stays dark.
+"$DRIVE" press Peeker Light "AXRadioGroup=Text appearance"
+for _ in $(seq 20); do [ "$(cfg "c.get('textAppearance')")" = light ] && break; sleep 0.1; done
+check "Picking Light writes textAppearance light" "$(cfg "c.get('textAppearance')")" light
+"$DRIVE" shot Peeker "$OUT/12-appearance-settings.png" "$(settings)"
+show "$MD"
+light_md=$(background notes.md 13-light-page-dark-app)
+check "The Markdown window has Paper's light page" "$(near "$light_md" F7F3EA && echo yes || echo "$light_md")" yes
+sidebar_md=$("$DRIVE" pixel "$OUT/13-light-page-dark-app.png" 0.05 0.8 || echo none)
+check "Its sidebar stays dark" "$(darkish "$sidebar_md" && echo yes || echo "$sidebar_md")" yes
+
+# A theme Peeker doesn't have is a config problem, and the files go back to System (the config's appearances go too).
 echo '{"textTheme": "nope"}' > "$CONFIG"
 sleep 2
 ( sleep 1; screencapture -x "$OUT/8-unknown-theme-menu.png" ) &

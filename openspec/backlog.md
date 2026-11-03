@@ -35,4 +35,5 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 - Everything under "Requirements the code misses", "Missing next to Preview", "Future work" and "Risks" in [gaps.md](gaps.md), including the Peek panel being slower than Quick Look.
 - Refresh the published benchmark numbers on the reference Mac.
+- PDFKit's automatic form detection (Vision document analysis) started by each PDF view in a window can block every GCD worker thread; late in a full test run the find tests then skip, since NSTextFinder searches on a global queue. Check whether many open PDFs do this in the app.
 - A PDF form field changed through VoiceOver isn't recorded until the next click, so Save stays greyed and closing doesn't ask.

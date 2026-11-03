@@ -23,6 +23,8 @@ extension Config {
             "peekPanel": ["key": peekPanelKey?.configText ?? "off"],
             "updates": ["check": checkForUpdates],
             "textTheme": textTheme,
+            "appearance": appearance,
+            "textAppearance": textAppearance,
             "plugins": pluginSettings,
         ]
         // Can't fail: the tree holds only strings, booleans, arrays and dictionaries.

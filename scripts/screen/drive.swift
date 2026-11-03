@@ -16,7 +16,8 @@
 //        drive menuextra <process> [item]          open the process's menu bar icon menu and print it, or press <item>
 //        drive row <process> <title>               select the sidebar row titled <title> in any window
 //        drive press <process> <label> [role]      press the control (button, switch) labeled <label> in any window,
-//                                                  or only inside the first element with that role, e.g. AXScrollArea
+//                                                  or only inside the first element with that role, e.g. AXScrollArea,
+//                                                  or with that role and label, e.g. "AXRadioGroup=Text appearance"
 //        drive fill <process> <label> <text>       focus the field with that placeholder or label and set its text
 //        drive enabled <process> <label>           print whether the control labeled <label> is enabled
 //        drive placeholders <process>              print the placeholder of each text field in the process's windows
@@ -296,9 +297,22 @@ func control(_ process: String, _ title: String, within container: String? = nil
     let roles: Set<String> = [kAXButtonRole, kAXCheckBoxRole, "AXSwitch", kAXMenuButtonRole, kAXRadioButtonRole]
     let isControl = { (element: AXUIElement) in roles.contains(role(element)) }
     return axWindows(application(process)).lazy.compactMap { window in
-        guard let root = container.map({ wanted in find(window, where: { role($0) == wanted }) }) ?? window else { return nil }
+        // "AXRadioGroup=Text appearance" narrows it to the element with that role and label, or labeled by the text
+        // just before it, as SwiftUI lays out a picker in a grouped Form.
+        guard let root = container.map({ wanted in
+            let parts = wanted.split(separator: "=", maxSplits: 1).map(String.init)
+            return find(window, where: { role($0) == parts[0] && (parts.count == 1 || label($0) == parts[1] || textBefore($0) == parts[1]) })
+        }) ?? window else { return nil }
         return find(root, where: { isControl($0) && label($0) == title }) ?? controlAfterText(title, in: root, isControl: isControl)
     }.first
+}
+
+/// The text of the static text just before `element` among its parent's children, or nil.
+func textBefore(_ element: AXUIElement) -> String? {
+    guard let parent: AXUIElement = attr(element, kAXParentAttribute) else { return nil }
+    let siblings = children(parent)
+    guard let index = siblings.firstIndex(where: { CFEqual($0, element) }), index > 0, role(siblings[index - 1]) == kAXStaticTextRole else { return nil }
+    return attr(siblings[index - 1], kAXValueAttribute)
 }
 
 /// A form row's control whose label is a separate text, as SwiftUI lays out a `Toggle` in a grouped `Form`: the first

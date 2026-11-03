@@ -57,6 +57,8 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change th
   "peekPanel": { "key": "space" },
   "updates": { "check": true },
   "textTheme": "paper",
+  "appearance": "system",
+  "textAppearance": "light",
   "plugins": {
     "image": { "enabled": false },
     "markdown": { "extensions": ["markdown", "mdown"] },
@@ -68,7 +70,9 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change th
 
 - `peekPanel.key`: the key that opens the Peek panel. A bare key works only in Finder and not while typing; one with modifiers works anywhere; `"off"` turns the Peek panel off.
 - `updates.check`: `false` stops the daily check for a new version; Check for Updates… still checks when you ask.
-- `textTheme`: the colors of Markdown and text files, in windows and the Peek panel: `system` (the default), `paper`, `slate`, `graphite`, `ink`, `catppuccin`, `tokyo-night` or `high-contrast`. Each has a light and a dark look and follows the system. Settings > General has the same choice as Text theme. Catppuccin and Tokyo Night use their projects' colors under the MIT license ([notices](THIRD_PARTY_NOTICES.md)).
+- `textTheme`: the colors of Markdown and text files, in windows and the Peek panel: `system` (the default), `paper`, `slate`, `graphite`, `ink`, `catppuccin`, `tokyo-night` or `high-contrast`. Each has a light and a dark look. Settings > Appearance shows them as cards to pick from. Catppuccin and Tokyo Night use their projects' colors under the MIT license ([notices](THIRD_PARTY_NOTICES.md)).
+- `appearance`: `system` (the default) follows the Mac; `light` or `dark` holds Peeker's windows in that look.
+- `textAppearance`: which look of the text theme Markdown and text files use: `app` (the default) matches Peeker's appearance, and `light` or `dark` holds it, so a page can stay light in a dark app.
 - `plugins.<id>.enabled`: `false` turns a plugin off. Its files then open nowhere; no other plugin takes them.
 - `plugins.<id>.extensions`: every extension the plugin opens, without the dot, replacing its default list (`schema.json` lists each default). `noExtension` matches files with none, such as `.zshrc` and `Makefile`, and is on Plain Text's list. An extension belongs to one plugin: listed twice, it stays with the plugin that has it by default (above, `md` moves to Plain Text because Markdown's list drops it). Open With in a window can still pick any enabled plugin for one tab.
 - `plugins.<id>.tools.<tool>.shortcut` rebinds a tool; `"off"` leaves it without one.

@@ -82,3 +82,16 @@ import Testing
         #expect(theme["default"] as? String == "system")
     }
 }
+
+@Suite struct AppearanceSchema {
+    @Test func listsTheAppearances() throws {
+        let schema = try #require(try JSONSerialization.jsonObject(with: ConfigSchema.data(plugins: [])) as? [String: Any])
+        let properties = try #require(schema["properties"] as? [String: Any])
+        let app = try #require(properties["appearance"] as? [String: Any])
+        #expect(app["enum"] as? [String] == ["system", "light", "dark"])
+        #expect(app["default"] as? String == "system")
+        let text = try #require(properties["textAppearance"] as? [String: Any])
+        #expect(text["enum"] as? [String] == ["app", "light", "dark"])
+        #expect(text["default"] as? String == "app")
+    }
+}

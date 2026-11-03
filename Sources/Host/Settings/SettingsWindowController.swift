@@ -3,17 +3,18 @@ import SwiftUI
 
 /// The panes in the Settings sidebar.
 enum SettingsPane: Hashable {
-    case general, plugin(String), permissions, configFile
+    case general, appearance, plugin(String), permissions, configFile
 
-    /// In sidebar order: General, each plugin in catalog order, Permissions, Config File.
+    /// In sidebar order: General, Appearance, each plugin in catalog order, Permissions, Config File.
     static func all(plugins: [PluginEntry]) -> [SettingsPane] {
-        [.general] + plugins.map { .plugin($0.id) } + [.permissions, .configFile]
+        [.general, .appearance] + plugins.map { .plugin($0.id) } + [.permissions, .configFile]
     }
 
-    /// How the pane is kept in preferences: `general`, `plugin.pdf`, `permissions` or `configFile`.
+    /// How the pane is kept in preferences: `general`, `appearance`, `plugin.pdf`, `permissions` or `configFile`.
     var storageKey: String {
         switch self {
         case .general: "general"
+        case .appearance: "appearance"
         case .plugin(let id): "plugin.\(id)"
         case .permissions: "permissions"
         case .configFile: "configFile"
@@ -23,6 +24,7 @@ enum SettingsPane: Hashable {
     init?(storageKey: String) {
         switch storageKey {
         case "general": self = .general
+        case "appearance": self = .appearance
         case "permissions": self = .permissions
         case "configFile": self = .configFile
         case let key where key.hasPrefix("plugin.") && key.count > "plugin.".count: self = .plugin(String(key.dropFirst("plugin.".count)))
@@ -66,10 +68,22 @@ final class SettingsModel {
         set { save { $0.checkForUpdates = newValue } }
     }
 
-    /// The Text theme pop-up: the config's `textTheme`.
+    /// The theme cards: the config's `textTheme`.
     var textTheme: String {
         get { store.config.textTheme }
         set { save { $0.textTheme = newValue } }
+    }
+
+    /// The Appearance control: the config's `appearance`.
+    var appearance: String {
+        get { store.config.appearance }
+        set { save { $0.appearance = newValue } }
+    }
+
+    /// The Text appearance control: the config's `textAppearance`.
+    var textAppearance: String {
+        get { store.config.textAppearance }
+        set { save { $0.textAppearance = newValue } }
     }
 
     var plugins: [PluginEntry] { store.plugins }
@@ -124,6 +138,7 @@ struct SettingsView: View {
         NavigationSplitView {
             List(selection: $model.selection) {
                 Label("General", systemImage: "gearshape").tag(SettingsPane.general)
+                Label("Appearance", systemImage: "paintpalette").tag(SettingsPane.appearance)
                 Section("Plugins") {
                     ForEach(model.plugins, id: \.id) { plugin in
                         Label(plugin.name, systemImage: plugin.symbol).tag(SettingsPane.plugin(plugin.id))
@@ -154,6 +169,7 @@ struct SettingsView: View {
     @ViewBuilder private var pane: some View {
         switch model.selection ?? .general {
         case .general: GeneralPane(model: model)
+        case .appearance: AppearancePane(model: model)
         case .plugin(let id):
             if let plugin = model.plugins.first(where: { $0.id == id }) { PluginPane(model: model, plugin: plugin).id(id) }
         case .permissions: PermissionsPane(model: model)
@@ -164,6 +180,7 @@ struct SettingsView: View {
     private var title: String {
         switch model.selection ?? .general {
         case .general: "General"
+        case .appearance: "Appearance"
         case .plugin(let id): model.plugins.first { $0.id == id }?.name ?? "Plugin"
         case .permissions: "Permissions"
         case .configFile: "Config File"

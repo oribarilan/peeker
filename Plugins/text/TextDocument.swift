@@ -45,7 +45,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         let textContainer = NSTextContainer(size: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         textContainer.widthTracksTextView = true
         layoutManager.addTextContainer(textContainer)
-        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 400), textContainer: textContainer)
+        let textView = ThemedFindTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 400), textContainer: textContainer)
         self.textView = textView
         textView.isVerticallyResizable = true
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
@@ -58,8 +58,6 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         textView.isRichText = false
         textView.importsGraphics = false
         textView.allowsUndo = true
-        textView.usesFindBar = true
-        textView.isIncrementalSearchingEnabled = true
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -197,9 +195,11 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         if !wraps { applyWrap() }
     }
 
-    /// The theme's colors. A plain-text view has one text color, so this doesn't touch the text or its undo history.
+    /// The theme's colors, in the text appearance. A plain-text view has one text color, so this doesn't touch the
+    /// text or its undo history.
     @objc private func applyTheme() {
         let theme = TextTheme.current
+        scrollView.appearance = TextTheme.appearance
         textView.backgroundColor = theme.background
         textView.textColor = theme.text
         textView.insertionPointColor = theme.cursor

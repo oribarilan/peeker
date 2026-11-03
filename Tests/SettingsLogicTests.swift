@@ -22,8 +22,9 @@ private enum StubText: Plugin {
 private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
 
 @Suite struct SettingsPanes {
-    @Test func theSidebarListsGeneralThePluginsInOrderThenPermissionsAndConfigFile() {
-        #expect(SettingsPane.all(plugins: plugins) == [.general, .plugin("pdf"), .plugin("text"), .permissions, .configFile])
+    @Test func theSidebarListsGeneralAppearanceThePluginsInOrderThenPermissionsAndConfigFile() {
+        #expect(SettingsPane.all(plugins: plugins) == [.general, .appearance, .plugin("pdf"), .plugin("text"), .permissions, .configFile])
+        #expect(SettingsPane.appearance.storageKey == "appearance")
     }
 
     @Test func aPaneRoundTripsThroughItsStorageKey() {
@@ -273,5 +274,35 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
         #expect(saved["textTheme"] as? String == "paper")
         #expect(model.textTheme == "paper")
+    }
+
+    @Test func pickingAppearancesRewritesTheConfig() throws {
+        let file = try TempFile.make(Data("{}".utf8), name: "config.json")
+        let store = ConfigStore(url: file, plugins: plugins)
+        defer { store.stop() }
+        let model = SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"))
+        model.appearance = "dark"
+        model.textAppearance = "light"
+        let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        #expect(saved["appearance"] as? String == "dark")
+        #expect(saved["textAppearance"] as? String == "light")
+        #expect(model.appearance == "dark" && model.textAppearance == "light")
+    }
+}
+
+@Suite @MainActor struct ThemeCards {
+    @Test func cardsDrawTheVariantTextAppearancePicks() {
+        #expect(ThemeCard.isDark(textAppearance: "dark", appIsDark: false))
+        #expect(!ThemeCard.isDark(textAppearance: "light", appIsDark: true))
+        #expect(ThemeCard.isDark(textAppearance: "app", appIsDark: true), "Match App follows the pane's own look")
+        #expect(!ThemeCard.isDark(textAppearance: "app", appIsDark: false))
+    }
+
+    @Test func aCardsColorsAreTheThemesFixedLightOrDarkValues() {
+        let paper = TextTheme.named("paper")!
+        // Resolved in the opposite look to the one current, so the result can't come from the current appearance.
+        #expect(hex(ThemeCard.resolve(paper.background, dark: true), in: .aqua) == 0x23211D)
+        #expect(hex(ThemeCard.resolve(paper.background, dark: false), in: .darkAqua) == 0xF7F3EA)
+        #expect(hex(ThemeCard.resolve(TextTheme.system.text, dark: true), in: .aqua) == hex(.labelColor, in: .darkAqua))
     }
 }

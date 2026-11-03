@@ -14,7 +14,11 @@ import Testing
 
 private nonisolated final class Count: @unchecked Sendable { var value = 0 }
 
-@Suite(.serialized) @MainActor struct TextThemes {
+/// Every suite that changes the current theme or text appearance nests here, so they run one at a time and none sees
+/// another's theme.
+@Suite(.serialized) @MainActor struct ThemeState {}
+
+extension ThemeState { @Suite struct TextThemes {
     @Test func eightThemesInPopUpOrder() {
         #expect(TextTheme.all.map(\.id) == ["system", "paper", "slate", "graphite", "ink", "catppuccin", "tokyo-night", "high-contrast"])
         #expect(TextTheme.ids == TextTheme.all.map(\.id))
@@ -50,4 +54,18 @@ private nonisolated final class Count: @unchecked Sendable { var value = 0 }
         TextTheme.current = TextTheme.named("ink")!
         #expect(told.value == 1, "the same theme again changes nothing")
     }
-}
+
+    @Test func settingTheTextAppearanceTellsTheViews() {
+        defer { TextTheme.appearance = nil }
+        #expect(TextTheme.appearance == nil, "text matches the app by default")
+        let told = Count()
+        let observer = NotificationCenter.default.addObserver(forName: TextTheme.didChange, object: nil, queue: nil) { _ in told.value += 1 }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        TextTheme.appearance = NSAppearance(named: .darkAqua)
+        #expect(told.value == 1)
+        TextTheme.appearance = NSAppearance(named: .darkAqua)
+        #expect(told.value == 1, "the same appearance again changes nothing")
+        TextTheme.appearance = nil
+        #expect(told.value == 2)
+    }
+}}

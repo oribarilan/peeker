@@ -59,12 +59,12 @@ The General pane SHALL show a "Check for updates automatically" checkbox bound t
 
 ### Requirement: Settings is a sidebar of panes
 
-The Settings window SHALL show a sidebar of panes and the selected pane beside it. The sidebar SHALL list General, then one pane per plugin in sidebar order (Image, PDF, Markdown, Plain Text), each with the icon its plugin names, then Permissions and Config File. It SHALL open on General the first time, and afterwards on the pane last shown, also after a relaunch. The window SHALL resize but its zoom button SHALL be disabled.
+The Settings window SHALL show a sidebar of panes and the selected pane beside it. The sidebar SHALL list General, then Appearance, then one pane per plugin in sidebar order (Image, PDF, Markdown, Plain Text), each with the icon its plugin names, then Permissions and Config File. It SHALL open on General the first time, and afterwards on the pane last shown, also after a relaunch. The window SHALL resize but its zoom button SHALL be disabled.
 
 #### Scenario: Opening Settings
 
 - **WHEN** the user opens Settings for the first time
-- **THEN** the sidebar lists General, Image, PDF, Markdown, Plain Text, Permissions and Config File, and General is selected
+- **THEN** the sidebar lists General, Appearance, Image, PDF, Markdown, Plain Text, Permissions and Config File, and General is selected
 
 #### Scenario: Choosing a pane
 
@@ -267,16 +267,44 @@ Each plugin pane SHALL list the plugin's tools, each with its shortcut in a key 
 - **WHEN** the recorder refuses Command-P while VoiceOver runs
 - **THEN** VoiceOver reads that Print uses it, and the reason stays under the recorder until the user records again
 
-### Requirement: General picks the text theme
+### Requirement: Appearance sets the app's look
 
-The General pane SHALL have a Text theme pop-up bound to `textTheme`, listing System first, then Paper, Slate, Graphite and Ink, then Catppuccin and Tokyo Night, then High Contrast, with separators between the groups. Choosing one SHALL apply at once and rewrite the config file like any other change in Settings. While the config file can't be used, the pop-up SHALL be disabled like the pane's other controls.
+The Appearance pane SHALL have an Appearance control with System, Light and Dark, bound to `appearance`. System SHALL follow the Mac's appearance; Light and Dark SHALL hold every Peeker window, Settings and the Peek panel included, in that look. A choice SHALL apply at once and rewrite the config file. While the config file can't be used, the pane's controls SHALL be disabled.
 
-#### Scenario: Picking Paper
+#### Scenario: Dark app on a light Mac
 
-- **WHEN** the user picks Paper in the Text theme pop-up
-- **THEN** `config.json` says `"textTheme": "paper"` and open Markdown and text windows turn Paper's colors
+- **WHEN** the Mac is light and the user picks Dark
+- **THEN** `config.json` says `"appearance": "dark"`, and Settings and open windows turn dark at once
 
 #### Scenario: Broken config
 
 - **WHEN** `config.json` isn't valid JSON
-- **THEN** the Text theme pop-up is disabled
+- **THEN** the Appearance pane's controls are disabled
+
+### Requirement: Appearance sets the text's look
+
+The Appearance pane SHALL have a Text appearance control with Match App, Light and Dark, bound to `textAppearance`. It SHALL pick the light or dark variant of the text theme in Markdown and text files, in windows and the Peek panel, at once. Match App SHALL use the app's appearance. Toolbars, sidebars, notes and the Peek panel's frame SHALL keep the app's appearance.
+
+#### Scenario: Light page in a dark app
+
+- **WHEN** the app is Dark, the theme is Paper and the user picks Light for Text appearance
+- **THEN** open Markdown windows show Paper's light background while their toolbar and sidebar stay dark
+
+### Requirement: Appearance shows the themes as cards
+
+The Appearance pane SHALL show the eight text themes as cards in four columns and two rows, in the themes' order. Each card SHALL show a short styled Markdown sample (a heading with its dimmed marker, a link, a code span and a task) in that theme's colors and in the variant Text appearance picks, with its name under it. The chosen card SHALL be marked. Clicking a card SHALL choose that theme at once and write `textTheme`.
+
+#### Scenario: Picking Paper
+
+- **WHEN** the user clicks the Paper card
+- **THEN** `config.json` says `"textTheme": "paper"`, the Paper card is marked, and open Markdown and text windows turn Paper's colors
+
+#### Scenario: Cards follow Text appearance
+
+- **WHEN** the user switches Text appearance from Light to Dark
+- **THEN** every card redraws in its theme's dark colors
+
+#### Scenario: Cards for VoiceOver
+
+- **WHEN** VoiceOver reads the cards
+- **THEN** each reads as a button with its theme's name, and the chosen one as selected

@@ -6,6 +6,8 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Find in Markdown and text files marks matches in the text theme's find color, without dimming the rest of the text.
+- Settings has an Appearance pane: pick the text theme from cards that show what each one looks like, hold Peeker light or dark whatever the Mac uses, and set the text's look on its own, such as a light page in a dark app. The same choices are `appearance` and `textAppearance` in the config.
 - Markdown and text files can use a text theme: System, Paper, Slate, Graphite, Ink, Catppuccin, Tokyo Night or High Contrast, each with a light and a dark look. Pick one in Settings > General or with `textTheme` in the config; windows and the Peek panel change at once, and printing stays black on white.
 - Markdown files open in a window ready to edit, as source styled while you type: headings larger, bold and italic shown, code in a monospaced font, and the Markdown markers dimmed. The Peek panel on Space still shows them rendered, and printing prints them rendered.
 - Ticking a Markdown task is now an edit: click the box in a window, then save with Cmd+S. The Peek panel's task boxes no longer react to clicks. In a window, Cmd-click opens a link.

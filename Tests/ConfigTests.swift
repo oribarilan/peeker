@@ -389,3 +389,47 @@ private func config(_ json: String) throws -> Config {
         #expect(Config().theme.id == "system")
     }
 }
+
+@Suite struct AppearanceConfig {
+    @Test func readsRendersAndRoundTripsBothAppearances() throws {
+        let defaults = try config("{}")
+        #expect(defaults.appearance == "system")
+        #expect(defaults.textAppearance == "app")
+        let chosen = try config(#"{"appearance": "dark", "textAppearance": "light"}"#)
+        #expect(chosen.appearance == "dark")
+        #expect(chosen.textAppearance == "light")
+        let root = try #require(try JSONSerialization.jsonObject(with: chosen.json(plugins: plugins)) as? [String: Any])
+        #expect(root["appearance"] as? String == "dark")
+        #expect(root["textAppearance"] as? String == "light")
+        let again = try config(String(decoding: chosen.json(plugins: plugins), as: UTF8.self))
+        #expect(again.appearance == "dark" && again.textAppearance == "light")
+    }
+
+    @Test func anUnknownAppearanceIsReportedAndTheDefaultIsUsed() throws {
+        let reading = read(#"{"appearance": "night", "textAppearance": "system"}"#)
+        let used = try #require(reading.config)
+        #expect(used.appearance == "system")
+        #expect(used.textAppearance == "app")
+        #expect(reading.problems.map(\.path) == ["appearance", "textAppearance"])
+        #expect(["system", "light", "dark"].allSatisfy { reading.problems[0].message.contains($0) })
+        #expect(["app", "light", "dark"].allSatisfy { reading.problems[1].message.contains($0) })
+        #expect(read(#"{"appearance": true}"#).problems.map(\.path) == ["appearance"])
+    }
+}
+
+extension ThemeState { @Suite struct ConfigLooks {
+    @Test func theConfigSetsTheAppAndTextAppearancesAndTheTheme() throws {
+        defer { Config().applyLooks() }
+        try config(#"{"appearance": "dark", "textAppearance": "light", "textTheme": "ink"}"#).applyLooks()
+        #expect(NSApplication.shared.appearance?.name == .darkAqua)
+        #expect(TextTheme.appearance?.name == .aqua)
+        #expect(TextTheme.current.id == "ink")
+        try config(#"{"appearance": "light", "textAppearance": "dark"}"#).applyLooks()
+        #expect(NSApplication.shared.appearance?.name == .aqua)
+        #expect(TextTheme.appearance?.name == .darkAqua)
+        Config().applyLooks()
+        #expect(NSApplication.shared.appearance == nil, "system follows the Mac")
+        #expect(TextTheme.appearance == nil, "app matches the app")
+        #expect(TextTheme.current.id == "system")
+    }
+}}

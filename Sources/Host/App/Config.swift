@@ -8,6 +8,8 @@ import PeekerKit
 ///       "peekPanel": { "key": "space" },          // bare key: Finder only, not while typing; with modifiers: anywhere; "off"
 ///       "updates": { "check": true },             // false: no daily update check
 ///       "textTheme": "system",                    // colors for Markdown and text: one of TextTheme.ids
+///       "appearance": "system",                   // the app's look: system, light or dark
+///       "textAppearance": "app",                  // the text theme's variant: app (match the app), light or dark
 ///       "plugins": {
 ///         "image": { "enabled": false },
 ///         "text": { "extensions": ["txt", "md", "noExtension"] },   // replaces the plugin's default list
@@ -27,6 +29,13 @@ struct Config: Equatable {
     var checkForUpdates = true
     /// A `TextTheme` id.
     var textTheme = "system"
+    /// One of `appearances`.
+    var appearance = "system"
+    /// One of `textAppearances`.
+    var textAppearance = "app"
+
+    static let appearances = ["system", "light", "dark"]
+    static let textAppearances = ["app", "light", "dark"]
 
     @MainActor var theme: TextTheme { TextTheme.named(textTheme) ?? .system }
 
@@ -160,7 +169,10 @@ private struct ConfigReader {
             case "peekPanel": if let settings = object(value, at: key) { readPeekPanel(settings) }
             case "plugins": if let entries = object(value, at: key) { readPlugins(entries) }
             case "updates": if let settings = object(value, at: key) { readUpdates(settings) }
-            case "textTheme": readTextTheme(value)
+            case "textTheme": if let name = choice(value, at: key, from: TextTheme.ids, "a theme Peeker has") { config.textTheme = name }
+            case "appearance": if let name = choice(value, at: key, from: Config.appearances, "an appearance") { config.appearance = name }
+            case "textAppearance":
+                if let name = choice(value, at: key, from: Config.textAppearances, "a text appearance") { config.textAppearance = name }
             default: unknown(key)
             }
         }
@@ -177,12 +189,14 @@ private struct ConfigReader {
         }
     }
 
-    private mutating func readTextTheme(_ value: JSONValue) {
-        guard let name = string(value, at: "textTheme") else { return }
-        guard TextTheme.ids.contains(name) else {
-            return problem("textTheme", "“\(name)” isn't a theme Peeker has. Use one of: \(TextTheme.ids.joined(separator: ", ")).")
+    /// The string at `key` when it's one of `allowed`; anything else is a problem naming them, and nil.
+    private mutating func choice(_ value: JSONValue, at key: String, from allowed: [String], _ what: String) -> String? {
+        guard let name = string(value, at: key) else { return nil }
+        guard allowed.contains(name) else {
+            problem(key, "“\(name)” isn't \(what). Use one of: \(allowed.joined(separator: ", ")).")
+            return nil
         }
-        config.textTheme = name
+        return name
     }
 
     private mutating func readUpdates(_ settings: [String: JSONValue]) {

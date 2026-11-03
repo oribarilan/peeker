@@ -4,7 +4,7 @@ import PeekerKit
 /// A Markdown file rendered with native text, with an outline: the Peek panel's view, which only views.
 final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private let url: URL
-    private let scrollView = NSTextView.scrollableTextView()
+    private let scrollView = ThemedFindTextView.scrollableTextView()
     private let textView: NSTextView
     private var anchors: [Int: Int] = [:]
     /// Counts renders, so a tail scheduled by an older one is dropped.
@@ -20,7 +20,6 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
         textView.isEditable = false
         textView.delegate = self
         textView.textContainerInset = NSSize(width: 28, height: 22)
-        textView.usesFindBar = true
         applyThemeColors()
         apply(parsed)
         // Selector-based, so the observation ends with the document.
@@ -34,6 +33,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
 
     private func applyThemeColors() {
         let theme = TextTheme.current
+        scrollView.appearance = TextTheme.appearance
         textView.backgroundColor = theme.background
         textView.selectedTextAttributes = [.backgroundColor: theme.selection]
         textView.linkTextAttributes = [.foregroundColor: theme.link, .cursor: NSCursor.pointingHand]

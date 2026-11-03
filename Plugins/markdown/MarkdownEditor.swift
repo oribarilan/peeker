@@ -53,8 +53,6 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         textView.isRichText = false
         textView.importsGraphics = false
         textView.allowsUndo = true
-        textView.usesFindBar = true
-        textView.isIncrementalSearchingEnabled = true
         // Each of these would rewrite the user's Markdown.
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
@@ -76,9 +74,10 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(applyTheme), name: TextTheme.didChange, object: nil)
     }
 
-    /// The theme's colors for the view, then a style pass for the text's.
+    /// The theme's colors for the view, in the text appearance, then a style pass for the text's.
     @objc private func applyTheme() {
         let theme = TextTheme.current
+        scrollView.appearance = TextTheme.appearance
         textView.backgroundColor = theme.background
         textView.insertionPointColor = theme.cursor
         textView.selectedTextAttributes = [.backgroundColor: theme.selection]
@@ -297,7 +296,7 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
 
 /// Hands clicks to the editor first, so a task box flips and a Cmd-click opens a link; anything else, including a
 /// plain click on a link, places the cursor as usual.
-final class MarkdownTextView: NSTextView {
+final class MarkdownTextView: ThemedFindTextView {
     var onClick: ((Int, Bool) -> Bool)?
 
     override func mouseDown(with event: NSEvent) {

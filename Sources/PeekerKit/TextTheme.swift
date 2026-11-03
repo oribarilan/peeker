@@ -1,7 +1,7 @@
 import AppKit
 
 /// The colors Markdown and text views draw with. The host picks one from the config; views read `current` and
-/// recolor on `didChange`. Every color is dynamic, so a light/dark switch needs nothing from the views.
+/// `appearance` and recolor on `didChange`. Every color is dynamic, so a light/dark switch needs nothing from the views.
 @MainActor public struct TextTheme: Sendable {
     /// The config name, such as `tokyo-night`.
     public let id: String
@@ -15,6 +15,13 @@ import AppKit
         didSet { if current.id != oldValue.id { NotificationCenter.default.post(name: didChange, object: nil) } }
     }
 
+    /// Set by the host: the look text areas draw the theme in, or nil to match the app. Views give it to their scroll
+    /// view, so the dynamic colors inside resolve in it. Setting another one posts `didChange`.
+    public static var appearance: NSAppearance? {
+        didSet { if appearance?.name != oldValue?.name { NotificationCenter.default.post(name: didChange, object: nil) } }
+    }
+
+    /// Posted when `current` or `appearance` changes.
     public nonisolated static let didChange = Notification.Name("PeekerTextThemeDidChange")
 
     public static func named(_ id: String) -> TextTheme? { all.first { $0.id == id } }

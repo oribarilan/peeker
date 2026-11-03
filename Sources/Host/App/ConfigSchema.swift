@@ -29,6 +29,10 @@ enum ConfigSchema {
             "plugins": object("Per-plugin settings, by plugin id.", pluginProperties),
             "textTheme": ["type": "string", "enum": TextTheme.ids, "default": "system",
                           "description": "The colors of Markdown and text, in windows and the Peek panel. Each theme has a light and a dark variant. Default: system."],
+            "appearance": ["type": "string", "enum": Config.appearances, "default": "system",
+                           "description": "The look of Peeker's windows: system follows the Mac, light or dark holds that look. Default: system."],
+            "textAppearance": ["type": "string", "enum": Config.textAppearances, "default": "app",
+                               "description": "Which variant of the text theme Markdown and text files use: app matches Peeker's appearance, light or dark holds that variant. Default: app."],
             "updates": object("Checking for new versions of Peeker.", [
                 "check": ["type": "boolean", "default": true, "description": "True checks for a new version once a day and offers it with its release notes; false checks only when you ask. Default: true."],
             ]),
