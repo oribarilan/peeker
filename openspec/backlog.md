@@ -17,9 +17,6 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 ## Maintainer notes, 2026-11-03
 
-- Toolbar: the Wrap Lines icon (`arrow.turn.down.left`) reads as a back arrow; pick a clearer symbol.
-- Toolbar: the sidebar button sits on the right with Open With; it belongs over the sidebar, by the window buttons (a `sidebarTrackingSeparator` after it), as in Finder.
-- Markdown outline: rows give no feedback on hover; add a hover highlight, maybe also highlight the section the cursor is in.
 - PDF page drag shows no insertion bar where the page will land. `PDFThumbnailView` draws none and has no API for it: an overlay, or our own collection view with the native gap.
 
 ## Product and release

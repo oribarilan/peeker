@@ -13,7 +13,13 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
     private var baseline: String
     private var format: TextFormat
     private var readOnlyReason: String?
-    private var style: MarkdownStyle
+    private var style: MarkdownStyle {
+        didSet { headingStarts = nil }
+    }
+    /// Where each outline heading's line starts (UTF-16), worked out once per style; nil until needed.
+    private var headingStarts: [Int]?
+    /// The outline in the sidebar, which marks the cursor's section.
+    private weak var outlineList: OutlineList?
     private var styled: Bool
     private var baseSize = MarkdownEditor.defaultSize
     /// Counts edits, so a restyle parsed from older text is dropped.
@@ -97,7 +103,10 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
     func makeSidebar() -> [SidebarPanel] {
         var panels: [SidebarPanel] = []
         if !outline.isEmpty {
-            panels.append(SidebarPanel(OutlineList(items: outline) { [weak self] in self?.jump(toLine: $0) }, sizing: .fill))
+            let list = OutlineList(items: outline) { [weak self] in self?.jump(toLine: $0) }
+            list.mark(currentSection)
+            outlineList = list
+            panels.append(SidebarPanel(list, sizing: .fill))
         }
         if let info = InfoPanel.make(info) { panels.append(info) }
         return panels
@@ -149,6 +158,28 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         styled = source.styled
         show(source.file.text)
         return true
+    }
+
+    func textViewDidChangeSelection(_ notification: Notification) {
+        outlineList?.mark(currentSection)
+    }
+
+    /// The index of the outline heading the cursor is under, or nil above the first. Between a keystroke and the next
+    /// style pass the heading offsets can be a little off; they're worked out again with the new outline.
+    var currentSection: Int? {
+        let starts = headingStarts ?? {
+            let lines = MarkdownStyler.lineStarts(in: textView.string)
+            let starts = outline.map { lines.indices.contains($0.line - 1) ? lines[$0.line - 1] : Int.max }
+            headingStarts = starts
+            return starts
+        }()
+        let cursor = textView.selectedRange().location
+        var low = 0, high = starts.count  // the first heading after the cursor
+        while low < high {
+            let mid = (low + high) / 2
+            if starts[mid] <= cursor { low = mid + 1 } else { high = mid }
+        }
+        return low > 0 ? low - 1 : nil
     }
 
     func textDidChange(_ notification: Notification) {

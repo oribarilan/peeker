@@ -18,6 +18,7 @@
 //        drive press <process> <label> [role]      press the control (button, switch) labeled <label> in any window,
 //                                                  or only inside the first element with that role, e.g. AXScrollArea,
 //                                                  or with that role and label, e.g. "AXRadioGroup=Text appearance"
+//        drive marked <process>                    print the text of each selected row in the process's lists and outlines
 //        drive fill <process> <label> <text>       focus the field with that placeholder or label and set its text
 //        drive enabled <process> <label>           print whether the control labeled <label> is enabled
 //        drive placeholders <process>              print the placeholder of each text field in the process's windows
@@ -403,6 +404,15 @@ case "row":
 case "press":
     guard let control = control(arg(1), arg(2), within: args.count > 3 ? args[3] : nil) else { fail("no control “\(arg(2))”") }
     press(control)
+case "marked":
+    func rows(_ element: AXUIElement, depth: Int = 0) -> [AXUIElement] {
+        (role(element) == kAXRowRole && (attr(element, kAXSelectedAttribute) as Bool?) == true ? [element] : [])
+            + (depth < 30 ? children(element).flatMap { rows($0, depth: depth + 1) } : [])
+    }
+    for row in axWindows(application(arg(1))).flatMap({ rows($0) }) {
+        let text = find(row, where: { role($0) == kAXStaticTextRole || role($0) == kAXTextFieldRole })
+        if let value: String = text.flatMap({ attr($0, kAXValueAttribute) }) { print(value.trimmingCharacters(in: .whitespaces)) }
+    }
 case "placeholders":
     func fields(_ element: AXUIElement, depth: Int = 0) -> [AXUIElement] {
         (role(element) == kAXTextFieldRole ? [element] : []) + (depth < 30 ? children(element).flatMap { fields($0, depth: depth + 1) } : [])

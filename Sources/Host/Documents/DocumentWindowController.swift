@@ -396,8 +396,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let identifier = { (index: Int) in NSToolbarItem.Identifier("tool.\(index)") }
         let view = shown.filter { !document.tools[$0].spec.isEditTool }.map(identifier)
         let tools = shown.filter { document.tools[$0].spec.isEditTool }.map(identifier)
-        // A space between the two runs puts view tools and edit tools on separate pieces of glass.
-        return (document.hasSidebar ? [.toggleSidebar] : []) + [Self.openWith] + [.flexibleSpace]
+        // The tracking separator keeps the sidebar button over the sidebar, as in Finder, and the rest past it. A space
+        // between the two runs of tools puts view tools and edit tools on separate pieces of glass.
+        return (document.hasSidebar ? [.toggleSidebar, .sidebarTrackingSeparator] : []) + [Self.openWith] + [.flexibleSpace]
             + view + (view.isEmpty || tools.isEmpty ? [] : [.space]) + tools
     }
 

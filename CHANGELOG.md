@@ -6,6 +6,9 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- The Wrap Lines button shows lines of text instead of an arrow that looked like Back.
+- The sidebar button sits over the sidebar next to the window buttons, as in Finder.
+- The Markdown outline highlights a heading under the pointer and marks the section the cursor is in.
 - Find in Markdown and text files marks matches in the text theme's find color, without dimming the rest of the text.
 - Settings has an Appearance pane: pick the text theme from cards that show what each one looks like, hold Peeker light or dark whatever the Mac uses, and set the text's look on its own, such as a light page in a dark app. The same choices are `appearance` and `textAppearance` in the config.
 - Markdown and text files can use a text theme: System, Paper, Slate, Graphite, Ink, Catppuccin, Tokyo Night or High Contrast, each with a light and a dark look. Pick one in Settings > General or with `textTheme` in the config; windows and the Peek panel change at once, and printing stays black on white.

@@ -16,7 +16,7 @@ public enum TextPlugin: Plugin {
     public static let tools = [
         ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
         ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
-        ToolSpec(id: "toggle-wrap", title: "Wrap Lines", symbol: "arrow.turn.down.left", shortcut: "opt+cmd+w"),
+        ToolSpec(id: "toggle-wrap", title: "Wrap Lines", symbol: "text.alignleft", shortcut: "opt+cmd+w"),
     ]
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {

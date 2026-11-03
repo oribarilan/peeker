@@ -2,7 +2,8 @@
 # The Markdown editing flow on screen: Space on a Markdown file in Finder shows it rendered in the Peek panel (no #
 # or ** in its text); in the Editor, typing at the end of a line and Cmd+S write exactly that to the file; a click on
 # a task box ticks it as an unsaved edit (closing asks to save; the file keeps [ ] until Cmd+S); and a click on a
-# heading in the sidebar outline puts the cursor at the start of its line. Writes screenshots and results.txt (one
+# heading in the sidebar outline puts the cursor at the start of its line and marks the heading, the mark follows the
+# cursor into another section, and the sidebar button sits over the sidebar. Writes screenshots and results.txt (one
 # ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
 #
 # Text is found on screen through Accessibility (drive textframe), so the clicks follow the text wherever it's laid out.
@@ -84,6 +85,17 @@ before=${content%%"## Later"*}  # the text before the heading; all ASCII, so its
 line=$(grep -n -m1 '^## Later$' "$OUT/expected-ticked.md" | cut -d: -f1)
 check "The outline puts the cursor at the start of ## Later" "$("$DRIVE" selection Peeker)" "${#before} 0 line $((line - 1))"
 "$DRIVE" shot Peeker "$OUT/4-outline-jump.png" notes.md
+check "The outline marks Later, the cursor's section" "$("$DRIVE" marked Peeker)" Later
+# A click in the text under # Notes moves the mark there.
+read -r x y w h <<< "$(textframe "buy milk")"
+[ "$w" -gt 0 ] && "$DRIVE" click Peeker $((x + w / 2)) $((y + h / 2))
+sleep 0.3
+check "Moving the cursor into the Notes section marks Notes" "$("$DRIVE" marked Peeker)" Notes
+# The sidebar button rides over the sidebar, as in Finder, rather than beside Open With.
+read -r bx by bw bh <<< "$("$DRIVE" frame Peeker AXButton Sidebar || echo "0 0 0 0")"
+read -r ox oy ow oh <<< "$("$DRIVE" frame Peeker AXTable || echo "0 0 0 0")"
+check "The sidebar button sits over the sidebar" \
+    "$([ "$bw" -gt 0 ] && [ "$ow" -gt 0 ] && [ $((bx + bw)) -le $((ox + ow)) ] && echo yes || echo "button ends at $((bx + bw)), outline at $((ox + ow))")" yes
 
 "$DRIVE" keys Peeker cmd+w
 closed=$("$DRIVE" wait Peeker window notes.md --gone --timeout 3 2>/dev/null && echo closed)

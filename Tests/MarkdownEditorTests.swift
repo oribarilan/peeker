@@ -199,6 +199,42 @@ private func large(_ size: Int) -> Data {
         #expect(editor.textView.selectedRange() == NSRange(location: 3, length: 0))
     }
 
+    private func outline(_ editor: MarkdownEditor) throws -> OutlineList {
+        try #require(editor.makeSidebar().lazy.compactMap { $0.view as? OutlineList }.first)
+    }
+
+    private func moveCursor(_ editor: MarkdownEditor, to text: String) {
+        editor.textView.setSelectedRange(NSRange(location: (editor.text as NSString).range(of: text).location, length: 0))
+    }
+
+    @Test func theOutlineMarksTheSectionTheCursorIsIn() async throws {
+        let (_, editor) = try await edit("intro\n# One\nfirst\n## Two\nsecond\n")
+        let window = offscreenWindow(holding: editor.contentView)
+        defer { window.close() }
+        let list = try outline(editor)
+        moveCursor(editor, to: "intro")
+        #expect(list.table.selectedRow == -1, "above the first heading nothing is marked")
+        moveCursor(editor, to: "first")
+        #expect(list.table.selectedRow == 0)
+        moveCursor(editor, to: "second")
+        #expect(list.table.selectedRow == 1)
+        moveCursor(editor, to: "One")
+        #expect(list.table.selectedRow == 0, "the heading's own line is its section")
+        editor.jump(toLine: 4)
+        #expect(list.table.selectedRow == 1, "a click on Two jumps there and marks it")
+    }
+
+    @Test func aNewHeadingIsMarkedOnceTheOutlineRefreshes() async throws {
+        let (_, editor) = try await edit("# One\nfirst\n")
+        let window = offscreenWindow(holding: editor.contentView)
+        defer { window.close() }
+        editor.type("## Fresh\nlast\n")
+        await editor.restyle()
+        let list = try outline(editor)  // the host rebuilds the sidebar when the outline changes
+        moveCursor(editor, to: "last")
+        #expect(list.table.selectedRow == 1)
+    }
+
     @Test func printingRendersTheCurrentText() async throws {
         let (_, editor) = try await edit("# Title\n")
         editor.type("\n## Fresh\n")
