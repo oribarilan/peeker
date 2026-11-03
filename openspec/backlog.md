@@ -24,7 +24,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 ## Product and release
 
-- Themes and syntax highlighting for Markdown and text, in viewing and editing.
+- Syntax highlighting for Markdown and text, in viewing and editing, adding its colors to the text themes.
 - Open With picker: list only plugins that can read the file, and hide the picker when only one can. Today it lists every enabled plugin, as the routing-and-config spec says, so this changes the spec.
 - First release, v0.1.0: Apple Developer setup in [docs/releasing.md](../docs/releasing.md), then the maintainer tags.
 - Optional author name on PDF marks (`openspec/changes/annotation-author-setting`, parked until it's discussed).
