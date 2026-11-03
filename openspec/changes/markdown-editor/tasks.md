@@ -30,7 +30,7 @@
 ## 7. Wrap-up
 
 - [x] 7.1 Run `scripts/build.sh` and `scripts/build.sh test` twice; verify all tests pass with no new warnings
-- [ ] 7.2 With the maintainer's go, run `scripts/screen-test.sh`; verify every flow passes and look at the Markdown Editor and Peek panel captures
+- [x] 7.2 With the maintainer's go, run `scripts/screen-test.sh`; verify every flow passes and look at the Markdown Editor and Peek panel captures
 - [ ] 7.3 With the maintainer's go, run `scripts/bench-ab.sh <base> --launches 15` against the commit before this change; verify Markdown window opens and the Peek panel's Markdown times don't regress
 
 ## Workflow follow-up
