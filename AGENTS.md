@@ -72,7 +72,7 @@ Work that needs the screen and waits for the maintainer's go is listed in `.loca
 
 A release is a version tag (`v0.2.0`): `.github/workflows/release.yml` builds, signs, notarizes and publishes it, then updates the update feed and the Homebrew tap. Notes come from `CHANGELOG.md`, so a user-facing change adds a line under Unreleased. [docs/releasing.md](docs/releasing.md) has the setup and the steps. Only the maintainer decides when to tag.
 
-Each feature is a new version: a change that adds something users see bumps the minor version of `MARKETING_VERSION` in `project.yml` (`0.2.0-dev` becomes `0.3.0-dev`), in its own commit after the feature's.
+Each change is a new version, bumped in `MARKETING_VERSION` in `project.yml` in its own commit after the change's: a change that adds something users see bumps the minor version (`0.2.0-dev` becomes `0.3.0-dev`), and a change that only fixes things bumps the patch (`0.3.0-dev` becomes `0.3.1-dev`).
 
 ## Benchmarks
 
