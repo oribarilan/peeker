@@ -6,6 +6,8 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Large Markdown files open in a window several times faster, styled from the top while the rest follows.
+- Markdown and text files open with the cursor at the start instead of the end.
 - Dragging a PDF page's thumbnail shows a bar where the page will land.
 - The Wrap Lines button shows lines of text instead of an arrow that looked like Back.
 - The sidebar button sits over the sidebar next to the window buttons, as in Finder.

@@ -39,8 +39,38 @@ nonisolated enum MarkdownStyler {
     static func style(_ source: String) -> MarkdownStyle {
         var walk = Walk(source: source)
         walk.visit(Document(parsing: source))
-        walk.style.words = source.split { $0.isWhitespace }.count
+        walk.style.words = wordCount(source)
         return walk.style
+    }
+
+    /// The start of `source` up to the first blank line after `bytes` UTF-8 bytes, or all of it. A blank line ends
+    /// most blocks, so the start parses as it would in the whole file, apart from what later text changes (a reference
+    /// link's definition further down, say).
+    static func prefix(of source: String, bytes: Int) -> String {
+        let utf8 = source.utf8
+        guard utf8.count > bytes else { return source }
+        var index = utf8.index(utf8.startIndex, offsetBy: bytes)
+        var previous: UInt8 = 0
+        while index < utf8.endIndex {
+            let byte = utf8[index]
+            index = utf8.index(after: index)
+            if byte == 0x0A && previous == 0x0A { return String(decoding: utf8[..<index], as: UTF8.self) }
+            if byte != 0x0D { previous = byte }
+        }
+        return source
+    }
+
+    /// Runs of non-whitespace, counted by Unicode scalar: a large file has too many characters to split it into
+    /// grapheme clusters each time it's styled.
+    static func wordCount(_ source: String) -> Int {
+        var words = 0, inWord = false
+        for scalar in source.unicodeScalars {
+            let space = scalar.isASCII ? scalar == " " || scalar == "\n" || scalar == "\t" || scalar == "\r" || scalar.value == 0x0B || scalar.value == 0x0C
+                : scalar.properties.isWhitespace
+            if !space && !inWord { words += 1 }
+            inWord = !space
+        }
+        return words
     }
 
     /// The UTF-16 offset where each 1-based line starts (index 0 is line 1).
@@ -59,6 +89,12 @@ nonisolated enum MarkdownStyler {
         }
 
         mutating func visit(_ markup: Markup) {
+            // The most common nodes first, before any position is worked out: most are plain text with nothing to style.
+            switch markup {
+            case is Markdown.Text, is SoftBreak, is LineBreak: return
+            case is Paragraph, is Document, is UnorderedList, is OrderedList: return markup.children.forEach { visit($0) }
+            default: break
+            }
             guard let range = markup.range.flatMap(nsRange) else { return markup.children.forEach { visit($0) } }
             switch markup {
             case let heading as Heading:
@@ -106,9 +142,12 @@ nonisolated enum MarkdownStyler {
             add(NSRange(location: NSMaxRange(inner), length: NSMaxRange(range) - NSMaxRange(inner)), .marker)
         }
 
+        /// From the first child's start to the last child's end. Only the two ends are looked at: a paragraph can have
+        /// hundreds of children.
         private func childSpan(of markup: Markup) -> NSRange? {
-            let ranges = markup.children.compactMap { $0.range.flatMap(nsRange) }
-            guard let first = ranges.first, let last = ranges.last else { return nil }
+            let ends = (0..<markup.childCount).lazy.compactMap { markup.child(at: $0)?.range.flatMap(nsRange) }
+            let backward = (0..<markup.childCount).reversed().lazy.compactMap { markup.child(at: $0)?.range.flatMap(nsRange) }
+            guard let first = ends.first, let last = backward.first else { return nil }
             return NSRange(location: first.location, length: NSMaxRange(last) - first.location)
         }
 
@@ -210,8 +249,8 @@ nonisolated enum MarkdownStyler {
 
         private func nsRange(_ range: SourceRange) -> NSRange? {
             guard let start = lines.byteOffset(range.lowerBound), let end = lines.byteOffset(range.upperBound), end >= start else { return nil }
-            let location = lines.utf16(at: start)
-            return NSRange(location: location, length: lines.utf16(at: min(end, bytes.count)) - location)
+            let location = lines.utf16(at: start, line: range.lowerBound.line - 1)
+            return NSRange(location: location, length: lines.utf16(at: min(end, bytes.count), line: range.upperBound.line - 1) - location)
         }
 
         private func byteSpan(_ range: NSRange) -> Range<Int>? {
@@ -227,25 +266,36 @@ nonisolated enum MarkdownStyler {
     private struct Lines {
         let bytes: [UInt8]
         let starts: [(utf8: Int, utf16: Int)]
+        /// Whether each line is all ASCII, where a UTF-16 offset is just the byte offset moved.
+        let ascii: [Bool]
 
         init(_ bytes: [UInt8]) {
             self.bytes = bytes
             var starts = [(utf8: 0, utf16: 0)]
+            var ascii: [Bool] = []
+            var lineIsASCII = true
             var utf16 = 0
             var index = 0
             while index < bytes.count {
                 let byte = bytes[index]
                 utf16 += Self.units(byte)
+                if byte >= 0x80 { lineIsASCII = false }
                 if byte == 0x0D, index + 1 < bytes.count, bytes[index + 1] == 0x0A {
                     utf16 += 1
                     index += 1
                     starts.append((index + 1, utf16))
+                    ascii.append(lineIsASCII)
+                    lineIsASCII = true
                 } else if byte == 0x0A || byte == 0x0D {
                     starts.append((index + 1, utf16))
+                    ascii.append(lineIsASCII)
+                    lineIsASCII = true
                 }
                 index += 1
             }
+            ascii.append(lineIsASCII)
             self.starts = starts
+            self.ascii = ascii
         }
 
         /// UTF-16 units a UTF-8 byte contributes: one per leading byte, two for a four-byte sequence's lead.
@@ -258,8 +308,14 @@ nonisolated enum MarkdownStyler {
             return min(starts[location.line - 1].utf8 + location.column - 1, bytes.count)
         }
 
-        func utf16(at byteOffset: Int) -> Int {
-            let line = lineIndex(containingByte: byteOffset)
+        /// The UTF-16 offset of a byte on `line` (0-based), when the caller already knows the line; otherwise it's found.
+        func utf16(at byteOffset: Int, line known: Int? = nil) -> Int {
+            let onLine = { (line: Int) in
+                starts.indices.contains(line) && starts[line].utf8 <= byteOffset
+                    && byteOffset < (line + 1 < starts.count ? starts[line + 1].utf8 : bytes.count + 1)
+            }
+            let line = known.flatMap { onLine($0) ? $0 : nil } ?? lineIndex(containingByte: byteOffset)
+            if ascii[line] { return starts[line].utf16 + min(byteOffset, bytes.count) - starts[line].utf8 }
             var utf16 = starts[line].utf16
             for index in starts[line].utf8..<min(byteOffset, bytes.count) { utf16 += Self.units(bytes[index]) }
             return utf16

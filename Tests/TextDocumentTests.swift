@@ -18,6 +18,12 @@ private func pending(_ document: TextDocument) -> String? {
 }
 
 @Suite struct TextDocumentViewTests {
+    @Test func aFileOpensWithTheCursorAtTheStart() async throws {
+        let (_, document) = try await open("first line\nsecond line\n")
+        let view = try #require(document.focusView as? NSTextView)
+        #expect(view.selectedRange() == NSRange(location: 0, length: 0))
+    }
+
     @Test func reloadKeepsZoomAndWrap() async throws {
         let (file, document) = try await open("a")
         #expect(document.perform("zoom-in") && document.perform("toggle-wrap"))

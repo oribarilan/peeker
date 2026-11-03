@@ -74,6 +74,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         applyFont()
         apply(editable: loaded.editable, note: loaded.note)
         textView.string = loaded.text
+        textView.setSelectedRange(NSRange(location: 0, length: 0))  // setting the text leaves the cursor at its end
         applyTheme()
         // Selector-based, so the observation ends with the document.
         NotificationCenter.default.addObserver(self, selector: #selector(applyTheme), name: TextTheme.didChange, object: nil)

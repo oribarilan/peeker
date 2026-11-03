@@ -34,6 +34,8 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
     private static let sizes: ClosedRange<CGFloat> = 8...48
     /// How long typing pauses before the source is parsed and styled again.
     static let restyleDelay: TimeInterval = 0.15
+    /// How much of the text (UTF-16) is styled before the window shows: several screens at any size.
+    static let firstScreen = 20_000
 
     init(url: URL, source: MarkdownPlugin.Source) {
         self.url = url
@@ -75,19 +77,37 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
         storage.setAttributedString(NSAttributedString(string: source.file.text, attributes: baseAttributes))
-        applyTheme()
+        textView.setSelectedRange(NSRange(location: 0, length: 0))  // setting the text leaves the cursor at its end
+        applyThemeColors()
+        // A large file's style pass takes a while, so the window shows with the first screen styled and the rest
+        // follows: from a parse of the whole file when the plugin parsed only its start, otherwise on the next turn of
+        // the run loop, unless the text has changed by then.
+        applyStyle(upTo: Self.firstScreen)
+        if source.partial {
+            Task { [weak self] in await self?.restyle() }
+        } else if storage.length > Self.firstScreen {
+            let opened = generation
+            DispatchQueue.main.async { [weak self] in
+                guard let self, generation == opened else { return }
+                applyStyle()
+            }
+        }
         // Selector-based, so the observation ends with the document.
         NotificationCenter.default.addObserver(self, selector: #selector(applyTheme), name: TextTheme.didChange, object: nil)
     }
 
     /// The theme's colors for the view, in the text appearance, then a style pass for the text's.
     @objc private func applyTheme() {
+        applyThemeColors()
+        applyStyle()
+    }
+
+    private func applyThemeColors() {
         let theme = TextTheme.current
         scrollView.appearance = TextTheme.appearance
         textView.backgroundColor = theme.background
         textView.insertionPointColor = theme.cursor
         textView.selectedTextAttributes = [.backgroundColor: theme.selection]
-        applyStyle()
     }
 
     var contentView: NSView { scrollView }
@@ -284,43 +304,62 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
     private var baseAttributes: [NSAttributedString.Key: Any] { [.font: bodyFont, .foregroundColor: TextTheme.current.text] }
     private static let headingScales: [CGFloat] = [1.7, 1.45, 1.25, 1.1, 1, 0.95]
 
-    /// Sets every attribute from the base and the last parse, in one batch. Attribute changes made on the storage
-    /// don't enter the undo stack or count as edits.
-    private func applyStyle() {
+    /// Sets every attribute from the base and the last parse, in one batch, styling only the runs that start before
+    /// `limit`. Attribute changes made on the storage don't enter the undo stack or count as edits.
+    private func applyStyle(upTo limit: Int = .max) {
         let whole = NSRange(location: 0, length: storage.length)
         storage.beginEditing()
         storage.setAttributes(baseAttributes, range: whole)
         if styled {
-            let theme = TextTheme.current
-            for run in style.runs where NSMaxRange(run.range) <= storage.length { apply(run, theme) }
+            var pass = StylePass(theme: TextTheme.current, baseSize: baseSize)
+            for run in style.runs where run.range.location < limit && NSMaxRange(run.range) <= storage.length { apply(run, &pass) }
         }
         storage.endEditing()
         // Otherwise typing takes the style of the text before the cursor, so a heading keeps its size as it grows.
         if storage.length == 0 { textView.typingAttributes = baseAttributes }
     }
 
-    private func apply(_ run: StyleRun, _ theme: TextTheme) {
+    /// What one style pass draws with, made once rather than per run: a large file has tens of thousands of runs.
+    private struct StylePass {
+        let theme: TextTheme
+        let headings: [NSFont]
+        let code: NSFont
+        /// A font with bold or italic added, by font and trait; the font manager is slow to ask thousands of times.
+        var converted: [String: NSFont] = [:]
+
+        init(theme: TextTheme, baseSize: CGFloat) {
+            self.theme = theme
+            headings = MarkdownEditor.headingScales.map { NSFont.systemFont(ofSize: (baseSize * $0).rounded(), weight: .bold) }
+            code = NSFont.monospacedSystemFont(ofSize: baseSize - 1.5, weight: .regular)
+        }
+
+        mutating func font(_ font: NSFont, with trait: NSFontTraitMask) -> NSFont {
+            let key = "\(font.fontName) \(font.pointSize) \(trait.rawValue)"
+            if let known = converted[key] { return known }
+            let made = NSFontManager.shared.convert(font, toHaveTrait: trait)
+            converted[key] = made
+            return made
+        }
+    }
+
+    private func apply(_ run: StyleRun, _ pass: inout StylePass) {
         let range = run.range
         switch run.kind {
-        case .heading(let level):
-            storage.addAttributes([.font: NSFont.systemFont(ofSize: (baseSize * Self.headingScales[level - 1]).rounded(), weight: .bold),
-                                   .foregroundColor: theme.heading], range: range)
-        case .strong: addTrait(.boldFontMask, in: range)
-        case .emphasis: addTrait(.italicFontMask, in: range)
+        case .heading(let level): storage.addAttributes([.font: pass.headings[level - 1], .foregroundColor: pass.theme.heading], range: range)
+        case .strong: addTrait(.boldFontMask, in: range, &pass)
+        case .emphasis: addTrait(.italicFontMask, in: range, &pass)
         case .strikethrough: storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range)
-        case .code, .codeBlock:
-            storage.addAttributes([.font: NSFont.monospacedSystemFont(ofSize: baseSize - 1.5, weight: .regular),
-                                   .backgroundColor: theme.codeBackground], range: range)
-        case .link: storage.addAttribute(.foregroundColor, value: theme.link, range: range)
-        case .taskBox, .marker: storage.addAttribute(.foregroundColor, value: theme.marker, range: range)
+        case .code, .codeBlock: storage.addAttributes([.font: pass.code, .backgroundColor: pass.theme.codeBackground], range: range)
+        case .link: storage.addAttribute(.foregroundColor, value: pass.theme.link, range: range)
+        case .taskBox, .marker: storage.addAttribute(.foregroundColor, value: pass.theme.marker, range: range)
         case .quote: break  // its > markers are dimmed; the quoted text stays readable
         }
     }
 
-    private func addTrait(_ trait: NSFontTraitMask, in range: NSRange) {
+    private func addTrait(_ trait: NSFontTraitMask, in range: NSRange, _ pass: inout StylePass) {
         storage.enumerateAttribute(.font, in: range) { value, part, _ in
             guard let font = value as? NSFont else { return }
-            storage.addAttribute(.font, value: NSFontManager.shared.convert(font, toHaveTrait: trait), range: part)
+            storage.addAttribute(.font, value: pass.font(font, with: trait), range: part)
         }
     }
 }

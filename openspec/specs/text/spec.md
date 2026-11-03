@@ -99,3 +99,12 @@ Printing a text file SHALL print the text in the window, unsaved edits included,
 #### Scenario: Header
 - **WHEN** the user prints `notes.txt`, which needs 3 pages
 - **THEN** each page shows "notes.txt", the date and its page number
+
+### Requirement: The cursor starts at the top
+
+A text file SHALL open with the cursor at the start of the text.
+
+#### Scenario: Opening a file
+
+- **WHEN** the user opens a text file in a window
+- **THEN** the cursor is at the start of the first line

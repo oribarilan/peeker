@@ -45,6 +45,12 @@ private func large(_ size: Int) -> Data {
         #expect(try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownDocument.self, editing: false).renderedText.contains("Title"))
     }
 
+    @Test func aFileOpensWithTheCursorAtTheStart() async throws {
+        let (_, editor) = try await edit("# One\ntext\n## Two\nmore\n")
+        #expect(editor.textView.selectedRange() == NSRange(location: 0, length: 0))
+        #expect(editor.currentSection == 0, "so the outline marks the first heading, not the last")
+    }
+
     @Test func typingMarksItEdited() async throws {
         let (_, editor) = try await edit("hello\n")
         var edits = 0
@@ -135,6 +141,26 @@ private func large(_ size: Int) -> Data {
         #expect(editor.fontSize(at: 7) > body)
         #expect(editor.fontSize(at: 2) > heading)
         #expect(editor.fontSize(at: 2) > editor.fontSize(at: 7))
+    }
+
+    @Test func aLargeFileStylesTheFirstScreenThenTheRest() async throws {
+        let text = "# Top\n" + String(repeating: "Some plain words here.\n", count: 1500) + "## Late\n"
+        let (_, editor) = try await edit(text)
+        let late = (editor.text as NSString).range(of: "Late").location
+        let body = editor.fontSize(at: 8)
+        #expect(editor.fontSize(at: 2) > body, "the first screen is styled at once")
+        #expect(editor.fontSize(at: late) == body, "the rest waits for the next turn of the run loop")
+        try await waitUntil(seconds: 2) { editor.fontSize(at: late) > body }
+    }
+
+    @Test func aFileOver64KBShowsFromAQuickParseThenTheFullOne() async throws {
+        let text = "# Top\n\n" + String(repeating: "Some plain words here, enough to pass the quick parse.\n\n", count: 1500) + "## Late\n"
+        let (_, editor) = try await edit(text)
+        #expect(editor.outline.map(\.title) == ["Top"], "the window shows from a parse of the first part")
+        let late = (editor.text as NSString).range(of: "Late").location
+        let body = editor.fontSize(at: 10)
+        try await waitUntil(seconds: 3) { editor.outline.map(\.title) == ["Top", "Late"] }
+        #expect(editor.fontSize(at: late) > body, "the full parse styles the rest")
     }
 
     @Test func aFileOver1MBOpensUnstyledAndEditable() async throws {

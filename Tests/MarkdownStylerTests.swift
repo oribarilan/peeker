@@ -72,3 +72,20 @@ private func covered(_ source: String, _ kind: StyleKind) -> [String] {
         #expect(style.words == 7)
     }
 }
+
+@Suite struct MarkdownWordCount {
+    @Test func countsRunsOfNonWhitespaceAsCharacterSplittingDid() {
+        for text in ["", "one", "  two words  ", "tabs\tand\nlines\r\nhere", "café naïve", "a\u{00A0}b c\u{3000}d", "emoji 👩‍👩‍👧 count", "\u{0B}x\u{0C}y"] {
+            #expect(MarkdownStyler.wordCount(text) == text.split { $0.isWhitespace }.count, "\(text.debugDescription)")
+        }
+    }
+}
+
+@Suite struct MarkdownQuickPrefix {
+    @Test func cutsAtTheFirstBlankLineAfterTheLimit() {
+        #expect(MarkdownStyler.prefix(of: "short", bytes: 10) == "short")
+        #expect(MarkdownStyler.prefix(of: "one two\n\nthree\n\nfour", bytes: 3) == "one two\n\n")
+        #expect(MarkdownStyler.prefix(of: "one\r\n\r\ntwo three\r\n\r\nfour", bytes: 6) == "one\r\n\r\ntwo three\r\n\r\n")
+        #expect(MarkdownStyler.prefix(of: "no blank line here at all", bytes: 3) == "no blank line here at all")
+    }
+}
