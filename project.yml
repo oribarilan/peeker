@@ -68,7 +68,7 @@ targets:
       # which Xcode embeds and signs by itself.
       - package: Sparkle
     scheme:
-      testTargets: [HostTests]
+      testTargets: [HostTests, PDFTests]
     settings:
       base:
         # Notarization needs the hardened runtime; every build has it, so the screen tests drive what ships.
@@ -140,6 +140,30 @@ targets:
     platform: macOS
     sources:
       - path: Tests
+        excludes: ["PDF*.swift", ThumbnailDropBarTests.swift, FormPDF.swift]
+      - path: Sources/Host
+        excludes: [App/main.swift, "Resources/**"]
+    dependencies:
+      - target: PeekerKit
+      - target: PeekerImage
+      - target: PeekerPDF
+      - target: PeekerMarkdown
+      - target: PeekerText
+      - package: Markdown
+      - package: Sparkle
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+
+  # The PDF suites run in a process of their own: PDFKit analyzes every form PDF shown in a window on a queue of its
+  # own, and in a test run that analysis can take every worker thread, which stalls other tests' background work
+  # (a text view's find, for one).
+  PDFTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+        includes: ["PDF*.swift", ThumbnailDropBarTests.swift, FormPDF.swift, TestSupport.swift]
       - path: Sources/Host
         excludes: [App/main.swift, "Resources/**"]
     dependencies:

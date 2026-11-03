@@ -237,9 +237,9 @@ extension ThemeState { @Suite struct ThemedViews {
     /// Runs a find test's steps with the find pasteboard empty, so the find bar opens blank, and then puts back what was
     /// on it, since every app shares it.
     ///
-    /// NSTextFinder searches on a global dispatch queue. Late in a full test run, the PDF suites' views can leave every
-    /// worker thread blocked in PDFKit's form detection (Vision document analysis waiting on itself), and a search then
-    /// never starts. In that case the steps are skipped and reported as a known issue rather than as a failure.
+    /// NSTextFinder searches on a global dispatch queue. If every worker thread is blocked, a search never starts, so
+    /// the steps are skipped and reported as a known issue rather than as a failure. PDFKit's form analysis did that
+    /// when the PDF suites shared this process; they now run in the PDFTests bundle.
     private func runFindSteps(_ body: () async throws -> Void) async throws {
         let ran = OSAllocatedUnfairLock(initialState: false)
         DispatchQueue.global(qos: .userInitiated).async { ran.withLock { $0 = true } }

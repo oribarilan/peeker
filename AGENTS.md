@@ -58,7 +58,7 @@ scripts/build.sh test     # all unit tests
 open build/dd/Build/Products/Release/Peeker.app
 ```
 
-Fix new warnings before you finish; the build is currently warning-free. Write tests with Swift Testing, next to the existing suites in `Tests/`. For bugs, add a failing test first.
+Fix new warnings before you finish; the build is currently warning-free. Write tests with Swift Testing, next to the existing suites in `Tests/`. For bugs, add a failing test first. Files named `PDF*.swift` run in a bundle of their own, `PDFTests`: PDFKit analyzes form PDFs shown in a window on queues of its own, which can take every worker thread the other tests need.
 
 ## Screen tests
 
