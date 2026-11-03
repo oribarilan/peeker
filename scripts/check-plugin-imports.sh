@@ -6,10 +6,11 @@ set -uo pipefail
 root=${1:-${0:A:h:h}}
 sdk=$(xcrun --sdk macosx --show-sdk-path) || exit 1
 
-# Packages each plugin may import, by plugin folder name.
+# Packages and shared modules each plugin may import, by plugin folder name.
 packages() {
   case $1 in
-    markdown) print Markdown ;;
+    markdown) print Markdown PeekerSyntax ;;
+    text) print PeekerSyntax ;;
   esac
 }
 

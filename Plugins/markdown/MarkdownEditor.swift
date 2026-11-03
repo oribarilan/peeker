@@ -353,6 +353,7 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         case .link: storage.addAttribute(.foregroundColor, value: pass.theme.link, range: range)
         case .taskBox, .marker: storage.addAttribute(.foregroundColor, value: pass.theme.marker, range: range)
         case .quote: break  // its > markers are dimmed; the quoted text stays readable
+        case .syntax(let role): storage.addAttribute(.foregroundColor, value: pass.theme.syntax.color(for: role), range: range)
         }
     }
 

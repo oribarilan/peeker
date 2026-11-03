@@ -55,6 +55,22 @@ extension ThemeState { @Suite struct TextThemes {
         #expect(told.value == 1, "the same theme again changes nothing")
     }
 
+    @Test func everyThemeHasSixSyntaxColorsInEachLook() {
+        func six(_ theme: TextTheme, _ look: NSAppearance.Name) -> [UInt32] {
+            let syntax = theme.syntax
+            return [syntax.keyword, syntax.string, syntax.comment, syntax.number, syntax.type, syntax.function].map { hex($0, in: look) }
+        }
+        #expect(six(.system, .aqua) == [0x9B2393, 0xC41A16, 0x5D6C79, 0x1C00CF, 0x0B4F79, 0x326D74], "Xcode's light defaults")
+        #expect(six(.system, .darkAqua) == [0xFC5FA3, 0xFC6A5D, 0x7F8C98, 0xD0BF69, 0x5DD8FF, 0x67B7A4], "Xcode's dark defaults")
+        #expect(six(TextTheme.named("catppuccin")!, .darkAqua) == [0xCBA6F7, 0xA6E3A1, 0x9399B2, 0xFAB387, 0xF9E2AF, 0x89B4FA], "Mocha")
+        #expect(six(TextTheme.named("catppuccin")!, .aqua) == [0x8839EF, 0x40A02B, 0x7C7F93, 0xFE640B, 0xDF8E1D, 0x1E66F5], "Latte")
+        #expect(six(TextTheme.named("tokyo-night")!, .darkAqua) == [0xBB9AF7, 0x9ECE6A, 0x565F89, 0xFF9E64, 0x2AC3DE, 0x7AA2F7])
+        for theme in TextTheme.all {
+            #expect(Set(six(theme, .aqua)).count == 6 && Set(six(theme, .darkAqua)).count == 6, "\(theme.id): six distinct colors")
+            #expect(six(theme, .aqua) != six(theme, .darkAqua), "\(theme.id): light and dark differ")
+        }
+    }
+
     @Test func settingTheTextAppearanceTellsTheViews() {
         defer { TextTheme.appearance = nil }
         #expect(TextTheme.appearance == nil, "text matches the app by default")

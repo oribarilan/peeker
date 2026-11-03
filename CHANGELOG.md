@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Code is colored by its syntax: Python, JavaScript and TypeScript, Swift, C and C++, Go, Rust, Java, Kotlin, Ruby, shell scripts, SQL, CSS, JSON, YAML, TOML and config files, plus code blocks in Markdown tagged with a language. Each text theme has its own code colors, and printing keeps them.
 - Large Markdown files open in a window several times faster, styled from the top while the rest follows.
 - Markdown and text files open with the cursor at the start instead of the end.
 - Dragging a PDF page's thumbnail shows a bar where the page will land.

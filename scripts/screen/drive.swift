@@ -43,6 +43,10 @@
 //        drive focus <process>                     print the front app, the process's key window and focused element
 //        drive pixel <png> <x> <y>                 print the sRGB color (RRGGBB) at a point of an image given as fractions
 //                                                  of its width and height from the top left: 0.5 0.5 is the middle
+//        drive closest <png> <x> <y> <w> <h> <RRGGBB>
+//                                                  in a full-screen capture, the pixel inside the rectangle (screen points,
+//                                                  as textframe prints) nearest the color: "distance RRGGBB", distance
+//                                                  being the largest channel difference
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -526,6 +530,26 @@ case "pixel":
                               y: min(Int(y * Double(image.pixelsHigh)), image.pixelsHigh - 1))
     guard let color else { fail("no color there") }
     print([color.redComponent, color.greenComponent, color.blueComponent].map { String(format: "%02X", Int(($0 * 255).rounded())) }.joined())
+case "closest":
+    // The pixel in a screen capture nearest a color, inside a rectangle given in screen points: antialiased text never
+    // draws its exact color, but its darkest or most saturated pixels come close.
+    guard let x = Double(arg(2)), let y = Double(arg(3)), let w = Double(arg(4)), let h = Double(arg(5)),
+          let wanted = UInt32(arg(6), radix: 16) else { fail("closest needs x y width height in points and RRGGBB") }
+    guard let data = try? Data(contentsOf: URL(filePath: arg(1))),
+          let image = NSBitmapImageRep(data: data)?.converting(to: .sRGB, renderingIntent: .default),
+          let screen = NSScreen.screens.first?.frame else { fail("can't read \(arg(1))") }
+    let scale = Double(image.pixelsWide) / screen.width
+    let target = [Int(wanted >> 16 & 0xFF), Int(wanted >> 8 & 0xFF), Int(wanted & 0xFF)]
+    var best = (distance: 256, hex: "")
+    for py in Int(y * scale)..<min(Int((y + h) * scale), image.pixelsHigh) {
+        for px in Int(x * scale)..<min(Int((x + w) * scale), image.pixelsWide) {
+            guard let color = image.colorAt(x: px, y: py) else { continue }
+            let rgb = [color.redComponent, color.greenComponent, color.blueComponent].map { Int(($0 * 255).rounded()) }
+            let distance = zip(rgb, target).map { abs($0 - $1) }.max() ?? 256
+            if distance < best.distance { best = (distance, rgb.map { String(format: "%02X", $0) }.joined()) }
+        }
+    }
+    print(best.distance, best.hex)
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|focus|pixel ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|focus|pixel|closest ...; see the top of drive.swift")
 }

@@ -14,6 +14,8 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     /// Owns the layout manager and text container; a TextKit 1 text view doesn't retain its storage.
     private let storage = NSTextStorage()
     private let textView: NSTextView
+    /// Syntax highlighting, for code files.
+    private var coloring: CodeColoring?
     private let noteLabel = NSTextField(labelWithString: "")
     private var scrollBelowNote: NSLayoutConstraint!
     private var scrollAtTop: NSLayoutConstraint!
@@ -33,7 +35,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private static let defaultFontSize: CGFloat = 12
     private static let fontSizes: ClosedRange<CGFloat> = 6...72
 
-    init(url: URL, loaded: TextFile.Loaded, allowsEditing: Bool) {
+    init(url: URL, loaded: TextFile.Loaded, code: CodeColoring.Scan? = nil, allowsEditing: Bool) {
         self.url = url
         self.allowsEditing = allowsEditing
         baseline = loaded.text
@@ -76,6 +78,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         textView.string = loaded.text
         textView.setSelectedRange(NSRange(location: 0, length: 0))  // setting the text leaves the cursor at its end
         applyTheme()
+        coloring = code.map { CodeColoring($0, in: textView) }
         // Selector-based, so the observation ends with the document.
         NotificationCenter.default.addObserver(self, selector: #selector(applyTheme), name: TextTheme.didChange, object: nil)
     }
@@ -94,8 +97,9 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
 
     /// The text as shown, unsaved edits included, in the current font, black and always wrapped.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
-        { [textView] info in
-            let text = NSAttributedString(string: textView.string, attributes: [.font: textView.font ?? .monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: NSColor.black])
+        { [textView, coloring] info in
+            let attributes: [NSAttributedString.Key: Any] = [.font: textView.font ?? .monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: NSColor.black]
+            let text = coloring?.printed(textView.string, attributes: attributes) ?? NSAttributedString(string: textView.string, attributes: attributes)
             return TextPrinting.job(for: text, info: info)
         }
     }
@@ -155,6 +159,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         baseline = text
         textView.string = text
         textView.undoManager?.removeAllActions()
+        coloring?.textChanged()
         longestLineUnits = nil
         if !wraps { applyWrap() }
         scrollView.contentView.scroll(to: origin)
@@ -172,6 +177,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
 
     func textDidChange(_ notification: Notification) {
         onEdit?()
+        coloring?.textChanged()
     }
 
     func isOn(_ command: String) -> Bool? { command == "toggle-wrap" ? wraps : nil }
@@ -205,6 +211,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         textView.textColor = theme.text
         textView.insertionPointColor = theme.cursor
         textView.selectedTextAttributes = [.backgroundColor: theme.selection]
+        coloring?.recolor()
     }
 
     private func applyFont() {

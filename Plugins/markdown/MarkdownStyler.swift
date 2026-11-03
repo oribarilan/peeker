@@ -1,10 +1,13 @@
 import Foundation
 import Markdown
+import PeekerSyntax
 
 /// What a stretch of Markdown source is, for the Editor's styling. Runs come parent before child, so a child's style
 /// adds to its parent's.
 nonisolated enum StyleKind: Equatable, Sendable {
     case heading(Int), strong, emphasis, strikethrough, code, codeBlock, link, quote, marker, taskBox
+    /// Code inside a fenced block whose tag names a language the scanner knows.
+    case syntax(SyntaxRole)
 }
 
 /// The Editor's view of a parse: style runs over the source (UTF-16 ranges, as NSString counts) and what the sidebar,
@@ -167,8 +170,14 @@ nonisolated enum MarkdownStyler {
             let lineRanges = self.lineRanges(in: range)
             guard let opening = lineRanges.first else { return }
             add(opening, .marker)
-            if lineRanges.count > 1, let closing = lineRanges.last, text(closing).trimmingCharacters(in: .whitespaces).hasPrefix(String(UnicodeScalar(first))) {
-                add(closing, .marker)
+            let closed = lineRanges.count > 1
+                && text(lineRanges.last!).trimmingCharacters(in: .whitespaces).hasPrefix(String(UnicodeScalar(first)))
+            if closed { add(lineRanges.last!, .marker) }
+            let inner = lineRanges.dropFirst().dropLast(closed ? 1 : 0)
+            guard let language = code.language.flatMap(SyntaxLanguage.init(fenceTag:)), let top = inner.first, let bottom = inner.last else { return }
+            let content = NSRange(location: top.location, length: NSMaxRange(bottom) - top.location)
+            for span in SyntaxScanner.spans(in: text(content), language: language) {
+                add(NSRange(location: content.location + span.range.location, length: span.range.length), .syntax(span.role))
             }
         }
 

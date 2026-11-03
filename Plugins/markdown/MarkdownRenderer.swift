@@ -1,5 +1,6 @@
 import AppKit
 import PeekerKit
+import PeekerSyntax
 
 /// Lays out the block tree as native attributed text, with each heading's source line mapped to where it starts.
 enum MarkdownRenderer {
@@ -51,13 +52,20 @@ enum MarkdownRenderer {
                 for (index, item) in items.enumerated() {
                     listItem(item, marker: ordered ? "\(start + index)." : "•", indent: indent)
                 }
-            case .code(let text, _):
+            case .code(let text, let tag):
                 let style = paragraphStyle(indent: indent + 12, before: 4)
                 style.paragraphSpacing = 10
                 let code = text.trimmingCharacters(in: .newlines)
+                let start = out.length
                 out.append(NSAttributedString(string: code + "\n", attributes: [
                     .font: Self.mono, .foregroundColor: theme.text, .backgroundColor: theme.codeBackground, .paragraphStyle: style,
                 ]))
+                if let language = tag.flatMap(SyntaxLanguage.init(fenceTag:)) {
+                    for span in SyntaxScanner.spans(in: code, language: language) {
+                        out.addAttribute(.foregroundColor, value: theme.syntax.color(for: span.role),
+                                         range: NSRange(location: start + span.range.location, length: span.range.length))
+                    }
+                }
             case .quote(let children):
                 let start = out.length
                 for child in children { render(child, indent: indent + 18) }

@@ -51,6 +51,18 @@ targets:
     sources: [Sources/PeekerKit]
     settings: { base: { GENERATE_INFOPLIST_FILE: YES } }
 
+  # Syntax highlighting's logic, on its own so it can be fixed, optimized or removed in one place: language detection and
+  # a table-driven scanner. Foundation only; the text and Markdown plugins import it, the host doesn't.
+  PeekerSyntax:
+    type: framework.static
+    platform: macOS
+    sources: [Sources/PeekerSyntax]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_TESTABILITY: YES
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+
   Peeker:
     type: application
     platform: macOS
@@ -64,6 +76,7 @@ targets:
       - package: Markdown
       - { target: PeekerPDF, embed: false }
       - { target: PeekerText, embed: false }
+      - { target: PeekerSyntax, embed: false }
       # The updater, and the only framework Peeker embeds: Sparkle ships as a dynamic framework with helper apps,
       # which Xcode embeds and signs by itself.
       - package: Sparkle
@@ -122,6 +135,7 @@ targets:
     sources: [Plugins/markdown]
     dependencies:
       - package: Markdown
+      - target: PeekerSyntax
 
   PeekerPDF:
     templates: [ModulePlugin]
@@ -134,6 +148,8 @@ targets:
   PeekerText:
     templates: [ModulePlugin]
     sources: [Plugins/text]
+    dependencies:
+      - target: PeekerSyntax
 
   HostTests:
     type: bundle.unit-test
@@ -149,6 +165,7 @@ targets:
       - target: PeekerPDF
       - target: PeekerMarkdown
       - target: PeekerText
+      - target: PeekerSyntax
       - package: Markdown
       - package: Sparkle
     settings:
@@ -172,6 +189,7 @@ targets:
       - target: PeekerPDF
       - target: PeekerMarkdown
       - target: PeekerText
+      - target: PeekerSyntax
       - package: Markdown
       - package: Sparkle
     settings:
