@@ -20,6 +20,24 @@ try write("small.txt", logLines(100))
 try write("medium.log", logLines(100_000))      // ~13 MB
 try write("large.log", logLines(800_000))       // ~100 MB
 
+// About 100 KB of Swift, to time opening code.
+let swiftType = """
+/// A store of items, number %d.
+final class Store%d {
+    private var items: [String: Int] = [:]
+    let limit = 1_000 // the most it holds
+
+    func add(_ name: String, count: Int = 1) throws -> Bool {
+        guard items.count < limit else { return false }
+        items[name, default: 0] += count
+        print("added \\(name): \\(count)")
+        return true
+    }
+}
+
+"""
+try write("medium.swift", (0..<300).map { String(format: swiftType, $0, $0) }.joined())
+
 let section = """
 ## Section %d
 
