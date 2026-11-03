@@ -73,6 +73,62 @@ final class PeekerPDFView: PDFView, NSMenuItemValidation {
         super.keyDown(with: event)
     }
 
+    /// The most pixels an annotation's layer gets, so a large mark at a high zoom doesn't take a huge bitmap.
+    private static let maxAnnotationPixels: CGFloat = 4_000_000
+    private var sharpening = false
+    private var watchesForSharpening = false
+
+    /// PDFKit draws the page in tiles at the zoom's resolution, but annotations such as text boxes and signatures into
+    /// layers of their own at one pixel per point, so they look pixelated zoomed in. This gives those layers the zoom's
+    /// resolution after anything that can add one or change the zoom. PDFKit makes a layer a moment after the
+    /// annotation appears, hence the wait. If PDFKit renames the layers, nothing changes and annotations stay soft.
+    @objc func sharpenAnnotations() {
+        guard !sharpening else { return }
+        sharpening = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            sharpening = false
+            let scale = scaleFactor * (window?.backingScaleFactor ?? 1)
+            for layer in annotationLayers() {
+                let points = layer.bounds.width * layer.bounds.height
+                let wanted = points > 0 ? max(1, min(scale, (Self.maxAnnotationPixels / points).squareRoot())) : scale
+                guard layer.contentsScale != wanted else { continue }
+                layer.contentsScale = wanted
+                layer.setNeedsDisplay()
+            }
+        }
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil, !watchesForSharpening else { return }
+        watchesForSharpening = true
+        let center = NotificationCenter.default
+        for name in [Notification.Name.PDFViewScaleChanged, .PDFViewVisiblePagesChanged, .PDFViewDocumentChanged] {
+            center.addObserver(self, selector: #selector(sharpenAnnotations), name: name, object: self)
+        }
+        if let clip = (subviews.first { $0 is NSScrollView } as? NSScrollView)?.contentView {
+            center.addObserver(self, selector: #selector(sharpenAnnotations), name: NSView.boundsDidChangeNotification, object: clip)
+        }
+        sharpenAnnotations()
+    }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        sharpenAnnotations()
+    }
+
+    /// The layers PDFKit draws annotations into, one each, found by PDFKit's class name for them.
+    func annotationLayers() -> [CALayer] {
+        var found: [CALayer] = []
+        func walk(_ layer: CALayer) {
+            if NSStringFromClass(type(of: layer)).hasSuffix("AnnotationEffect") { found.append(layer) }
+            layer.sublayers?.forEach(walk)
+        }
+        if let layer { walk(layer) }
+        return found
+    }
+
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if !trackingAreas.contains(where: { $0.owner === self && $0.options.contains(.mouseMoved) }) {

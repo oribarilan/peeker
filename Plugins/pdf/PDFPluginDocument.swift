@@ -267,6 +267,7 @@ final class PDFPluginDocument: PluginDocument {
             try PDFEditing.apply(edit, to: document, fileName: url.lastPathComponent, stash: stash)
         }
         if edit.isPageEdit { pagesChanged() }
+        pdfView.sharpenAnnotations()
         if case .field(let name, let value) = edit { fields?.applied(name, value) }
     }
 

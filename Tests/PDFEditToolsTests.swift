@@ -273,6 +273,25 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         editor.end()
     }
 
+    /// PDFKit draws each annotation into a layer of its own at one pixel per point, which looks pixelated zoomed in.
+    @Test func marksAreDrawnAtTheZoomsResolution() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1))
+        let window = inWindow(document)
+        // PDFKit makes the layers only in a window on screen; this one is far outside every display.
+        window.setFrameOrigin(CGPoint(x: -20_000, y: -20_000))
+        window.orderBack(nil)
+        defer { window.close() }
+        let view = document.pdfView
+        view.scaleFactor = 3
+        let tools = try #require(document.prepareEditing())
+        tools.commitTextBox(id: nil, page: 0, topLeft: CGPoint(x: 100, y: 500), text: "Sharp", fontSize: 12)
+        try await waitUntil(seconds: 2) { !view.annotationLayers().isEmpty }
+        let expected = 3 * window.backingScaleFactor
+        try await waitUntil(seconds: 2) { view.annotationLayers().allSatisfy { $0.contentsScale == expected } }
+        view.scaleFactor = 2
+        try await waitUntil(seconds: 2) { view.annotationLayers().allSatisfy { $0.contentsScale == 2 * window.backingScaleFactor } }
+    }
+
     @Test func anEmptyBoxIsRemoved() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
         let tools = try #require(document.prepareEditing())

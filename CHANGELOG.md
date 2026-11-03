@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Text boxes and signatures in PDFs stay sharp when zoomed in.
 - A PDF text box's size buttons stay in place while you click them.
 - Code is colored by its syntax: Python, JavaScript and TypeScript, Swift, C and C++, Go, Rust, Java, Kotlin, Ruby, shell scripts, SQL, CSS, JSON, YAML, TOML and config files, plus code blocks in Markdown tagged with a language. Each text theme has its own code colors, and printing keeps them.
 - Large Markdown files open in a window several times faster, styled from the top while the rest follows.
