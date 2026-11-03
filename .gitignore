@@ -9,3 +9,4 @@ bench/results/raw/
 Peeker.xcodeproj/
 .superpowers/
 .refs/
+.local/

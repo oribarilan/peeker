@@ -4,7 +4,6 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Unmeasured requirements
 
-- **Space vs Quick Look** (peek-panel). `bench/ppbench.py space` runs `bench/spacebench.swift` on every fixture for Quick Look and Peeker, but on 2026-10-30 it measured nothing: the harness hung, most likely on a Finder automation permission prompt. It times the panel appearing, not content drawn. Left open from in-app-plugin-modules (task 7.2).
 - **A green A/B run after the in-app move.** The last run against `main` before the move had every timing equal or better, with six photo memory flags that the gate now shows as not comparable (the old build left decoded images out of its memory number). One more `scripts/bench-ab.sh` run should confirm the gate passes. Left open from in-app-plugin-modules (task 7.3).
 - **A check by hand of the in-app move**: edit and save a text file, highlight and save a PDF, force-quit with unsaved edits and relaunch. Tests cover these paths; nobody has done them in the real app yet. Left open from in-app-plugin-modules (task 8.1).
 - **Screen tests on macOS 26.** CI runs the unit tests on macOS 26, but the screen tests need a real screen and run only where development happens, on macOS 27. A difference only a screen shows (like thumbnail drags, now off on 26) can still slip through.
@@ -13,6 +12,7 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Requirements the code misses
 
+- **Space vs Quick Look** (peek-panel). A 3-run `bench/ppbench.py space` on 2026-11-02 had Peeker 1.3 to 4.3 times slower than Quick Look on 10 of 11 files (42-81 ms against 17-60 ms). It times the panel appearing, not content drawn, and Peeker's time includes asking Finder for its selection. Either find where the time goes or restate what the requirement compares.
 - **Large Markdown** (markdown) opened in 472 ms against TextEdit's 286 ms in the published run. After the in-app move the A/B run measured 310 to 400 ms, but TextEdit wasn't timed in that run, so the requirement is still unconfirmed.
 
 ## Missing next to Preview

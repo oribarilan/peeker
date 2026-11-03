@@ -41,12 +41,12 @@ Plugins/<id>/        one plugin each: <Id>Plugin.swift (entry point and default 
 Tests/               Swift Testing suites
 bench/, scripts/     benchmark, build and screen-test scripts (scripts/screen/)
 decisions/           decision records
-openspec/            specs of current behavior, changes in progress, roadmap (config.yaml), known gaps
+openspec/            specs of current behavior, changes in progress, roadmap (config.yaml), known gaps, backlog
 ```
 
 ## Specs and planning
 
-Planning runs through [OpenSpec](https://github.com/Fission-AI/OpenSpec). `openspec/specs/` describes what the app does today, one folder per capability; `openspec/config.yaml` holds the product direction and the roadmap; `openspec/gaps.md` lists what the specs found missing. New work starts as a change: interview the maintainer first (the `grill-me` skill), then `/opsx:propose` writes the proposal, delta specs, design and tasks, `/opsx:apply` implements them, and `/opsx:archive` folds the deltas into the specs. While applying, use the superpowers skills for test-first work, debugging and verification, but not their brainstorming, spec or plan documents. Run `openspec validate --all` before handing work back.
+Planning runs through [OpenSpec](https://github.com/Fission-AI/OpenSpec). `openspec/specs/` describes what the app does today, one folder per capability; `openspec/config.yaml` holds the product direction and the roadmap; `openspec/gaps.md` lists what the specs found missing; `openspec/backlog.md` lists ideas not yet started. New work starts as a change: interview the maintainer first (the `grill-me` skill), then `/opsx:propose` writes the proposal, delta specs, design and tasks, `/opsx:apply` implements them, and `/opsx:archive` folds the deltas into the specs. While applying, use the superpowers skills for test-first work, debugging and verification, but not their brainstorming, spec or plan documents. Run `openspec validate --all` before handing work back.
 
 ## Build and test
 
@@ -65,6 +65,8 @@ Fix new warnings before you finish; the build is currently warning-free. Write t
 `scripts/screen-test.sh` builds the app and runs the screen tests: the routing check and flows that drive the real app through Finder, menus, Settings, Edit mode, page and image edits and crash recovery, checking each step. It needs an unlocked screen left alone for about four minutes, and Accessibility and Screen Recording for the terminal. The flows live in `scripts/screen/`, and the `run-peeker` skill explains them.
 
 Run it before a release and after changes to the host UI or a plugin's views. Agents ask the maintainer before starting it, since it takes over the mouse and keyboard. A user-facing change adds or updates a step in a flow, or its commit or pull request says why not.
+
+Work that needs the screen and waits for the maintainer's go is listed in `.local/screen-queue.md` when that file exists (it's gitignored). Offer it when the maintainer says the screen is free, and add to it when a check can't run yet.
 
 ## Releases
 
