@@ -1,7 +1,7 @@
 import AppKit
 import PeekerKit
 
-/// A document window (tabbed). Owns the chrome: "Open With" and the plugin's commands in the toolbar, and the save
+/// An Editor window (tabbed). Owns the chrome: "Open With" and the plugin's tools in the toolbar, and the save
 /// prompts as sheets.
 final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, NSToolbarItemValidation, SavePrompts {
     let url: URL
@@ -48,17 +48,24 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         super.init(window: window)
         window.delegate = self
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            self?.handleSingleKey(event) == true ? nil : event
+            self?.handleToolKey(event) == true ? nil : event
         }
     }
 
-    /// Runs an edit tool whose shortcut is a single key, such as C for Crop: only in Edit mode, and never while a
-    /// text field or text view has the keyboard. True when it ran one.
-    func handleSingleKey(_ event: NSEvent) -> Bool {
-        guard event.window === window, let document = current, document.isEditing, !(window?.firstResponder is NSText),
-              let pressed = Shortcut(event: event), pressed.isSingleKey,
-              let command = document.commands.first(where: { $0.spec.isEditTool && $0.shortcut == pressed }) else { return false }
-        document.run(command.spec)
+    /// Handles an edit tool's shortcut before the menus do. In an editable document it runs a tool whose shortcut is a
+    /// single key, such as C for Crop, unless a text field or text view has the keyboard (a single key would swallow
+    /// typing as a menu key). In a read-only one any edit tool's shortcut says why, since its greyed-out menu item can't.
+    /// True when it took the key.
+    func handleToolKey(_ event: NSEvent) -> Bool {
+        guard event.window === window, let document = current, let pressed = Shortcut(event: event),
+              let tool = document.tools.first(where: { $0.spec.isEditTool && $0.shortcut == pressed }) else { return false }
+        let typing = window?.firstResponder is NSText
+        switch document.editability {
+        case .editable: guard pressed.isSingleKey, !typing else { return false }
+        case .readOnly: guard !(pressed.isSingleKey && typing) else { return false }
+        case .notEditable: return false
+        }
+        document.run(tool.spec)
         return true
     }
 
@@ -70,15 +77,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let document = DocumentViewController(url: url, entry: entry, config: config,
                                               allowsEditing: true, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString,
                                               sidebarMemory: sidebarMemory)
-        document.onCommandsChanged = { [weak self] document in
-            // While a file opens, its commands wait for its content (onContentShown); a failure shows at once.
+        document.onToolsChanged = { [weak self] document in
+            // While a file opens, its tools wait for its content (onContentShown); a failure shows at once.
             guard document.hasShownContent || document.pluginDocument == nil else { return }
-            self?.commandsChanged()
+            self?.toolsChanged()
         }
-        document.onContentShown = { [weak self] _ in self?.commandsChanged() }
+        document.onContentShown = { [weak self] _ in self?.toolsChanged() }
         document.onRecovery = { [weak self] _, result in self?.report(result) }
         document.onEditRefused = { [weak self] _, reason in self?.showMessage(reason) }
-        document.onActiveCommandChanged = { [weak self] _ in self?.showActiveCommand() }
+        document.onActiveToolChanged = { [weak self] _ in self?.showActiveTool() }
         // Before loading, so closing the window while the file opens keeps the record for the next launch.
         if let record { document.restore(record) }
         self.current = document
@@ -127,19 +134,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         _ = await alert.beginSheetModal(for: window)
     }
 
-    /// The Edit button and Edit Mode (Cmd+E).
-    @objc func toggleEditMode(_ sender: Any?) {
-        guard let document = current else { return }
-        Task {
-            await document.toggleEditing(resolve: resolveUnsavedEdits)
-            // The button flipped when clicked; after Cancel or a failed save it must show the mode as it is.
-            let button = window?.toolbar?.items.first { $0.itemIdentifier == Self.edit }?.view as? NSButton
-            button?.state = current?.isEditing == true ? .on : .off
-        }
-    }
-
-    /// Puts the document's commands in the toolbar, and in the menus when this window is in front.
-    private func commandsChanged() {
+    /// Puts the document's tools in the toolbar, and in the menus when this window is in front.
+    private func toolsChanged() {
         rebuildToolbar()
         if window?.isKeyWindow == true { onBecameKey?(self) }
     }
@@ -149,33 +145,33 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         current?.toggleSidebar(sender)
     }
 
-    @objc func runCommand(_ sender: Any?) {
+    @objc func runTool(_ sender: Any?) {
         let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSToolbarItem)?.tag ?? (sender as? NSControl)?.tag ?? -1
-        guard let document = current, document.commands.indices.contains(tag) else { return }
-        document.run(document.commands[tag].spec)
-        showActiveCommand()  // clicking a toolbar command selects it; only the document's active one stays selected
-        showCommandStates()
+        guard let document = current, document.tools.indices.contains(tag) else { return }
+        document.run(document.tools[tag].spec)
+        showActiveTool()  // clicking a toolbar tool selects it; only the document's active one stays selected
+        showToolStates()
     }
 
-    /// Presses the toolbar buttons of commands that are on, and releases the others.
-    private func showCommandStates() {
+    /// Presses the toolbar buttons of tools that are on, and releases the others.
+    private func showToolStates() {
         guard let document = current?.pluginDocument else { return }
         for item in window?.toolbar?.items ?? [] {
-            guard let button = item.view as? NSButton, let index = commandIndex(item.itemIdentifier), let commands = current?.commands,
-                  commands.indices.contains(index), let on = document.isOn(commands[index].spec.id) else { continue }
+            guard let button = item.view as? NSButton, let index = toolIndex(item.itemIdentifier), let tools = current?.tools,
+                  tools.indices.contains(index), let on = document.isOn(tools[index].spec.id) else { continue }
             button.state = on ? .on : .off
         }
     }
 
-    private func commandIndex(_ identifier: NSToolbarItem.Identifier) -> Int? {
-        identifier.rawValue.hasPrefix("command.") ? Int(identifier.rawValue.dropFirst("command.".count)) : nil
+    private func toolIndex(_ identifier: NSToolbarItem.Identifier) -> Int? {
+        identifier.rawValue.hasPrefix("tool.") ? Int(identifier.rawValue.dropFirst("tool.".count)) : nil
     }
 
-    /// Shows the document's active command as the toolbar's selected item, or none.
-    private func showActiveCommand() {
-        let active = current?.pluginDocument?.activeCommand
-        let index = current?.commands.firstIndex { $0.spec.id == active }
-        window?.toolbar?.selectedItemIdentifier = index.map { NSToolbarItem.Identifier("command.\($0)") }
+    /// Shows the document's active tool as the toolbar's selected item, or none.
+    private func showActiveTool() {
+        let active = current?.pluginDocument?.activeTool
+        let index = current?.tools.firstIndex { $0.spec.id == active }
+        window?.toolbar?.selectedItemIdentifier = index.map { NSToolbarItem.Identifier("tool.\($0)") }
     }
 
     @objc private func reopenWith(_ sender: NSPopUpButton) {
@@ -243,9 +239,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     /// Ends typing in progress, such as in a PDF text box or form field, so it counts as an edit before a save or the
-    /// unsaved-changes question. Only for documents with an edit mode: a text document's own view keeps its focus.
+    /// unsaved-changes question. Only for documents with edit tools: a text document's own view keeps its focus.
     private func finishTyping() {
-        guard let window, let document = current, document.editMode != .none else { return }
+        guard let window, let document = current, document.tools.contains(where: \.spec.isEditTool) else { return }
         window.makeFirstResponder(nil)
         if let plugin = document.pluginDocument {
             let view = plugin.focusView ?? plugin.contentView
@@ -257,11 +253,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         switch menuItem.action {
         case #selector(saveDocument(_:)), #selector(revertDocument(_:)):
             return current?.isEdited == true && current?.isSaving == false
-        case #selector(runCommand(_:)):
-            let id = current.flatMap { $0.commands.indices.contains(menuItem.tag) ? $0.commands[menuItem.tag].spec.id : nil }
+        case #selector(runTool(_:)):
+            let id = current.flatMap { $0.tools.indices.contains(menuItem.tag) ? $0.tools[menuItem.tag].spec.id : nil }
             let on = id.flatMap { current?.pluginDocument?.isOn($0) } ?? false
-            menuItem.state = on || (id != nil && id == current?.pluginDocument?.activeCommand) ? .on : .off
-            return unavailableReason(forCommandAt: menuItem.tag) == nil
+            menuItem.state = on || (id != nil && id == current?.pluginDocument?.activeTool) ? .on : .off
+            return unavailableReason(forToolAt: menuItem.tag) == nil
         case #selector(printDocument(_:)):
             return current?.pluginDocument?.printJob != nil
         case #selector(reopenWithMenu(_:)):
@@ -271,25 +267,22 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             return true
         case #selector(NSSplitViewController.toggleSidebar(_:)):
             return current?.validateUserInterfaceItem(menuItem) ?? false
-        case #selector(toggleEditMode(_:)):
-            menuItem.state = current?.isEditing == true ? .on : .off
-            return current.map { $0.editMode != .none } ?? false  // enabled when unavailable, to say why
         default:
             return true
         }
     }
 
-    /// Greys out a command its document says can't run now, with the reason as the tooltip.
+    /// Greys out a tool that can't run now, with the reason as the tooltip.
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
-        guard item.action == #selector(runCommand(_:)) else { return true }
-        let reason = unavailableReason(forCommandAt: item.tag)
-        item.toolTip = reason ?? current.flatMap { $0.commands.indices.contains(item.tag) ? $0.commands[item.tag].spec.title : nil }
+        guard item.action == #selector(runTool(_:)) else { return true }
+        let reason = unavailableReason(forToolAt: item.tag)
+        item.toolTip = reason ?? current.flatMap { $0.tools.indices.contains(item.tag) ? $0.tools[item.tag].spec.title : nil }
         return reason == nil
     }
 
-    private func unavailableReason(forCommandAt index: Int) -> String? {
-        guard let document = current, document.commands.indices.contains(index) else { return nil }
-        return document.pluginDocument?.unavailableReason(for: document.commands[index].spec.id)
+    private func unavailableReason(forToolAt index: Int) -> String? {
+        guard let document = current, document.tools.indices.contains(index) else { return nil }
+        return document.unavailableReason(for: document.tools[index].spec)
     }
 
     /// Asks Save / Don't Save / Cancel when the document has unsaved edits. True when the caller may close or replace it.
@@ -386,7 +379,6 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     // MARK: Toolbar
 
     private static let openWith = NSToolbarItem.Identifier("openWith")
-    private static let edit = NSToolbarItem.Identifier("edit")
 
     private func rebuildToolbar() {
         // A fresh identifier per rebuild: toolbars sharing an identifier sync their items across windows.
@@ -395,17 +387,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         toolbar.displayMode = .iconOnly
         window?.toolbar = toolbar
         window?.toolbarStyle = .unified
-        showActiveCommand()
+        showActiveTool()
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         guard let document = current else { return [Self.openWith] }
-        let shown = document.commands.indices.filter { document.showsInToolbar(document.commands[$0].spec) }
-        let identifier = { (index: Int) in NSToolbarItem.Identifier("command.\(index)") }
-        let view = shown.filter { !document.commands[$0].spec.isEditTool }.map(identifier)
-        let tools = shown.filter { document.commands[$0].spec.isEditTool }.map(identifier)
-        // A space between the two runs puts view commands and edit tools on separate pieces of glass.
-        return (document.hasSidebar ? [.toggleSidebar] : []) + [Self.openWith] + (document.editMode == .none ? [] : [Self.edit]) + [.flexibleSpace]
+        let shown = document.tools.indices.filter { document.tools[$0].spec.showsInToolbar }
+        let identifier = { (index: Int) in NSToolbarItem.Identifier("tool.\(index)") }
+        let view = shown.filter { !document.tools[$0].spec.isEditTool }.map(identifier)
+        let tools = shown.filter { document.tools[$0].spec.isEditTool }.map(identifier)
+        // A space between the two runs puts view tools and edit tools on separate pieces of glass.
+        return (document.hasSidebar ? [.toggleSidebar] : []) + [Self.openWith] + [.flexibleSpace]
             + view + (view.isEmpty || tools.isEmpty ? [] : [.space]) + tools
     }
 
@@ -413,17 +405,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         toolbarDefaultItemIdentifiers(toolbar)
     }
 
-    /// The commands: the document's active one shows selected, the toolbar's native look for one choice at a time.
+    /// The tools: the document's active one shows selected, the toolbar's native look for one choice at a time.
     func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         toolbarDefaultItemIdentifiers(toolbar).filter { identifier in
-            commandIndex(identifier).map { isSwitch(at: $0) == false } ?? false
+            toolIndex(identifier).map { isSwitch(at: $0) == false } ?? false
         }
     }
 
-    /// Whether the command turns something on and off, so its button shows that instead of being selectable.
+    /// Whether the tool turns something on and off, so its button shows that instead of being selectable.
     private func isSwitch(at index: Int) -> Bool {
-        guard let document = current, document.commands.indices.contains(index) else { return false }
-        return document.pluginDocument?.isOn(document.commands[index].spec.id) != nil
+        guard let document = current, document.tools.indices.contains(index) else { return false }
+        return document.pluginDocument?.isOn(document.tools[index].spec.id) != nil
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
@@ -440,29 +432,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             item.toolTip = "Open With"
             return item
         }
-        if identifier == Self.edit, let document = current {
-            let button = NSButton(image: NSImage(systemSymbolName: "pencil.tip.crop.circle", accessibilityDescription: "Edit")!, target: self, action: #selector(toggleEditMode(_:)))
-            button.setButtonType(.pushOnPushOff)
-            button.bezelStyle = .toolbar
-            button.state = document.isEditing ? .on : .off
-            item.view = button
-            item.label = "Edit"
-            if case .unavailable(let reason) = document.editMode {
-                button.isEnabled = false
-                button.toolTip = reason
-                item.toolTip = reason
-            } else {
-                item.toolTip = (document.isEditing ? "Stop Editing" : "Edit") + " (\(Shortcut.editMode.displayText))"
-            }
-            return item
-        }
-        guard let document = current, let index = Int(identifier.rawValue.dropFirst("command.".count)), document.commands.indices.contains(index) else { return nil }
-        let spec = document.commands[index].spec
+        guard let document = current, let index = Int(identifier.rawValue.dropFirst("tool.".count)), document.tools.indices.contains(index) else { return nil }
+        let spec = document.tools[index].spec
         item.label = spec.title
         item.toolTip = spec.title
         let image = spec.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: spec.title) }
         if let on = document.pluginDocument?.isOn(spec.id) {
-            let button = NSButton(image: image ?? NSImage(), target: self, action: #selector(runCommand(_:)))
+            let button = NSButton(image: image ?? NSImage(), target: self, action: #selector(runTool(_:)))
             button.setButtonType(.pushOnPushOff)
             button.bezelStyle = .toolbar
             button.state = on ? .on : .off
@@ -473,7 +449,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         }
         item.tag = index
         item.target = self
-        item.action = #selector(runCommand(_:))
+        item.action = #selector(runTool(_:))
         return item
     }
 }

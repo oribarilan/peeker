@@ -39,6 +39,15 @@ func corners(_ image: CGImage) throws -> [String] {
     return [name(1, 1), name(w - 2, 1), name(1, h - 2), name(w - 2, h - 2)]
 }
 
+/// A GIF with two frames, which Peeker opens read-only.
+func twoFrameGIF() throws -> URL {
+    let url = try TempFile.make(Data(), name: "f.gif")
+    let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.gif.identifier as CFString, 2, nil))
+    for _ in 0..<2 { CGImageDestinationAddImage(destination, try cornerImage(), nil) }
+    #expect(CGImageDestinationFinalize(destination))
+    return url
+}
+
 /// Writes `image` to a new file of `type` with optional properties (orientation, EXIF).
 func imageFile(_ image: CGImage, type: UTType, properties: [CFString: Any] = [:]) throws -> URL {
     let url = try TempFile.make(Data(), name: "f." + (type.preferredFilenameExtension ?? "img"))

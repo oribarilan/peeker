@@ -22,6 +22,15 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
     }
 }
 
+@Suite struct TextEditability {
+    @Test func textCanBeEditedInTheEditorOnly() async throws {
+        let file = try TempFile.make(Data("hello".utf8))
+        #expect(try await open(file).editability == .editable)
+        #expect(try await openDocument(file, with: TextPlugin.self, as: TextDocument.self, editing: false).editability == .notEditable)
+        #expect(try await open(file).tools.allSatisfy { !$0.isEditTool }, "no edit tools, so Tools shows No Tools")
+    }
+}
+
 @Suite struct TextPluginSaving {
     @Test func unchangedSaveLeavesMixedLineEndingsAlone() async throws {
         let bytes = Data("a\nb\r\nc\n".utf8)
@@ -216,8 +225,8 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         #expect(loaded.editable && loaded.note == nil)
     }
 
-    @Test func documentListsTheViewCommands() async throws {
+    @Test func documentListsTheViewTools() async throws {
         let document = try await open(try TempFile.make(Data("a\n".utf8)))
-        #expect(document.commands.map { [$0.title, $0.shortcut] } == [["Zoom In", "cmd+="], ["Zoom Out", "cmd+-"], ["Wrap Lines", "opt+cmd+w"]])
+        #expect(document.tools.map { [$0.title, $0.shortcut] } == [["Zoom In", "cmd+="], ["Zoom Out", "cmd+-"], ["Wrap Lines", "opt+cmd+w"]])
     }
 }

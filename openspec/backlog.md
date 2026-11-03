@@ -4,7 +4,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 ## Design review leftovers
 
-- M6: Opt+Cmd+W (Wrap Lines vs Close All); Cmd+E goes away with the editor-always-editable change.
+- M6: Opt+Cmd+W (Wrap Lines vs Close All).
 - M7: zoom parity: Actual Size and Zoom to Fit in PDF and text, zoom in Markdown.
 - M8: menu bar icon: add Open…, maybe a setting to hide it.
 - I2: Cmd+R in images (rotate like Preview vs Rotate & Resize).
@@ -28,3 +28,4 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 - Everything under "Requirements the code misses", "Missing next to Preview", "Future work" and "Risks" in [gaps.md](gaps.md), including the Peek panel being slower than Quick Look.
 - Refresh the published benchmark numbers on the reference Mac.
+- A PDF form field changed through VoiceOver isn't recorded until the next click, so Save stays greyed and closing doesn't ask.

@@ -82,10 +82,13 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     var focusView: NSView? { textView }
     func makeSidebar() -> [SidebarPanel] { InfoPanel.make(info).map { [$0] } ?? [] }
     var isEditable: Bool { textView.isEditable }
+    /// A read-only text file shows its own note above the text, so it reports `.notEditable` rather than a reason
+    /// the host would show a second time; it has no edit tools to grey out anyway.
+    var editability: Editability { isEditable ? .editable : .notEditable }
     var note: String? { noteLabel.isHidden ? nil : noteLabel.stringValue }
     var text: String { textView.string }
 
-    var commands: [CommandSpec] { TextPlugin.commands }
+    var tools: [ToolSpec] { TextPlugin.tools }
 
     /// The text as shown, unsaved edits included, in the current font, black and always wrapped.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {

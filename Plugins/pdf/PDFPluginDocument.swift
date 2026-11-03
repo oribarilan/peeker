@@ -3,7 +3,7 @@ import os
 import PDFKit
 import PeekerKit
 
-/// A PDF in a continuous native view with thumbnails and info. In a window it has find and an edit mode: highlights,
+/// A PDF in a continuous native view with thumbnails and info. In the Editor it has find and edit tools: highlights,
 /// form fields, text boxes, signatures, and rotating, deleting and reordering pages, saved on Cmd+S.
 final class PDFPluginDocument: PluginDocument {
     let pdfView = PeekerPDFView()
@@ -13,17 +13,17 @@ final class PDFPluginDocument: PluginDocument {
     private let editable: Bool
     /// The file's details for the info panel, read again after a save.
     private var info: [InfoRow]
-    let editMode: EditMode
-    private(set) var isEditing = false
+    let editability: Editability
+    private var isEditing: Bool { editability == .editable }
     var onEdit: (() -> Void)?
-    var onActiveCommandChange: (() -> Void)?
-    /// Edit mode's parts, made when it first turns on.
-    private(set) var tools: EditController?
+    var onActiveToolChange: (() -> Void)?
+    /// The edit tools' parts, made when a tool or a form field is first used, so opening doesn't pay for them.
+    private(set) var editController: EditController?
     private var fields: FormFields?
     /// Edits made since the file was loaded or last saved, oldest first, each numbered and with the edit that undoes it.
     private var pending: [(number: Int, edit: PDFEdit, inverse: PDFEdit)] = []
     private var lastNumber = 0
-    /// The document's own undo history, which the view hands out only in Edit mode. Not the window's: that one
+    /// The document's own undo history, which the view hands out only in the Editor. Not the window's: that one
     /// outlives the document (Open With, reload), and its actions would then run on a freed document.
     private(set) lazy var undoManager = UndoManager()
     /// Pages deleted in this view, for their undo.
@@ -33,22 +33,28 @@ final class PDFPluginDocument: PluginDocument {
     static let highlightColor = RGBA(red: 1, green: 0.8, blue: 0, alpha: 1)
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "pdf")
 
-    /// `uneditableReason` keeps Edit mode off for a file that can't be safely changed.
+    /// `uneditableReason` makes a file that can't be safely changed read-only.
     init(url: URL, document: PeekerPDFDocument, info: [InfoRow], editable: Bool, uneditableReason: String? = nil) {
         self.url = url
         self.document = document
         self.info = info
         self.editable = editable
-        editMode = !editable ? .none : uneditableReason.map { .unavailable(reason: $0) } ?? .available
+        editability = !editable ? .notEditable : uneditableReason.map(Editability.readOnly) ?? .editable
         pdfView.document = document
         document.onForeignChange = { [weak self] before in self?.pagesDragged(before: before) }
         pdfView.autoScales = true
         pdfView.displayMode = .singlePageContinuous
+        if isEditing {
+            // Flags only: the edit parts wait for their first use.
+            pdfView.isEditing = true
+            pdfView.editUndoManager = undoManager
+            pdfView.onFirstUse = { [weak self] in self?.prepareEditing() }
+        }
     }
 
     /// The thumbnails last made for the sidebar, for the selected pages.
     private weak var thumbnails: PageThumbnails?
-    private static let pageCommands: Set = ["rotate-left", "rotate-right", "delete-page"]
+    private static let pageTools: Set = ["rotate-left", "rotate-right", "delete-page"]
 
     /// The pages, with the find bar above them from the first Cmd+F. No find in the Peek panel.
     private lazy var container = PDFFindContainer(pdfView: pdfView, allowsFind: editable)
@@ -56,8 +62,8 @@ final class PDFPluginDocument: PluginDocument {
     var focusView: NSView? { pdfView }
 
     func makeSidebar() -> [SidebarPanel] {
-        let pageCommands = PDFPlugin.commands.filter { Self.pageCommands.contains($0.id) }
-        let thumbnails = PageThumbnails(commands: pageCommands.map { ($0.id, $0.title) })
+        let pageTools = PDFPlugin.tools.filter { Self.pageTools.contains($0.id) }
+        let thumbnails = PageThumbnails(tools: pageTools.map { ($0.id, $0.title) })
         thumbnails.pdfView = pdfView
         thumbnails.allowsPageChanges = allowsPageChanges
         thumbnails.isEditing = isEditing
@@ -77,37 +83,33 @@ final class PDFPluginDocument: PluginDocument {
     }
 
     /// A view-only document (the Peek panel) leaves out the edit tools.
-    var commands: [CommandSpec] {
-        editable ? PDFPlugin.commands : PDFPlugin.commands.filter { !$0.isEditTool }
+    var tools: [ToolSpec] {
+        editable ? PDFPlugin.tools : PDFPlugin.tools.filter { !$0.isEditTool }
     }
 
 
-    func setEditing(_ on: Bool) {
-        guard editMode == .available, on != isEditing else { return }
-        isEditing = on
-        pdfView.isEditing = on
-        thumbnails?.isEditing = on
-        pdfView.editUndoManager = on ? undoManager : nil
-        if on, tools == nil {
-            let tools = EditController(document: self)
-            tools.onToolChange = { [weak self] in self?.onActiveCommandChange?() }
-            self.tools = tools
-            pdfView.tools = tools
-            let fields = FormFields(view: pdfView)
-            fields.onChange = { [weak self] name, new, old in self?.record(.field(name: name, value: new), inverse: .field(name: name, value: old)) }
-            self.fields = fields
-            pdfView.onInteraction = { [weak fields] widget in
-                if let widget { fields?.clicked(widget) }
-                fields?.check()  // records the fields the click changed
-            }
+    /// Makes the edit tools' parts and starts watching the form fields, once: before the first tool runs, and before
+    /// the view handles the first click on an annotation or field, so that click's change is recorded.
+    @discardableResult func prepareEditing() -> EditController? {
+        guard isEditing else { return nil }
+        if let editController { return editController }
+        let controller = EditController(document: self)
+        controller.onToolChange = { [weak self] in self?.onActiveToolChange?() }
+        editController = controller
+        pdfView.editController = controller
+        let fields = FormFields(view: pdfView)
+        fields.onChange = { [weak self] name, new, old in self?.record(.field(name: name, value: new), inverse: .field(name: name, value: old)) }
+        self.fields = fields
+        pdfView.onInteraction = { [weak fields] widget in
+            if let widget { fields?.clicked(widget) }
+            fields?.check()  // records the fields the click changed
         }
-        if on { pdfView.window?.makeFirstResponder(pdfView) }  // so Undo reaches the document's history
-        if !on { tools?.end() }
+        return controller
     }
 
-    /// The tool waiting for its click or drag, as its command.
-    var activeCommand: String? {
-        switch tools?.tool ?? .none {
+    /// The tool waiting for its click or drag, by id.
+    var activeTool: String? {
+        switch editController?.tool ?? .none {
         case .textBox: "text-box"
         case .signature: "sign"
         case .highlighter: "highlight"
@@ -120,13 +122,14 @@ final class PDFPluginDocument: PluginDocument {
         case "zoom-in": pdfView.zoomIn(nil)
         case "zoom-out": pdfView.zoomOut(nil)
         case "text-box" where isEditing:
-            tools?.chooseTextBox()
+            prepareEditing()?.chooseTextBox()
         case "sign" where isEditing:
             guard let window = pdfView.window else { return true }
-            SignaturePad.present(on: window) { [weak self] signature in self?.tools?.startPlacing(signature) }
+            prepareEditing()
+            SignaturePad.present(on: window) { [weak self] signature in self?.editController?.startPlacing(signature) }
         case "highlight" where isEditing:
             highlightSelection()
-            tools?.armHighlighter()
+            prepareEditing()?.armHighlighter()
         case "rotate-left" where isEditing, "rotate-right" where isEditing:
             guard unavailableReason(for: id) == nil else { return false }
             change(.rotatePages(pages: targetPages, by: id == "rotate-left" ? -90 : 90))
@@ -136,7 +139,16 @@ final class PDFPluginDocument: PluginDocument {
         default:
             return false
         }
+        if PDFPlugin.tools.contains(where: { $0.id == id && $0.isEditTool }) { takeKeyboard() }
         return true
+    }
+
+    /// After an edit tool, Undo must reach the document's history: the pages take the keyboard back from the find
+    /// field, while the thumbnails keep it and pass Undo on themselves.
+    private func takeKeyboard() {
+        guard let window = pdfView.window else { return }
+        if let thumbnails, let focused = window.firstResponder as? NSView, focused.isDescendant(of: thumbnails) { return }
+        window.makeFirstResponder(pdfView)
     }
 
     /// Covers each line of the text selection with a highlight, as one undo step, and clears the selection.
@@ -152,10 +164,10 @@ final class PDFPluginDocument: PluginDocument {
         }
     }
 
-    func unavailableReason(for command: String) -> String? {
-        guard Self.pageCommands.contains(command), editMode == .available else { return nil }
+    func unavailableReason(for tool: String) -> String? {
+        guard Self.pageTools.contains(tool), editability == .editable else { return nil }
         if !allowsPageChanges { return "This PDF's permissions don't allow page changes." }
-        if command == "delete-page", targetPages.count >= document.pageCount { return "A PDF needs at least one page." }
+        if tool == "delete-page", targetPages.count >= document.pageCount { return "A PDF needs at least one page." }
         return nil
     }
 
@@ -179,7 +191,7 @@ final class PDFPluginDocument: PluginDocument {
 
     func restore(encoded edits: Data) -> Bool {
         // A file signed or locked since the record was written must not take its edits.
-        guard editMode == .available, let decoded = try? JSONDecoder().decode([PDFEdit].self, from: edits) else { return false }
+        guard editability == .editable, let decoded = try? JSONDecoder().decode([PDFEdit].self, from: edits) else { return false }
         var applied = false
         for edit in decoded {
             if change(edit) {
@@ -244,7 +256,7 @@ final class PDFPluginDocument: PluginDocument {
     /// Finishes typing and stops PDFKit's search, which reads the pages on another thread, before pages change.
     /// Ending the tools also drops the selection, whose page index a page edit may change.
     private func endInteraction() {
-        tools?.end()
+        editController?.end()
         container.finder.cancel()
     }
 
@@ -286,7 +298,7 @@ final class PDFPluginDocument: PluginDocument {
     func record(_ edit: PDFEdit, inverse: PDFEdit) {
         lastNumber += 1
         pending.append((lastNumber, edit, inverse))
-        // A group of its own: in a window it nests in the event's group, so one command is one undo step.
+        // A group of its own: in a window it nests in the event's group, so one tool run is one undo step.
         undoManager.beginUndoGrouping()
         undoManager.registerUndo(withTarget: self) { [weak self] _ in self?.change(inverse) }
         undoManager.endUndoGrouping()

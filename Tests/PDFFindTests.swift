@@ -78,9 +78,8 @@ private func menuItem(_ action: NSFindPanelAction) -> NSMenuItem {
         #expect(finder.status == "3 of 3")
     }
 
-    @Test func searchingInEditModeAddsNoEdits() async throws {
+    @Test func searchingInTheEditorAddsNoEdits() async throws {
         let document = try await open(["invoice one", "invoice two"])
-        document.setEditing(true)
         let finder = try container(document).finder
         try await search(finder, "invoice")
         finder.next()

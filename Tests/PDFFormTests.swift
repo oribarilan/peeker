@@ -4,19 +4,21 @@ import PeekerKit
 @testable import PeekerPDF
 import Testing
 
-/// A form open in an off-screen window, so the view lays out its pages.
+/// A form open in an off-screen window, so the view lays out its pages. In the Editor the view has seen the start of a
+/// click on the Name field, which sets up form editing the way a real first click does.
 @MainActor private final class OpenForm {
     let document: PDFPluginDocument
     let window: NSWindow
 
-    init(acroForm: String = "") async throws {
+    init(acroForm: String = "", editing: Bool = true) async throws {
         let file = try FormPDF.make(acroForm: acroForm)
-        document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
+        document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self, editing: editing)
         window = offscreenWindow(holding: document.pdfView)
         document.pdfView.autoScales = false
         document.pdfView.scaleFactor = 1
         document.pdfView.layoutDocumentView()
         document.undoManager.groupsByEvent = false  // no event loop here to close each step's group
+        if editing { document.pdfView.prepareForClick(at: point(in: FormPDF.nameField)) }
     }
 
     var page: PDFPage { document.pdfView.document!.page(at: 0)! }
@@ -30,7 +32,7 @@ import Testing
         document.pdfView.convert(CGPoint(x: rect.midX, y: rect.midY), from: page)
     }
 
-    /// What the view reports when a click in Edit mode ends: the field it hit, if any.
+    /// What the view reports when a click in the Editor ends: the field it hit, if any.
     func clickEnded(on widget: PDFAnnotation? = nil) {
         document.pdfView.onInteraction?(widget)
     }
@@ -39,7 +41,6 @@ import Testing
 @Suite(.serialized) struct PDFFormFields {
     @Test func eachKindOfFieldChangeIsRecorded() async throws {
         let form = try await OpenForm()
-        form.document.setEditing(true)
         var count = 0
         form.document.onEdit = { count += 1 }
         form.widget("Name").widgetStringValue = "Ori"
@@ -57,9 +58,10 @@ import Testing
         #expect(count == 4, "an unchanged field isn't recorded again")
     }
 
-    @Test func typingIntoATextFieldIsRecordedAsYouType() async throws {
+    @Test func typingIntoATextFieldRightAfterOpeningIsRecordedAsYouType() async throws {
         let form = try await OpenForm()
-        form.document.setEditing(true)
+        var edits = 0
+        form.document.onEdit = { edits += 1 }
         form.clickEnded(on: form.widget("Name"))
         let editor = NSTextView()
         form.document.pdfView.addSubview(editor)
@@ -68,11 +70,11 @@ import Testing
         editor.string = "Ori"
         NotificationCenter.default.post(name: NSText.didChangeNotification, object: editor)
         #expect(form.document.pendingEdits == [.field(name: "Name", value: "Ori")])
+        #expect(edits == 2 && form.document.unsavedEdits() != nil)
     }
 
     @Test func textEditingOutsideTheViewIsIgnored() async throws {
         let form = try await OpenForm()
-        form.document.setEditing(true)
         form.clickEnded(on: form.widget("Name"))
         let elsewhere = NSTextView()
         elsewhere.string = "nope"
@@ -83,7 +85,6 @@ import Testing
     /// A text box's editor sits in the view too; its typing belongs to the box, not the last clicked field.
     @Test func typingInATextBoxIsNotAFieldChange() async throws {
         let form = try await OpenForm()
-        form.document.setEditing(true)
         form.clickEnded(on: form.widget("Name"))
         let editor = TextBoxEditor(view: form.document.pdfView, page: form.page, topLeft: CGPoint(x: 300, y: 400), text: "", fontSize: 12, hiding: nil) { _, _ in }
         let box = try #require(form.window.firstResponder as? NSTextView)
@@ -93,10 +94,8 @@ import Testing
         withExtendedLifetime(editor) {}
     }
 
-    @Test func fieldChangesAreNotRecordedInTheReadView() async throws {
-        let form = try await OpenForm()
-        form.document.setEditing(true)
-        form.document.setEditing(false)
+    @Test func fieldChangesAreNotRecordedInThePeekPanel() async throws {
+        let form = try await OpenForm(editing: false)
         form.widget("Name").widgetStringValue = "Ori"
         let point = form.document.pdfView.convert(form.point(in: CGRect(x: 400, y: 400, width: 1, height: 1)), to: nil)
         let release = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: 0,
@@ -107,7 +106,6 @@ import Testing
 
     @Test func undoPutsTheOldValueBack() async throws {
         let form = try await OpenForm()
-        form.document.setEditing(true)
         form.widget("Name").widgetStringValue = "Ori"
         form.clickEnded()
         form.document.undoManager.undo()
@@ -129,23 +127,22 @@ import Testing
     }
 }
 
-@Suite(.serialized) struct PDFReadView {
-    @Test func aClickOnAFieldIsSwallowedOnlyInTheReadView() async throws {
-        let form = try await OpenForm()
-        let view = try #require(form.document.pdfView as PeekerPDFView?)
-        #expect(view.swallowsClick(at: form.point(in: FormPDF.nameField)))
-        form.document.setEditing(true)
-        #expect(!view.swallowsClick(at: form.point(in: FormPDF.nameField)))
+@Suite(.serialized) struct PDFPeekPanelForm {
+    @Test func aClickOnAFieldIsSwallowedOnlyInThePeekPanel() async throws {
+        let peek = try await OpenForm(editing: false)
+        #expect(peek.document.pdfView.swallowsClick(at: peek.point(in: FormPDF.nameField)))
+        let editor = try await OpenForm()
+        #expect(!editor.document.pdfView.swallowsClick(at: editor.point(in: FormPDF.nameField)))
     }
 
     @Test func aClickOnALinkStillReachesTheView() async throws {
-        let form = try await OpenForm()
+        let form = try await OpenForm(editing: false)
         #expect(!form.document.pdfView.swallowsClick(at: form.point(in: FormPDF.link)))
         #expect(!form.document.pdfView.swallowsClick(at: form.point(in: CGRect(x: 400, y: 400, width: 1, height: 1))))
     }
 
     @Test func aSwallowedClickChangesNothing() async throws {
-        let form = try await OpenForm()
+        let form = try await OpenForm(editing: false)
         let point = form.document.pdfView.convert(form.point(in: FormPDF.nameField), to: nil)
         let click = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0,
                                                     windowNumber: form.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))

@@ -8,7 +8,7 @@ private enum Stub: Plugin {
     static let id = "stub"
     static let name = "Stub"
     static let defaultExtensions: [String] = []
-    static let commands = [CommandSpec(id: "go", title: "Go")]
+    static let tools = [ToolSpec(id: "go", title: "Go")]
     /// Runs once, after an open has read the file and before it returns.
     static var duringOpen: (() throws -> Void)?
     /// Whether documents reload in place, and how long each reload takes after its read, oldest first; then none.
@@ -51,8 +51,8 @@ private final class StubDocument: PluginDocument {
     private(set) var text: String
     private var edited = false
     var onEdit: (() -> Void)?
-    var commands: [CommandSpec] { Stub.commands }
-    var editMode: EditMode { .available }
+    var tools: [ToolSpec] { Stub.tools }
+    var editability: Editability { .editable }
 
     init(url: URL, text: String) {
         self.url = url
@@ -135,23 +135,21 @@ private final class StubDocument: PluginDocument {
         #expect(document.knownModification == newest)
     }
 
-    /// The failure view has nothing to run, so the toolbar and menu must not keep offering the document's commands.
-    @Test func aFailedReloadDropsTheCommandsAndEditMode() async throws {
+    /// The failure view has nothing to run, so the toolbar and menu must not keep offering the document's tools.
+    @Test func aFailedReloadDropsTheTools() async throws {
         Stub.reset()
         Stub.reloadsInPlace = true
         Stub.reloadFails = true
         let file = try TempFile.make(Data("old".utf8), name: "f.stub")
         let document = await loadedDocument(file, with: Stub.self)
         defer { document.close() }
-        await document.toggleEditing { true }
-        #expect(document.isEditing && document.commands.count == 1)
+        #expect(document.tools.count == 1)
         var told = 0
-        document.onCommandsChanged = { _ in told += 1 }
+        document.onToolsChanged = { _ in told += 1 }
         try write("new", to: file, secondsFromNow: 10)
         document.reloadIfChangedOnDisk()
         try await waitUntil(seconds: 2) { document.pluginDocument == nil }
-        #expect(document.commands.isEmpty)
-        #expect(!document.isEditing)
+        #expect(document.tools.isEmpty)
         #expect(told == 1)
     }
 }

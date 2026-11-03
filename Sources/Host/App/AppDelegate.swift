@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var hotkeyShortcut: Shortcut?
     private let accessibility = AccessibilityStatus()
     private var askedForTrust = false
-    /// The menus the front document's commands fill.
+    /// The menus the front document's tools fill.
     private var viewMenu: NSMenu?
     private var toolsMenu: NSMenu?
     private var openWithMenu: NSMenu?
@@ -63,11 +63,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         NSApp.helpMenu = menu.item(withTitle: "Help")?.submenu
     }
 
-    /// Fills View and Tools with the front document's commands, or leaves only their fixed items, and File > Open With
+    /// Fills View and Tools with the front document's tools, or leaves only their fixed items, and File > Open With
     /// with its plugins. Filled ahead of time, not as the menus open, so Accessibility sees them too.
     private func showCommands(of controller: DocumentWindowController?) {
         guard let viewMenu, let toolsMenu, let openWithMenu else { return }
-        MainMenu.rebuildCommands(view: viewMenu, tools: toolsMenu, for: controller)
+        MainMenu.rebuildTools(view: viewMenu, tools: toolsMenu, for: controller)
         if let controller { controller.fillOpenWith(openWithMenu) } else { openWithMenu.removeAllItems() }
     }
 
@@ -184,7 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         menuBarItem?.show(MenuBarItem.State(problems: configStore.problems.count, needsAccessibility: accessibility.isMissing))
     }
 
-    /// Applies a saved config everywhere: routing for files opened next, the Peek panel key, and command shortcuts in
+    /// Applies a saved config everywhere: routing for files opened next, the Peek panel key, and tool shortcuts in
     /// open windows.
     private func configChanged(_ store: ConfigStore) {
         Self.logProblems(store.problems)

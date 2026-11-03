@@ -1,6 +1,6 @@
 #!/bin/bash
-# The PDF page flow on screen: in Edit mode, rotate and delete pages chosen in the thumbnails, drag one to the top,
-# save, undo past the save and save again, then leave Edit mode with Don't Save. Each save is checked by reading the
+# The PDF page flow on screen: in the Editor, rotate and delete pages chosen in the thumbnails, drag one to the top,
+# save, undo past the save and save again, then make more page edits and close the window with Don't Save. Each save is checked by reading the
 # file's pages back (order, text and rotation). Writes screenshots and results.txt (one ok/FAIL line per check)
 # to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
 #
@@ -56,7 +56,6 @@ osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
 sleep 0.5
 "$DRIVE" type Peeker "" || { echo "Peeker didn't come to the front; nothing was sent"; exit 2; }
 record pdf-pages 90
-"$DRIVE" menu Peeker Tools "Edit Mode"
 "$DRIVE" wait Peeker control "Rotate Right"
 # Zoom is in the View menu only, which leaves room for every edit tool at this window size.
 check "The toolbar has no zoom buttons" "$("$DRIVE" tree Peeker 12 | grep -c 'AXButton “Zoom In”')" 0
@@ -87,18 +86,16 @@ check "Undo after saving brings the deleted page back" "$(thumbnails)" 4
 "$DRIVE" menu Peeker File Save
 check_saved "The saved file has the deleted page back" "Page 1 / Page 2 (90) / Page 3 / Page 4"
 
-# Unsaved page edits, then leaving Edit mode with Don't Save: the view goes back to the file.
+# Unsaved page edits, then closing the window with Don't Save: the file stays as saved.
 pick_page 1
 "$DRIVE" press Peeker "Rotate Right"
 pick_page 4
 "$DRIVE" press Peeker "Delete Page"
-"$DRIVE" menu Peeker Tools "Edit Mode"
+"$DRIVE" keys Peeker cmd+w
 "$DRIVE" wait Peeker sheet
-"$DRIVE" shot Peeker "$OUT/3-leave-edit-mode.png"
+"$DRIVE" shot Peeker "$OUT/3-close-unsaved.png"
 "$DRIVE" press Peeker "Don't Save"
-"$DRIVE" wait Peeker control "Rotate Right" --gone
-check "Don't Save shows the file's pages again" "$(thumbnails)" 4
+"$DRIVE" wait Peeker window "$(basename "$FILE")" --gone
 check "Don't Save leaves the file as saved" "$(saved_pages)" "Page 1 / Page 2 (90) / Page 3 / Page 4"
-"$DRIVE" shot Peeker "$OUT/4-reverted.png"
 
 finish

@@ -8,7 +8,7 @@ private enum Bare: Plugin {
     static let id = "bare"
     static let name = "Bare"
     static let defaultExtensions: [String] = []
-    static let commands: [CommandSpec] = []
+    static let tools: [ToolSpec] = []
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { BareDocument() }
 }
 
@@ -16,12 +16,12 @@ private final class BareDocument: PluginDocument {
     let contentView = NSView()
 }
 
-/// A plugin whose documents have sidebar panels and no commands, like Markdown.
+/// A plugin whose documents have sidebar panels and no tools, like Markdown.
 private enum Outline: Plugin {
     static let id = "outline"
     static let name = "Outline"
     static let defaultExtensions: [String] = []
-    static let commands: [CommandSpec] = []
+    static let tools: [ToolSpec] = []
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { OutlineDocument() }
 }
 
@@ -31,7 +31,7 @@ private final class OutlineDocument: PluginDocument {
 }
 
 @Suite(.serialized) struct SidebarMemoryTests {
-    @Test func openingADocumentWithoutCommandsDoesNotRebuildTheToolbar() async throws {
+    @Test func openingADocumentWithoutToolsDoesNotRebuildTheToolbar() async throws {
         let url = try TempFile.make(Data("x".utf8), name: "f.bin")
         let document = DocumentViewController(url: url, entry: PluginEntry(Outline.self), config: Config(), allowsEditing: true,
                                               recovery: nil, sidebarMemory: SidebarMemory(defaults: nil))
@@ -39,7 +39,7 @@ private final class OutlineDocument: PluginDocument {
         defer { window.close(); document.close() }
         #expect(document.hasSidebar, "assumed while the file opens, so the first toolbar has the button")
         var rebuilds = 0
-        document.onCommandsChanged = { _ in rebuilds += 1 }
+        document.onToolsChanged = { _ in rebuilds += 1 }
         await document.load()
         try await Task.sleep(for: .milliseconds(100))  // past the frame the sidebar arrives in
         #expect(rebuilds == 0)

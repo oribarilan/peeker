@@ -1,6 +1,6 @@
 import AppKit
 
-/// Whether document windows show the info sidebar, and how wide it is: one choice for every window, kept across
+/// Whether Editor windows show the info sidebar, and how wide it is: one choice for every window, kept across
 /// launches in the app's preferences. It's window state rather than a setting, so it stays out of the config file.
 final class SidebarMemory {
     static let shared = SidebarMemory(defaults: .standard)

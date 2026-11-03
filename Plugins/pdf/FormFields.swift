@@ -1,7 +1,7 @@
 import AppKit
 import PDFKit
 
-/// Notices form-field changes in Edit mode. PDFKit edits fields itself and reports nothing, so each field's value is
+/// Notices form-field changes in the Editor. PDFKit edits fields itself and reports nothing, so each field's value is
 /// compared with the last one known after every interaction, and a text field is read from its editor as the user types.
 final class FormFields: NSObject {
     /// A field changed from `old` to `new`; the view already shows it.

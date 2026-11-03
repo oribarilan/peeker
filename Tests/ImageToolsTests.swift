@@ -12,12 +12,11 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
 }
 
 @Suite(.serialized) struct ImageTools {
-    /// The document shown in a window, in Edit mode.
+    /// The document shown in a window, ready to edit.
     private func shown(_ width: Int = 400, _ height: Int = 200) async throws -> (ImageDocument, NSWindow) {
         let document = try await open(try imageFile(try cornerImage(width: width, height: height), type: .png))
         let window = offscreenWindow(holding: document.contentView, width: 400, height: 200)
         document.canvas.frame = document.contentView.bounds
-        document.setEditing(true)
         return (document, window)
     }
 
@@ -31,8 +30,8 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
                          characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
     }
 
-    @Test func theCommandsAreCropOnCAndRotateAndResizeOnCmdR() {
-        let byID = Dictionary(uniqueKeysWithValues: ImagePlugin.commands.map { ($0.id, $0) })
+    @Test func theToolsAreCropOnCAndRotateAndResizeOnCmdR() {
+        let byID = Dictionary(uniqueKeysWithValues: ImagePlugin.tools.map { ($0.id, $0) })
         #expect(byID["crop"]?.shortcut == "c" && byID["crop"]?.isEditTool == true)
         #expect(byID["transform"]?.shortcut == "cmd+r" && byID["transform"]?.isEditTool == true)
     }

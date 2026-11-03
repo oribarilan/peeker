@@ -5,6 +5,8 @@ import AppKit
 final class PeekPanel: NSPanel {
     private(set) var document: DocumentViewController?
     var onOpenInWindow: ((URL) -> Void)?
+    /// Its name is what tells the panel apart from Quick Look, whose button opens Preview.
+    let openButton = NSButton(title: "Open in Peeker", target: nil, action: nil)
 
     init() {
         let visible = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
@@ -20,13 +22,15 @@ final class PeekPanel: NSPanel {
         collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         titlebarAppearsTransparent = true
 
-        let open = NSButton(title: "Open", target: self, action: #selector(openInWindow))
-        open.bezelStyle = .push
-        open.controlSize = .small
+        openButton.target = self
+        openButton.action = #selector(openInWindow)
+        openButton.bezelStyle = .push
+        openButton.controlSize = .small
+        openButton.sizeToFit()
         let accessory = NSTitlebarAccessoryViewController()
-        accessory.view = NSView(frame: NSRect(x: 0, y: 0, width: 70, height: 28))
-        accessory.view.addSubview(open)
-        open.frame = NSRect(x: 4, y: 3, width: 60, height: 22)
+        accessory.view = NSView(frame: NSRect(x: 0, y: 0, width: openButton.frame.width + 10, height: 28))
+        accessory.view.addSubview(openButton)
+        openButton.frame.origin = NSPoint(x: 4, y: (28 - openButton.frame.height) / 2)
         accessory.layoutAttribute = .trailing
         addTitlebarAccessoryViewController(accessory)
     }

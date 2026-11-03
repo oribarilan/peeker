@@ -3,35 +3,35 @@ import PeekerKit
 @testable import PeekerText
 import Testing
 
-/// A plugin whose one command reports no state.
-private enum PlainCommandPlugin: Plugin {
+/// A plugin whose one tool reports no state.
+private enum PlainToolPlugin: Plugin {
     static let id = "plaincommand"
-    static let name = "Plain Command"
+    static let name = "Plain Tool"
     static let defaultExtensions: [String] = []
-    static let commands = [CommandSpec(id: "go", title: "Go", symbol: "arrow.right")]
-    static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { PlainCommandDocument() }
+    static let tools = [ToolSpec(id: "go", title: "Go", symbol: "arrow.right")]
+    static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { PlainToolDocument() }
 }
 
-private final class PlainCommandDocument: PluginDocument {
+private final class PlainToolDocument: PluginDocument {
     let contentView = NSView()
-    var commands: [CommandSpec] { PlainCommandPlugin.commands }
+    var tools: [ToolSpec] { PlainToolPlugin.tools }
     func perform(_ id: String) -> Bool { true }
 }
 
-/// A document can say a command is on, such as Wrap Lines; the window checks its menu item and presses its button.
-@Suite(.serialized) struct CommandStates {
+/// A document can say a tool is on, such as Wrap Lines; the window checks its menu item and presses its button.
+@Suite(.serialized) struct ToolStates {
     private func menuItem(_ index: Int) -> NSMenuItem {
-        let item = NSMenuItem(title: "", action: #selector(DocumentWindowController.runCommand(_:)), keyEquivalent: "")
+        let item = NSMenuItem(title: "", action: #selector(DocumentWindowController.runTool(_:)), keyEquivalent: "")
         item.tag = index
         return item
     }
 
     private func wrap(_ controller: DocumentWindowController) throws -> Int {
-        try #require(controller.current?.commands.firstIndex { $0.spec.id == "toggle-wrap" })
+        try #require(controller.current?.tools.firstIndex { $0.spec.id == "toggle-wrap" })
     }
 
     private func button(_ controller: DocumentWindowController, _ index: Int) throws -> NSButton {
-        let item = try #require(controller.window?.toolbar?.items.first { $0.itemIdentifier.rawValue == "command.\(index)" })
+        let item = try #require(controller.window?.toolbar?.items.first { $0.itemIdentifier.rawValue == "tool.\(index)" })
         return try #require(item.view as? NSButton)
     }
 
@@ -57,17 +57,17 @@ private final class PlainCommandDocument: PluginDocument {
         _ = controller.validateMenuItem(item)
         #expect(item.state == .on)
         #expect(try button(controller, index).state == .on)
-        controller.runCommand(item)
+        controller.runTool(item)
         _ = controller.validateMenuItem(item)
         #expect(item.state == .off)
         #expect(try button(controller, index).state == .off)
     }
 
     @Test func commandsWithoutStateStayPlainToolbarItems() async throws {
-        let image = try await documentWindow(for: PlainCommandPlugin.self)
+        let image = try await documentWindow(for: PlainToolPlugin.self)
         defer { image.close() }
-        try await waitUntil(seconds: 1) { image.window?.toolbar?.items.contains { $0.itemIdentifier.rawValue == "command.0" } == true }
-        let item = try #require(image.window?.toolbar?.items.first { $0.itemIdentifier.rawValue == "command.0" })
+        try await waitUntil(seconds: 1) { image.window?.toolbar?.items.contains { $0.itemIdentifier.rawValue == "tool.0" } == true }
+        let item = try #require(image.window?.toolbar?.items.first { $0.itemIdentifier.rawValue == "tool.0" })
         #expect(item.view == nil && item.image != nil)
     }
 }

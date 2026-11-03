@@ -1,6 +1,6 @@
 #!/bin/bash
 # Records the user-facing flows as evidence: Settings on a launch by hand, the Peek panel on Space in Finder for files
-# Peeker opens, Finder's Quick Look for files it leaves alone, Open With in a document window (the toolbar and File
+# Peeker opens, Finder's Quick Look for files it leaves alone, Open With in an Editor window (the toolbar and File
 # menu) and Revert to Saved…, a config clash in the menu bar icon, and changes made in Settings (a plugin off and on,
 # moving an extension and Reset, the Peek panel key recorder and Off, the update checkbox and a development build's
 # Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one recorder listening at a time, reopening on
@@ -66,7 +66,7 @@ space 2-space-dotfile "$F/.zshrc" Peeker
 space 3-space-mp4 "$F/movie.mp4" "Quick Look"
 space 4-space-folder "$F/folder" "Quick Look"
 
-# Open With in a document window: Markdown, then Plain Text from the File menu, then Image from the toolbar (which
+# Open With in an Editor window: Markdown, then Plain Text from the File menu, then Image from the toolbar (which
 # can't read it and says so). In Plain Text, an edit and Revert to Saved… bring the file's text back.
 open -a "$APP" "$F/notes.md"
 "$DRIVE" wait Peeker window notes.md
@@ -180,21 +180,20 @@ screencapture -x "$OUT/12g-development-build-update.png"
 "$DRIVE" wait Peeker control OK --gone
 front
 
-# A new Highlight shortcut works in an open PDF: from the read view it turns on Edit mode. (Synthetic
+# A new Highlight shortcut works in an open PDF: it arms the highlighter at once. (Synthetic
 # drags and Select All don't select PDF text, so the highlight itself is left to the integration test.)
 "$DRIVE" row Peeker PDF && sleep 0.8
 "$DRIVE" press Peeker "Shortcut ⌃⌘H, click to record" && sleep 0.5 && "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
-check "Recording ⌃⌥H writes it" "$(cfg "c['plugins']['pdf']['commands']['highlight']['shortcut']")" ctrl+opt+h
+check "Recording ⌃⌥H writes it" "$(cfg "c['plugins']['pdf']['tools']['highlight']['shortcut']")" ctrl+opt+h
 # The clear button leaves Zoom In without a shortcut; Reset (Zoom In's is the pane's first) brings Cmd+= back.
 "$DRIVE" press Peeker "Clear the shortcut for Zoom In" && sleep 1
-check "Clearing a shortcut writes off" "$(cfg "c['plugins']['pdf']['commands']['zoom-in']['shortcut']")" off
+check "Clearing a shortcut writes off" "$(cfg "c['plugins']['pdf']['tools']['zoom-in']['shortcut']")" off
 "$DRIVE" shot Peeker "$OUT/12b-shortcut-cleared.png" Settings
 "$DRIVE" press Peeker Reset && sleep 1
-check "Reset brings the default back" "$(cfg "c['plugins']['pdf']['commands']['zoom-in']['shortcut']")" "cmd+="
+check "Reset brings the default back" "$(cfg "c['plugins']['pdf']['tools']['zoom-in']['shortcut']")" "cmd+="
 open -a "$APP" "$F/form.pdf" && "$DRIVE" wait Peeker window form.pdf && front
-check "The new shortcut isn't in the read view's toolbar" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight”')" 0
 "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
-check "The new shortcut turns on Edit mode" "$("$DRIVE" tree Peeker 12 | grep -c '“Highlight”' | awk '{print ($1 > 0) ? "yes" : "no"}')" yes
+check "The new shortcut arms Highlight" "$("$DRIVE" menuitems Peeker Tools | grep -cx '✓ Highlight')" 1
 "$DRIVE" shot Peeker "$OUT/12c-pdf-shortcut.png" form.pdf
 "$DRIVE" menu Peeker File Close && "$DRIVE" wait Peeker window form.pdf --gone
 
@@ -212,7 +211,7 @@ front
 "$DRIVE" press Peeker "Shortcut ⌘-, click to record" && sleep 0.3
 check "Only the last recorder pressed listens" "$("$DRIVE" tree Peeker 14 | grep -c '“Recording a shortcut”')" 1
 "$DRIVE" keys Peeker opt+cmd+z && sleep 1
-check "The key goes to that recorder's command" "$(cfg "c['plugins']['pdf']['commands']['zoom-in']['shortcut'] + ' ' + c['plugins']['pdf']['commands']['zoom-out']['shortcut']")" "cmd+= opt+cmd+z"
+check "The key goes to that recorder's tool" "$(cfg "c['plugins']['pdf']['tools']['zoom-in']['shortcut'] + ' ' + c['plugins']['pdf']['tools']['zoom-out']['shortcut']")" "cmd+= opt+cmd+z"
 space 12d-space-after-recording "$F/notes.md" Peeker
 front
 "$DRIVE" press Peeker "Shortcut ⌘=, click to record" && sleep 0.3

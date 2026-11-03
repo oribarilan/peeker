@@ -2,12 +2,12 @@ import AppKit
 import PeekerKit
 import Testing
 
-/// Plugins the config is checked against, in sidebar order: their ids, extensions and commands are all that matter here.
+/// Plugins the config is checked against, in sidebar order: their ids, extensions and tools are all that matter here.
 private enum StubPDF: Plugin {
     static let id = "pdf"
     static let name = "PDF"
     static let defaultExtensions = ["pdf"]
-    static let commands = [CommandSpec(id: "zoom-in", title: "Zoom In", shortcut: "cmd+="), CommandSpec(id: "highlight", title: "Highlight")]
+    static let tools = [ToolSpec(id: "zoom-in", title: "Zoom In", shortcut: "cmd+="), ToolSpec(id: "highlight", title: "Highlight")]
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { throw PluginError("not used") }
 }
 
@@ -15,7 +15,7 @@ private enum StubMarkdown: Plugin {
     static let id = "markdown"
     static let name = "Markdown"
     static let defaultExtensions = ["md", "markdown"]
-    static let commands: [CommandSpec] = []
+    static let tools: [ToolSpec] = []
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { throw PluginError("not used") }
 }
 
@@ -23,7 +23,7 @@ private enum StubText: Plugin {
     static let id = "text"
     static let name = "Plain Text"
     static let defaultExtensions = ["txt", noExtension]
-    static let commands: [CommandSpec] = []
+    static let tools: [ToolSpec] = []
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { throw PluginError("not used") }
 }
 
@@ -46,7 +46,7 @@ private func config(_ json: String) throws -> Config {
               "peekPanel": { "key": "opt+space" },
               "plugins": {
                 "text": { "enabled": false, "extensions": ["txt", "log", "noExtension"] },
-                "pdf": { "commands": { "highlight": { "shortcut": "cmd+shift+h" } } }
+                "pdf": { "tools": { "highlight": { "shortcut": "cmd+shift+h" } } }
               }
             }
             """)
@@ -128,31 +128,38 @@ private func config(_ json: String) throws -> Config {
     }
 
     @Test func unparseableShortcutKeepsTheDefault() throws {
-        let reading = read(#"{"plugins": {"pdf": {"commands": {"highlight": {"shortcut": "cmd+banana"}}}}}"#)
+        let reading = read(#"{"plugins": {"pdf": {"tools": {"highlight": {"shortcut": "cmd+banana"}}}}}"#)
         #expect(try #require(reading.config).keys.isEmpty)
-        #expect(reading.problems.map(\.path) == ["plugins.pdf.commands.highlight.shortcut"])
+        #expect(reading.problems.map(\.path) == ["plugins.pdf.tools.highlight.shortcut"])
     }
 
-    @Test func aKeyAMenuItemUsesLeavesTheCommandWithoutOne() throws {
-        let reading = read(#"{"plugins": {"pdf": {"commands": {"highlight": {"shortcut": "ctrl+cmd+s"}, "zoom-in": {"shortcut": "cmd+s"}}}}}"#)
+    @Test func aKeyAMenuItemUsesLeavesTheToolWithoutOne() throws {
+        let reading = read(#"{"plugins": {"pdf": {"tools": {"highlight": {"shortcut": "ctrl+cmd+s"}, "zoom-in": {"shortcut": "cmd+s"}}}}}"#)
         let config = try #require(reading.config)
-        #expect(reading.problems.map(\.path) == ["plugins.pdf.commands.highlight.shortcut", "plugins.pdf.commands.zoom-in.shortcut"])
+        #expect(reading.problems.map(\.path) == ["plugins.pdf.tools.highlight.shortcut", "plugins.pdf.tools.zoom-in.shortcut"])
         #expect(reading.problems.first?.message.contains("Show Sidebar") == true)
         #expect(reading.problems.last?.message.contains("Save") == true)
-        let zoomIn = try #require(StubPDF.commands.first { $0.id == "zoom-in" })
+        let zoomIn = try #require(StubPDF.tools.first { $0.id == "zoom-in" })
         #expect(config.shortcut(for: zoomIn, of: "pdf") == nil, "not even its default")
     }
 
-    @Test func unknownPluginsAndCommandsAreProblems() {
-        let reading = read(#"{"plugins": {"pfd": {"enabled": false}, "pdf": {"commands": {"hilight": {"shortcut": "cmd+h"}}}}}"#)
-        #expect(reading.problems.map(\.path) == ["plugins.pdf.commands.hilight", "plugins.pfd"])
+    @Test func unknownPluginsAndToolsAreProblems() {
+        let reading = read(#"{"plugins": {"pfd": {"enabled": false}, "pdf": {"tools": {"hilight": {"shortcut": "cmd+h"}}}}}"#)
+        #expect(reading.problems.map(\.path) == ["plugins.pdf.tools.hilight", "plugins.pfd"])
     }
 
-    @Test func offLeavesACommandWithoutAShortcut() throws {
-        let reading = read(#"{"plugins": {"pdf": {"commands": {"zoom-in": {"shortcut": "off"}}}}}"#)
+    @Test func offLeavesAToolWithoutAShortcut() throws {
+        let reading = read(#"{"plugins": {"pdf": {"tools": {"zoom-in": {"shortcut": "off"}}}}}"#)
         #expect(reading.problems.isEmpty)
-        let zoomIn = try #require(StubPDF.commands.first { $0.id == "zoom-in" })
+        let zoomIn = try #require(StubPDF.tools.first { $0.id == "zoom-in" })
         #expect(try #require(reading.config).shortcut(for: zoomIn, of: "pdf") == nil)
+    }
+
+    @Test func theOldToolsSectionIsUnknownAndKeepsDefaults() throws {
+        let reading = read(#"{"plugins": {"pdf": {"commands": {"zoom-in": {"shortcut": "off"}}}}}"#)
+        #expect(reading.problems.map(\.path) == ["plugins.pdf.commands"])
+        let zoomIn = try #require(StubPDF.tools.first { $0.id == "zoom-in" })
+        #expect(try #require(reading.config).shortcut(for: zoomIn, of: "pdf") == Shortcut(parsing: "cmd+="))
     }
 
     @Test func theOldOpenSectionIsUnknown() {
@@ -222,7 +229,7 @@ private func config(_ json: String) throws -> Config {
 }
 
 @Suite struct ShortcutChoices {
-    private let zoomIn = StubPDF.commands.first { $0.id == "zoom-in" }!
+    private let zoomIn = StubPDF.tools.first { $0.id == "zoom-in" }!
 
     @Test func clearingRecordingAndResetting() {
         var config = Config()
@@ -242,7 +249,7 @@ private func config(_ json: String) throws -> Config {
         let rendered = String(decoding: config.json(plugins: plugins), as: UTF8.self)
         let root = try #require(try JSONSerialization.jsonObject(with: Data(rendered.utf8)) as? [String: Any])
         let pdf = try #require((root["plugins"] as? [String: [String: Any]])?["pdf"])
-        #expect((pdf["commands"] as? [String: [String: String]])?["zoom-in"] == ["shortcut": "off"])
+        #expect((pdf["tools"] as? [String: [String: String]])?["zoom-in"] == ["shortcut": "off"])
         let back = read(rendered)
         #expect(back.problems.isEmpty)
         #expect(try #require(back.config).shortcut(for: zoomIn, of: "pdf") == nil)
@@ -266,15 +273,15 @@ private func config(_ json: String) throws -> Config {
         #expect(pluginSettings["markdown"]?["enabled"] as? Bool == true)
         #expect(pluginSettings["markdown"]?["extensions"] as? [String] == ["md", "markdown"])
         #expect(pluginSettings["text"]?["extensions"] as? [String] == ["txt", "noExtension"])
-        // A command's default shortcut is written; one with no shortcut is left out.
-        #expect((pluginSettings["pdf"]?["commands"] as? [String: [String: String]]) == ["zoom-in": ["shortcut": "cmd+="]])
+        // A tool's default shortcut is written; one with no shortcut is left out.
+        #expect((pluginSettings["pdf"]?["tools"] as? [String: [String: String]]) == ["zoom-in": ["shortcut": "cmd+="]])
     }
 
     @Test func readingTheRenderingGivesBackTheSameSettings() throws {
         let original = try config("""
             {"peekPanel": {"key": "off"}, "updates": {"check": false},
              "plugins": {"text": {"enabled": false, "extensions": ["txt", "log"]},
-                         "pdf": {"commands": {"highlight": {"shortcut": "cmd+shift+h"}}}}}
+                         "pdf": {"tools": {"highlight": {"shortcut": "cmd+shift+h"}}}}}
             """)
         let reading = read(rendered(original))
         #expect(reading.problems.isEmpty)

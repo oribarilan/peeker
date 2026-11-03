@@ -10,17 +10,14 @@ struct Shortcut: Equatable {
     let key: Key
     let modifiers: NSEvent.ModifierFlags
 
-    /// Edit Mode's key, which no command may take.
-    static let editMode = Shortcut(key: .character("e"), modifiers: .command)
-
-    /// Which shortcuts a place takes: the Peek panel key, a command, or an edit tool. The config and the Settings
+    /// Which shortcuts a place takes: the Peek panel key, a view tool, or an edit tool. The config and the Settings
     /// recorders both check them.
     enum Rules {
         /// The Peek panel key: Space alone, or a key with Command, Option or Control.
         case peekPanel
-        /// A plugin command: always with Command, Option or Control.
-        case command
-        /// An edit tool: like a command, or a single letter or digit, which works only in Edit mode.
+        /// A view tool: always with Command, Option or Control.
+        case viewTool
+        /// An edit tool: like a view tool, or a single letter or digit.
         case editTool
 
         /// Why `shortcut` isn't allowed here, or nil when it is. Shift alone doesn't count as a modifier, since it only
@@ -31,7 +28,7 @@ struct Shortcut: Equatable {
             case .peekPanel:
                 if shortcut == Shortcut(key: .space) || hasModifier { return nil }
                 return "Use Space alone, or add Command, Option or Control."
-            case .command:
+            case .viewTool:
                 return hasModifier ? nil : "Add Command, Option or Control."
             case .editTool:
                 if hasModifier { return nil }

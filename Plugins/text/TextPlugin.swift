@@ -13,10 +13,10 @@ public enum TextPlugin: Plugin {
         "c", "h", "m", "mm", "cc", "cpp", "hpp", "go", "rs", "java", "kt", "sql", "css", "scss", "diff", "patch",
         noExtension,
     ]
-    public static let commands = [
-        CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
-        CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
-        CommandSpec(id: "toggle-wrap", title: "Wrap Lines", symbol: "arrow.turn.down.left", shortcut: "opt+cmd+w"),
+    public static let tools = [
+        ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
+        ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
+        ToolSpec(id: "toggle-wrap", title: "Wrap Lines", symbol: "arrow.turn.down.left", shortcut: "opt+cmd+w"),
     ]
 
     nonisolated static let readOnlyNote = "Read-only: files over 10 MB open for viewing only."

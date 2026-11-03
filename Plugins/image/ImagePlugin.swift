@@ -15,14 +15,14 @@ public enum ImagePlugin: Plugin {
         "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "raf", "orf", "rw2", "rwl", "pef", "srw", "erf",
         "raw", "3fr", "iiq",
     ]
-    public static let commands = [
-        CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
-        CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
-        CommandSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", showsInToolbar: false),
-        CommandSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
+    public static let tools = [
+        ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
+        ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
+        ToolSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", showsInToolbar: false),
+        ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
         // A single key, kept for Crop alone: other letters stay free for markup tools.
-        CommandSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true),
-        CommandSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
+        ToolSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true),
+        ToolSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
     ]
     /// Larger decodes would be refused by Core Animation anyway.
     nonisolated static let maxDimension = 16_384

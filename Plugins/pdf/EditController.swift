@@ -1,8 +1,8 @@
 import AppKit
 import PDFKit
 
-/// Edit mode's tools on the view: choosing, moving, resizing and removing Peeker's own marks, placing text boxes and
-/// signatures. Created when Edit mode first turns on, so opening a PDF costs nothing extra.
+/// The edit tools on the view: choosing, moving, resizing and removing Peeker's own marks, placing text boxes and
+/// signatures. Created when a tool or an annotation is first used, so opening a PDF costs nothing extra.
 final class EditController {
     enum Corner { case topLeft, topRight, bottomLeft, bottomRight }
     enum Tool { case none, textBox, signature(Signature), highlighter }
@@ -91,10 +91,9 @@ final class EditController {
         return PDFMark(id: PDFEdit.newID(), page: page, rect: rect, kind: .signature(strokes: signature.strokes))
     }
 
-    /// Finishes what's in progress and drops the selection: when Edit mode turns off, before a page edit or Don't Save,
-    /// and on Escape.
+    /// Finishes what's in progress and drops the selection: before a page edit or Don't Save, and on Escape.
     func end() {
-        if let drag {  // cut off by leaving Edit mode: put it back rather than record an edit in the read view
+        if let drag {  // cut off mid-drag: put it back rather than record a half-made move
             PDFMarks.setBounds(drag.original, of: drag.annotation)
             self.drag = nil
         }

@@ -61,12 +61,11 @@ import Testing
         #expect(view.items.filter { $0.action == #selector(NSWindow.toggleFullScreen(_:)) }.count == 1)
     }
 
-    @Test func toolsStartsWithEditMode() throws {
+    @Test func toolsStartsWithAGreyedNoToolsItem() throws {
         let (main, delegate) = bar()
         defer { withExtendedLifetime(delegate) {} }
-        let edit = try #require(main.item(withTitle: "Tools")?.submenu?.items.first)
-        #expect(edit.title == "Edit Mode" && edit.keyEquivalent == "e" && edit.keyEquivalentModifierMask == .command)
-        #expect(edit.action == #selector(DocumentWindowController.toggleEditMode(_:)))
+        let items = try #require(main.item(withTitle: "Tools")?.submenu?.items)
+        #expect(items.map(\.title) == ["No Tools"] && items.first?.action == nil)
     }
 
     @Test func peekerWindowAndHelpHaveTheStandardItems() throws {

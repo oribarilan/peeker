@@ -1,7 +1,7 @@
 import AppKit
 import PeekerKit
 
-/// The decoded image fitted to the window, with zoom from fit to 16 times fit. In a window it has an Edit mode:
+/// The decoded image fitted to the window, with zoom from fit to 16 times fit. In the Editor it has edit tools:
 /// crop, rotate, flip and resize, saved on Cmd+S at full resolution.
 final class ImageDocument: PluginDocument {
     private let url: URL
@@ -11,8 +11,9 @@ final class ImageDocument: PluginDocument {
     let canvas: ImageCanvas
     /// The file's details for the info panel, read again after a save.
     private(set) var info: [InfoRow]
-    let editMode: EditMode
-    private(set) var isEditing = false
+    let editability: Editability
+    /// Editable: crop and Rotate & Resize work from the start.
+    var isEditing: Bool { editability == .editable }
     var onEdit: (() -> Void)?
     /// The screen-size decode of the file as last loaded or saved, and the file's full size in pixels.
     private var base: CGImage
@@ -40,7 +41,7 @@ final class ImageDocument: PluginDocument {
         base = decoded.image
         baseSize = decoded.pixelSize
         pointsPerPixel = decoded.pointsPerPixel
-        editMode = !editable ? .none : decoded.uneditableReason.map { .unavailable(reason: $0) } ?? .available
+        editability = !editable ? .notEditable : decoded.uneditableReason.map(Editability.readOnly) ?? .editable
         info = decoded.info
         canvas = ImageCanvas(image: decoded.image)
         scrollView.contentView = CenteringClipView()
@@ -53,13 +54,16 @@ final class ImageDocument: PluginDocument {
         scrollView.drawsBackground = false
         canvas.autoresizingMask = [.width, .height]
         animation = decoded.isAnimated ? AnimationPlayer(url: url, canvas: canvas) : nil
+        if isEditing { canvas.editUndoManager = undoManager }
     }
 
     var contentView: NSView { scrollView }
+    /// The canvas takes the keyboard when editable, so Undo reaches the document's history.
+    var focusView: NSView? { isEditing ? canvas : nil }
     func makeSidebar() -> [SidebarPanel] { InfoPanel.make(info).map { [$0] } ?? [] }
 
-    var commands: [CommandSpec] {
-        editMode == .none ? ImagePlugin.commands.filter { !$0.isEditTool } : ImagePlugin.commands
+    var tools: [ToolSpec] {
+        editability == .notEditable ? ImagePlugin.tools.filter { !$0.isEditTool } : ImagePlugin.tools
     }
 
     /// The size the window shows, in screen-decode pixels.
@@ -113,18 +117,6 @@ final class ImageDocument: PluginDocument {
 
     // MARK: Editing
 
-    func setEditing(_ on: Bool) {
-        guard editMode == .available, on != isEditing else { return }
-        isEditing = on
-        canvas.editUndoManager = on ? undoManager : nil
-        if on {
-            canvas.window?.makeFirstResponder(canvas)
-        } else {
-            cropOverlay?.finish(nil)
-            transformPanel?.popover.close()
-        }
-    }
-
     private func startCrop() {
         transformPanel?.popover.close()
         cropOverlay?.finish(nil)
@@ -171,7 +163,7 @@ final class ImageDocument: PluginDocument {
     }
 
     func restore(encoded data: Data) -> Bool {
-        guard editMode == .available, let decoded = try? JSONDecoder().decode([ImageEdit].self, from: data),
+        guard isEditing, let decoded = try? JSONDecoder().decode([ImageEdit].self, from: data),
               (1...Self.maxRecoveredEdits).contains(decoded.count), decoded.allSatisfy(\.isValid) else { return false }
         setEdits(decoded)
         return true

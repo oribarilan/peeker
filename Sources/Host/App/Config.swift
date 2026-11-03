@@ -10,44 +10,44 @@ import PeekerKit
 ///       "plugins": {
 ///         "image": { "enabled": false },
 ///         "text": { "extensions": ["txt", "md", "noExtension"] },   // replaces the plugin's default list
-///         "pdf": { "commands": { "highlight": { "shortcut": "cmd+shift+h" }, "zoom-in": { "shortcut": "off" } } }
+///         "pdf": { "tools": { "highlight": { "shortcut": "cmd+shift+h" }, "zoom-in": { "shortcut": "off" } } }
 ///       }
 ///     }
 struct Config: Equatable {
     var disabled: Set<String> = []
     /// Plugin id -> the extensions the config gives it in place of its default list: lowercase, no dot.
     var extensions: [String: [String]] = [:]
-    /// `keyID(plugin:command:)` -> shortcut override.
+    /// `keyID(plugin:tool:)` -> shortcut override.
     var keys: [String: Shortcut] = [:]
-    /// `keyID(plugin:command:)` of each command the config leaves without a shortcut (`"off"`).
+    /// `keyID(plugin:tool:)` of each tool the config leaves without a shortcut (`"off"`).
     var noShortcut: Set<String> = []
     var peekPanelKey: Shortcut? = Shortcut(key: .space)
     /// Whether Peeker checks for updates once a day by itself.
     var checkForUpdates = true
 
-    /// Where `keys` holds a command's shortcut: "pluginID.commandID".
+    /// Where `keys` holds a tool's shortcut: "pluginID.toolID".
     static func keyID(plugin: String, command: String) -> String { "\(plugin).\(command)" }
 
-    /// The command's shortcut: none when the config turned it off, else the config's override, else the plugin's default.
-    func shortcut(for command: CommandSpec, of plugin: String) -> Shortcut? {
+    /// The tool's shortcut: none when the config turned it off, else the config's override, else the plugin's default.
+    func shortcut(for command: ToolSpec, of plugin: String) -> Shortcut? {
         let key = Self.keyID(plugin: plugin, command: command.id)
         guard !noShortcut.contains(key) else { return nil }
         return keys[key] ?? command.shortcut.flatMap(Shortcut.init(parsing:))
     }
 
-    /// Gives the command at `key` this shortcut.
+    /// Gives the tool at `key` this shortcut.
     mutating func recordShortcut(_ shortcut: Shortcut, for key: String) {
         keys[key] = shortcut
         noShortcut.remove(key)
     }
 
-    /// Leaves the command at `key` without a shortcut.
+    /// Leaves the tool at `key` without a shortcut.
     mutating func clearShortcut(for key: String) {
         keys[key] = nil
         noShortcut.insert(key)
     }
 
-    /// Gives the command at `key` its default shortcut back.
+    /// Gives the tool at `key` its default shortcut back.
     mutating func resetShortcut(for key: String) {
         keys[key] = nil
         noShortcut.remove(key)
@@ -192,8 +192,8 @@ private struct ConfigReader {
                     if let enabled = bool(value, at: "\(path).enabled"), !enabled { config.disabled.insert(id) }
                 case "extensions":
                     readExtensions(value, of: plugin, at: "\(path).extensions")
-                case "commands":
-                    if let commands = object(value, at: "\(path).commands") { readCommands(commands, of: plugin, at: "\(path).commands") }
+                case "tools":
+                    if let tools = object(value, at: "\(path).tools") { readTools(tools, of: plugin, at: "\(path).tools") }
                 default:
                     unknown("\(path).\(key)")
                 }
@@ -201,12 +201,12 @@ private struct ConfigReader {
         }
     }
 
-    private mutating func readCommands(_ commands: [String: JSONValue], of plugin: PluginEntry, at prefix: String) {
-        for (command, value) in sorted(commands) {
+    private mutating func readTools(_ tools: [String: JSONValue], of plugin: PluginEntry, at prefix: String) {
+        for (command, value) in sorted(tools) {
             let path = "\(prefix).\(command)"
-            guard plugin.commands.contains(where: { $0.id == command }) else {
-                let known = plugin.commands.map(\.id)
-                problem(path, "The \(plugin.name) plugin has no command “\(command)”" + (known.isEmpty ? "." : ". Its commands: \(known.joined(separator: ", "))."))
+            guard plugin.tools.contains(where: { $0.id == command }) else {
+                let known = plugin.tools.map(\.id)
+                problem(path, "The \(plugin.name) plugin has no tool “\(command)”" + (known.isEmpty ? "." : ". Its tools: \(known.joined(separator: ", "))."))
                 continue
             }
             guard let settings = object(value, at: path) else { continue }
@@ -221,12 +221,12 @@ private struct ConfigReader {
                     problem("\(path).shortcut", "“\(text)” isn't a shortcut Peeker understands. Use one like cmd+shift+h, or off for none.")
                     continue
                 }
-                let isEditTool = plugin.commands.first { $0.id == command }?.isEditTool == true
-                if let refusal = (isEditTool ? Shortcut.Rules.editTool : .command).refusal(for: shortcut) {
+                let isEditTool = plugin.tools.first { $0.id == command }?.isEditTool == true
+                if let refusal = (isEditTool ? Shortcut.Rules.editTool : .viewTool).refusal(for: shortcut) {
                     problem("\(path).shortcut", "“\(text)” can't be used here. \(refusal)")
                 } else if let item = MainMenu.fixedShortcuts.first(where: { $0.shortcut == shortcut }) {
-                    // The menu item keeps its key; the command gets none rather than one that never fires.
-                    problem("\(path).shortcut", "“\(text)” is used by \(item.title). Choose another key; until then the command has none.")
+                    // The menu item keeps its key; the tool gets none rather than one that never fires.
+                    problem("\(path).shortcut", "“\(text)” is used by \(item.title). Choose another key; until then the tool has none.")
                     config.noShortcut.insert(Config.keyID(plugin: plugin.id, command: command))
                 } else {
                     config.keys[Config.keyID(plugin: plugin.id, command: command)] = shortcut

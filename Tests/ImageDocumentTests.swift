@@ -22,25 +22,32 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(ImagePlugin.uneditableReason(type: UTType.tiff.identifier, frames: 1, pixels: 100, isFloat: true) == "Peeker can't save this format.")
     }
 
-    @Test func aPNGOffersEditModeInAWindowOnly() async throws {
+    @Test func aPNGCanBeEditedInAWindowOnly() async throws {
         let url = try imageFile(try cornerImage(), type: .png)
-        #expect(try await open(url).editMode == .available)
-        #expect(try await open(url, editing: false).editMode == .none)
+        #expect(try await open(url).editability == .editable)
+        #expect(try await open(url, editing: false).editability == .notEditable)
     }
 
-    @Test func anAnimatedGIFSaysWhy() async throws {
-        let url = try TempFile.make(Data(), name: "f.gif")
-        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.gif.identifier as CFString, 2, nil))
-        for _ in 0..<2 { CGImageDestinationAddImage(destination, try cornerImage(), nil) }
-        #expect(CGImageDestinationFinalize(destination))
-        #expect(try await open(url).editMode == .unavailable(reason: "This image has several frames."))
+    @Test func anAnimatedGIFSaysWhyAndRefusesTheTools() async throws {
+        let document = try await open(try twoFrameGIF())
+        #expect(document.editability == .readOnly("This image has several frames."))
+        #expect(!document.perform("crop") && !document.perform("transform"))
+        #expect(document.canvas.editUndoManager == nil)
+    }
+
+    @Test func anEditableImageCropsAndTransformsRightAfterOpening() async throws {
+        let document = try await open(try imageFile(try cornerImage(width: 400, height: 200), type: .png))
+        let window = offscreenWindow(holding: document.contentView, width: 400, height: 200)
+        defer { window.close() }
+        #expect(document.focusView === document.canvas && document.canvas.editUndoManager === document.undoManager)
+        #expect(document.perform("crop") && document.cropOverlay != nil)
+        #expect(document.perform("transform") && document.cropOverlay == nil, "the panel takes over from the crop")
     }
 }
 
 @Suite(.serialized) struct ImageDocumentEditing {
     @Test func editsShowAtOnceAndUndoOneByOne() async throws {
         let document = try await open(try imageFile(try cornerImage(), type: .png))
-        document.setEditing(true)
         #expect(document.shownSize == CGSize(width: 40, height: 20))
         document.apply(.rotate(by: 90))
         document.apply(.crop(CGRect(x: 0, y: 0, width: 1, height: 0.5)))
@@ -58,7 +65,6 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     @Test func savingWritesTheFileAndStartsFromIt() async throws {
         let url = try imageFile(try cornerImage(width: 400, height: 200), type: .png)
         let document = try await open(url)
-        document.setEditing(true)
         document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
         try await document.save(try #require(document.unsavedEdits()), accepting: nil)
         #expect(document.unsavedEdits() == nil)
@@ -70,7 +76,6 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     @Test func theInfoShowsTheSavedFile() async throws {
         let url = try imageFile(try cornerImage(width: 400, height: 200), type: .png)
         let document = try await open(url)
-        document.setEditing(true)
         document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
         try await document.save(try #require(document.unsavedEdits()), accepting: nil)
         #expect(document.info.contains(InfoRow(label: "Dimensions", value: "200 × 200")))
@@ -81,7 +86,6 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     /// The host counts each `onEdit` as a change; one after a save would leave the window marked as edited.
     @Test func aSaveNeverReportsAnEdit() async throws {
         let document = try await open(try imageFile(try cornerImage(width: 400, height: 200), type: .png))
-        document.setEditing(true)
         document.apply(.rotate(by: 90))
         var edits = 0
         document.onEdit = { edits += 1 }
@@ -92,7 +96,6 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     @Test func recoveryReappliesEditsAndRefusesBadOnes() async throws {
         let url = try imageFile(try cornerImage(), type: .png)
         let first = try await open(url)
-        first.setEditing(true)
         first.apply(.rotate(by: -90))
         first.apply(.resize(width: 10, height: 20))
         let record = try #require(first.unsavedEdits()).encoded()
@@ -112,7 +115,6 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         let document = try await open(url)
         #expect(document.shownSize.width < document.shownSize.height, "turned, as the tag says")
         #expect(document.pixelSize == CGSize(width: 20, height: 40))
-        document.setEditing(true)
         document.apply(.crop(CGRect(x: 0, y: 0, width: 1, height: 0.5)))
         try await document.save(try #require(document.unsavedEdits()), accepting: nil)
         let after = try stored(url)
@@ -124,7 +126,6 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     @Test func anUndoDuringASaveStillStartsFromTheSavedFile() async throws {
         let url = try imageFile(try cornerImage(width: 400, height: 200), type: .png)
         let document = try await open(url)
-        document.setEditing(true)
         document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
         let snapshot = try #require(document.unsavedEdits())
         document.undoManager.undo()
@@ -162,13 +163,13 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(abs(scroll.magnification - expected) < 0.001)
     }
 
-    @Test func actualSizeIsACommandOnCmd0() {
-        #expect(ImagePlugin.commands.first { $0.id == "zoom-actual" }?.shortcut == "cmd+0")
+    @Test func actualSizeIsAToolOnCmd0() {
+        #expect(ImagePlugin.tools.first { $0.id == "zoom-actual" }?.shortcut == "cmd+0")
     }
 
-    @Test func documentOffersZoomCommands() async throws {
+    @Test func documentOffersZoomTools() async throws {
         let document = try await open(try imageFile(try cornerImage(), type: .png), editing: false)
-        #expect(document.commands.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual"])
+        #expect(document.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual"])
         #expect(document.perform("zoom-in"))
         #expect(!document.perform("no-such-command"))
     }
@@ -217,7 +218,7 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(animation.isPaused)
         document.canvas.mouseDown(with: click)
         #expect(!animation.isPaused)
-        // An animated image can't enter Edit mode, so handing the canvas an edit history stands in for it: there a
+        // An animated image is read-only, so handing the canvas an edit history stands in for an editable one: there a
         // click belongs to the edit tools.
         let history = UndoManager()
         document.canvas.editUndoManager = history

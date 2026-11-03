@@ -1,7 +1,7 @@
 #!/bin/bash
 # The crash recovery flow on screen: type into a text file and fill a PDF form field, kill Peeker the way a crash or
 # force quit would, and launch it again with the same recovery folder. Checks that both documents come back with
-# their edits (the PDF in Edit mode), that closing each asks to save, and that Don't Save clears their records.
+# their edits, that closing each asks to save, and that Don't Save clears their records.
 # Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording
 # with SCREEN_RECORD=1.
 #
@@ -30,7 +30,6 @@ record recovery 60
 open -a "$APP" "$FORM"
 "$DRIVE" wait Peeker window form.pdf
 front
-"$DRIVE" menu Peeker Tools "Edit Mode"
 "$DRIVE" wait Peeker control "Text Box"
 read -r fx fy fw fh <<< "$("$DRIVE" frame Peeker AXTextField || echo "0 0 0 0")"
 "$DRIVE" click Peeker $((fx + 20)) $((fy + fh / 2))
@@ -45,7 +44,7 @@ sleep 1
 pkill -KILL -f "$BIN"
 for _ in $(seq 50); do pgrep -f "$BIN" >/dev/null || break; sleep 0.1; done
 
-# Document windows join as tabs, so the two come back as tabs of one window.
+# Editor windows join as tabs, so the two come back as tabs of one window.
 launch
 "$DRIVE" wait Peeker control notes.txt --timeout 10 && "$DRIVE" wait Peeker control form.pdf --timeout 10
 check "Both documents come back" "$("$DRIVE" tree Peeker 3 | grep -cE 'AXRadioButton “(notes\.txt|form\.pdf)”')" 2
@@ -56,7 +55,6 @@ check "The typed text comes back" "$([ "$(shown 'Typed before the crash')" -gt 0
 "$DRIVE" shot Peeker "$OUT/2-restored-notes.png" notes.txt
 "$DRIVE" press Peeker form.pdf
 "$DRIVE" wait Peeker window form.pdf
-check "The PDF comes back in Edit mode" "$([ "$(tools_shown)" -gt 0 ] && echo yes)" yes
 check "The filled field comes back" "$([ "$(shown 'Jane Doe')" -gt 0 ] && echo yes)" yes
 "$DRIVE" shot Peeker "$OUT/3-restored-form.png" form.pdf
 

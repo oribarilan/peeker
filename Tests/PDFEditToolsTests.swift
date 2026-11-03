@@ -9,7 +9,6 @@ nonisolated private let place = CGRect(x: 100, y: 300, width: 180, height: 60)
 private func open(_ file: URL) async throws -> PDFPluginDocument {
     let document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
     document.undoManager.groupsByEvent = false  // no event loop here to close each step's group
-    document.setEditing(true)
     return document
 }
 
@@ -34,7 +33,7 @@ private func mouse(_ type: NSEvent.EventType, at point: CGPoint, in document: PD
 /// Drags the mark under `start` to `end` (page 0's space) with the mouse, through the tools as the view hands them
 /// the events.
 private func drag(in document: PDFPluginDocument, window: NSWindow, from start: CGPoint, to end: CGPoint) throws {
-    let tools = try #require(document.tools)
+    let tools = try #require(document.prepareEditing())
     let page = try #require(document.pdfView.document?.page(at: 0))
     #expect(tools.mouseDown(with: mouse(.leftMouseDown, at: start, in: document, window: window), at: document.pdfView.convert(start, from: page)))
     #expect(tools.mouseDragged(with: mouse(.leftMouseDragged, at: end, in: document, window: window)))
@@ -85,25 +84,6 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
 }
 
 @Suite struct PDFAdjusting {
-    /// Leaving Edit mode mid-drag must not leave a moved mark that isn't pending or undoable.
-    @Test func leavingEditModeMidDragPutsTheMarkBack() async throws {
-        let document = try await open(try TempFile.makePDF(pages: 1))
-        let window = inWindow(document)
-        let mark = PDFMark(id: PDFEdit.newID(), page: 0, rect: place, kind: .textBox(text: "x", fontSize: 12))
-        #expect(document.change(.add(mark)))
-        let pending = document.pendingEdits
-        let page = try #require(document.pdfView.document?.page(at: 0))
-        func event(_ type: NSEvent.EventType, _ point: CGPoint) -> NSEvent { mouse(type, at: point, in: document, window: window) }
-        let tools = try #require(document.tools)
-        let start = CGPoint(x: place.midX, y: place.midY)
-        #expect(tools.mouseDown(with: event(.leftMouseDown, start), at: document.pdfView.convert(start, from: page)))
-        #expect(tools.mouseDragged(with: event(.leftMouseDragged, CGPoint(x: start.x + 50, y: start.y))))
-        #expect(PDFMarks.find(mark.id, on: page)?.bounds != place)
-        document.setEditing(false)
-        #expect(PDFMarks.find(mark.id, on: page)?.bounds == place)
-        #expect(document.pendingEdits == pending)
-    }
-
     /// A mark off its page can't be saved, so every later save would fail until an undo.
     @Test func aMarkDraggedOffThePageStaysOnItAndSaves() async throws {
         let file = try TempFile.makePDF(pages: 1)
@@ -113,7 +93,7 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         #expect(document.change(.add(mark)))
         let page = try #require(document.pdfView.document?.page(at: 0))
         func event(_ type: NSEvent.EventType, _ point: CGPoint) -> NSEvent { mouse(type, at: point, in: document, window: window) }
-        let tools = try #require(document.tools)
+        let tools = try #require(document.prepareEditing())
         let start = CGPoint(x: place.midX, y: place.midY)
         let off = CGPoint(x: start.x + 2000, y: start.y - 2000)
         #expect(tools.mouseDown(with: event(.leftMouseDown, start), at: document.pdfView.convert(start, from: page)))
@@ -144,7 +124,7 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         let document = try await open(try TempFile.makePDF(pages: 1))
         let mark = PDFMark(id: PDFEdit.newID(), page: 0, rect: place, kind: .textBox(text: "x", fontSize: 12))
         #expect(document.change(.add(mark)))
-        let tools = try #require(document.tools)
+        let tools = try #require(document.prepareEditing())
         tools.select(mark.id, page: 0)
         #expect(tools.deleteSelection())
         #expect(document.pendingEdits.isEmpty, "an unsaved mark removed again leaves nothing to save")
@@ -201,11 +181,9 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         #expect(document.pdfView.undoManager === document.undoManager)
     }
 
-    @Test func undoIsOutOfReachInTheReadView() async throws {
-        let document = try await open(try TempFile.makePDF(pages: 1))
+    @Test func undoIsOutOfReachInThePeekPanel() async throws {
+        let document = try await openDocument(try TempFile.makePDF(pages: 1), with: PDFPlugin.self, as: PDFPluginDocument.self, editing: false)
         inWindow(document)
-        #expect(document.change(signature()))
-        document.setEditing(false)
         #expect(document.pdfView.undoManager !== document.undoManager)
     }
 
@@ -220,7 +198,7 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
 @Suite struct PDFTextBoxes {
     @Test func aCommittedTextBoxIsBlackHelveticaOnClear() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        let tools = try #require(document.tools)
+        let tools = try #require(document.prepareEditing())
         tools.commitTextBox(id: nil, page: 0, topLeft: CGPoint(x: 100, y: 500), text: "31 October", fontSize: 14)
         let annotation = try #require(document.pdfView.document?.page(at: 0)?.annotations.first)
         #expect(annotation.type == "FreeText" && annotation.contents == "31 October")
@@ -243,7 +221,7 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
 
     @Test func editingABoxsTextIsOneChange() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        let tools = try #require(document.tools)
+        let tools = try #require(document.prepareEditing())
         tools.commitTextBox(id: nil, page: 0, topLeft: CGPoint(x: 100, y: 500), text: "a", fontSize: 12)
         let id = try #require(document.pendingEdits.first?.markID)
         tools.commitTextBox(id: id, page: 0, topLeft: CGPoint(x: 100, y: 500), text: "abc", fontSize: 20)
@@ -251,7 +229,7 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         #expect(mark.kind == .textBox(text: "abc", fontSize: 20))
     }
 
-    /// Saving or leaving Edit mode takes focus from the box, which must count as finishing it.
+    /// Saving takes focus from the box, which must count as finishing it.
     @Test func losingFocusEndsTheBox() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
         let window = offscreenWindow(holding: document.pdfView, width: 600, height: 800)
@@ -277,7 +255,7 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
 
     @Test func anEmptyBoxIsRemoved() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        let tools = try #require(document.tools)
+        let tools = try #require(document.prepareEditing())
         tools.commitTextBox(id: nil, page: 0, topLeft: CGPoint(x: 100, y: 500), text: "   ", fontSize: 12)
         #expect(document.pendingEdits.isEmpty)
         tools.commitTextBox(id: nil, page: 0, topLeft: CGPoint(x: 100, y: 500), text: "a", fontSize: 12)
@@ -313,7 +291,7 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
 
     @Test func placingASignatureIsAnEditAndEndsTheTool() async throws {
         let document = try await open(try TempFile.makePDF(pages: 2))
-        let tools = try #require(document.tools)
+        let tools = try #require(document.prepareEditing())
         let signature = try #require(Signature(strokes: [[CGPoint(x: 0, y: 0), CGPoint(x: 200, y: 50)]]))
         tools.startPlacing(signature)
         #expect(tools.place(at: CGPoint(x: 300, y: 200), page: 1))

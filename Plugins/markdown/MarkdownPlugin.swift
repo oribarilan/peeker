@@ -7,7 +7,7 @@ public enum MarkdownPlugin: Plugin {
     public static let name = "Markdown"
     public static let symbol = "number"
     public static let defaultExtensions = ["md", "markdown", "mdown"]
-    public static let commands: [CommandSpec] = []
+    public static let tools: [ToolSpec] = []
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         MarkdownDocument(url: url, parsed: try await parse(url))

@@ -1,15 +1,15 @@
 import AppKit
 
-/// Draws the image through its layer, scaled to fit while keeping its aspect ratio. In Edit mode it takes the
-/// keyboard, so Undo reaches the document's history, and hosts the crop overlay.
+/// Draws the image through its layer, scaled to fit while keeping its aspect ratio. When it can be edited it takes
+/// the keyboard, so Undo reaches the document's history, and hosts the crop overlay.
 final class ImageCanvas: NSView, NSMenuItemValidation {
     var image: CGImage {
         didSet { layer?.contents = image }
     }
-    /// The document's undo history, set while in Edit mode.
+    /// The document's undo history, set when the image can be edited.
     weak var editUndoManager: UndoManager?
     var isEditing: Bool { editUndoManager != nil }
-    /// A click outside Edit mode, which pauses or plays an animation.
+    /// A click on an image that can't be edited, which pauses or plays an animation.
     var onClick: (() -> Void)?
 
     override func mouseDown(with event: NSEvent) {

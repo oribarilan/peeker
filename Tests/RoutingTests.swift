@@ -7,7 +7,7 @@ private enum RoutedPlugin: Plugin {
     static let id = "routed"
     static let name = "Routed"
     static let defaultExtensions: [String] = []
-    static let commands: [CommandSpec] = []
+    static let tools: [ToolSpec] = []
 
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         throw PluginError("not used")

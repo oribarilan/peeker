@@ -2,7 +2,7 @@ import AppKit
 import PeekerKit
 import SwiftUI
 
-/// One plugin's settings, all host rows: on/off, its extensions, its command shortcuts.
+/// One plugin's settings, all host rows: on/off, its extensions, its tools' shortcuts.
 struct PluginPane: View {
     @Bindable var model: SettingsModel
     let plugin: PluginEntry
@@ -29,9 +29,9 @@ struct PluginPane: View {
                     Text("Without the dot. noExtension stands for files that have none, such as Makefile or .zshrc.")
                         .foregroundStyle(.secondary)
                 }
-                if !plugin.commands.isEmpty {
-                    Section("Shortcuts") {
-                        ForEach(plugin.commands, id: \.id) { command in commandRow(command) }
+                if !plugin.tools.isEmpty {
+                    Section("Tools") {
+                        ForEach(plugin.tools, id: \.id) { tool in toolRow(tool) }
                     }
                 }
             }
@@ -40,13 +40,13 @@ struct PluginPane: View {
         .formStyle(.grouped)
     }
 
-    private func commandRow(_ command: CommandSpec) -> some View {
+    private func toolRow(_ command: ToolSpec) -> some View {
         let key = Config.keyID(plugin: plugin.id, command: command.id)
         let defaultShortcut = command.shortcut.flatMap(Shortcut.init(parsing:))
         let current = store.config.shortcut(for: command, of: plugin.id)
         return LabeledContent(command.title) {
             HStack(alignment: .firstTextBaseline) {
-                KeyRecorder(shortcut: current, rules: command.isEditTool ? .editTool : .command,
+                KeyRecorder(shortcut: current, rules: command.isEditTool ? .editTool : .viewTool,
                             conflict: { shortcutConflict($0, command: command.id, plugin: plugin, config: store.config, menu: MainMenu.fixedShortcuts) },
                             listening: $model.recorder, id: key,
                             onRecord: { shortcut in model.save { $0.recordShortcut(shortcut, for: key) } })

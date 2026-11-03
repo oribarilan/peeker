@@ -28,7 +28,7 @@ private func lockedPDF() throws -> URL {
     @Test func aLockedPDFOpensToItsLockScreen() async throws {
         let locked = try await open(try lockedPDF())
         #expect(locked.canUnlock)
-        #expect(locked.makeSidebar().isEmpty && locked.commands.isEmpty && locked.editMode == .none)
+        #expect(locked.makeSidebar().isEmpty && locked.tools.isEmpty && locked.editability == .notEditable)
     }
 
     @Test func aWrongPasswordSaysSoAndClearsTheField() async throws {
@@ -48,7 +48,7 @@ private func lockedPDF() throws -> URL {
         #expect(locked.unlock(with: "secret"))
         let document = try #require(replaced as? PDFPluginDocument)
         #expect(document.pdfView.document?.page(at: 0)?.string?.contains("Secret page") == true)
-        #expect(document.editMode == .unavailable(reason: "This PDF is password protected, so Peeker opens it view-only."))
+        #expect(document.editability == .readOnly("This PDF is password protected, so Peeker opens it view-only."))
         #expect(document.printJob != nil)
         #expect(!document.makeSidebar().isEmpty)
         #expect(locked.password == "", "nothing keeps the password")

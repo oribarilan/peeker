@@ -26,8 +26,8 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 @Suite struct PDFPluginOpening {
     @Test func offersZoomAndTheEditTools() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        #expect(document.commands.map(\.id) == PDFPlugin.commands.map(\.id))
-        #expect(document.commands.filter(\.isEditTool).map(\.id) == ["text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
+        #expect(document.tools.map(\.id) == PDFPlugin.tools.map(\.id))
+        #expect(document.tools.filter(\.isEditTool).map(\.id) == ["text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
     }
 
     @Test func notAPDFSaysSo() async throws {
@@ -47,44 +47,43 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 
     @Test func anXFAFormCantBeEdited() async throws {
         let file = try FormPDF.make(acroForm: "/XFA 16 0 R", extra: ["<< /Length 5 >>\nstream\n<xdp>\nendstream"])
-        #expect(try await open(file).editMode == .unavailable(reason: "This form uses XFA, which Peeker can't fill."))
+        #expect(try await open(file).editability == .readOnly("This form uses XFA, which Peeker can't fill."))
     }
 
     @Test func aSignedPDFCantBeEdited() async throws {
         let document = try await open(try FormPDF.make(acroForm: "/SigFlags 3"))
-        #expect(document.editMode == .unavailable(reason: "This PDF is digitally signed; changing it would break the signature."))
+        #expect(document.editability == .readOnly("This PDF is digitally signed; changing it would break the signature."))
         #expect(document.pdfView.document?.pageCount == 1, "it still opens")
     }
 
     @Test func formsWithoutSignaturesCanBeEdited() async throws {
-        #expect(try await open(try FormPDF.make()).editMode == .available)
-        #expect(try await open(try FormPDF.make(acroForm: "/SigFlags 2")).editMode == .available, "append-only alone isn't a signature")
+        #expect(try await open(try FormPDF.make()).editability == .editable)
+        #expect(try await open(try FormPDF.make(acroForm: "/SigFlags 2")).editability == .editable, "append-only alone isn't a signature")
     }
 
     @Test func aPDFWhosePermissionsForbidChangesCantBeEdited() async throws {
         let document = try await open(try restricted(1))  // printing only
-        #expect(document.editMode == .unavailable(reason: "This PDF's permissions don't allow changes."))
+        #expect(document.editability == .readOnly("This PDF's permissions don't allow changes."))
     }
 
-    /// Forms often forbid changing the pages but allow comments and filling in, which is all Edit mode does.
+    /// Forms often forbid changing the pages but allow comments and filling in, which is all the edit tools do.
     @Test func aPDFThatAllowsCommentsAndFormsCanBeEdited() async throws {
-        #expect(try await open(try restricted(1 | 64 | 128)).editMode == .available)
+        #expect(try await open(try restricted(1 | 64 | 128)).editability == .editable)
     }
 
-    @Test func theSpacePanelNeverOffersEditMode() async throws {
-        #expect(try await open(try FormPDF.make(acroForm: "/SigFlags 3"), editable: false).editMode == .none)
+    @Test func thePeekPanelNeverEdits() async throws {
+        #expect(try await open(try FormPDF.make(acroForm: "/SigFlags 3"), editable: false).editability == .notEditable)
     }
 }
 
 @Suite struct PDFPluginEditing {
-    @Test func opensInTheReadViewWithAnEditMode() async throws {
+    @Test func opensEditable() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        #expect(document.editMode == .available && !document.isEditing)
+        #expect(document.editability == .editable)
     }
 
     @Test func highlightingASelectionIsAnEdit() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        document.setEditing(true)
         var count = 0
         document.onEdit = { count += 1 }
         #expect(document.unsavedEdits() == nil)
@@ -98,8 +97,8 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         #expect(PDFMarks.id(of: page.annotations[0]) == mark.id)
     }
 
-    @Test func highlightDoesNothingInTheReadView() async throws {
-        let document = try await open(try TempFile.makePDF(pages: 1))
+    @Test func highlightDoesNothingInThePeekPanel() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1), editable: false)
         let page = try #require(document.pdfView.document?.page(at: 0))
         document.pdfView.setCurrentSelection(page.selection(for: page.bounds(for: .mediaBox)), animate: false)
         #expect(!document.perform("highlight"))
@@ -108,7 +107,6 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 
     @Test func highlightWithoutASelectionChangesNothing() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        document.setEditing(true)
         var count = 0
         document.onEdit = { count += 1 }
         #expect(document.perform("highlight"))
@@ -156,11 +154,11 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         #expect(document.unsavedEdits() == nil)
     }
 
-    @Test func viewOnlyDocumentRefusesEditsAndHasNoEditMode() async throws {
+    @Test func viewOnlyDocumentRefusesEditsAndHasNoEditTools() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1), editable: false)
         #expect(!document.restore(encoded: try encoded([highlight()])))
-        #expect(document.commands.map(\.id) == ["zoom-in", "zoom-out"])
-        #expect(document.editMode == .none)
+        #expect(document.tools.map(\.id) == ["zoom-in", "zoom-out"])
+        #expect(document.editability == .notEditable)
     }
 
     /// An edit made while the save was in flight isn't on disk, so it stays pending.
@@ -208,8 +206,8 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 }
 
 @Suite(.serialized) struct PDFSaveIntegrationTests {
-    /// The spec's read-view scenario: select text, press the shortcut, and Edit mode turns on and highlights it.
-    @Test func highlightFromTheReadViewTurnsOnEditModeAndHighlights() async throws {
+    /// Select text in the Editor, press the shortcut, and it's highlighted.
+    @Test func highlightInTheEditorHighlightsTheSelection() async throws {
         let file = try TempFile.makePDF(pages: 1)
         let document = DocumentViewController(url: file, entry: PluginEntry(PDFPlugin.self), config: Config(),
                                               allowsEditing: true, recovery: nil)
@@ -221,9 +219,8 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         let pdf = try #require(document.pluginDocument as? PDFPluginDocument)
         let page = try #require(pdf.pdfView.document?.page(at: 0))
         pdf.pdfView.setCurrentSelection(page.selection(for: page.bounds(for: .mediaBox)), animate: false)
-        let highlight = try #require(document.commands.first { $0.spec.id == "highlight" })
+        let highlight = try #require(document.tools.first { $0.spec.id == "highlight" })
         document.run(highlight.spec)
-        #expect(document.isEditing)
         #expect(page.annotations.contains { $0.type == "Highlight" })
         #expect(document.isEdited)
     }
@@ -258,9 +255,8 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 
     @Test func theNextSelectionIsHighlightedOnce() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        document.setEditing(true)
         #expect(document.perform("highlight"))
-        let tools = try #require(document.tools)
+        let tools = try #require(document.prepareEditing())
         #expect(tools.highlighterArmed && document.pendingEdits.isEmpty)
         try selectAll(document)
         tools.selectionEnded()
@@ -272,10 +268,9 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 
     @Test func aSelectionMadeFirstIsHighlightedAndOneMoreDragFollows() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        document.setEditing(true)
         try selectAll(document)
         #expect(document.perform("highlight"))
-        let tools = try #require(document.tools)
+        let tools = try #require(document.prepareEditing())
         #expect(document.pendingEdits.count == 1 && tools.highlighterArmed)
         try selectAll(document)
         tools.selectionEnded()
@@ -284,51 +279,45 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 
     @Test func escapeAndOtherToolsDisarmIt() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        document.setEditing(true)
         #expect(document.perform("highlight"))
-        let tools = try #require(document.tools)
+        let tools = try #require(document.prepareEditing())
         #expect(tools.keyDown(with: try escape()))
         #expect(!tools.highlighterArmed)
         #expect(document.perform("highlight"))
         tools.chooseTextBox()
         #expect(!tools.highlighterArmed)
-        #expect(document.perform("highlight"))
-        document.setEditing(false)
-        #expect(!tools.highlighterArmed)
     }
 
-    @Test func theCommandIsCalledHighlight() {
-        #expect(PDFPlugin.commands.first { $0.id == "highlight" }?.title == "Highlight")
+    @Test func theToolIsCalledHighlight() {
+        #expect(PDFPlugin.tools.first { $0.id == "highlight" }?.title == "Highlight")
     }
 }
 
-/// The tool waiting for its click or drag is the document's active command, for the window to show as selected.
+/// The tool waiting for its click or drag is the document's active tool, for the window to show as selected.
 @Suite struct PDFActiveTool {
-    @Test func theWaitingToolIsTheActiveCommand() async throws {
+    @Test func theWaitingToolIsTheActiveTool() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        document.setEditing(true)
         var changes = 0
-        document.onActiveCommandChange = { changes += 1 }
-        let tools = try #require(document.tools)
-        #expect(document.activeCommand == nil)
+        document.onActiveToolChange = { changes += 1 }
+        let tools = try #require(document.prepareEditing())
+        #expect(document.activeTool == nil)
         #expect(document.perform("highlight"))
-        #expect(document.activeCommand == "highlight")
+        #expect(document.activeTool == "highlight")
         tools.chooseTextBox()
-        #expect(document.activeCommand == "text-box")
+        #expect(document.activeTool == "text-box")
         tools.startPlacing(try #require(Signature(strokes: [[CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 40)]])))
-        #expect(document.activeCommand == "sign")
-        document.setEditing(false)
-        #expect(document.activeCommand == nil)
+        #expect(document.activeTool == "sign")
+        tools.end()
+        #expect(document.activeTool == nil)
         #expect(changes == 4)
     }
 
     @Test func usingTheHighlighterEndsIt() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
-        document.setEditing(true)
         #expect(document.perform("highlight"))
         let page = try #require(document.pdfView.document?.page(at: 0))
         document.pdfView.setCurrentSelection(page.selection(for: page.bounds(for: .mediaBox)), animate: false)
-        try #require(document.tools).selectionEnded()
-        #expect(document.activeCommand == nil)
+        try #require(document.prepareEditing()).selectionEnded()
+        #expect(document.activeTool == nil)
     }
 }

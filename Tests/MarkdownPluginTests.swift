@@ -4,6 +4,13 @@ import PeekerKit
 import Testing
 import UniformTypeIdentifiers
 
+@Suite struct MarkdownEditability {
+    @Test func renderedMarkdownIsNeverEdited() async throws {
+        let file = try TempFile.make(Data("# Title\n".utf8), name: "f.md")
+        #expect(try await MarkdownPlugin.open(file, context: OpenContext(maxPixels: 0, allowsEditing: true)).editability == .notEditable)
+    }
+}
+
 @Suite struct MarkdownTreeConversion {
     @Test func headingsListsAndTasksCarrySourceLines() {
         let blocks = MarkdownTree.blocks(from: "# Title\n\n- [ ] open\n- [x] done\n- plain\n")

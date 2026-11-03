@@ -15,7 +15,7 @@ private func texts(_ document: PDFDocument) -> [String] {
     let thumbnails: PageThumbnails
 
     init(_ file: URL, editing: Bool = true) async throws {
-        document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
+        document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self, editing: editing)
         document.undoManager.groupsByEvent = false
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -25,7 +25,6 @@ private func texts(_ document: PDFDocument) -> [String] {
         window.contentView!.addSubview(thumbnails)
         window.contentView!.addSubview(document.contentView)
         thumbnails.layoutSubtreeIfNeeded()
-        if editing { document.setEditing(true) }
     }
 
     /// Selects thumbnails through the collection view inside PDFKit's thumbnail view (tests only: there's no public setter).
@@ -41,9 +40,9 @@ private func texts(_ document: PDFDocument) -> [String] {
     func rotation(_ page: Int) -> Int { document.pdfView.document!.page(at: page)!.rotation }
 }
 
-@Suite(.serialized) struct PDFPageCommands {
-    @Test func theCommandsAreEditToolsWithTheirShortcuts() {
-        let byID = Dictionary(uniqueKeysWithValues: PDFPlugin.commands.map { ($0.id, $0) })
+@Suite(.serialized) struct PDFPageTools {
+    @Test func theToolsAreEditToolsWithTheirShortcuts() {
+        let byID = Dictionary(uniqueKeysWithValues: PDFPlugin.tools.map { ($0.id, $0) })
         #expect(byID["rotate-left"]?.shortcut == "cmd+l" && byID["rotate-left"]?.isEditTool == true)
         #expect(byID["rotate-right"]?.shortcut == "cmd+r" && byID["rotate-right"]?.isEditTool == true)
         #expect(byID["delete-page"]?.isEditTool == true)
@@ -90,14 +89,14 @@ private func texts(_ document: PDFDocument) -> [String] {
         #expect(shown.rotation(4) == 180 && shown.rotation(0) == 0)
     }
 
-    /// Typing in a text box ends before a page command, so undoing it after a save brings back the box too.
+    /// Typing in a text box ends before a page tool, so undoing it after a save brings back the box too.
     @Test func aTextBoxBeingTypedIsKeptWithItsDeletedPage() async throws {
         let file = try TempFile.makePDF(pages: 2)
         let shown = try await Shown(file)
         defer { shown.window.close() }
         let page = try #require(shown.document.pdfView.document?.page(at: 0))
         shown.document.pdfView.go(to: page)
-        try #require(shown.document.tools).commitTextBox(id: nil, page: 0, topLeft: CGPoint(x: 72, y: 700), text: "Typed", fontSize: 12)
+        try #require(shown.document.prepareEditing()).commitTextBox(id: nil, page: 0, topLeft: CGPoint(x: 72, y: 700), text: "Typed", fontSize: 12)
         try shown.select([0])
         #expect(shown.document.perform("delete-page"))
         try await shown.document.save(try #require(shown.document.unsavedEdits()), accepting: nil)
@@ -118,29 +117,30 @@ private func texts(_ document: PDFDocument) -> [String] {
         #expect(shown.shown == ["Page 2"])
     }
 
-    @Test func aPDFThatForbidsPageChangesStillEditsButGreysOutPageCommands() async throws {
+    @Test func aPDFThatForbidsPageChangesStillEditsButGreysOutPageTools() async throws {
         let source = try #require(PDFDocument(url: try TempFile.makePDF(pages: 2)))
         let file = try TempFile.make(Data(), name: "restricted.pdf")
         let commentingAndForms: UInt = 1 << 6 | 1 << 7  // PDFAllowsCommenting, PDFAllowsFormFieldEntry; not assembly
         #expect(source.write(to: file, withOptions: [.ownerPasswordOption: "owner", .accessPermissionsOption: NSNumber(value: commentingAndForms)]))
         let shown = try await Shown(file)
         defer { shown.window.close() }
-        #expect(shown.document.editMode == .available && shown.document.isEditing)
+        #expect(shown.document.editability == .editable)
         let reason = "This PDF's permissions don't allow page changes."
         for id in ["rotate-left", "rotate-right", "delete-page"] { #expect(shown.document.unavailableReason(for: id) == reason) }
         #expect(!shown.document.perform("rotate-left"))
         #expect(!shown.thumbnails.allowsDragging)
     }
 
-    @Test func thumbnailsDragAndDeleteOnlyInEditMode() async throws {
-        let shown = try await Shown(try TempFile.makePDF(pages: 3), editing: false)
+    @Test func thumbnailsDragAndDeleteOnlyInTheEditor() async throws {
+        let peek = try await Shown(try TempFile.makePDF(pages: 3), editing: false)
+        defer { peek.window.close() }
+        #expect(peek.thumbnails.allowsMultipleSelection)
+        #expect(!peek.thumbnails.allowsDragging && peek.thumbnails.menu == nil)
+        try peek.select([1])
+        peek.thumbnails.deleteBackward(nil)
+        #expect(peek.shown == ["Page 1", "Page 2", "Page 3"])
+        let shown = try await Shown(try TempFile.makePDF(pages: 3))
         defer { shown.window.close() }
-        #expect(shown.thumbnails.allowsMultipleSelection)
-        #expect(!shown.thumbnails.allowsDragging && shown.thumbnails.menu == nil)
-        try shown.select([1])
-        shown.thumbnails.deleteBackward(nil)
-        #expect(shown.shown == ["Page 1", "Page 2", "Page 3"])
-        shown.document.setEditing(true)
         #expect(shown.thumbnails.allowsDragging == PageThumbnails.dragsReorderPages && shown.thumbnails.menu != nil)
         #expect(shown.thumbnails.menu?.items.map(\.title) == ["Rotate Left", "Rotate Right", "Delete Page"])
         try shown.select([1])
@@ -156,7 +156,7 @@ private func texts(_ document: PDFDocument) -> [String] {
         defer { shown.window.close() }
         let mark = PDFMark(id: PDFEdit.newID(), page: 1, rect: CGRect(x: 100, y: 300, width: 100, height: 40), kind: .textBox(text: "x", fontSize: 12))
         #expect(shown.document.change(.add(mark)))
-        let tools = try #require(shown.document.tools)
+        let tools = try #require(shown.document.prepareEditing())
         tools.select(mark.id, page: 1)
         shown.document.revertEdits()
         #expect(tools.selectedID == nil)
@@ -177,7 +177,7 @@ private func texts(_ document: PDFDocument) -> [String] {
 }
 
 /// On macOS 26 a dragged page's copy can't be told from a page dropped in from elsewhere, so reordering by drag needs
-/// macOS 27; the page commands work everywhere.
+/// macOS 27; the page tools work everywhere.
 @Suite struct PDFThumbnailDragSupport {
     @Test(.enabled(if: !PageThumbnails.dragsReorderPages, "macOS 26 only"))
     func thumbnailsDontDragOnMacOS26() async throws {

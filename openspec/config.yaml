@@ -6,9 +6,10 @@ context: |
 
   Milestone: Peeker replaces Preview for the maintainer's daily use (text, Markdown, PDF, images).
 
-  Direction (decided 2026-10-30; the plugin structure is built):
-  - A plugin is an in-app code module for its file types that users can turn on or off. It owns a fast view
-    mode and a full editor (Edit mode in the same tab), plus reading and writing its files. The host owns
+  Direction (decided 2026-10-30; the plugin structure is built; windows always editable since 2026-11-02):
+  - A plugin is an in-app code module for its file types that users can turn on or off. It owns its view in
+    the Peek panel (view only) and in the Editor, the window that's always ready to edit, with its view tools
+    and edit tools, plus reading and writing its files. The host owns
     windows, tabs, routing, toggles, the Peek panel, menus, and the plumbing for save prompts and crash
     recovery. Plugins never share with each other; shared UI pieces come in by composition. Each plugin owns
     its own viewer, and a small host contract keeps common behavior consistent (zoom, find, scroll position,
@@ -66,5 +67,5 @@ context: |
 
   Open questions:
   - Text-based formats. Plain text, logs, source, structured data (JSON, YAML, XML), CSV and Markdown differ a
-    lot, and how they split into plugins (and what each one's view and edit modes are) is undecided. Needs its
+    lot, and how they split into plugins (and which of them can be edited in the Editor) is undecided. Needs its
     own interview. specs/text and specs/markdown describe current behavior only and haven't been reviewed.

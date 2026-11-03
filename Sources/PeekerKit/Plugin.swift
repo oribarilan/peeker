@@ -13,9 +13,9 @@ public protocol Plugin {
     /// The extensions this plugin opens unless the user's config gives it another list: lowercase, without the dot,
     /// and `noExtension` for files that have none. No two plugins list the same one.
     static var defaultExtensions: [String] { get }
-    /// Every command the plugin's documents can offer; a document may offer fewer (a view-only one, say). The config
+    /// Every tool the plugin's documents can offer; a document may offer fewer (a view-only one, say). The config
     /// checks shortcut settings against this list, and the config schema lists it.
-    static var commands: [CommandSpec] { get }
+    static var tools: [ToolSpec] { get }
 
     /// Reads and decodes `url` off the main thread, then builds the document's views. Checks for cancellation
     /// between steps: the host cancels when the tab closes or the Peek panel moves on.
@@ -44,7 +44,7 @@ public struct OpenContext: Sendable {
 }
 
 /// One open file, owned by its plugin. The host puts `contentView` in the window and the sidebar panels beside it,
-/// and lists the commands in the toolbar and menus.
+/// and lists the tools in the toolbar and menus.
 @MainActor public protocol PluginDocument: AnyObject, Sendable {
     var contentView: NSView { get }
     /// The view that takes keyboard focus when the document appears, so Cmd+F works without a click first.
@@ -52,12 +52,12 @@ public struct OpenContext: Sendable {
     /// Builds the sidebar panels. The host calls it when the document appears, after a save and after a reload, and
     /// replaces the panels it showed before.
     func makeSidebar() -> [SidebarPanel]
-    var commands: [CommandSpec] { get }
-    /// Runs the command with `id`. Returns false for an id it doesn't know.
+    var tools: [ToolSpec] { get }
+    /// Runs the tool with `id`. Returns false for an id it doesn't know.
     func perform(_ id: String) -> Bool
-    /// Why the command with `id` can't run right now, shown as its tooltip while its menu item and button are greyed
+    /// Why the tool with `id` can't run right now, shown as its tooltip while its menu item and button are greyed
     /// out; nil (the default) when it can. Asked on every menu check, so it must be cheap.
-    func unavailableReason(for command: String) -> String?
+    func unavailableReason(for tool: String) -> String?
     /// Re-reads the file after it changed on disk, keeping the view (scroll position, zoom) as it is. The host calls
     /// it only while there are no unsaved edits, and makes the sidebar again afterwards. Returns false when the document
     /// can't reload in place; the host then opens the file again.
@@ -71,17 +71,23 @@ public struct OpenContext: Sendable {
     /// PDF unlocked from its lock screen. The default ignores it.
     var onReplace: ((any PluginDocument) -> Void)? { get set }
 
-    /// The command waiting for the user, such as a tool waiting for its click or drag; the window shows it as selected.
+    /// The tool waiting for the user, such as one waiting for its click or drag; the window shows it as selected.
     /// Nil when none, the default.
-    var activeCommand: String? { get }
-    /// Set by the host: call it whenever `activeCommand` changes. The default ignores it.
-    var onActiveCommandChange: (() -> Void)? { get set }
-    /// Whether a command that turns something on and off, such as Wrap Lines, is on now: the host checks its menu item
-    /// and draws its toolbar button pressed while it is. Nil, the default, for a command that isn't such a switch. Asked
+    var activeTool: String? { get }
+    /// Set by the host: call it whenever `activeTool` changes. The default ignores it.
+    var onActiveToolChange: (() -> Void)? { get set }
+    /// Whether a tool that turns something on and off, such as Wrap Lines, is on now: the host checks its menu item
+    /// and draws its toolbar button pressed while it is. Nil, the default, for a tool that isn't such a switch. Asked
     /// on every menu check, so it must be cheap.
-    func isOn(_ command: String) -> Bool?
+    func isOn(_ tool: String) -> Bool?
 
-    // Editing. A view-only document keeps the defaults.
+    // Editing. A view-only document keeps the defaults. Before a save, a print or the unsaved-changes question, the
+    // host takes the keyboard focus from the views of a document with edit tools, so typing in progress (a text box,
+    // a form field) must count as an edit once its view loses focus.
+
+    /// Whether the user can change this file, decided when it opens: the Editor shows a read-only document's edit
+    /// tools greyed out with the reason. `.notEditable`, the default, for a document that never takes edits.
+    var editability: Editability { get }
 
     /// Called after each change the user makes.
     var onEdit: (() -> Void)? { get set }
@@ -97,35 +103,25 @@ public struct OpenContext: Sendable {
     func save(_ edits: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError)
     /// Drops the unsaved changes, going back to the file as last loaded or saved.
     func revertEdits()
-
-    // Edit mode. A document with one opens in a read view that never changes the file; the host's Edit toggle and
-    // Cmd+E switch it on and off, and its edit tools show in the toolbar only while it's on. Before a save, a print or
-    // the unsaved-changes question, the host takes the keyboard focus from the document's views, so typing in
-    // progress (a text box, a form field) must count as an edit once its view loses focus.
-
-    /// `.none` (the default) means no edit mode: edits are allowed whenever the window allows them.
-    var editMode: EditMode { get }
-    /// Called when Edit mode turns on or off. Only for a document whose `editMode` is `.available`.
-    func setEditing(_ on: Bool)
 }
 
 public extension PluginDocument {
     var focusView: NSView? { nil }
     func makeSidebar() -> [SidebarPanel] { [] }
-    var commands: [CommandSpec] { [] }
+    var tools: [ToolSpec] { [] }
     func perform(_ id: String) -> Bool { false }
-    func unavailableReason(for command: String) -> String? { nil }
+    func unavailableReason(for tool: String) -> String? { nil }
     func reload() async throws(PluginError) -> Bool { false }
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? { nil }
     var onReplace: ((any PluginDocument) -> Void)? {
         get { nil }
         set {}  // a document that never replaces itself ignores it
     }
-    var activeCommand: String? { nil }
-    func isOn(_ command: String) -> Bool? { nil }
-    var onActiveCommandChange: (() -> Void)? {
+    var activeTool: String? { nil }
+    func isOn(_ tool: String) -> Bool? { nil }
+    var onActiveToolChange: (() -> Void)? {
         get { nil }
-        set {}  // a document without an active command never calls it
+        set {}  // a document without an active tool never calls it
     }
     var onEdit: (() -> Void)? {
         get { nil }
@@ -137,15 +133,15 @@ public extension PluginDocument {
         throw PluginError("This document can't be saved.")
     }
     func revertEdits() {}
-    var editMode: EditMode { .none }
-    func setEditing(_ on: Bool) {}
+    var editability: Editability { .notEditable }
 }
 
-public enum EditMode: Sendable, Equatable {
-    case none
-    case available
-    /// The file can't be edited; `reason` is shown to the user, such as "This PDF's permissions don't allow changes."
-    case unavailable(reason: String)
+public enum Editability: Sendable, Equatable {
+    case editable
+    /// The file can't be edited; the reason is shown to the user, such as "This PDF's permissions don't allow changes."
+    case readOnly(String)
+    /// The document never takes edits, such as rendered Markdown or anything in the Peek panel.
+    case notEditable
 }
 
 /// A document's unsaved changes at one moment, in the plugin's own type. The host only stores and passes it back;
@@ -190,16 +186,16 @@ public struct SidebarPanel {
     }
 }
 
-public struct CommandSpec: Sendable, Equatable {
+public struct ToolSpec: Sendable, Equatable {
     public let id: String
     public let title: String
     public let symbol: String?
     /// Default shortcut, such as `cmd+=`. The user's config can override it.
     public let shortcut: String?
-    /// An Edit mode tool: in the toolbar only while Edit mode is on, and run from the read view (by its shortcut or
-    /// menu item) it turns Edit mode on first.
+    /// An edit tool, listed in the Tools menu: greyed out with the reason while the document is read-only. Other
+    /// tools are view tools, listed in the View menu.
     public let isEditTool: Bool
-    /// False keeps the command out of the toolbar: it's in its menu, with its shortcut, only. Zoom commands are.
+    /// False keeps the tool out of the toolbar: it's in its menu, with its shortcut, only. Zoom tools are.
     public let showsInToolbar: Bool
 
     public init(id: String, title: String, symbol: String? = nil, shortcut: String? = nil, isEditTool: Bool = false,

@@ -133,7 +133,7 @@ final class TextBoxEditor: NSObject, NSTextViewDelegate {
     @objc private func viewMoved(_ note: Notification) { end() }
 }
 
-/// Ends the box when it loses focus: saving and leaving Edit mode take focus to finish typing in progress.
+/// Ends the box when it loses focus: saving, printing and the unsaved-changes question take focus to finish typing in progress.
 private final class BoxTextView: NSTextView {
     var onResign: (() -> Void)?
 

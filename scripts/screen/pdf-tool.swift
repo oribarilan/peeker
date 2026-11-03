@@ -2,6 +2,7 @@
 //
 // usage: pdf-tool form <out.pdf>      write a one-page form: text field "Name", checkbox "Agree", radio "Pick" (A, B),
 //                                     combo box "Color" (Red, Green); written by hand because PDFKit can't write radio groups
+//        pdf-tool signed <out.pdf>    the same form marked as digitally signed (/SigFlags 3), which Peeker opens read-only
 //        pdf-tool pages <out.pdf> <n> write n Letter pages that say "Page 1", "Page 2"...
 //        pdf-tool locked <out.pdf> <password> <n>
 //                                     the same n pages, opening only with the password
@@ -11,7 +12,7 @@
 import Foundation
 import PDFKit
 
-func form() -> String {
+func form(signed: Bool = false) -> String {
     let on = "<< /Type /XObject /Subtype /Form /BBox [0 0 16 16] /Length 18 >>\nstream\n0 g 2 2 12 12 re f\nendstream"
     let off = "<< /Type /XObject /Subtype /Form /BBox [0 0 16 16] /Length 0 >>\nstream\n\nendstream"
     let label = "BT /Helv 14 Tf 72 740 Td (Name) Tj 0 -50 Td (I agree) Tj 0 -50 Td (Pick one) Tj 0 -50 Td (Color) Tj 0 -50 Td (Date:) Tj 0 -50 Td (Signature:) Tj ET"
@@ -19,7 +20,7 @@ func form() -> String {
         "<< /Type /Catalog /Pages 2 0 R /AcroForm 4 0 R >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Annots [5 0 R 6 0 R 8 0 R 9 0 R 10 0 R] /Contents 14 0 R /Resources << /Font << /Helv 11 0 R >> >> >>",
-        "<< /Fields [5 0 R 6 0 R 7 0 R 10 0 R] /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv 11 0 R >> >> >>",
+        "<< /Fields [5 0 R 6 0 R 7 0 R 10 0 R] /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv 11 0 R >> >>\(signed ? " /SigFlags 3" : "") >>",
         "<< /Type /Annot /Subtype /Widget /FT /Tx /T (Name) /Rect [180 735 420 757] /P 3 0 R /F 4 /DA (/Helv 12 Tf 0 g) /MK << /BC [0 0 0] >> >>",
         "<< /Type /Annot /Subtype /Widget /FT /Btn /T (Agree) /V /Off /AS /Off /Rect [180 686 196 702] /P 3 0 R /F 4 /MK << /BC [0 0 0] >> /AP << /N << /Yes 12 0 R /Off 13 0 R >> >> >>",
         "<< /FT /Btn /Ff 49152 /T (Pick) /V /Off /Kids [8 0 R 9 0 R] >>",
@@ -65,11 +66,13 @@ func pdf(_ objects: [String]) -> String {
 }
 
 let args = CommandLine.arguments
-let usage = "usage: pdf-tool form <out.pdf> | pages <out.pdf> <n> | locked <out.pdf> <password> <n> | inspect <in.pdf>"
+let usage = "usage: pdf-tool form <out.pdf> | signed <out.pdf> | pages <out.pdf> <n> | locked <out.pdf> <password> <n> | inspect <in.pdf>"
 guard args.count >= 3 else { print(usage); exit(2) }
 switch args[1] {
 case "form":
     try Data(form().utf8).write(to: URL(filePath: args[2]))
+case "signed":
+    try Data(form(signed: true).utf8).write(to: URL(filePath: args[2]))
 case "pages":
     guard args.count == 4, let count = Int(args[3]), count > 0 else { print(usage); exit(2) }
     try Data(pages(count).utf8).write(to: URL(filePath: args[2]))

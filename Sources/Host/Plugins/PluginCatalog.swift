@@ -12,8 +12,8 @@ struct PluginEntry {
     let defaultExtensions: [String]
     /// The SF Symbol for its Settings pane.
     let symbol: String
-    /// Every command the plugin can offer, which config shortcuts are checked against.
-    let commands: [CommandSpec]
+    /// Every tool the plugin can offer, which config shortcuts are checked against.
+    let tools: [ToolSpec]
     let plugin: any Plugin.Type
 
     init(_ plugin: any Plugin.Type) {
@@ -26,7 +26,7 @@ struct PluginEntry {
         self.name = name
         self.defaultExtensions = defaultExtensions
         symbol = plugin.symbol
-        commands = plugin.commands
+        tools = plugin.tools
         self.plugin = plugin
     }
 }

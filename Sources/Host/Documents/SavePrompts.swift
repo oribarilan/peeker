@@ -1,6 +1,6 @@
 import PeekerKit
 
-/// The questions a save may need to ask. Document windows answer with sheets; tests answer directly.
+/// The questions a save may need to ask. Editor windows answer with sheets; tests answer directly.
 protocol SavePrompts: AnyObject {
     /// The file changed on disk since it was opened or last saved. True to overwrite it.
     func confirmOverwriteNewerFile(named: String) async -> Bool

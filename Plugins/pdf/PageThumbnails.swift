@@ -1,9 +1,9 @@
 import AppKit
 import PDFKit
 
-/// The sidebar's page thumbnails. Several can be selected. In Edit mode they can be dragged to reorder (when the
+/// The sidebar's page thumbnails. Several can be selected. In the Editor they can be dragged to reorder (when the
 /// file allows page changes, on macOS 27 and later), Delete removes the selected pages, and a right-click shows the
-/// page commands.
+/// page tools.
 final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
     var isEditing = false {
         didSet { update() }
@@ -11,17 +11,17 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
     var allowsPageChanges = true {
         didSet { update() }
     }
-    /// Runs a page command by id; false when it was refused.
+    /// Runs a page tool by id; false when it was refused.
     var onCommand: ((String) -> Bool)?
-    /// Whether a page command can run now.
+    /// Whether a page tool can run now.
     var canRun: ((String) -> Bool)?
     private let pageMenu = NSMenu()
 
-    init(commands: [(id: String, title: String)]) {
+    init(tools: [(id: String, title: String)]) {
         super.init(frame: .zero)
         allowsMultipleSelection = true
-        for command in commands {
-            let item = NSMenuItem(title: command.title, action: #selector(runCommand(_:)), keyEquivalent: "")
+        for command in tools {
+            let item = NSMenuItem(title: command.title, action: #selector(runTool(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = command.id
             pageMenu.addItem(item)
@@ -43,11 +43,20 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
         guard isEditing, onCommand?("delete-page") == true else { return NSSound.beep() }
     }
 
-    @objc private func runCommand(_ sender: NSMenuItem) {
+    @objc private func runTool(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String, onCommand?(id) == true else { return NSSound.beep() }
     }
 
+    // A page tool run from here leaves the thumbnails the keyboard, so Undo passes through them to the document.
+
+    @objc func undo(_ sender: Any?) { (pdfView as? PeekerPDFView)?.undo(sender) }
+    @objc func redo(_ sender: Any?) { (pdfView as? PeekerPDFView)?.redo(sender) }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(undo(_:)), #selector(redo(_:)): return (pdfView as? PeekerPDFView)?.validateMenuItem(menuItem) ?? false
+        default: break
+        }
         guard let id = menuItem.representedObject as? String else { return true }
         return canRun?(id) ?? false
     }

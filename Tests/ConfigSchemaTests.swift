@@ -15,12 +15,13 @@ import Testing
         (object?["properties"] as? [String: Any])?[key] as? [String: Any]
     }
 
-    @Test func listsEveryPluginAndItsCommands() throws {
+    @Test func listsEveryPluginAndItsTools() throws {
         let schema = try schema()
         let plugins = try #require(properties(schema, "plugins"))
         let pdf = try #require((plugins["properties"] as? [String: Any])?["pdf"] as? [String: Any])
-        let commands = try #require(properties(pdf, "commands")?["properties"] as? [String: Any])
-        #expect(Set(commands.keys) == ["zoom-in", "zoom-out", "text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
+        let tools = try #require(properties(pdf, "tools")?["properties"] as? [String: Any])
+        #expect(properties(pdf, "commands") == nil)
+        #expect(Set(tools.keys) == ["zoom-in", "zoom-out", "text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
         #expect(Set((plugins["properties"] as? [String: Any])?.keys ?? [:].keys) == ["pdf", "text"])
     }
 

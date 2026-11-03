@@ -139,13 +139,13 @@ import Testing
         let file = try TempFile.make(Data("a\n".utf8))
         let document = await loadedDocument(file, with: TextPlugin.self)
         defer { document.close() }
-        #expect(document.commands.first { $0.spec.id == "zoom-in" }?.shortcut == Shortcut(parsing: "cmd+="))
+        #expect(document.tools.first { $0.spec.id == "zoom-in" }?.shortcut == Shortcut(parsing: "cmd+="))
         var changed = false
-        document.onCommandsChanged = { _ in changed = true }
+        document.onToolsChanged = { _ in changed = true }
         var config = Config()
         config.keys["text.zoom-in"] = Shortcut(parsing: "cmd+shift+z")
         document.apply(config)
-        #expect(document.commands.first { $0.spec.id == "zoom-in" }?.shortcut == Shortcut(parsing: "cmd+shift+z"))
+        #expect(document.tools.first { $0.spec.id == "zoom-in" }?.shortcut == Shortcut(parsing: "cmd+shift+z"))
         #expect(changed)
     }
 }

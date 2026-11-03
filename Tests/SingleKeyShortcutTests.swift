@@ -1,14 +1,15 @@
 import AppKit
 import PeekerKit
+@testable import PeekerImage
 import Testing
 
 private enum LetterPlugin: Plugin {
     static let id = "letters"
     static let name = "Letters"
     static let defaultExtensions: [String] = []
-    static let commands = [
-        CommandSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true),
-        CommandSpec(id: "zoom", title: "Zoom", shortcut: "cmd+="),
+    static let tools = [
+        ToolSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true),
+        ToolSpec(id: "zoom", title: "Zoom", shortcut: "cmd+="),
     ]
 
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
@@ -18,10 +19,10 @@ private enum LetterPlugin: Plugin {
 
 private final class LetterDocument: PluginDocument {
     let contentView = NSView()
-    let editMode = EditMode.available
+    let editability = Editability.editable
     var onEdit: (() -> Void)?
     private(set) var performed: [String] = []
-    var commands: [CommandSpec] { LetterPlugin.commands }
+    var tools: [ToolSpec] { LetterPlugin.tools }
     func perform(_ id: String) -> Bool { performed.append(id); return true }
 }
 
@@ -30,26 +31,19 @@ private final class LetterDocument: PluginDocument {
         try await documentWindow(for: LetterPlugin.self)
     }
 
-    private func key(_ character: String, code: UInt16, in window: NSWindow, modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
-        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber,
-                         context: nil, characters: character, charactersIgnoringModifiers: character, isARepeat: false, keyCode: code)!
-    }
-
-    @Test func aLetterRunsItsToolOnlyInEditModeAndNotWhileTyping() async throws {
+    @Test func aLetterRunsItsToolRightAfterOpeningButNotWhileTyping() async throws {
         let controller = try await window()
         defer { controller.close() }
         let window = try #require(controller.window)
         let document = try #require(controller.current?.pluginDocument as? LetterDocument)
-        #expect(!controller.handleSingleKey(key("c", code: 8, in: window)), "read view")
-        await controller.current?.toggleEditing { true }
-        #expect(controller.handleSingleKey(key("c", code: 8, in: window)))
+        #expect(controller.handleToolKey(key("c", code: 8, in: window)))
         #expect(document.performed == ["crop"])
-        #expect(!controller.handleSingleKey(key("c", code: 8, in: window, modifiers: .command)), "Cmd+C is Copy")
-        #expect(!controller.handleSingleKey(key("x", code: 7, in: window)), "no tool on X")
+        #expect(!controller.handleToolKey(key("c", code: 8, in: window, modifiers: .command)), "Cmd+C is Copy")
+        #expect(!controller.handleToolKey(key("x", code: 7, in: window)), "no tool on X")
         let field = NSTextView(frame: NSRect(x: 0, y: 0, width: 50, height: 20))
         window.contentView?.addSubview(field)
         window.makeFirstResponder(field)
-        #expect(!controller.handleSingleKey(key("c", code: 8, in: window)), "typing")
+        #expect(!controller.handleToolKey(key("c", code: 8, in: window)), "typing")
         #expect(document.performed == ["crop"])
     }
 
@@ -58,7 +52,7 @@ private final class LetterDocument: PluginDocument {
         defer { controller.close() }
         let main = MainMenu.make(target: nil)
         let view = try #require(main.item(withTitle: "View")?.submenu), tools = try #require(main.item(withTitle: "Tools")?.submenu)
-        MainMenu.rebuildCommands(view: view, tools: tools, for: controller)
+        MainMenu.rebuildTools(view: view, tools: tools, for: controller)
         let crop = try #require(tools.items.first { $0.title.hasPrefix("Crop") })
         #expect(crop.title == "Crop (C)" && crop.keyEquivalent == "")
         let zoom = try #require(view.items.first { $0.title == "Zoom" })
@@ -67,13 +61,13 @@ private final class LetterDocument: PluginDocument {
 
     @Test func theConfigTakesSingleKeysOnlyForEditTools() throws {
         let entry = PluginEntry(LetterPlugin.self)
-        let json = #"{"plugins": {"letters": {"commands": {"crop": {"shortcut": "k"}, "zoom": {"shortcut": "0"}}}}}"#
+        let json = #"{"plugins": {"letters": {"tools": {"crop": {"shortcut": "k"}, "zoom": {"shortcut": "0"}}}}}"#
         let reading = Config.read(Data(json.utf8), plugins: [entry])
         let config = try #require(reading.config)
         #expect(config.keys["letters.crop"] == Shortcut(parsing: "k"))
         #expect(config.keys["letters.zoom"] == nil)
-        #expect(reading.problems.map(\.path) == ["plugins.letters.commands.zoom.shortcut"])
-        let escape = #"{"plugins": {"letters": {"commands": {"crop": {"shortcut": "esc"}}}}}"#
+        #expect(reading.problems.map(\.path) == ["plugins.letters.tools.zoom.shortcut"])
+        let escape = #"{"plugins": {"letters": {"tools": {"crop": {"shortcut": "esc"}}}}}"#
         #expect(Config.read(Data(escape.utf8), plugins: [entry]).config?.keys["letters.crop"] == nil)
     }
 
@@ -82,6 +76,30 @@ private final class LetterDocument: PluginDocument {
         #expect(Shortcut.Rules.editTool.refusal(for: c) == nil)
         #expect(Shortcut.Rules.editTool.refusal(for: Shortcut(key: .character("c"), modifiers: .command)) == nil)
         #expect(Shortcut.Rules.editTool.refusal(for: Shortcut(key: .space)) != nil, "Space scrolls")
-        #expect(Shortcut.Rules.command.refusal(for: c) != nil)
+        #expect(Shortcut.Rules.viewTool.refusal(for: c) != nil)
+    }
+}
+
+/// The image plugin's C, in a real window.
+@Suite(.serialized) struct ImageSingleKeys {
+    @Test func cStartsCroppingRightAfterOpening() async throws {
+        let png = try imageFile(try cornerImage(width: 400, height: 200), type: .png)
+        let controller = try await documentWindow(for: ImagePlugin.self, file: png)
+        defer { controller.close() }
+        let document = try #require(controller.current?.pluginDocument as? ImageDocument)
+        #expect(controller.handleToolKey(key("c", code: 8, in: try #require(controller.window))))
+        #expect(document.cropOverlay != nil)
+    }
+
+    @Test func aReadOnlyImageSaysWhyAndDoesntCrop() async throws {
+        let controller = try await documentWindow(for: ImagePlugin.self, file: try twoFrameGIF())
+        defer { controller.close() }
+        var shown: [String] = []
+        controller.present = { _, title, _ in shown.append(title) }
+        let document = try #require(controller.current?.pluginDocument as? ImageDocument)
+        #expect(controller.handleToolKey(key("c", code: 8, in: try #require(controller.window))))
+        try await waitUntil(seconds: 1) { !shown.isEmpty }
+        #expect(shown == ["This image has several frames."])
+        #expect(document.cropOverlay == nil)
     }
 }

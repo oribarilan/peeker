@@ -87,7 +87,6 @@ import Testing
     @Test func anUnsavedTextBoxPrints() async throws {
         let file = try TempFile.makePDF(pages: 2)
         let document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
-        document.setEditing(true)
         let box = CGRect(x: 72, y: 400, width: 200, height: 30)
         #expect(document.change(.add(PDFMark(id: PDFEdit.newID(), page: 0, rect: box, kind: .textBox(text: "Approved", fontSize: 18)))))
         let job = try #require(document.printJob)
@@ -114,7 +113,7 @@ private enum PrintingPlugin: Plugin {
     static let id = "printing"
     static let name = "Printing"
     static let defaultExtensions: [String] = []
-    static let commands: [CommandSpec] = []
+    static let tools: [ToolSpec] = []
     static var prints = true
     static var openDelay = Duration.zero
 
@@ -134,8 +133,8 @@ private final class PrintingDocument: PluginDocument {
     }
 }
 
-/// The Print command in a document window.
-@Suite(.serialized) struct PrintCommand {
+/// The Print menu item in an Editor window.
+@Suite(.serialized) struct PrintTool {
     private func window(prints: Bool, wait: Bool = true) async throws -> DocumentWindowController {
         PrintingPlugin.prints = prints
         PrintingPlugin.openDelay = wait ? .zero : .seconds(5)

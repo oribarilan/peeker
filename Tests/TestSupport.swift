@@ -55,7 +55,7 @@ func offscreenWindow(holding view: NSView, width: CGFloat = 700, height: CGFloat
     return window
 }
 
-/// An off-screen window shaped like a document window: content runs under a unified toolbar, whose strip
+/// An off-screen window shaped like an Editor window: content runs under a unified toolbar, whose strip
 /// `contentLayoutRect` leaves out.
 func toolbarWindow(holding view: NSView, width: CGFloat = 700, height: CGFloat = 900) -> NSWindow {
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height), styleMask: [.titled, .fullSizeContentView],
@@ -80,17 +80,17 @@ func loadedDocument(_ url: URL, with plugin: any Plugin.Type, allowsEditing: Boo
     return document
 }
 
-/// A document window on a new file named `name`, shown with `plugin`. Waits for the document to open unless `waiting`
+/// An Editor window on a new file named `name`, shown with `plugin`. Waits for the document to open unless `waiting`
 /// is false.
 /// The window's sidebar choice is remembered only in `sidebar`, never in the test run's preferences.
-func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", waiting: Bool = true,
+func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", file: URL? = nil, waiting: Bool = true,
                     sidebar: SidebarMemory = SidebarMemory(defaults: nil)) async throws -> DocumentWindowController {
-    let url = try TempFile.make(Data("x".utf8), name: name)
+    let url = try file ?? TempFile.make(Data("x".utf8), name: name)
     let entry = PluginEntry(plugin)
     let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: [entry], config: Config()), config: Config(), recovery: nil,
                                               recoveryClipboard: nil, sidebarMemory: sidebar)
     controller.show(with: entry)
-    // Until the content has shown, the toolbar has no command buttons yet.
+    // Until the content has shown, the toolbar has no tool buttons yet.
     if waiting { try await waitUntil(seconds: 2) { controller.current?.hasShownContent == true } }
     return controller
 }
@@ -99,6 +99,12 @@ struct TimedOut: Error {}
 
 /// Polls `condition` every 20 ms. If it isn't true within `seconds`, records the failure at the caller's line and
 /// throws `TimedOut`.
+/// A key press in `window`, as the window's key monitor sees it.
+func key(_ character: String, code: UInt16, in window: NSWindow, modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
+    NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber,
+                     context: nil, characters: character, charactersIgnoringModifiers: character, isARepeat: false, keyCode: code)!
+}
+
 func waitUntil(seconds: Double, sourceLocation: SourceLocation = #_sourceLocation, _ condition: () -> Bool) async throws {
     let deadline = ContinuousClock.now + .seconds(seconds)
     while !condition() {

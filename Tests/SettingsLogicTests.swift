@@ -7,7 +7,7 @@ private enum StubPDF: Plugin {
     static let id = "pdf"
     static let name = "PDF"
     static let defaultExtensions = ["pdf"]
-    static let commands = [CommandSpec(id: "zoom-in", title: "Zoom In", shortcut: "cmd+="), CommandSpec(id: "highlight", title: "Highlight", shortcut: "ctrl+cmd+h")]
+    static let tools = [ToolSpec(id: "zoom-in", title: "Zoom In", shortcut: "cmd+="), ToolSpec(id: "highlight", title: "Highlight", shortcut: "ctrl+cmd+h")]
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { throw PluginError("not used") }
 }
 
@@ -15,7 +15,7 @@ private enum StubText: Plugin {
     static let id = "text"
     static let name = "Plain Text"
     static let defaultExtensions = ["txt"]
-    static let commands: [CommandSpec] = []
+    static let tools: [ToolSpec] = []
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { throw PluginError("not used") }
 }
 
@@ -87,10 +87,10 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         #expect(Shortcut.Rules.peekPanel.refusal(for: key("j")) != nil)
     }
 
-    @Test func aCommandNeedsAModifier() {
-        #expect(Shortcut.Rules.command.refusal(for: key("j")) != nil)
-        #expect(Shortcut.Rules.command.refusal(for: key("space")) != nil)
-        #expect(Shortcut.Rules.command.refusal(for: key("cmd+j")) == nil)
+    @Test func aToolNeedsAModifier() {
+        #expect(Shortcut.Rules.viewTool.refusal(for: key("j")) != nil)
+        #expect(Shortcut.Rules.viewTool.refusal(for: key("space")) != nil)
+        #expect(Shortcut.Rules.viewTool.refusal(for: key("cmd+j")) == nil)
     }
 }
 
@@ -105,11 +105,11 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         #expect(conflict("cmd+s", for: "highlight") == "Save")
     }
 
-    @Test func editModeKeepsCommandE() {
-        #expect(conflict("cmd+e", for: "highlight") == "Edit Mode")
+    @Test func commandEIsFree() {
+        #expect(conflict("cmd+e", for: "highlight") == nil)
     }
 
-    @Test func anotherCommandOfThePluginTakesItsKey() {
+    @Test func anotherToolOfThePluginTakesItsKey() {
         #expect(conflict("cmd+=", for: "highlight") == "Zoom In")
         var config = Config()
         config.keys["pdf.zoom-in"] = Shortcut(parsing: "cmd+shift+z")
@@ -117,12 +117,12 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         #expect(conflict("cmd+=", for: "highlight", config: config) == nil, "Zoom In moved off cmd+=")
     }
 
-    @Test func aCommandKeepingItsOwnKeyIsNoClash() {
+    @Test func aToolKeepingItsOwnKeyIsNoClash() {
         #expect(conflict("ctrl+cmd+h", for: "highlight") == nil)
         #expect(conflict("cmd+j", for: "highlight") == nil)
     }
 
-    @Test func theMenuShortcutsSkipPluginCommands() {
+    @Test func theMenuShortcutsSkipPluginTools() {
         let main = NSMenu()
         let file = NSMenu(title: "File")
         file.addItem(NSMenuItem(title: "Save", action: nil, keyEquivalent: "s"))
@@ -134,7 +134,7 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         let sidebar = NSMenuItem(title: "Show Sidebar", action: nil, keyEquivalent: "s")
         sidebar.keyEquivalentModifierMask = [.control, .command]
         view.addItem(sidebar)
-        view.addItem(NSMenuItem(title: "Zoom In", action: #selector(DocumentWindowController.runCommand(_:)), keyEquivalent: "="))
+        view.addItem(NSMenuItem(title: "Zoom In", action: #selector(DocumentWindowController.runTool(_:)), keyEquivalent: "="))
         main.addItem(withTitle: "View", action: nil, keyEquivalent: "").submenu = view
         let shortcuts = menuShortcuts(in: main)
         #expect(shortcuts.map(\.title) == ["Save", "Redo", "Show Sidebar"])
@@ -144,17 +144,16 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
     @Test func theFixedKeysCoverViewAndToolsButNoPluginDefault() {
         let fixed = MainMenu.fixedShortcuts
         #expect(fixed.contains { $0.title == "Show Sidebar" && $0.shortcut == Shortcut(parsing: "ctrl+cmd+s") })
-        #expect(fixed.contains { $0.title == "Edit Mode" && $0.shortcut == .editMode })
         #expect(fixed.contains { $0.title == "Save" && $0.shortcut == Shortcut(parsing: "cmd+s") })
         for plugin in PluginCatalog.builtIn {
-            for command in plugin.commands {
+            for command in plugin.tools {
                 guard let key = command.shortcut.flatMap(Shortcut.init(parsing:)) else { continue }
                 #expect(!fixed.contains { $0.shortcut == key }, "\(plugin.id).\(command.id) defaults to a menu key")
             }
         }
     }
 
-    @Test func settingsRefusesPrintAndFindPreviousForCommands() {
+    @Test func settingsRefusesPrintAndFindPreviousForTools() {
         let delegate = AppDelegate()  // menu items hold their target weakly
         defer { withExtendedLifetime(delegate) {} }
         let shortcuts = menuShortcuts(in: MainMenu.make(target: delegate))
@@ -208,7 +207,7 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         model.save { $0.clearShortcut(for: Config.keyID(plugin: "pdf", command: "zoom-in")) }
         let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
         let pdf = try #require((saved["plugins"] as? [String: [String: Any]])?["pdf"])
-        #expect((pdf["commands"] as? [String: [String: String]])?["zoom-in"] == ["shortcut": "off"])
+        #expect((pdf["tools"] as? [String: [String: String]])?["zoom-in"] == ["shortcut": "off"])
     }
 }
 

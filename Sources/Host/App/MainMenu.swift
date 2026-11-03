@@ -1,43 +1,51 @@
 import AppKit
 
 enum MainMenu {
-    /// Marks the separator put before a document's commands, so a rebuild removes only what it added: AppKit adds
+    /// Marks the separator put before a document's view tools, so a rebuild removes only what it added: AppKit adds
     /// items of its own to View (Show Tab Bar, Show All Tabs).
-    private static let commandsSeparatorTag = -1
+    private static let toolsSeparatorTag = -1
+    /// Marks Tools' greyed-out No Tools item.
+    private static let noToolsTag = -2
 
-    /// Puts the document's commands into View (zoom, wrap and other view commands) and Tools (edit tools), replacing
-    /// the last document's. Nil, when no document window is in front, leaves only the fixed items.
-    static func rebuildCommands(view: NSMenu, tools: NSMenu, for controller: DocumentWindowController?) {
+    /// Puts the document's tools into View (zoom, wrap and other view tools) and Tools (edit tools), replacing the
+    /// last document's. Nil, when no Editor window is in front, leaves only the fixed items. Tools without edit tools
+    /// shows No Tools, greyed out, so the menu bar stays the same.
+    static func rebuildTools(view: NSMenu, tools: NSMenu, for controller: DocumentWindowController?) {
         for menu in [view, tools] {
-            for item in menu.items where item.action == #selector(DocumentWindowController.runCommand(_:))
-                || (item.isSeparatorItem && item.tag == commandsSeparatorTag) {
+            for item in menu.items where item.action == #selector(DocumentWindowController.runTool(_:))
+                || (item.isSeparatorItem && item.tag == toolsSeparatorTag) || item.tag == noToolsTag {
                 menu.removeItem(item)
             }
         }
-        // Edit Mode goes straight to the window, like the commands, rather than through the responder chain, which
-        // can miss the window right after it opens.
-        tools.items.first { $0.action == #selector(DocumentWindowController.toggleEditMode(_:)) }?.target = controller
+        defer { if tools.items.isEmpty { tools.addItem(noToolsItem()) } }
         guard let controller else { return }
-        for (index, command) in (controller.current?.commands ?? []).enumerated() {
+        for (index, tool) in (controller.current?.tools ?? []).enumerated() {
             // A single key would swallow that letter in text fields as a menu key equivalent, so the window runs it
-            // instead (in Edit mode only) and the title shows it.
-            let single = command.shortcut.flatMap { $0.isSingleKey ? $0 : nil }
-            let title = single.map { "\(command.spec.title) (\($0.displayText))" } ?? command.spec.title
-            let item = NSMenuItem(title: title, action: #selector(DocumentWindowController.runCommand(_:)), keyEquivalent: single == nil ? command.shortcut?.keyEquivalent ?? "" : "")
-            item.keyEquivalentModifierMask = single == nil ? command.shortcut?.modifiers ?? [] : []
+            // instead and the title shows it.
+            let single = tool.shortcut.flatMap { $0.isSingleKey ? $0 : nil }
+            let title = single.map { "\(tool.spec.title) (\($0.displayText))" } ?? tool.spec.title
+            let item = NSMenuItem(title: title, action: #selector(DocumentWindowController.runTool(_:)), keyEquivalent: single == nil ? tool.shortcut?.keyEquivalent ?? "" : "")
+            item.keyEquivalentModifierMask = single == nil ? tool.shortcut?.modifiers ?? [] : []
             item.tag = index
             item.target = controller
-            let menu = command.spec.isEditTool ? tools : view
-            if menu.items.last?.action != #selector(DocumentWindowController.runCommand(_:)) {
+            let menu = tool.spec.isEditTool ? tools : view
+            if !menu.items.isEmpty, menu.items.last?.action != #selector(DocumentWindowController.runTool(_:)) {
                 let separator = NSMenuItem.separator()
-                separator.tag = commandsSeparatorTag
+                separator.tag = toolsSeparatorTag
                 menu.addItem(separator)
             }
             menu.addItem(item)
         }
     }
 
-    /// The keys the menu bar's own items use, which no plugin command may take: everything but plugin commands.
+    /// No action, so AppKit greys it out.
+    private static func noToolsItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "No Tools", action: nil, keyEquivalent: "")
+        item.tag = noToolsTag
+        return item
+    }
+
+    /// The keys the menu bar's own items use, which no plugin tool may take: everything but plugin tools.
     static let fixedShortcuts = menuShortcuts(in: make(target: nil))
 
     /// The whole menu bar. The app makes Window its windows menu and Help its help menu; building it changes nothing else.
@@ -76,7 +84,7 @@ enum MainMenu {
         submenu("File", [
             item("Open…", #selector(AppDelegate.showOpenPanel(_:)), "o", target: target),
             submenuItem("Open Recent"),
-            // Only a document window answers this, so the submenu is greyed out elsewhere; the window fills it.
+            // Only an Editor window answers this, so the submenu is greyed out elsewhere; the window fills it.
             submenuItem("Open With", #selector(DocumentWindowController.reopenWithMenu(_:))),
             .separator(),
             item("Close", #selector(NSWindow.performClose(_:)), "w"),
@@ -104,9 +112,7 @@ enum MainMenu {
             item("Show Toolbar", #selector(NSWindow.toggleToolbarShown(_:)), "t", [.option, .command]),
             item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.control, .command]),
         ])
-        submenu("Tools", [
-            item("Edit Mode", #selector(DocumentWindowController.toggleEditMode(_:)), Shortcut.editMode.keyEquivalent, Shortcut.editMode.modifiers),
-        ])
+        submenu("Tools", [noToolsItem()])
         submenu("Window", [
             item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),
             item("Zoom", #selector(NSWindow.performZoom(_:))),

@@ -8,21 +8,21 @@ public enum PDFPlugin: Plugin {
     public static let name = "PDF"
     public static let symbol = "doc.richtext"
     public static let defaultExtensions = ["pdf"]
-    public static let commands = [
-        CommandSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
-        CommandSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
-        CommandSpec(id: "text-box", title: "Text Box", symbol: "character.textbox", shortcut: "ctrl+cmd+t", isEditTool: true),
-        CommandSpec(id: "sign", title: "Sign", symbol: "signature", isEditTool: true),
-        CommandSpec(id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "ctrl+cmd+h", isEditTool: true),
-        CommandSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", shortcut: "cmd+l", isEditTool: true),
-        CommandSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
-        CommandSpec(id: "delete-page", title: "Delete Page", symbol: "trash", isEditTool: true),
+    public static let tools = [
+        ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
+        ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
+        ToolSpec(id: "text-box", title: "Text Box", symbol: "character.textbox", shortcut: "ctrl+cmd+t", isEditTool: true),
+        ToolSpec(id: "sign", title: "Sign", symbol: "signature", isEditTool: true),
+        ToolSpec(id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "ctrl+cmd+h", isEditTool: true),
+        ToolSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", shortcut: "cmd+l", isEditTool: true),
+        ToolSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
+        ToolSpec(id: "delete-page", title: "Delete Page", symbol: "trash", isEditTool: true),
     ]
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         guard let checked = try await check(url) else { return LockedPDFDocument(url: url, canUnlock: context.allowsEditing) }
         guard let document = PeekerPDFDocument(url: url) else { throw PluginError("This file isn't a readable PDF.") }
-        // Edit mode adds annotations and fills in fields, so it needs those two permissions, not "changes" to the pages.
+        // The edit tools add annotations and fill in fields, so it needs those two permissions, not "changes" to the pages.
         let reason = checked.uneditableReason
             ?? (document.allowsCommenting && document.allowsFormFieldEntry ? nil : "This PDF's permissions don't allow changes.")
         return PDFPluginDocument(url: url, document: document, info: checked.info, editable: context.allowsEditing, uneditableReason: reason)

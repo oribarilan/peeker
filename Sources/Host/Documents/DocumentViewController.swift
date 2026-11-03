@@ -10,7 +10,7 @@ enum RecoveryResult: Equatable {
     case rejected(RecoveryRecord)
 }
 
-/// One open file, shown by one plugin. Used by both document windows and the Peek panel.
+/// One open file, shown by one plugin. Used by both Editor windows and the Peek panel.
 final class DocumentViewController: NSSplitViewController {
     let url: URL
     let entry: PluginEntry
@@ -18,11 +18,11 @@ final class DocumentViewController: NSSplitViewController {
     private let content = HolderViewController()
     private var sidebarItem: NSSplitViewItem?
     private var sidebarHolder: HolderViewController?
-    /// Document windows share whether the sidebar shows and its width; the Peek panel and the benchmark don't.
+    /// Editor windows share whether the sidebar shows and its width; the Peek panel and the benchmark don't.
     private let sidebarMemory: SidebarMemory?
     /// A document just opened: its sidebar is built after the content is on screen, so it doesn't delay it.
     private var sidebarPending = false
-    /// Document windows edit; the Peek panel and the benchmark only view.
+    /// Editor windows edit; the Peek panel and the benchmark only view.
     private let allowsEditing: Bool
     /// The open in progress, cancelled when the document closes.
     private var openTask: Task<Void, Never>?
@@ -56,25 +56,23 @@ final class DocumentViewController: NSSplitViewController {
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "documents")
     /// Time from `load()` until the plugin finished opening, before anything was drawn.
     private(set) var openDuration: Duration = .zero
-    /// The plugin's commands, each with its shortcut after config overrides.
-    private(set) var commands: [(spec: CommandSpec, shortcut: Shortcut?)] = []
-    /// For a document with an edit mode: whether it's on. Documents open in their read view.
-    private(set) var isEditing = false
+    /// The plugin's tools, each with its shortcut after config overrides.
+    private(set) var tools: [(spec: ToolSpec, shortcut: Shortcut?)] = []
 
     /// First content on screen, with the time since `load()`.
     var onReady: ((DocumentViewController, Duration) -> Void)?
     /// Called once the first content is on screen, after `onReady` (which the benchmark owns): the window adds its
-    /// command buttons then, so building them isn't part of opening.
+    /// tool buttons then, so building them isn't part of opening.
     var onContentShown: ((DocumentViewController) -> Void)?
     /// Whether the first content has been on screen.
     private(set) var hasShownContent = false
     var onFailure: ((DocumentViewController, String) -> Void)?
-    /// Called when the commands change, or whether there's a sidebar: the window rebuilds its toolbar.
-    var onCommandsChanged: ((DocumentViewController) -> Void)?
-    /// Called when the document's active command changes.
-    var onActiveCommandChanged: ((DocumentViewController) -> Void)?
+    /// Called when the tools change, or whether there's a sidebar: the window rebuilds its toolbar.
+    var onToolsChanged: ((DocumentViewController) -> Void)?
+    /// Called when the document's active tool changes.
+    var onActiveToolChanged: ((DocumentViewController) -> Void)?
     var onRecovery: ((DocumentViewController, RecoveryResult) -> Void)?
-    /// Edit mode was asked for but the document can't be edited; the string says why.
+    /// An edit tool was run on a read-only document; the string says why.
     var onEditRefused: ((DocumentViewController, String) -> Void)?
 
     /// `journalDelay` is how long after the last edit the recovery copy is written.
@@ -155,52 +153,27 @@ final class DocumentViewController: NSSplitViewController {
         await task.value
     }
 
-    func run(_ spec: CommandSpec) {
-        if spec.isEditTool, !isEditing {
-            switch editMode {
-            case .none: break
-            case .available: setEditing(true)
-            case .unavailable(let reason): return refuseEditing(reason)
-            }
+    /// Runs the tool, unless it's an edit tool and the document is read-only: then the reason goes to `onEditRefused`.
+    func run(_ spec: ToolSpec) {
+        if let reason = unavailableReason(for: spec) {
+            if spec.isEditTool, case .readOnly = editability, let onEditRefused { onEditRefused(self, reason) } else { NSSound.beep() }
+            return
         }
         if pluginDocument?.perform(spec.id) != true { NSSound.beep() }
     }
 
-    var editMode: EditMode { pluginDocument?.editMode ?? .none }
+    var editability: Editability { pluginDocument?.editability ?? .notEditable }
 
-    /// The commands the toolbar shows: edit tools only while Edit mode is on, or when there's no edit mode.
-    var toolbarCommands: [(spec: CommandSpec, shortcut: Shortcut?)] {
-        commands.filter { showsInToolbar($0.spec) }
+    /// Why the tool can't run now, shown as its tooltip while it's greyed out: a read-only document's reason for every
+    /// edit tool, else whatever the document says.
+    func unavailableReason(for spec: ToolSpec) -> String? {
+        if spec.isEditTool, case .readOnly(let reason) = editability { return reason }
+        return pluginDocument?.unavailableReason(for: spec.id)
     }
 
-    func showsInToolbar(_ spec: CommandSpec) -> Bool {
-        spec.showsInToolbar && (!spec.isEditTool || isEditing || editMode == .none)
-    }
-
-    /// The Edit button and Cmd+E. Leaving calls `resolve`, which asks about unsaved edits and saves or drops them;
-    /// it returns false to stay in Edit mode.
-    func toggleEditing(resolve: () async -> Bool) async {
-        switch editMode {
-        case .none: return
-        case .unavailable(let reason): refuseEditing(reason)
-        case .available:
-            if !isEditing {
-                setEditing(true)
-            } else if await resolve(), !isClosed {
-                setEditing(false)
-            }
-        }
-    }
-
-    private func setEditing(_ on: Bool) {
-        guard on != isEditing, editMode == .available, let document = pluginDocument else { return }
-        isEditing = on
-        document.setEditing(on)
-        onCommandsChanged?(self)
-    }
-
-    private func refuseEditing(_ reason: String) {
-        if let onEditRefused { onEditRefused(self, reason) } else { NSSound.beep() }
+    /// The tools with a toolbar button.
+    var toolbarTools: [(spec: ToolSpec, shortcut: Shortcut?)] {
+        tools.filter(\.spec.showsInToolbar)
     }
 
     /// Without edits the recovery record goes; with edits (closed without the prompt) or recovered edits still waiting
@@ -286,8 +259,6 @@ final class DocumentViewController: NSSplitViewController {
     private func applyRecoveredEdits() {
         guard let record = unappliedRecord, let document = pluginDocument, !isClosed else { return }
         unappliedRecord = nil
-        let wasEditing = isEditing
-        setEditing(true)  // recovered edits come back in Edit mode
         let accepted = document.restore(encoded: record.editsData)
         if document.unsavedEdits() != nil {
             let changedSince = knownModification != record.fileModified
@@ -297,11 +268,9 @@ final class DocumentViewController: NSSplitViewController {
             onRecovery?(self, .restored(fileChangedSince: changedSince))
         } else if accepted {
             // Taken, yet nothing differs: the recovered edits match the file.
-            if !wasEditing { setEditing(false) }
             isEdited = false
             journal?.write()
         } else {
-            if !wasEditing { setEditing(false) }
             journal = nil
             onRecovery?(self, .rejected(record))
         }
@@ -367,18 +336,21 @@ final class DocumentViewController: NSSplitViewController {
 
     private func show(_ document: any PluginDocument) {
         pluginDocument = document
-        let wasEditing = isEditing
-        isEditing = false
         document.onEdit = { [weak self] in self?.didEdit() }
         document.onReplace = { [weak self] replacement in self?.show(replacement) }
-        document.onActiveCommandChange = { [weak self] in self.map { $0.onActiveCommandChanged?($0) } }
-        content.show(document.contentView)
+        document.onActiveToolChange = { [weak self] in self.map { $0.onActiveToolChanged?($0) } }
+        // The note is the Editor's; the Peek panel only views, so it has nothing to explain.
+        if allowsEditing, case .readOnly(let reason) = document.editability {
+            content.show(ReadOnlyNote(reason: reason, content: document.contentView))
+        } else {
+            content.show(document.contentView)
+        }
         if let focus = document.focusView { view.window?.makeFirstResponder(focus) }
         let hadSidebar = hasSidebar
         firstOpenPending = false
         if isReady { installSidebar(document.makeSidebar(), notify: false) } else { sidebarPending = true }
-        // The toolbar drops the tools even when the commands are the same, and shows the sidebar button only with one.
-        if !setCommands(document.commands), wasEditing || hadSidebar != hasSidebar { onCommandsChanged?(self) }
+        // The toolbar shows the sidebar button only with a sidebar.
+        if !setTools(document.tools), hadSidebar != hasSidebar { onToolsChanged?(self) }
         markReady()
         applyRecoveredEdits()
     }
@@ -390,23 +362,23 @@ final class DocumentViewController: NSSplitViewController {
     /// Whether the document shows a sidebar, or will a frame after its content.
     var hasSidebar: Bool { sidebarItem != nil || sidebarPending || firstOpenPending }
 
-    /// True when the commands changed, and the window was told.
-    @discardableResult private func setCommands(_ specs: [CommandSpec]) -> Bool {
-        guard specs != commands.map(\.spec) else { return false }
-        commands = specs.map(withShortcut)
-        onCommandsChanged?(self)
+    /// True when the tools changed, and the window was told.
+    @discardableResult private func setTools(_ specs: [ToolSpec]) -> Bool {
+        guard specs != tools.map(\.spec) else { return false }
+        tools = specs.map(withShortcut)
+        onToolsChanged?(self)
         return true
     }
 
-    /// Takes a newly saved config: command shortcuts change in place.
+    /// Takes a newly saved config: tool shortcuts change in place.
     func apply(_ config: Config) {
         self.config = config
-        commands = commands.map { withShortcut($0.spec) }
-        onCommandsChanged?(self)
+        tools = tools.map { withShortcut($0.spec) }
+        onToolsChanged?(self)
     }
 
-    /// The command with its shortcut: the config's override, else the plugin's default.
-    private func withShortcut(_ spec: CommandSpec) -> (spec: CommandSpec, shortcut: Shortcut?) {
+    /// The tool with its shortcut: the config's override, else the plugin's default.
+    private func withShortcut(_ spec: ToolSpec) -> (spec: ToolSpec, shortcut: Shortcut?) {
         (spec, config.shortcut(for: spec, of: entry.id))
     }
 
@@ -416,7 +388,7 @@ final class DocumentViewController: NSSplitViewController {
         let hadSidebar = hasSidebar
         sidebarPending = false
         // A sidebar that comes or goes changes the toolbar's sidebar button.
-        defer { if notify, hadSidebar != hasSidebar { onCommandsChanged?(self) } }
+        defer { if notify, hadSidebar != hasSidebar { onToolsChanged?(self) } }
         guard let view = Sidebar.make(panels) else { return removeSidebar() }
         if let sidebarHolder { return sidebarHolder.show(view) }
         let holder = HolderViewController()
@@ -491,12 +463,11 @@ final class DocumentViewController: NSSplitViewController {
             return
         }
         pluginDocument = nil
-        isEditing = false
         let hadSidebar = hasSidebar
         firstOpenPending = false
         sidebarPending = false
         removeSidebar()
-        if !setCommands([]), hadSidebar { onCommandsChanged?(self) }  // the failure view has nothing to run, and no sidebar
+        if !setTools([]), hadSidebar { onToolsChanged?(self) }  // the failure view has nothing to run, and no sidebar
         content.show(FailureView(message: message) { [weak self] in
             guard let self else { return }
             Task.immediate { await self.load() }
