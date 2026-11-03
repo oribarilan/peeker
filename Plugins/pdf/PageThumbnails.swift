@@ -16,6 +16,9 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
     /// Whether a page tool can run now.
     var canRun: ((String) -> Bool)?
     private let pageMenu = NSMenu()
+    /// The insertion bar shown while a thumbnail is dragged; nil before the thumbnails are in a window or where pages
+    /// can't be dragged.
+    private(set) var dropBar: ThumbnailDropBar?
 
     init(tools: [(id: String, title: String)]) {
         super.init(frame: .zero)
@@ -37,6 +40,18 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
     private func update() {
         allowsDragging = isEditing && allowsPageChanges && Self.dragsReorderPages
         menu = isEditing ? pageMenu : nil
+        installDropBar()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        installDropBar()
+    }
+
+    /// Again if PDFKit has since put its own delegate back.
+    private func installDropBar() {
+        guard Self.dragsReorderPages, window != nil, dropBar == nil || dropBar?.collectionView?.delegate !== dropBar else { return }
+        dropBar = ThumbnailDropBar.install(in: self)
     }
 
     override func deleteBackward(_ sender: Any?) {

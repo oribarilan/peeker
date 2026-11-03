@@ -1,5 +1,6 @@
 #!/bin/bash
-# The PDF page flow on screen: in the Editor, rotate and delete pages chosen in the thumbnails, drag one to the top,
+# The PDF page flow on screen: in the Editor, rotate and delete pages chosen in the thumbnails, drag one to the top
+# (checking the insertion bar shows mid-drag),
 # save, undo past the save and save again, then make more page edits and close the window with Don't Save. Each save is checked by reading the
 # file's pages back (order, text and rotation). Writes screenshots and results.txt (one ok/FAIL line per check)
 # to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
@@ -35,19 +36,39 @@ pick_page() {
     "$DRIVE" click Peeker $(page_label "$1")
     sleep 0.3
 }
-# Drags page n's thumbnail to just above page m's. PDFKit starts a drag only once the pointer has been held and then
-# moved, so the path holds at the start and moves in small steps; a thumbnail is 120 points tall, its number at the
-# bottom.
+# Drags page n's thumbnail to just above page m's, holding there for [hold] steps of about 16 ms (30 by default). PDFKit
+# starts a drag only once the pointer has been held and then moved, so the path holds at the start and moves in small
+# steps; a thumbnail is 120 points tall, its number at the bottom. With a fourth argument it also captures the screen
+# into that file halfway through the final hold, while the page is over its new place.
 drag_page_above() {
+    local hold=${3:-30} steps=0
     read -r x from <<< "$(page_label "$1")"
     read -r _ to <<< "$(page_label "$2")"
     from=$((from - 50)) to=$((to - 100))
     local path=()
     for _ in $(seq 30); do path+=("$x" "$from"); done
-    for ((y = from; y > to; y -= 4)); do path+=("$x" "$y"); done
-    for _ in $(seq 30); do path+=("$x" "$to"); done
+    for ((y = from; y > to; y -= 4)); do path+=("$x" "$y"); steps=$((steps + 1)); done
+    for _ in $(seq "$hold"); do path+=("$x" "$to"); done
+    [ -n "${4:-}" ] && ( sleep "$(echo "(30 + $steps + $hold / 2) * 0.017" | bc)"; screencapture -x "$4" ) &
     "$DRIVE" drag Peeker "${path[@]}"
+    wait
     sleep 0.5
+}
+# Whether the screen capture has a strongly colored pixel (the accent-colored insertion bar, not a gray thumbnail or
+# sidebar) between screen points y0 and y1, near the middle or the ends of a thumbnail centered on x. The dragged
+# page's see-through image covers the bar's middle and washes it out, so its ends count too.
+colored_between() {
+    local png=$1 x=$2 y0=$3 y1=$4 y dx color max min c i
+    read -r width height <<< "$(osascript -e 'tell application "Finder" to get bounds of window of desktop' | awk -F', ' '{print $3, $4}')"
+    for dx in 0 -40 40 -35 35; do
+        for ((y = y0; y <= y1; y += 1)); do
+            color=$("$DRIVE" pixel "$png" "$(echo "scale=5; ($x + $dx) / $width" | bc)" "$(echo "scale=5; $y / $height" | bc)") || continue
+            max=0 min=255
+            for i in 0 2 4; do c=$((16#${color:i:2})); ((c > max)) && max=$c; ((c < min)) && min=$c; done
+            ((max - min > 60)) && return 0
+        done
+    done
+    return 1
 }
 
 launch "$FILE"
@@ -67,7 +88,10 @@ pick_page 4
 "$DRIVE" press Peeker "Delete Page"
 sleep 0.5
 check "Deleting a page removes its thumbnail" "$(thumbnails)" 3
-drag_page_above 3 1
+read -r label_x label_y <<< "$(page_label 1)"
+drag_page_above 3 1 60 "$OUT/0-mid-drag.png"
+check "Mid-drag, a bar shows above page 1" \
+    "$(colored_between "$OUT/0-mid-drag.png" "$label_x" $((label_y - 130)) $((label_y - 95)) && echo yes)" yes
 "$DRIVE" shot Peeker "$OUT/1-edited.png"
 "$DRIVE" menu Peeker File Save
 check_saved "The saved file has page 3 first, page 2 turned and page 4 gone" "Page 3 / Page 1 / Page 2 (90)"

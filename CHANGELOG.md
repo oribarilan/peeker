@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Dragging a PDF page's thumbnail shows a bar where the page will land.
 - The Wrap Lines button shows lines of text instead of an arrow that looked like Back.
 - The sidebar button sits over the sidebar next to the window buttons, as in Finder.
 - The Markdown outline highlights a heading under the pointer and marks the section the cursor is in.

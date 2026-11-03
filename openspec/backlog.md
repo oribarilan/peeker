@@ -15,10 +15,6 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 - T3: Markdown task boxes readable by VoiceOver.
 - A1: keyboard-only use of PDF marks and crop.
 
-## Maintainer notes, 2026-11-03
-
-- PDF page drag shows no insertion bar where the page will land. `PDFThumbnailView` draws none and has no API for it: an overlay, or our own collection view with the native gap.
-
 ## Product and release
 
 - Syntax highlighting for Markdown and text, in viewing and editing, adding its colors to the text themes.
