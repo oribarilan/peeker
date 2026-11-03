@@ -7,7 +7,8 @@ final class TextBoxEditor: NSObject, NSTextViewDelegate {
     private static let padding: CGFloat = 2
 
     private let textView = BoxTextView()
-    private let controls: NSStackView
+    /// The size control: smaller, the size, larger.
+    let controls: NSStackView
     private let sizeLabel = NSTextField(labelWithString: "")
     private weak var view: PDFView?
     private let page: PDFPage
@@ -49,7 +50,11 @@ final class TextBoxEditor: NSObject, NSTextViewDelegate {
             button.setAccessibilityLabel(label)
             button.refusesFirstResponder = true  // clicking a size keeps typing in the box
         }
-        sizeLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        // As wide as the widest size, so + doesn't shift as the number changes.
+        sizeLabel.font = .monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+        sizeLabel.alignment = .center
+        let widest = "\(Int(PDFMarks.fontSizes.upperBound)) pt".size(withAttributes: [.font: sizeLabel.font!]).width
+        sizeLabel.widthAnchor.constraint(equalToConstant: ceil(widest)).isActive = true
         controls.spacing = 2
         controls.edgeInsets = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 4)
         controls.wantsLayer = true
@@ -107,8 +112,11 @@ final class TextBoxEditor: NSObject, NSTextViewDelegate {
         textView.textContainer?.lineFragmentPadding = 0
         textView.frame = view.convert(Self.fittedRect(text: textView.string, fontSize: fontSize, topLeft: topLeft), from: page)
         sizeLabel.stringValue = "\(Int(fontSize)) pt"
-        let size = controls.fittingSize
-        controls.frame = CGRect(x: textView.frame.maxX + 6, y: textView.frame.maxY - size.height, width: size.width, height: size.height)
+        // Off the box's top-left corner, which stays put as the text grows, so + and − stay under the pointer.
+        let size = controls.fittingSize, box = textView.frame
+        let above = CGRect(x: box.minX, y: box.maxY + 4, width: size.width, height: size.height)
+        controls.frame = view.safeAreaRect.contains(above) ? above
+            : CGRect(x: box.minX - size.width - 6, y: box.maxY - size.height, width: size.width, height: size.height)
     }
 
     func textDidChange(_ notification: Notification) { layout() }

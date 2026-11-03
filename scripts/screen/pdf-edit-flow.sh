@@ -74,6 +74,13 @@ sleep 0.5
 "$DRIVE" click Peeker $(at 0 200)  # the Date: line
 sleep 0.5
 "$DRIVE" type Peeker "31 Oct 2026"
+# + stays under the pointer as the box grows, so it can be clicked again and again.
+read -r lx ly lw lh <<< "$(frame AXButton "+")"  # its title; drive reads a title before a description
+check "The text box shows its size buttons" "$([ "$lw" -gt 0 ] && echo yes)" yes
+"$DRIVE" click Peeker $((lx + lw / 2)) $((ly + lh / 2))
+sleep 0.3
+check "+ makes the text larger" "$(frame AXStaticText "14 pt" | grep -vc '^0 0 0 0$')" 1
+check "+ stays put when clicked" "$(frame AXButton "+")" "$lx $ly $lw $lh"
 "$DRIVE" keys Peeker escape
 sleep 0.5
 "$DRIVE" shot Peeker "$OUT/3-filled.png"

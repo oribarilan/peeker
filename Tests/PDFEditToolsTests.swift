@@ -253,6 +253,26 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         editor.end()
     }
 
+    /// Clicking + or − a few times in a row needs them to stay under the pointer while the box grows.
+    @Test func theSizeButtonsStayPutAsTheTextGrows() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1))
+        inWindow(document)
+        let page = try #require(document.pdfView.document?.page(at: 0))
+        let editor = TextBoxEditor(view: document.pdfView, page: page, topLeft: CGPoint(x: 100, y: 500), text: "Some text", fontSize: 12, hiding: nil) { _, _ in }
+        let larger = try #require(editor.controls.arrangedSubviews.last as? NSButton)
+        let place = { larger.convert(larger.bounds, to: document.pdfView) }
+        editor.controls.layoutSubtreeIfNeeded()
+        let before = place()
+        for _ in 0..<3 { larger.performClick(nil) }  // 12 pt to 18 pt
+        editor.controls.layoutSubtreeIfNeeded()
+        let after = place(); #expect(after == before)
+        let smaller = try #require(editor.controls.arrangedSubviews.first as? NSButton)
+        for _ in 0..<6 { smaller.performClick(nil) }  // down to 8 pt, one digit
+        editor.controls.layoutSubtreeIfNeeded()
+        let atSmallest = place(); #expect(atSmallest == before)
+        editor.end()
+    }
+
     @Test func anEmptyBoxIsRemoved() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
         let tools = try #require(document.prepareEditing())
