@@ -5,7 +5,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 ## Design review leftovers
 
 - M6: Opt+Cmd+W (Wrap Lines vs Close All).
-- M7: zoom parity: Actual Size and Zoom to Fit in PDF and text, zoom in Markdown.
+- M7: zoom parity: Actual Size and Zoom to Fit in PDF and text.
 - M8: menu bar icon: add Open…, maybe a setting to hide it.
 - I2: Cmd+R in images (rotate like Preview vs Rotate & Resize).
 - I4: animated images respect Reduce Motion; Play/Pause command.
@@ -14,6 +14,13 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 - T2: text zoom and wrap remembered per file or globally.
 - T3: Markdown task boxes readable by VoiceOver.
 - A1: keyboard-only use of PDF marks and crop.
+
+## Maintainer notes, 2026-11-03
+
+- Toolbar: the Wrap Lines icon (`arrow.turn.down.left`) reads as a back arrow; pick a clearer symbol.
+- Toolbar: the sidebar button sits on the right with Open With; it belongs over the sidebar, by the window buttons (a `sidebarTrackingSeparator` after it), as in Finder.
+- Markdown outline: rows give no feedback on hover; add a hover highlight, maybe also highlight the section the cursor is in.
+- PDF page drag shows no insertion bar where the page will land. `PDFThumbnailView` draws none and has no API for it: an overlay, or our own collection view with the native gap.
 
 ## Product and release
 
