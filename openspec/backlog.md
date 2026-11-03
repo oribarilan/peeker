@@ -28,5 +28,5 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 - Everything under "Requirements the code misses", "Missing next to Preview", "Future work" and "Risks" in [gaps.md](gaps.md), including the Peek panel being slower than Quick Look.
 - Refresh the published benchmark numbers on the reference Mac.
-- PDFKit's automatic form detection (Vision document analysis) started by each PDF view in a window can block every GCD worker thread; late in a full test run the find tests then skip, since NSTextFinder searches on a global queue. Check whether many open PDFs do this in the app.
+- PDFKit analyzes the pages of PDFs with form fields (Vision document analysis, one queue per document). In the app, opening 110 form PDFs quickly peaks near 120 threads and drains within about 30 s, with other files still opening (checked 2026-11-03); the SDK has no switch for it. In a full unit test run it stays stuck and blocks every GCD worker thread, so the themed-find tests skip (5 known issues). `-parallel-testing-enabled NO` doesn't change that; next try closing the PDF tests' windows (PDFEditorTests, PDFFormTests and PDFEditToolsTests never close theirs) or nesting the PDF suites under one serialized suite.
 - A PDF form field changed through VoiceOver isn't recorded until the next click, so Save stays greyed and closing doesn't ask.
