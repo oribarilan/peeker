@@ -36,24 +36,55 @@ import Testing
         #expect(updater.downloadsAutomatically == downloads)
     }
 
-    @Test func aScheduledUpdateShowsItsWindowOnlyWhilePeekerIsActive() {
+    @Test @MainActor func aScheduledUpdateOpensItsWindowAtOnceWhilePeekerIsActive() async throws {
         let updater = Updater(version: "0.1.0", build: "100")
-        var active = false
+        var active = true, shown = 0
+        var announced: [String?] = []
         updater.isAppActive = { active }
-        #expect(!updater.showsScheduledUpdateWindow)
-        active = true
-        #expect(updater.showsScheduledUpdateWindow)
+        updater.showUpdate = { shown += 1 }
+        updater.onUpdateAvailable = { announced.append($0) }
+        updater.updateWillShow("0.3.0", inWindow: false)
+        try await waitUntil(seconds: 1) { shown == 1 }  // Peeker asks for the window itself; Sparkle would wait for the next activation
+        #expect(announced.isEmpty)
+        active = false
+        updater.updateWillShow("0.3.0", inWindow: false)
+        #expect(shown == 1)
+        #expect(announced == ["0.3.0"])
+    }
+
+    @Test func anUpdateCheckTheUserAskedForIsLeftToSparkle() {
+        let updater = Updater(version: "0.1.0", build: "100")
+        var shown = 0
+        var announced: [String?] = []
+        updater.showUpdate = { shown += 1 }
+        updater.onUpdateAvailable = { announced.append($0) }
+        updater.updateWillShow("0.3.0", inWindow: true)
+        #expect(shown == 0 && announced.isEmpty)
     }
 
     @Test func anUpdateLeftToTheMenuBarIsAnnouncedUntilSeen() {
         let updater = Updater(version: "0.1.0", build: "100")
         var announced: [String?] = []
+        updater.isAppActive = { false }
         updater.onUpdateAvailable = { announced.append($0) }
-        updater.updateWillShow("0.3.0", inWindow: true)
-        #expect(announced.isEmpty, "Sparkle's window shows it, so nothing waits in the menu bar")
         updater.updateWillShow("0.3.0", inWindow: false)
         updater.updateSeen()
         #expect(announced == ["0.3.0", nil])
+    }
+
+    @Test func ticksInSparklesWindowGoToTheConfig() {
+        let updater = Updater(version: "0.1.0", build: "100")
+        var chosen: [Bool] = []
+        updater.onAutomaticDownloadsChosen = { chosen.append($0) }
+        updater.sparkleDownloadsSettingChanged(to: true)
+        #expect(chosen == [true], "ticked while the config says check")
+        var config = Config()
+        config.automaticUpdates = "download"
+        updater.apply(config)
+        updater.sparkleDownloadsSettingChanged(to: true)
+        #expect(chosen == [true], "the config's own value coming back isn't a choice")
+        updater.sparkleDownloadsSettingChanged(to: false)
+        #expect(chosen == [true, false])
     }
 
     @Test func aDownloadedUpdateInstallsOnlyOnceIdle() throws {

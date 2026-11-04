@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let updater = Updater()
         updater.apply(config)
         updater.isIdle = { [weak self] in self?.isIdle ?? false }
+        updater.onAutomaticDownloadsChosen = { [weak self] on in self?.saveAutomaticUpdates(on ? "download" : "check") }
         updater.onUpdateAvailable = { [weak self] version in
             self?.waitingUpdate = version
             self?.updateMenuBar()
@@ -233,6 +234,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     @objc func checkForUpdates(_ sender: Any?) { updater.checkNow() }
 
+    /// Writes the update mode chosen in Sparkle's window to the config, as Settings would.
+    private func saveAutomaticUpdates(_ mode: String) {
+        do {
+            try configStore.save { $0.automaticUpdates = mode }
+        } catch {
+            Self.log.error("can't save updates.automatic: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     // MARK: What's new
 
     /// Decides whether this launch follows an update and records the version for the next one. Returns the releases
@@ -256,6 +266,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let controller = WhatsNewWindowController(version: updater.version, releases: releases)
         whatsNew = controller
         controller.showWindow(nil)
+        // After a relaunch macOS may not let Peeker become active, so the window comes forward either way.
+        controller.window?.orderFrontRegardless()
         NSApp.activate()
     }
 

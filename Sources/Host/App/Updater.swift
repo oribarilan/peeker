@@ -21,8 +21,14 @@ final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate
     private(set) var downloadsAutomatically = false
     /// Whether Peeker is the active app; scheduled updates open their window only then.
     var isAppActive: () -> Bool = { NSApp.isActive }
+    /// Brings up Sparkle's window for the update it found.
+    lazy var showUpdate: () -> Void = { [weak self] in self?.controller?.checkForUpdates(nil) }
     /// Called with the version of an update waiting in the menu bar, and with nil once the user has seen it.
     var onUpdateAvailable: (String?) -> Void = { _ in }
+    /// Called when the user ticks or clears "Automatically download and install updates" in Sparkle's window, so the
+    /// config can say so.
+    var onAutomaticDownloadsChosen: (Bool) -> Void = { _ in }
+    private var downloadsObservation: NSKeyValueObservation?
     /// Whether nothing is open that a relaunch would close: no window and no Peek panel.
     var isIdle: () -> Bool = { false }
     /// Set when Peeker installs an update quietly, so the next launch knows it wasn't asked for.
@@ -73,7 +79,18 @@ final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate
         let controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: self)
         self.controller = controller
         applySettings()
+        downloadsObservation = controller.updater.observe(\.automaticallyDownloadsUpdates, options: [.new]) { [weak self] _, change in
+            guard let on = change.newValue else { return }
+            DispatchQueue.main.async { self?.sparkleDownloadsSettingChanged(to: on) }
+        }
         controller.startUpdater()
+    }
+
+    /// Sparkle's own setting changed: a tick or clear in its window when it differs from what the config says.
+    func sparkleDownloadsSettingChanged(to on: Bool) {
+        guard on != downloadsAutomatically else { return }
+        downloadsAutomatically = on
+        onAutomaticDownloadsChosen(on)
     }
 
     /// Checks right away, whether automatic checks are on or off; Sparkle says what it found.
@@ -87,12 +104,12 @@ final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate
 
     // MARK: Gentle reminders
 
-    /// Whether Sparkle opens its window for an update a scheduled check found.
-    var showsScheduledUpdateWindow: Bool { isAppActive() }
-
-    /// An update is about to be offered, in Sparkle's window or, when not, in the menu bar.
+    /// An update is about to be offered. One the user asked for is in Sparkle's window already. One a scheduled check
+    /// found opens Sparkle's window now while Peeker is active, and otherwise waits in the menu bar. Sparkle isn't left
+    /// to show scheduled ones itself: while Peeker has a window it would hold the update until the next activation.
     func updateWillShow(_ version: String, inWindow: Bool) {
-        if !inWindow { onUpdateAvailable(version) }
+        guard !inWindow else { return }
+        if isAppActive() { DispatchQueue.main.async { self.showUpdate() } } else { onUpdateAvailable(version) }
     }
 
     /// The user has seen the update window, or the update session ended.
@@ -101,7 +118,7 @@ final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate
     var supportsGentleScheduledUpdateReminders: Bool { true }
 
     func standardUserDriverShouldHandleShowingScheduledUpdate(_ update: SUAppcastItem, andInImmediateFocus immediateFocus: Bool) -> Bool {
-        showsScheduledUpdateWindow
+        false
     }
 
     func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {

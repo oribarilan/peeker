@@ -117,6 +117,11 @@ With `updates.automatic` set to `"download"`, a scheduled check that finds a new
 - **WHEN** a downloaded update is ready and the user quits Peeker with a window open
 - **THEN** Peeker quits as Quit would and the next launch runs the new version
 
+#### Scenario: Chosen in the update window
+
+- **WHEN** the user ticks "Automatically download and install updates in the future" in the update window
+- **THEN** `config.json` has `"updates": {"automatic": "download"}`, and clearing it writes `"check"`
+
 ### Requirement: Peeker says what's new after an update
 
 After Peeker starts as a newer version than it last ran, it SHALL show a window titled "Updated to Peeker" with the version, listing the release notes of every version after the last one run up to this one, newest first, with a Done button. It SHALL make no network request for them. A first install, or `updates.showWhatsNew` set to false, SHALL show nothing.
