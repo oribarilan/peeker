@@ -71,7 +71,7 @@ private func large(_ size: Int) -> Data {
     @Test func aSaveWithUnchangedTextWritesNothing() async throws {
         let bytes = Data("a\nb\r\nc\n".utf8)
         let (file, editor) = try await open(bytes)
-        try await editor.save(UnsavedEdits(TextEdits.text(editor.text)), accepting: nil)
+        try await editor.save(UnsavedEdits(TextEdits(text: editor.text)), accepting: nil)
         #expect(try Data(contentsOf: file) == bytes)
     }
 
@@ -94,7 +94,7 @@ private func large(_ size: Int) -> Data {
 
     @Test func recoveredTextComesBack() async throws {
         let (_, editor) = try await edit("saved\n")
-        let edits = try JSONEncoder().encode(TextEdits.text("unsaved\n"))
+        let edits = try JSONEncoder().encode(TextEdits(text: "unsaved\n"))
         #expect(editor.restore(encoded: edits))
         #expect(editor.text == "unsaved\n")
         #expect(MarkdownPlugin.recoveryText(from: edits) == "unsaved\n")

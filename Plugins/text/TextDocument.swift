@@ -120,7 +120,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         guard isEditable else { return nil }
         let text = textView.string
         // A literal comparison: String == treats canonically equivalent text as equal, which would drop such an edit.
-        return (text as NSString).isEqual(to: baseline) ? nil : UnsavedEdits(TextEdits.text(text))
+        return (text as NSString).isEqual(to: baseline) ? nil : UnsavedEdits(TextEdits(text: text))
     }
 
     /// Replaces the whole text as one undoable change.

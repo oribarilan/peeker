@@ -151,7 +151,7 @@ final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
     func unsavedEdits() -> UnsavedEdits? {
         guard readOnlyReason == nil else { return nil }
         // A literal comparison: String == treats canonically equivalent text as equal, which would drop such an edit.
-        return (textView.string as NSString).isEqual(to: baseline) ? nil : UnsavedEdits(TextEdits.text(textView.string))
+        return (textView.string as NSString).isEqual(to: baseline) ? nil : UnsavedEdits(TextEdits(text: textView.string))
     }
 
     /// Replaces the whole text as one undoable change.

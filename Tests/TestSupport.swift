@@ -121,7 +121,7 @@ func waitUntil(seconds: Double, sourceLocation: SourceLocation = #_sourceLocatio
 extension RecoveryRecord {
     init(id: String, url: URL, pluginID: String, fileModified: Date?, text: String) {
         // Text always encodes, so a failure here is a broken test.
-        try! self.init(id: id, url: url, pluginID: pluginID, fileModified: fileModified, edits: JSONEncoder().encode(TextEdits.text(text)))
+        try! self.init(id: id, url: url, pluginID: pluginID, fileModified: fileModified, edits: JSONEncoder().encode(TextEdits(text: text)))
     }
 
     var text: String? { TextPlugin.recoveryText(from: editsData) }
@@ -175,7 +175,7 @@ extension DocumentViewController {
 
     /// Replaces the whole text, as typing would.
     func type(_ text: String) throws {
-        #expect(try #require(textDocument).restore(encoded: JSONEncoder().encode(TextEdits.text(text))))
+        #expect(try #require(textDocument).restore(encoded: JSONEncoder().encode(TextEdits(text: text))))
     }
 }
 

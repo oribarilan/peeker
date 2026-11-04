@@ -88,20 +88,6 @@ private func text(of record: RecoveryRecord) -> String? {
     @Test func editsThatAreNotJSONAreRefused() {
         #expect(throws: (any Error).self) { try record("r1", "not json") }
     }
-
-    /// The previous version stored the host's edit enum in the same place, as JSON.
-    @Test func readsRecordsWrittenBeforePluginsMovedIntoTheApp() throws {
-        struct OldRecord: Encodable {
-            let id: String, url: URL, pluginID: String, fileModified: Date?
-            let edits: [String: [String: String]]
-        }
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let old = OldRecord(id: "r1", url: URL(filePath: "/tmp/a.txt"), pluginID: "text", fileModified: nil, edits: ["text": ["_0": "unsaved"]])
-        try JSONEncoder().encode(old).write(to: directory.appending(path: "r1.json"))
-        let read = try #require(store.all().first)
-        #expect(read.pluginID == "text")
-        #expect(try JSONDecoder().decode([String: [String: String]].self, from: read.editsData) == ["text": ["_0": "unsaved"]])
-    }
 }
 
 @Suite struct RecoveryFolder {

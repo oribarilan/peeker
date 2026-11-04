@@ -10,7 +10,7 @@ private func open(_ text: String, editable: Bool = true) async throws -> (URL, T
 }
 
 private func restore(_ text: String, in document: TextDocument) throws -> Bool {
-    document.restore(encoded: try JSONEncoder().encode(TextEdits.text(text)))
+    document.restore(encoded: try JSONEncoder().encode(TextEdits(text: text)))
 }
 
 private func pending(_ document: TextDocument) -> String? {
@@ -124,10 +124,10 @@ private func pending(_ document: TextDocument) -> String? {
         #expect(pending(document) == "e\u{301}")
     }
 
-    /// Records written before plugins moved into the app stored text edits in this shape.
-    @Test func restoresEditsInThePreviousRecordFormat() async throws {
+    /// Recovery records keep text edits as `{"text": …}`.
+    @Test func restoresEditsInTheRecordFormat() async throws {
         let (_, document) = try await open("a")
-        #expect(document.restore(encoded: Data(#"{"text":{"_0":"recovered"}}"#.utf8)))
+        #expect(document.restore(encoded: Data(#"{"text":"recovered"}"#.utf8)))
         #expect(pending(document) == "recovered")
     }
 }

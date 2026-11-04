@@ -71,7 +71,7 @@ struct LinkedFiles {
 
     /// Types `text` over the whole Markdown document.
     func typeMarkdown(_ text: String) throws {
-        #expect(try #require(editor).restore(encoded: JSONEncoder().encode(TextEdits.text(text))))
+        #expect(try #require(editor).restore(encoded: JSONEncoder().encode(TextEdits(text: text))))
     }
 }
 

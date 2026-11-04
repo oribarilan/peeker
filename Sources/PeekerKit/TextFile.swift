@@ -1,14 +1,11 @@
 import Foundation
 
-/// A document's unsaved text. Encoded as `{"text":{"_0":…}}`, the shape recovery records had before plugins
-/// moved into the app, so those records still restore.
-public nonisolated enum TextEdits: Codable, Sendable {
-    case text(String)
+/// A document's unsaved text, encoded as `{"text": …}`.
+public nonisolated struct TextEdits: Codable, Sendable {
+    public let text: String
 
-    public var text: String {
-        switch self {
-        case .text(let text): text
-        }
+    public init(text: String) {
+        self.text = text
     }
 }
 

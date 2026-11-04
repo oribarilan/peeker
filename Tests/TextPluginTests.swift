@@ -10,7 +10,7 @@ private func open(_ file: URL) async throws -> TextDocument {
 
 /// Saves `text` as `document`'s new contents, accepting the UTF-8 offer when `utf8` is set.
 private func save(_ text: String, in document: TextDocument, utf8: Bool = false) async throws {
-    try await document.save(UnsavedEdits(TextEdits.text(text)), accepting: utf8 ? TextFile.saveAsUTF8 : nil)
+    try await document.save(UnsavedEdits(TextEdits(text: text)), accepting: utf8 ? TextFile.saveAsUTF8 : nil)
 }
 
 private func failure(_ body: () async throws -> Void) async -> PluginError? {
@@ -134,7 +134,7 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
     }
 
     @Test func recoveredTextHasATextForm() throws {
-        let edits = try JSONEncoder().encode(TextEdits.text("unsaved"))
+        let edits = try JSONEncoder().encode(TextEdits(text: "unsaved"))
         #expect(TextPlugin.recoveryText(from: edits) == "unsaved")
         #expect(TextPlugin.recoveryText(from: Data(#"{"other":1}"#.utf8)) == nil)
     }

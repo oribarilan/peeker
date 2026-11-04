@@ -184,7 +184,7 @@ private let paragraphs = (1...40).map { "Line \($0) of filler text.\n\n" }.joine
         textView.setSelectedRange(NSRange(location: end - 5, length: 5))
         textView.scrollToEndOfDocument(nil)
         let saved = editor.position
-        #expect(editor.restore(encoded: try JSONEncoder().encode(TextEdits.text("short\n"))))
+        #expect(editor.restore(encoded: try JSONEncoder().encode(TextEdits(text: "short\n"))))
         editor.restore(saved)
         #expect(NSMaxRange(textView.selectedRange()) <= (editor.text as NSString).length)
     }

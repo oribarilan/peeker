@@ -4,8 +4,7 @@ import PeekerKit
 
 /// A document's unsaved edits, journaled so they survive a crash of the app. `fileModified` is the file's date when
 /// the edits were made, so a relaunch can tell whether someone changed the file since. The edits are the plugin's own
-/// JSON, kept as JSON inside the record (not as an opaque string), so records written before plugins moved into the
-/// app read the same way.
+/// JSON, kept as JSON inside the record rather than as an opaque string.
 nonisolated struct RecoveryRecord: Codable, Equatable, Sendable {
     let id: String
     let url: URL

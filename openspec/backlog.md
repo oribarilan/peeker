@@ -16,7 +16,6 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 - First release, v0.1.0: Apple Developer setup in [docs/releasing.md](../docs/releasing.md), then the maintainer tags.
 - Optional author name on PDF marks (`openspec/changes/annotation-author-setting`, parked until it's discussed).
-- Decide whether to drop recovery records written before plugins moved into the app (`readsRecordsWrittenBeforePluginsMovedIntoTheApp`).
 - Text formats: how plain text, logs, code, JSON/YAML/XML, CSV and Markdown split into plugins (open question in config.yaml).
 
 ## Format gaps and risks
