@@ -16,13 +16,21 @@ final class PeekPanel: NSPanel {
     var confirmOpenElsewhere: (PeekPanel, URL) async -> Bool = { await OpenElsewhere.confirm($1, on: $0) }
     /// Its name is what tells the panel apart from Quick Look, whose button opens Preview.
     let openButton = NSButton(title: "Open in Peeker", target: nil, action: nil)
+    /// Where the frame the user last gave the panel is kept, as `NSStringFromRect`.
+    static let frameKey = "peekPanelFrame"
+    private let defaults: UserDefaults
+    /// True while the panel sets its own frame, which isn't saved.
+    private var arranging = false
 
-    init() {
-        let visible = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = NSSize(width: visible.width * 0.55, height: visible.height * 0.75)
-        let frame = NSRect(x: visible.midX - size.width / 2, y: visible.midY - size.height / 2, width: size.width, height: size.height)
-        super.init(contentRect: frame, styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        super.init(contentRect: PanelPlacement.frame(saved: nil, screen: Self.pointerScreenFrame()),
+                   styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
                    backing: .buffered, defer: false)
+        minSize = PanelPlacement.minimumSize
+        for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(frameChanged), name: name, object: self)
+        }
         level = .floating
         isFloatingPanel = true
         hidesOnDeactivate = false
@@ -58,11 +66,50 @@ final class PeekPanel: NSPanel {
         self.document = document
         title = document.url.lastPathComponent
         document.onFollowLink = { [weak self] document, link in Task { await self?.follow(link, from: document) } }
-        let frame = self.frame
-        contentViewController = document
-        setFrame(frame, display: false)
+        // A visible panel keeps its frame while arrow keys and links change the file; a hidden one is placed afresh.
+        let frame = isVisible ? self.frame : placement()
+        arrange {
+            contentViewController = document
+            setFrame(frame, display: false)
+        }
         orderFrontRegardless()
         Task.immediate { await document.load() }
+    }
+
+    /// The visible area of the display with the pointer, where the panel opens.
+    static func pointerScreenFrame() -> NSRect {
+        let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
+        return screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+    }
+
+    static func hasSavedFrame(in defaults: UserDefaults) -> Bool { defaults.string(forKey: frameKey) != nil }
+
+    /// Puts the panel where it opens: its saved frame on the pointer's display, or as `PanelPlacement` says.
+    func placeOnScreen() {
+        let frame = placement()
+        arrange { setFrame(frame, display: false) }
+    }
+
+    /// Forgets the saved frame and goes back to the default on the pointer's display.
+    func resetFrame() {
+        defaults.removeObject(forKey: Self.frameKey)
+        placeOnScreen()
+    }
+
+    private func placement() -> NSRect {
+        PanelPlacement.frame(saved: defaults.string(forKey: Self.frameKey).map(NSRectFromString), screen: Self.pointerScreenFrame())
+    }
+
+    private func arrange(_ change: () -> Void) {
+        arranging = true
+        defer { arranging = false }
+        change()
+    }
+
+    /// A move or resize the panel didn't make itself is the user's (a drag, a resize, Accessibility), so it's what the
+    /// panel opens with next time.
+    @objc private func frameChanged(_ notification: Notification) {
+        if !arranging { defaults.set(NSStringFromRect(frame), forKey: Self.frameKey) }
     }
 
     func dismiss() {

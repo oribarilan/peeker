@@ -18,6 +18,7 @@ struct GeneralPane: View {
                                 onRecord: { key in model.save { $0.peekPanelKey = key } })
                 }
                 .disabled(store.config.peekPanelKey == nil)
+                PeekPanelReset(model: model)
             } footer: {
                 Text("Space opens the Peek panel only in Finder, and not while you type there. A key with Command, Option or Control opens it from any app. Off leaves Space to Finder's Quick Look.")
                     .foregroundStyle(.secondary)
@@ -44,5 +45,23 @@ struct GeneralPane: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Reset Panel Size, greyed out until the user has moved or resized the Peek panel. It follows the saved frame live.
+private struct PeekPanelReset: View {
+    let model: SettingsModel
+    @AppStorage private var savedFrame: String?
+
+    init(model: SettingsModel) {
+        self.model = model
+        _savedFrame = AppStorage(PeekPanel.frameKey, store: model.defaults)
+    }
+
+    var body: some View {
+        LabeledContent("Size and position") {
+            Button("Reset Panel Size") { model.resetPeekPanelFrame() }
+                .disabled(savedFrame == nil)
+        }
     }
 }

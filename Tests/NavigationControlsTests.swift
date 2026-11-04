@@ -145,7 +145,7 @@ import Testing
 @Suite(.serialized) struct PeekPanelLinks {
     /// The panel's view of README.md, with what the panel did.
     private func panelDocument(_ files: LinkedFiles) async -> (PeekPanel, DocumentViewController, LinkEffects, () -> [(URL, String?)]) {
-        let panel = PeekPanel(), effects = LinkEffects()
+        let panel = PeekPanel(defaults: UserDefaults(suiteName: "dev.peeker.tests.links")!), effects = LinkEffects()
         var opened: [(URL, String?)] = []
         panel.owner = { url in ["md": "markdown", "txt": "text"][url.pathExtension] }
         panel.beep = { effects.beeps += 1 }

@@ -115,10 +115,10 @@ trap 'exit 130' INT TERM
 quit_app || { echo "Peeker from $APP won't quit (a Save prompt?): close it first"; exit 2; }
 
 # The app keeps some window state in its preferences, which the build under test shares with an installed Peeker:
-# whether the sidebar shows and its width, and Settings' last pane. Each run starts without them (sidebar shown,
-# Settings on General) and puts the user's back at the end.
+# whether the sidebar shows and its width, Settings' last pane and the Peek panel's frame. Each run starts without
+# them (sidebar shown, Settings on General, the panel at its default frame) and puts the user's back at the end.
 PREFS=dev.peeker.Peeker
-PREF_KEYS="sidebarHidden sidebarWidth settingsPane"
+PREF_KEYS="sidebarHidden sidebarWidth settingsPane peekPanelFrame"
 SAVED_PREFS=()
 for key in $PREF_KEYS; do
     if value=$(defaults read "$PREFS" "$key" 2>/dev/null); then

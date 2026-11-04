@@ -50,6 +50,25 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         try body(defaults)
     }
 
+    @Test func knowsWhetherThePeekPanelHasASavedFrame() throws {
+        try withDefaults { defaults in
+            let model = try model(defaults)
+            #expect(!model.hasSavedPeekPanelFrame)
+            defaults.set(NSStringFromRect(NSRect(x: 0, y: 0, width: 600, height: 500)), forKey: PeekPanel.frameKey)
+            #expect(model.hasSavedPeekPanelFrame)
+        }
+    }
+
+    @Test func resetPanelSizeAsksTheAppToResetThePanel() throws {
+        try withDefaults { defaults in
+            let model = try model(defaults)
+            var resets = 0
+            model.resetPeekPanel = { resets += 1 }
+            model.resetPeekPanelFrame()
+            #expect(resets == 1)
+        }
+    }
+
     @Test func startsOnGeneralThenOnTheLastPane() throws {
         try withDefaults { defaults in
             let first = try model(defaults)

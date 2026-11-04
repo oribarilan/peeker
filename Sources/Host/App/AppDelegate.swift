@@ -295,6 +295,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private func makeSettings() -> SettingsWindowController {
         let model = SettingsModel(store: configStore, accessibility: accessibility, updater: updater, defaults: .standard)
+        // The panel exists only once Space has been pressed; before that, forgetting the saved frame is enough.
+        model.resetPeekPanel = { [weak self] in
+            if let self, panelIsMade { panel.resetFrame() } else { UserDefaults.standard.removeObject(forKey: PeekPanel.frameKey) }
+        }
         // While a recorder listens, the current Peek panel key must reach it rather than open the panel.
         model.onRecordingChange = { [weak self] recording in
             if recording { self?.hotkey?.stop() } else { self?.hotkey?.start() }

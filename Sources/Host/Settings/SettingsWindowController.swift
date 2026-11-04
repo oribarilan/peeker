@@ -39,8 +39,9 @@ final class SettingsModel {
     let store: ConfigStore
     let accessibility: AccessibilityStatus
     @ObservationIgnored let updater: Updater
-    /// Where the last pane shown is kept, so Settings reopens on it; nil remembers nothing.
-    @ObservationIgnored private let defaults: UserDefaults?
+    /// Where the last pane shown is kept, so Settings reopens on it, and where the Peek panel keeps its frame; nil
+    /// remembers nothing.
+    @ObservationIgnored let defaults: UserDefaults?
     private static let paneKey = "settingsPane"
     var selection: SettingsPane? = .general {
         didSet { if let selection { defaults?.set(selection.storageKey, forKey: Self.paneKey) } }
@@ -52,6 +53,13 @@ final class SettingsModel {
     }
     /// Told when recording starts or stops, so the Peek panel key doesn't fire meanwhile.
     @ObservationIgnored var onRecordingChange: ((Bool) -> Void)?
+    /// Forgets the Peek panel's saved frame; the app sets it.
+    @ObservationIgnored var resetPeekPanel: () -> Void = {}
+
+    /// Whether the user has moved or resized the Peek panel, which Reset Panel Size undoes.
+    var hasSavedPeekPanelFrame: Bool { defaults.map(PeekPanel.hasSavedFrame(in:)) ?? false }
+
+    func resetPeekPanelFrame() { resetPeekPanel() }
 
     init(store: ConfigStore, accessibility: AccessibilityStatus, updater: Updater, defaults: UserDefaults? = nil) {
         self.store = store

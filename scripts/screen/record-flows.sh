@@ -1,8 +1,9 @@
 #!/bin/bash
 # Records the user-facing flows as evidence: Settings on a launch by hand, the Peek panel on Space in Finder for files
-# Peeker opens, Finder's Quick Look for files it leaves alone, Open With in an Editor window (the toolbar and File
+# Peeker opens, Finder's Quick Look for files it leaves alone, the panel's capped first size, a move that sticks and
+# Settings' Reset Panel Size, Open With in an Editor window (the toolbar and File
 # menu) and Revert to Saved…, a config clash in the menu bar icon, and changes made in Settings (a plugin off and on,
-# moving an extension and Reset, the Peek panel key recorder and Off, the update checkbox and a development build's
+# moving an extension and Reset, the Peek panel key recorder and Off, the update controls and a development build's
 # Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one recorder listening at a time, reopening on
 # the last pane, General holding Open at Login and Default app, the add-extension field's placeholder), and the
 # no-plugin alert's Open Settings. Writes
@@ -65,6 +66,33 @@ space 1-space-markdown "$F/notes.md" Peeker
 space 2-space-dotfile "$F/.zshrc" Peeker
 space 3-space-mp4 "$F/movie.mp4" "Quick Look"
 space 4-space-folder "$F/folder" "Quick Look"
+
+# The Peek panel's frame: the first Space opens it at most 900 × 700 points, a move sticks for the next Space, and
+# Settings' Reset Panel Size forgets it.
+panel() { osascript -e "tell application \"System Events\" to tell process \"Peeker\" to get $1 of window \"notes.md\"" 2>/dev/null | tr -d ' '; }
+peek() { "$DRIVE" select "$F/notes.md" && sleep 2.5 && "$DRIVE" keys Finder space && "$DRIVE" wait Peeker window notes.md --timeout 5 >/dev/null; sleep 0.5; }
+peek
+first=$(panel size)
+check "The first Space opens the panel at most 900 × 700 points" "$(echo "$first" | awk -F, '$1 > 0 && $1 <= 900 && $2 <= 700 { print "yes" }')" yes
+osascript -e 'tell application "System Events" to tell process "Peeker" to set position of window "notes.md" to {80, 120}' >/dev/null 2>&1
+sleep 0.5
+"$DRIVE" keys Finder escape && sleep 1
+peek
+check "The next Space opens it where it was moved" "$(panel position)" "80,120"
+"$DRIVE" shot Peeker "$OUT/4b-panel-moved.png" notes.md
+"$DRIVE" keys Finder escape && sleep 1
+"$DRIVE" menuextra Peeker "Settings…"
+"$DRIVE" wait Peeker window Settings
+check "Reset Panel Size is on once the panel has moved" "$("$DRIVE" enabled Peeker "Reset Panel Size")" true
+"$DRIVE" press Peeker "Reset Panel Size" && sleep 0.5
+check "Reset Panel Size greys out after a click" "$("$DRIVE" enabled Peeker "Reset Panel Size")" false
+osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
+sleep 0.5
+"$DRIVE" keys Peeker cmd+w
+"$DRIVE" wait Peeker window Settings --gone
+peek
+check "After Reset the panel opens at its first size again" "$(panel size)" "$first"
+"$DRIVE" keys Finder escape && sleep 1
 
 # Open With in an Editor window: Markdown, then Plain Text from the File menu, then back to Markdown from the toolbar,
 # which lists only the plugins that read the file. In Plain Text, an edit and Revert to Saved… bring the file's text

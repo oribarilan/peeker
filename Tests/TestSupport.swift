@@ -185,3 +185,9 @@ extension RecoveryStore {
         RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))
     }
 }
+
+/// Preferences only the caller reads, empty at first; call `removePersistentDomain(forName:)` with `name` when done.
+func scratchDefaults() -> (defaults: UserDefaults, name: String) {
+    let name = "dev.peeker.tests.\(UUID().uuidString)"
+    return (UserDefaults(suiteName: name)!, name)
+}
