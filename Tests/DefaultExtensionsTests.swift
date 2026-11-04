@@ -46,4 +46,20 @@ import UniformTypeIdentifiers
             }
         }
     }
+
+    /// The extensions each built-in plugin is offered for in Open With, by the file types it reads.
+    @Test(arguments: [
+        ("text", ["md", "json", "swift", "txt"], ["png", "pdf"]),
+        ("markdown", ["md", "markdown"], ["txt", "json"]),
+        ("image", ["png", "jpg", "cr2", "heic"], ["svg", "pdf"]),
+        ("pdf", ["pdf"], ["png", "txt"]),
+    ])
+    func readableTypes(id: String, reads: [String], skips: [String]) throws {
+        let plugin = try #require(plugins.first { $0.id == id })
+        let readsType = { (ext: String) in
+            UTType(filenameExtension: ext).map { type in plugin.readableTypes.contains { type.conforms(to: $0) } } ?? false
+        }
+        for ext in reads { #expect(readsType(ext), "\(id) should read .\(ext)") }
+        for ext in skips { #expect(!readsType(ext), "\(id) shouldn't read .\(ext)") }
+    }
 }

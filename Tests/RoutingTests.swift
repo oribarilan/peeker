@@ -83,13 +83,6 @@ private enum RoutedPlugin: Plugin {
         #expect(owner("/tmp/nginx.conf", moved) == nil, "conf left Plain Text's list")
     }
 
-    @Test func openWithListsTheOwnerFirstThenEveryOtherEnabledPlugin() {
-        let markdownFile = URL(filePath: "/tmp/notes.md")
-        #expect(catalog().openWithChoices(for: markdownFile).map(\.id) == ["markdown", "image", "text"])
-        #expect(catalog().openWithChoices(for: URL(filePath: "/tmp/movie.mp4")).map(\.id) == ["image", "markdown", "text"])
-        #expect(catalog(#"{"plugins": {"image": {"enabled": false}}}"#).openWithChoices(for: markdownFile).map(\.id) == ["markdown", "text"])
-    }
-
     @Test func reloadAppliesTheNewLists() {
         let catalog = catalog(#"{"plugins": {"text": {"extensions": []}}}"#)
         #expect(owner("/tmp/nginx.conf", catalog) == nil)
@@ -101,3 +94,45 @@ private enum RoutedPlugin: Plugin {
         #expect(PluginCatalog.builtIn.map { $0.id } == ["image", "pdf", "markdown", "text"])
     }
 }
+
+/// What Open With offers, with the real plugins and the file types they read.
+@Suite struct OpenWithChoices {
+    private let entries = PluginCatalog.builtIn.map { PluginEntry($0) }
+
+    private func choices(_ path: String, showing current: String? = nil, config json: String = "{}") -> [String] {
+        choices(URL(filePath: path), showing: current, config: json)
+    }
+
+    private func choices(_ url: URL, showing current: String? = nil, config json: String = "{}") -> [String] {
+        let config = Config.read(Data(json.utf8), plugins: entries).config ?? Config()
+        return PluginCatalog(entries: entries, config: config).openWithChoices(for: url, showing: current).map(\.id)
+    }
+
+    @Test func theOwnerFirstThenPluginsThatReadTheFile() {
+        #expect(choices("/tmp/notes.md") == ["markdown", "text"])
+        #expect(choices("/tmp/photo.png") == ["image"])
+        #expect(choices("/tmp/movie.mp4") == [])
+    }
+
+    @Test func aTurnedOffOwnerLeavesTheOthers() {
+        #expect(choices("/tmp/notes.md", config: #"{"plugins": {"markdown": {"enabled": false}}}"#) == ["text"])
+    }
+
+    @Test func theOwnerIsListedEvenWhenItDoesntReadTheType() {
+        let moved = #"{"plugins": {"markdown": {"extensions": ["md", "json"]}, "text": {"extensions": ["txt"]}}}"#
+        #expect(choices("/tmp/data.json", config: moved) == ["markdown", "text"])
+    }
+
+    /// macOS types a file with no extension by its contents, so a text one counts as text.
+    @Test func aFileWithNoExtensionIsTypedByItsContents() throws {
+        let readme = try TempFile.make(Data("# Read me\n".utf8), name: "README")
+        let moved = "{\"plugins\": {\"markdown\": {\"extensions\": [\"md\", \"\(noExtension)\"]}, \"text\": {\"extensions\": [\"txt\"]}}}"
+        #expect(choices(readme, config: moved) == ["markdown", "text"])
+    }
+
+    @Test func theCurrentPluginStaysListedWhileItsOn() {
+        #expect(choices("/tmp/photo.png", showing: "text") == ["image", "text"])
+        #expect(choices("/tmp/photo.png", showing: "text", config: #"{"plugins": {"text": {"enabled": false}}}"#) == ["image"])
+    }
+}
+

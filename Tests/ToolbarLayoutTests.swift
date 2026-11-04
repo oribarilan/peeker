@@ -24,7 +24,7 @@ private final class BareDocument: PluginDocument {
 
     @Test func theSidebarButtonRidesOverTheSidebar() async throws {
         let file = try TempFile.make(Data("# One\ntext\n".utf8), name: "f.md")
-        let controller = try await documentWindow(for: MarkdownPlugin.self, file: file)
+        let controller = try await documentWindow(for: MarkdownPlugin.self, file: file, others: [TextPlugin.self])
         defer { controller.close() }
         // Back and Forward, which Markdown documents get, come between the separator and Open With.
         #expect(Array(identifiers(controller).prefix(5))
@@ -33,7 +33,7 @@ private final class BareDocument: PluginDocument {
     }
 
     @Test func withoutASidebarOpenWithComesFirst() async throws {
-        let controller = try await documentWindow(for: BarePlugin.self)
+        let controller = try await documentWindow(for: BarePlugin.self, name: "f.txt", others: [TextPlugin.self])
         defer { controller.close() }
         #expect(identifiers(controller).first == "openWith")
         #expect(!identifiers(controller).contains(NSToolbarItem.Identifier.sidebarTrackingSeparator.rawValue))

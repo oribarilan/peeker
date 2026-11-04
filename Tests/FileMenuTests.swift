@@ -1,19 +1,27 @@
 import AppKit
 import PeekerKit
+import PeekerImage
 @testable import PeekerMarkdown
 @testable import PeekerText
 import Testing
 
-/// A Markdown file in a window whose catalog has the Markdown and Plain Text plugins.
-@MainActor private func markdownWindow() async throws -> DocumentWindowController {
-    let url = try TempFile.make(Data("# Hi".utf8), name: "a.md")
-    let entries = [PluginEntry(MarkdownPlugin.self), PluginEntry(TextPlugin.self)]
-    let catalog = PluginCatalog(entries: entries, config: Config())
-    let controller = DocumentWindowController(url: url, catalog: catalog, config: Config(), recovery: nil, recoveryClipboard: nil,
-                                              sidebarMemory: SidebarMemory(defaults: nil))
+/// A window showing `url` in the first of `plugins`, with a catalog of them all under `config`.
+@MainActor private func window(_ url: URL, plugins: [any Plugin.Type], config: Config = Config()) async throws -> DocumentWindowController {
+    let entries = plugins.map { PluginEntry($0) }
+    let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: entries, config: config), config: config,
+                                              recovery: nil, recoveryClipboard: nil, sidebarMemory: SidebarMemory(defaults: nil))
     controller.show(with: entries[0])
     try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil }
     return controller
+}
+
+/// A Markdown file in a window whose catalog has the Markdown and Plain Text plugins.
+@MainActor private func markdownWindow() async throws -> DocumentWindowController {
+    try await window(try TempFile.make(Data("# Hi".utf8), name: "a.md"), plugins: [MarkdownPlugin.self, TextPlugin.self])
+}
+
+@MainActor private func toolbarItems(_ controller: DocumentWindowController) -> [String] {
+    controller.window?.toolbar?.items.map(\.itemIdentifier.rawValue) ?? []
 }
 
 @Suite(.serialized) struct FileMenuOpenWith {
@@ -46,6 +54,26 @@ import Testing
         let item = try openWith()
         #expect(item.action == #selector(DocumentWindowController.reopenWithMenu(_:)) && item.target == nil)
         #expect(!AppDelegate().responds(to: item.action))
+    }
+
+    @Test func aFileOnlyOnePluginReadsHasNoControlAndAGreyedMenu() async throws {
+        let photo = try imageFile(try cornerImage(), type: .png)
+        let controller = try await window(photo, plugins: [ImagePlugin.self, MarkdownPlugin.self, TextPlugin.self])
+        defer { controller.close() }
+        #expect(!toolbarItems(controller).contains("openWith"))
+        #expect(!controller.validateMenuItem(try openWith()))
+    }
+
+    @Test func turningOffTheOtherReaderHidesTheControl() async throws {
+        let controller = try await markdownWindow()
+        defer { controller.close() }
+        #expect(toolbarItems(controller).contains("openWith"))
+        let entries = [PluginEntry(MarkdownPlugin.self), PluginEntry(TextPlugin.self)]
+        let textOff = try #require(Config.read(Data(#"{"plugins": {"text": {"enabled": false}}}"#.utf8), plugins: entries).config)
+        controller.catalog.reload(config: textOff)
+        controller.apply(textOff)
+        #expect(!toolbarItems(controller).contains("openWith"))
+        #expect(!controller.validateMenuItem(try openWith()))
     }
 
     @Test func theToolbarControlHasATooltip() async throws {

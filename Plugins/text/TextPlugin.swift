@@ -1,5 +1,6 @@
 import Foundation
 import PeekerKit
+import UniformTypeIdentifiers
 
 public enum TextPlugin: Plugin {
     public static let id = "text"
@@ -13,6 +14,7 @@ public enum TextPlugin: Plugin {
         "c", "h", "m", "mm", "cc", "cpp", "hpp", "go", "rs", "java", "kt", "sql", "css", "scss", "diff", "patch",
         noExtension,
     ]
+    public static let readableTypes = [UTType.text]
     public static let tools = [
         ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
         ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),

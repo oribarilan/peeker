@@ -15,6 +15,8 @@ public enum ImagePlugin: Plugin {
         "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "sr2", "srf", "raf", "orf", "rw2", "rwl", "pef", "srw", "erf",
         "raw", "3fr", "iiq",
     ]
+    /// Everything ImageIO decodes.
+    public static let readableTypes = (CGImageSourceCopyTypeIdentifiers() as? [String] ?? []).compactMap { UTType($0) }
     public static let tools = [
         ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
         ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),

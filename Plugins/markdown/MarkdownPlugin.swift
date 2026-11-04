@@ -1,12 +1,15 @@
 import Foundation
 import Markdown
 import PeekerKit
+import UniformTypeIdentifiers
 
 public enum MarkdownPlugin: Plugin {
     public static let id = "markdown"
     public static let name = "Markdown"
     public static let symbol = "number"
     public static let defaultExtensions = ["md", "markdown", "mdown"]
+    /// Markdown files only: other text shows as well in Plain Text.
+    public static let readableTypes = [UTType("net.daringfireball.markdown")].compactMap(\.self)
     public static let tools = [
         ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
         ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),

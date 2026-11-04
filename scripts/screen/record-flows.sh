@@ -66,8 +66,9 @@ space 2-space-dotfile "$F/.zshrc" Peeker
 space 3-space-mp4 "$F/movie.mp4" "Quick Look"
 space 4-space-folder "$F/folder" "Quick Look"
 
-# Open With in an Editor window: Markdown, then Plain Text from the File menu, then Image from the toolbar (which
-# can't read it and says so). In Plain Text, an edit and Revert to Saved… bring the file's text back.
+# Open With in an Editor window: Markdown, then Plain Text from the File menu, then back to Markdown from the toolbar,
+# which lists only the plugins that read the file. In Plain Text, an edit and Revert to Saved… bring the file's text
+# back. A photo's window has no Open With, since only Image reads it.
 open -a "$APP" "$F/notes.md"
 "$DRIVE" wait Peeker window notes.md
 "$DRIVE" shot Peeker "$OUT/5-window-markdown.png" notes.md
@@ -88,11 +89,20 @@ check "Revert to Saved… asks first" "$("$DRIVE" wait Peeker sheet --timeout 5 
 "$DRIVE" press Peeker Revert
 "$DRIVE" wait Peeker sheet --gone
 check "Reverting brings the saved text back" "$(typed)" 0
-"$DRIVE" choose Peeker "Image" && sleep 1.5
-"$DRIVE" shot Peeker "$OUT/7-openwith-image.png" notes.md
-check "Open With shows Image" "$(openwith)" "Image"
+openwithitems() { "$DRIVE" choose Peeker | grep AXMenuItem | sed -E 's/.*“(.*)”.*/\1/' | paste -sd , -; }
+check "Open With lists only plugins that read a .md" "$(openwithitems)" "Markdown,Plain Text"
+"$DRIVE" choose Peeker "Markdown" && sleep 1.5
+"$DRIVE" shot Peeker "$OUT/7-openwith-markdown.png" notes.md
+check "Open With switches back to Markdown" "$(openwith)" "Markdown"
 "$DRIVE" menu Peeker File Close
 "$DRIVE" wait Peeker window notes.md --gone
+# Only Image reads a photo, so its window has no Open With control.
+open -a "$APP" "$F/pixel.png"
+"$DRIVE" wait Peeker window pixel.png
+"$DRIVE" shot Peeker "$OUT/7b-window-photo.png" pixel.png
+check "A photo's window has no Open With" "$("$DRIVE" tree Peeker 20 | grep -c AXPopUpButton)" 0
+"$DRIVE" menu Peeker File Close
+"$DRIVE" wait Peeker window pixel.png --gone
 
 # A clash: Plain Text also lists png, which stays with Image, and the menu bar icon reports the problem.
 echo '{"plugins": {"text": {"extensions": ["txt", "png"]}}}' > "$CONFIG"

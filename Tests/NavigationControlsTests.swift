@@ -32,7 +32,6 @@ import Testing
             let file = plugin == PDFPlugin.self ? try TempFile.makePDF(pages: 1) : try TempFile.make(Data("x\n".utf8), name: "f.txt")
             let controller = try await documentWindow(for: plugin, file: file)
             defer { controller.close() }
-            try await waitUntil(seconds: 1) { identifiers(controller).contains("openWith") }
             #expect(!identifiers(controller).contains("back") && !identifiers(controller).contains("forward"), "\(plugin.id)")
         }
     }

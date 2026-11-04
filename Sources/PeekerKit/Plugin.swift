@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 
 /// The extension-list entry for files that have none, such as `.zshrc` or `Makefile`.
 public nonisolated let noExtension = "noExtension"
@@ -13,6 +14,9 @@ public protocol Plugin {
     /// The extensions this plugin opens unless the user's config gives it another list: lowercase, without the dot,
     /// and `noExtension` for files that have none. No two plugins list the same one.
     static var defaultExtensions: [String] { get }
+    /// The file types this plugin can show, so Open With offers it for files another plugin owns. Default: none, so
+    /// it's offered only for the files it owns.
+    static var readableTypes: [UTType] { get }
     /// Every tool the plugin's documents can offer; a document may offer fewer (a view-only one, say). The config
     /// checks shortcut settings against this list, and the config schema lists it.
     static var tools: [ToolSpec] { get }
@@ -28,6 +32,7 @@ public protocol Plugin {
 
 public extension Plugin {
     static var symbol: String { "puzzlepiece.extension" }
+    static var readableTypes: [UTType] { [] }
     static func recoveryText(from edits: Data) -> String? { nil }
 }
 

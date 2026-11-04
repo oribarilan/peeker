@@ -4,12 +4,15 @@ import PeekerKit
 import PeekerMarkdown
 import PeekerPDF
 import PeekerText
+import UniformTypeIdentifiers
 
 /// One plugin as the host knows it before opening anything with it.
 struct PluginEntry {
     let id: String
     let name: String
     let defaultExtensions: [String]
+    /// The file types Open With offers it for when it isn't the file's owner.
+    let readableTypes: [UTType]
     /// The SF Symbol for its Settings pane.
     let symbol: String
     /// Every tool the plugin can offer, which config shortcuts are checked against.
@@ -25,6 +28,7 @@ struct PluginEntry {
         self.id = id
         self.name = name
         self.defaultExtensions = defaultExtensions
+        readableTypes = plugin.readableTypes
         symbol = plugin.symbol
         tools = plugin.tools
         self.plugin = plugin
@@ -67,10 +71,22 @@ final class PluginCatalog {
         return enabled.first { $0.id == id }
     }
 
-    /// What Open With offers for `url`: its owner first, then every other enabled plugin.
-    func openWithChoices(for url: URL) -> [PluginEntry] {
+    /// What Open With offers for `url`: its owner first, then each other enabled plugin that reads the file's type, and
+    /// `current`, the plugin the tab shows, while it's on.
+    func openWithChoices(for url: URL, showing current: String?) -> [PluginEntry] {
         let owner = owner(for: url)
-        return (owner.map { [$0] } ?? []) + enabled.filter { $0.id != owner?.id }
+        let type = Self.contentType(of: url)
+        let others = enabled.filter { entry in
+            entry.id != owner?.id && (entry.id == current || entry.readableTypes.contains { type?.conforms(to: $0) == true })
+        }
+        return (owner.map { [$0] } ?? []) + others
+    }
+
+    /// The file's type as macOS sees it, which types a file with no extension by its contents. From the extension
+    /// alone when the file can't be asked, such as a path with nothing there.
+    private static func contentType(of url: URL) -> UTType? {
+        let target = url.resolvingSymlinksInPath()
+        return (try? target.resourceValues(forKeys: [.contentTypeKey]))?.contentType ?? UTType(filenameExtension: target.pathExtension)
     }
 
     /// A recovery record's edits as plain text, from the plugin that wrote them; nil when they have none.

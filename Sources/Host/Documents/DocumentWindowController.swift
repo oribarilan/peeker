@@ -12,6 +12,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     private let recoveryClipboard: RecoveryClipboard?
     private let sidebarMemory: SidebarMemory
     private(set) var current: DocumentViewController?
+    /// What Open With lists for the file shown, owner first.
+    private var openWithChoices: [PluginEntry] = []
     /// Called for every new document view controller (first open and "Open With" switches).
     var onDocument: ((DocumentViewController) -> Void)?
     var onBecameKey: ((DocumentWindowController) -> Void)?
@@ -115,6 +117,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         // Before loading, so closing the window while the file opens keeps the record for the next launch.
         if let record { document.restore(record) }
         self.current = document
+        refreshOpenWith()
         window?.title = url.lastPathComponent
         window?.representedURL = url
         window?.subtitle = entry.name
@@ -203,7 +206,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     @objc private func reopenWith(_ sender: NSPopUpButton) {
-        let candidates = catalog.openWithChoices(for: url)
+        let candidates = openWithChoices
         guard candidates.indices.contains(sender.indexOfSelectedItem) else { return }
         Task {
             guard await !reopen(with: candidates[sender.indexOfSelectedItem]) else { return }
@@ -213,7 +216,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     /// File > Open With: the submenu's items, by their tag in the choices. The submenu itself is filled as it's checked.
     @objc func reopenWithMenu(_ sender: NSMenuItem) {
-        let candidates = catalog.openWithChoices(for: url)
+        let candidates = openWithChoices
         guard sender.submenu == nil, candidates.indices.contains(sender.tag) else { return }
         Task { await reopen(with: candidates[sender.tag]) }
     }
@@ -229,7 +232,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     /// Lists the plugins in File > Open With's submenu; the check on the current one comes with each menu check.
     func fillOpenWith(_ menu: NSMenu) {
         menu.removeAllItems()
-        for (index, entry) in catalog.openWithChoices(for: url).enumerated() {
+        for (index, entry) in openWithChoices.enumerated() {
             let item = NSMenuItem(title: entry.name, action: #selector(reopenWithMenu(_:)), keyEquivalent: "")
             item.tag = index
             item.target = self
@@ -290,8 +293,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         case #selector(printDocument(_:)):
             return current?.pluginDocument?.printJob != nil
         case #selector(reopenWithMenu(_:)):
-            if let submenu = menuItem.submenu { fillOpenWith(submenu); return current != nil }
-            let candidates = catalog.openWithChoices(for: url)
+            if let submenu = menuItem.submenu { fillOpenWith(submenu); return current != nil && openWithChoices.count > 1 }
+            let candidates = openWithChoices
             menuItem.state = candidates.indices.contains(menuItem.tag) && candidates[menuItem.tag].id == current?.entry.id ? .on : .off
             return true
         case #selector(NSSplitViewController.toggleSidebar(_:)):
@@ -399,6 +402,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     func apply(_ config: Config) {
         self.config = config
         current?.apply(config)
+        let shown = openWithChoices.map(\.id)
+        refreshOpenWith()
+        if openWithChoices.map(\.id) != shown { rebuildToolbar() }
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -413,6 +419,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     private static let openWith = NSToolbarItem.Identifier("openWith")
 
+    /// The Open With control, left out when there's nothing to switch to.
+    private var openWithItem: [NSToolbarItem.Identifier] { openWithChoices.count > 1 ? [Self.openWith] : [] }
+
+    /// Takes the plugins Open With lists for the file and plugin shown now. The menus and the toolbar read this list,
+    /// so menu checks never ask the file for its type, and a choice's index always matches the list that was shown.
+    private func refreshOpenWith() {
+        openWithChoices = catalog.openWithChoices(for: url, showing: current?.entry.id)
+    }
+
     private func rebuildToolbar() {
         // A fresh identifier per rebuild: toolbars sharing an identifier sync their items across windows.
         let toolbar = NSToolbar(identifier: "doc-\(UUID().uuidString)")
@@ -424,7 +439,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        guard let document = current else { return [Self.openWith] }
+        guard let document = current else { return openWithItem }
         let shown = document.tools.indices.filter { document.tools[$0].spec.showsInToolbar }
         let identifier = { (index: Int) in NSToolbarItem.Identifier("tool.\(index)") }
         let view = shown.filter { !document.tools[$0].spec.isEditTool }.map(identifier)
@@ -432,7 +447,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         // The tracking separator keeps the sidebar button over the sidebar, as in Finder, and the rest past it. A space
         // between the two runs of tools puts view tools and edit tools on separate pieces of glass.
         return (document.hasSidebar ? [.toggleSidebar, .sidebarTrackingSeparator] : []) + (showsBackAndForward ? [Self.back, Self.forward] : [])
-            + [Self.openWith] + [.flexibleSpace]
+            + openWithItem + [.flexibleSpace]
             + view + (view.isEmpty || tools.isEmpty ? [] : [.space]) + tools
     }
 
@@ -458,7 +473,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let item = NSToolbarItem(itemIdentifier: identifier)
         if identifier == Self.openWith {
             let popup = NSPopUpButton(frame: .zero, pullsDown: false)
-            let candidates = catalog.openWithChoices(for: url)
+            let candidates = openWithChoices
             popup.addItems(withTitles: candidates.map(\.name))
             if let index = candidates.firstIndex(where: { $0.id == current?.entry.id }) { popup.selectItem(at: index) }
             popup.target = self
