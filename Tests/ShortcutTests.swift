@@ -89,3 +89,11 @@ import Testing
     }
 }
 
+
+@Suite struct ShortcutTooltips {
+    @Test func aNameWithItsKeyOrAlone() {
+        #expect(Shortcut.tooltip(title: "Highlight Selection", shortcut: Shortcut(parsing: "h")) == "Highlight Selection (H)")
+        #expect(Shortcut.tooltip(title: "Sidebar", shortcut: Shortcut(parsing: "ctrl+cmd+s")) == "Sidebar (⌃⌘S)")
+        #expect(Shortcut.tooltip(title: "Sign", shortcut: nil) == "Sign")
+    }
+}

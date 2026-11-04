@@ -43,6 +43,7 @@ struct GeneralPane: View {
                 Text(SettingsModel.automaticUpdateChoices.first { $0.mode == model.automaticUpdates }?.footer ?? "")
                     .foregroundStyle(.secondary)
             }
+            TipsSection(model: model)
         }
         .formStyle(.grouped)
     }
@@ -62,6 +63,28 @@ private struct PeekPanelReset: View {
         LabeledContent("Size and position") {
             Button("Reset Panel Size") { model.resetPeekPanelFrame() }
                 .disabled(savedFrame == nil)
+        }
+    }
+}
+
+/// Show Tips Again, greyed out until a first-use tip has been shown. It follows the saved tips live.
+private struct TipsSection: View {
+    let model: SettingsModel
+    @AppStorage private var seen: String?
+
+    init(model: SettingsModel) {
+        self.model = model
+        _seen = AppStorage(TipStore.key, store: model.defaults)
+    }
+
+    var body: some View {
+        Section {
+            LabeledContent("Tips for tools such as Highlight and Crop") {
+                Button("Show Tips Again") { model.showTipsAgain() }
+                    .disabled(seen == nil)
+            }
+        } header: {
+            Text("Tips")
         }
     }
 }

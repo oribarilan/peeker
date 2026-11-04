@@ -6,6 +6,9 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- The PDF tools have single-letter keys: T for Text Box, S for Sign and H for Highlight, like C for Crop in images; they type as usual while a form field or text box has the keyboard. Rotate Left and Rotate Right no longer have keys by default. A key set in Settings or the config stays as it is.
+- Each toolbar tool sits on its own capsule with its key beside the icon, and the tool in use fills with the accent color; turn that off with "Show shortcuts in the toolbar" in Settings > Appearance or `"showShortcuts": false`. Every toolbar button and icon-only button has a tooltip with its name and key.
+- The first time you use Highlight, Text Box, Sign or Crop, a short tip from its button says what to do next. Settings > General has Show Tips Again.
 - With "Show scroll bars" set to Always, Markdown files, images, the outline and the page thumbnails no longer show an empty scroll bar track when there's nothing to scroll; in the Peek panel it sat under the Open in Peeker button.
 - The Peek panel remembers its size and position, and opens on the display with the pointer. Its first size is capped at 900 × 700 points, so it's no longer a tall column on a portrait display, and it can't be made smaller than 400 × 300. Settings > General has Reset Panel Size to go back to the default.
 - Updates found by the daily check no longer pop up behind your work: the menu bar icon shows a dot and its menu offers "Update to" the new version. Peeker can also download and install updates by itself, relaunching once no window is open: pick Download and Install in Settings > General, or `"updates": {"automatic": "download"}` in the config, which replaces `updates.check`. After an update, a window lists what's new; turn it off with "Show what's new after updating" or `updates.showWhatsNew`.

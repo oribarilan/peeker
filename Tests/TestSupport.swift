@@ -83,13 +83,13 @@ func loadedDocument(_ url: URL, with plugin: any Plugin.Type, allowsEditing: Boo
 /// An Editor window on a new file named `name`, shown with `plugin`. Waits for the document to open unless `waiting`
 /// is false. `others` join its catalog, so Open With has plugins to switch to.
 /// The window's sidebar choice is remembered only in `sidebar`, never in the test run's preferences.
-func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", file: URL? = nil, others: [any Plugin.Type] = [],
+func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", file: URL? = nil, others: [any Plugin.Type] = [], config: Config = Config(), tips: TipStore = TipStore(defaults: nil),
                     waiting: Bool = true, sidebar: SidebarMemory = SidebarMemory(defaults: nil)) async throws -> DocumentWindowController {
     let url = try file ?? TempFile.make(Data("x".utf8), name: name)
     let entry = PluginEntry(plugin)
-    let catalog = PluginCatalog(entries: [entry] + others.map { PluginEntry($0) }, config: Config())
-    let controller = DocumentWindowController(url: url, catalog: catalog, config: Config(), recovery: nil,
-                                              recoveryClipboard: nil, sidebarMemory: sidebar)
+    let catalog = PluginCatalog(entries: [entry] + others.map { PluginEntry($0) }, config: config)
+    let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: nil,
+                                              recoveryClipboard: nil, sidebarMemory: sidebar, tips: tips)
     controller.show(with: entry)
     // Until the content has shown, the toolbar has no tool buttons yet.
     if waiting { try await waitUntil(seconds: 2) { controller.current?.hasShownContent == true } }

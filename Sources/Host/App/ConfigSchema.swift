@@ -33,6 +33,8 @@ enum ConfigSchema {
                            "description": "The look of Peeker's windows: system follows the Mac, light or dark holds that look. Default: system."],
             "textAppearance": ["type": "string", "enum": Config.textAppearances, "default": "app",
                                "description": "Which variant of the text theme Markdown and text files use: app matches Peeker's appearance, light or dark holds that variant. Default: app."],
+            "showShortcuts": ["type": "boolean", "default": true,
+                              "description": "True shows each toolbar tool's key beside its icon; false leaves the keys to tooltips, the menus and Settings. Default: true."],
             "updates": object("Checking for new versions of Peeker.", [
                 "automatic": ["type": "string", "enum": Config.automaticUpdateModes, "default": "check",
                               "description": "off checks only when you ask; check looks for a new version once a day and offers it with its release notes; download also downloads it and installs it once no window is open. Default: check."],

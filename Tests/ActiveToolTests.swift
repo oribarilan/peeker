@@ -33,30 +33,43 @@ private final class ToolDocument: PluginDocument {
         #expect(Plain().activeTool == nil)
     }
 
-    @Test func theActiveToolIsSelectedAndChecked() async throws {
+    private func style(_ controller: DocumentWindowController, _ index: Int) throws -> NSToolbarItem.Style {
+        try #require(controller.window?.toolbar?.items.first { $0.itemIdentifier.rawValue == "tool.\(index)" }).style
+    }
+
+    @Test func theActiveToolIsFilledAndChecked() async throws {
         let controller = try await documentWindow(for: ToolPlugin.self)
         defer { controller.close() }
         let document = try #require(controller.current?.pluginDocument as? ToolDocument)
-        let toolbar = try #require(controller.window?.toolbar)
-        #expect(toolbar.selectedItemIdentifier == nil)
+        try await waitUntil(seconds: 1) { (try? style(controller, 1)) != nil }
+        #expect(try style(controller, 0) == .plain)
         document.activeTool = "pen"
-        #expect(toolbar.selectedItemIdentifier?.rawValue == "tool.0")
+        #expect(try style(controller, 0) == .prominent && style(controller, 1) == .plain)
         let pen = menuItem(0), turn = menuItem(1)
         _ = controller.validateMenuItem(pen)
         _ = controller.validateMenuItem(turn)
         #expect(pen.state == .on && turn.state == .off)
         document.activeTool = nil
-        #expect(toolbar.selectedItemIdentifier == nil)
+        #expect(try style(controller, 0) == .plain)
         _ = controller.validateMenuItem(pen)
         #expect(pen.state == .off)
     }
 
-    @Test func runningAToolLeavesOnlyTheActiveOneSelected() async throws {
+    @Test func toolsAreNotSelectableSoTheyKeepTheirCapsules() async throws {
         let controller = try await documentWindow(for: ToolPlugin.self)
         defer { controller.close() }
         let toolbar = try #require(controller.window?.toolbar)
-        toolbar.selectedItemIdentifier = NSToolbarItem.Identifier("tool.1")  // what clicking a selectable item does
-        controller.runTool(menuItem(1))
-        #expect(toolbar.selectedItemIdentifier == nil)
+        #expect((controller as NSToolbarDelegate).toolbarSelectableItemIdentifiers?(toolbar).isEmpty ?? true)
+    }
+
+    @Test func aToolActiveWhenTheToolbarIsBuiltStartsFilled() async throws {
+        let controller = try await documentWindow(for: ToolPlugin.self)
+        defer { controller.close() }
+        let document = try #require(controller.current?.pluginDocument as? ToolDocument)
+        document.activeTool = "turn"
+        var config = Config()
+        config.showShortcuts = false
+        controller.apply(config)  // rebuilds the toolbar
+        try await waitUntil(seconds: 1) { (try? style(controller, 1)) == .prominent }
     }
 }

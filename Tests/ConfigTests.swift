@@ -90,6 +90,14 @@ private func config(_ json: String) throws -> Config {
         #expect(try config(#"{"updates": {"automatic": "\#(mode)"}}"#).automaticUpdates == mode)
     }
 
+    @Test func shortcutCaptionsShowUnlessTurnedOff() throws {
+        #expect(try config("{}").showShortcuts)
+        #expect(try config(#"{"showShortcuts": false}"#).showShortcuts == false)
+        let reading = read(#"{"showShortcuts": "no"}"#)
+        #expect(try #require(reading.config).showShortcuts)
+        #expect(reading.problems.map(\.path) == ["showShortcuts"])
+    }
+
     @Test func whatsNewCanBeTurnedOff() throws {
         #expect(try config(#"{"updates": {"showWhatsNew": false}}"#).showWhatsNew == false)
     }
@@ -286,6 +294,7 @@ private func config(_ json: String) throws -> Config {
         #expect((root["peekPanel"] as? [String: Any])?["key"] as? String == "space")
         #expect((root["updates"] as? [String: Any])?["automatic"] as? String == "check")
         #expect((root["updates"] as? [String: Any])?["showWhatsNew"] as? Bool == true)
+        #expect(root["showShortcuts"] as? Bool == true)
         let pluginSettings = try #require(root["plugins"] as? [String: [String: Any]])
         #expect(pluginSettings.keys.sorted() == ["markdown", "pdf", "text"])
         #expect(pluginSettings["markdown"]?["enabled"] as? Bool == true)

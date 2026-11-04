@@ -70,8 +70,13 @@ sleep 0.3
 "$DRIVE" click Peeker $(at 8 52)  # the checkbox, which also ends typing in the field
 sleep 0.5
 
-"$DRIVE" menu Peeker Tools "Text Box"
-"$DRIVE" click Peeker $(at 0 200)  # the Date: line
+# The toolbar names Text Box's key in its tooltip, and the first Text Box shows its tip once.
+check "Text Box's tooltip names its key" "$(osascript -e 'tell application "System Events" to tell process "Peeker" to get help of (first button of toolbar 1 of window 1 whose description is "Text Box")' 2>/dev/null)" "Text Box (T)"
+"$DRIVE" menu Peeker Tools "Text Box (T)"
+sleep 0.6
+check "The first Text Box shows its tip" "$("$DRIVE" tree Peeker 12 | grep -c 'Click where the text goes.')" 1
+"$DRIVE" shot Peeker "$OUT/2b-text-box-tip.png"
+"$DRIVE" click Peeker $(at 0 200)  # the Date: line; the click also closes the tip
 sleep 0.5
 "$DRIVE" type Peeker "31 Oct 2026"
 # + stays under the pointer as the box grows, so it can be clicked again and again.
@@ -85,7 +90,7 @@ check "+ stays put when clicked" "$(frame AXButton "+")" "$lx $ly $lw $lh"
 sleep 0.5
 "$DRIVE" shot Peeker "$OUT/3-filled.png"
 
-"$DRIVE" menu Peeker Tools "Sign"
+"$DRIVE" menu Peeker Tools "Sign (S)"
 "$DRIVE" wait Peeker sheet
 read -r dx dy dw dh <<< "$(frame AXButton Done)"
 "$DRIVE" drag Peeker $((dx - 380)) $((dy - 60)) $((dx - 330)) $((dy - 110)) $((dx - 290)) $((dy - 50)) $((dx - 240)) $((dy - 100)) $((dx - 190)) $((dy - 55))
@@ -94,7 +99,7 @@ read -r dx dy dw dh <<< "$(frame AXButton Done)"
 "$DRIVE" wait Peeker sheet --gone
 "$DRIVE" click Peeker $(at 120 250)  # the Signature: line
 sleep 0.5
-"$DRIVE" menu Peeker Tools "Sign"
+"$DRIVE" menu Peeker Tools "Sign (S)"
 "$DRIVE" wait Peeker sheet
 check "Sign offers the last signature" "$("$DRIVE" tree Peeker 12 | grep -c '“Use Last Signature”')" 1
 "$DRIVE" press Peeker "Use Last Signature"

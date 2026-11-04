@@ -106,6 +106,11 @@ struct Shortcut: Equatable {
     }
 
     /// As menus show it, such as ⌃⌥⇧⌘H.
+    /// A control's tooltip: its name, then its key in parentheses when it has one, as "Highlight Selection (H)".
+    static func tooltip(title: String, shortcut: Shortcut?) -> String {
+        shortcut.map { "\(title) (\($0.displayText))" } ?? title
+    }
+
     var displayText: String {
         let symbols: [(NSEvent.ModifierFlags, String)] = [(.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")]
         let name = switch key {

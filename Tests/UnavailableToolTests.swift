@@ -38,7 +38,7 @@ private final class BlockableDocument: PluginDocument {
         toolbarItem.action = #selector(DocumentWindowController.runTool(_:))
         #expect(controller.validateMenuItem(menuItem))
         #expect(controller.validateToolbarItem(toolbarItem))
-        #expect(toolbarItem.toolTip == "Turn")
+        #expect(toolbarItem.toolTip == "Turn (⌘L)")
         document.reason = "Not now."
         #expect(!controller.validateMenuItem(menuItem))
         #expect(!controller.validateToolbarItem(toolbarItem))
@@ -46,6 +46,6 @@ private final class BlockableDocument: PluginDocument {
         document.reason = nil
         #expect(controller.validateMenuItem(menuItem))
         #expect(controller.validateToolbarItem(toolbarItem))
-        #expect(toolbarItem.toolTip == "Turn")
+        #expect(toolbarItem.toolTip == "Turn (⌘L)")
     }
 }

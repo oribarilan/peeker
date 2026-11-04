@@ -120,8 +120,8 @@ final class PDFFindBar: NSView, NSSearchFieldDelegate {
         let steps = NSSegmentedControl(images: [NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Previous")!,
                                                 NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Next")!],
                                        trackingMode: .momentary, target: self, action: #selector(step(_:)))
-        steps.setToolTip("Previous", forSegment: 0)
-        steps.setToolTip("Next", forSegment: 1)
+        steps.setToolTip("Previous (⇧⌘G)", forSegment: 0)
+        steps.setToolTip("Next (⌘G)", forSegment: 1)
         let done = NSButton(title: "Done", target: self, action: #selector(done(_:)))
         let row = NSStackView(views: [field, status, steps, done])
         row.spacing = 8

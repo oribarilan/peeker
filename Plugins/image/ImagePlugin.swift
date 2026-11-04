@@ -26,7 +26,7 @@ public enum ImagePlugin: Plugin {
         ToolSpec(id: "previous-page", title: "Previous Page", symbol: "chevron.up", shortcut: "pageup", showsInToolbar: false),
         ToolSpec(id: "next-page", title: "Next Page", symbol: "chevron.down", shortcut: "pagedown", showsInToolbar: false),
         // A single key, kept for Crop alone: other letters stay free for markup tools.
-        ToolSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true),
+        ToolSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true, tip: "Drag a rectangle, then press Return."),
         ToolSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
     ]
     /// Larger decodes would be refused by Core Animation anyway.

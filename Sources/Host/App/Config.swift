@@ -36,6 +36,8 @@ struct Config: Equatable {
     var appearance = "system"
     /// One of `textAppearances`.
     var textAppearance = "app"
+    /// Whether toolbar buttons show their keys under their icons.
+    var showShortcuts = true
 
     static let appearances = ["system", "light", "dark"]
     static let textAppearances = ["app", "light", "dark"]
@@ -177,6 +179,7 @@ private struct ConfigReader {
             case "appearance": if let name = choice(value, at: key, from: Config.appearances, "an appearance") { config.appearance = name }
             case "textAppearance":
                 if let name = choice(value, at: key, from: Config.textAppearances, "a text appearance") { config.textAppearance = name }
+            case "showShortcuts": if let show = bool(value, at: key) { config.showShortcuts = show }
             default: unknown(key)
             }
         }

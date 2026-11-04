@@ -15,11 +15,15 @@ public enum PDFPlugin: Plugin {
         ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
         ToolSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", showsInToolbar: false),
         ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
-        ToolSpec(id: "text-box", title: "Text Box", symbol: "character.textbox", shortcut: "ctrl+cmd+t", isEditTool: true),
-        ToolSpec(id: "sign", title: "Sign", symbol: "signature", isEditTool: true),
-        ToolSpec(id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "ctrl+cmd+h", isEditTool: true),
-        ToolSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", shortcut: "cmd+l", isEditTool: true),
-        ToolSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
+        // Single letters, as Crop's C: they run only while nothing that takes typing has the keyboard.
+        ToolSpec(id: "text-box", title: "Text Box", symbol: "character.textbox", shortcut: "t", isEditTool: true,
+                 tip: "Click where the text goes."),
+        ToolSpec(id: "sign", title: "Sign", symbol: "signature", shortcut: "s", isEditTool: true,
+                 tip: "Draw your signature, then click where it goes."),
+        ToolSpec(id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "h", isEditTool: true,
+                 tip: "Select text and press {key}, or drag across text while Highlight is on."),
+        ToolSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", isEditTool: true),
+        ToolSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", isEditTool: true),
         ToolSpec(id: "delete-page", title: "Delete Page", symbol: "trash", isEditTool: true),
     ]
 

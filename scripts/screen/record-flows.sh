@@ -230,7 +230,7 @@ front
 # A new Highlight shortcut works in an open PDF: it arms the highlighter at once. (Synthetic
 # drags and Select All don't select PDF text, so the highlight itself is left to the integration test.)
 "$DRIVE" row Peeker PDF && sleep 0.8
-"$DRIVE" press Peeker "Shortcut ⌃⌘H, click to record" && sleep 0.5 && "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
+"$DRIVE" press Peeker "Shortcut H, click to record" && sleep 0.5 && "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
 check "Recording ⌃⌥H writes it" "$(cfg "c['plugins']['pdf']['tools']['highlight']['shortcut']")" ctrl+opt+h
 # The clear button leaves Zoom In without a shortcut; Reset (Zoom In's is the pane's first) brings Cmd+= back.
 "$DRIVE" press Peeker "Clear the shortcut for Zoom In" && sleep 1

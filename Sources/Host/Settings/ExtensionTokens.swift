@@ -67,6 +67,7 @@ struct ExtensionTokens: View {
                 Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .help("Remove \(ext)")
             .accessibilityLabel("Remove \(ext)")
         }
         .padding(.horizontal, 8)

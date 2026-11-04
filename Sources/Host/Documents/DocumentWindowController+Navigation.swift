@@ -10,6 +10,8 @@ extension DocumentWindowController {
 
     static let back = NSToolbarItem.Identifier("back")
     static let forward = NSToolbarItem.Identifier("forward")
+    /// Peeker's own sidebar button, in place of the system's, so it can show its key.
+    static let sidebar = NSToolbarItem.Identifier("sidebar")
 
     private var following: (any LinkFollowing)? { current?.pluginDocument as? any LinkFollowing }
 
@@ -98,16 +100,22 @@ extension DocumentWindowController {
     /// Back and Forward show while the document follows links or the tab has somewhere to go.
     var showsBackAndForward: Bool { following != nil || history.entries.count > 1 }
 
+    /// The sidebar button and Back and Forward: the host's own toolbar buttons, with their menu keys as captions.
     func navigationItem(_ identifier: NSToolbarItem.Identifier) -> NSToolbarItem? {
-        guard identifier == Self.back || identifier == Self.forward else { return nil }
-        let back = identifier == Self.back
-        let title = back ? "Back" : "Forward"
+        let (title, symbol, key, action): (String, String, Shortcut, Selector)
+        switch identifier {
+        case Self.sidebar: (title, symbol, key, action) = ("Sidebar", "sidebar.left", MainMenu.sidebarKey, #selector(toggleSidebar(_:)))
+        case Self.back: (title, symbol, key, action) = ("Back", "chevron.left", MainMenu.backKey, #selector(goBack(_:)))
+        case Self.forward: (title, symbol, key, action) = ("Forward", "chevron.right", MainMenu.forwardKey, #selector(goForward(_:)))
+        default: return nil
+        }
         let item = NSToolbarItem(itemIdentifier: identifier)
-        item.image = NSImage(systemSymbolName: back ? "chevron.left" : "chevron.right", accessibilityDescription: title)
+        // No caption: beside the icon it would make the sidebar button too wide for the space above the sidebar.
+        item.image = ToolbarImage.make(symbol: symbol, name: title, key: key, showsKey: false)
         item.label = title
-        item.toolTip = title
+        item.toolTip = Shortcut.tooltip(title: title, shortcut: key)
         item.target = self
-        item.action = back ? #selector(goBack(_:)) : #selector(goForward(_:))
+        item.action = action
         return item
     }
 

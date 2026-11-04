@@ -109,9 +109,9 @@ private final class OutlineDocument: PluginDocument {
         let bare = try await documentWindow(for: Bare.self)
         defer { text.close(); bare.close() }
         let textItems = try #require(text.window?.toolbar?.items.map(\.itemIdentifier))
-        #expect(textItems.first == .toggleSidebar)
+        #expect(textItems.first?.rawValue == "sidebar")
         // It's known to have no sidebar a frame after its content shows.
-        try await waitUntil(seconds: 1) { bare.window?.toolbar?.items.contains { $0.itemIdentifier == .toggleSidebar } == false }
+        try await waitUntil(seconds: 1) { bare.window?.toolbar?.items.contains { $0.itemIdentifier.rawValue == "sidebar" } == false }
     }
 
     @Test func aDocumentWithoutPanelsHasNoSidebarToShow() async throws {

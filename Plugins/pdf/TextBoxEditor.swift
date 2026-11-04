@@ -48,6 +48,7 @@ final class TextBoxEditor: NSObject, NSTextViewDelegate {
             button.bezelStyle = .smallSquare
             button.controlSize = .small
             button.setAccessibilityLabel(label)
+            button.toolTip = label
             button.refusesFirstResponder = true  // clicking a size keeps typing in the box
         }
         // As wide as the widest size, so + doesn't shift as the number changes.

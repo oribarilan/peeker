@@ -45,6 +45,11 @@ import Testing
         #expect(properties(updates, "check") == nil)
     }
 
+    @Test func describesShortcutCaptions() throws {
+        let entry = try #require(try schema()["properties"].flatMap { $0 as? [String: Any] }?["showShortcuts"] as? [String: Any])
+        #expect(entry["type"] as? String == "boolean" && entry["default"] as? Bool == true)
+    }
+
     @Test func theOldOpenSectionIsGone() throws {
         #expect(properties(try schema(), "open") == nil)
     }

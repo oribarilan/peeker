@@ -48,6 +48,11 @@ enum MainMenu {
     /// The keys the menu bar's own items use, which no plugin tool may take: everything but plugin tools.
     static let fixedShortcuts = menuShortcuts(in: make(target: nil))
 
+    /// Keys the toolbar shows for its own buttons too, so the menu and the captions can't disagree.
+    static let sidebarKey = Shortcut(key: .character("s"), modifiers: [.control, .command])
+    static let backKey = Shortcut(key: .character("["), modifiers: .command)
+    static let forwardKey = Shortcut(key: .character("]"), modifiers: .command)
+
     /// The whole menu bar. The app makes Window its windows menu and Help its help menu; building it changes nothing else.
     static func make(target: AppDelegate?) -> NSMenu {
         let main = NSMenu()
@@ -108,14 +113,14 @@ enum MainMenu {
         ])
         // AppKit retitles these three (Show/Hide, Enter/Exit) as their state changes.
         submenu("View", [
-            item("Show Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s", [.control, .command]),
+            item("Show Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), sidebarKey.keyEquivalent, sidebarKey.modifiers),
             item("Show Toolbar", #selector(NSWindow.toggleToolbarShown(_:)), "t", [.option, .command]),
             item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.control, .command]),
         ])
         // Where Preview and Finder keep them. Only an Editor window answers, so they're greyed out elsewhere.
         submenu("Go", [
-            item("Back", #selector(DocumentWindowController.goBack(_:)), "["),
-            item("Forward", #selector(DocumentWindowController.goForward(_:)), "]"),
+            item("Back", #selector(DocumentWindowController.goBack(_:)), backKey.keyEquivalent, backKey.modifiers),
+            item("Forward", #selector(DocumentWindowController.goForward(_:)), forwardKey.keyEquivalent, forwardKey.modifiers),
         ])
         submenu("Tools", [noToolsItem()])
         submenu("Window", [

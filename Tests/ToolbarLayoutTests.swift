@@ -28,7 +28,7 @@ private final class BareDocument: PluginDocument {
         defer { controller.close() }
         // Back and Forward, which Markdown documents get, come between the separator and Open With.
         #expect(Array(identifiers(controller).prefix(5))
-                == [NSToolbarItem.Identifier.toggleSidebar.rawValue, NSToolbarItem.Identifier.sidebarTrackingSeparator.rawValue,
+                == ["sidebar", NSToolbarItem.Identifier.sidebarTrackingSeparator.rawValue,
                     "back", "forward", "openWith"])
     }
 

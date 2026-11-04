@@ -46,10 +46,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         return await OpenElsewhere.confirm(url, on: window)
     }
     var beep: () -> Void = { NSSound.beep() }
+    private let tips: TipStore
+    /// The first-use tip showing now, if any, and its words.
+    private(set) var tipPopover: NSPopover?
+    private(set) var tipText: String?
+    /// Whether a toolbar item is on screen to point a tip at, and how a tip is shown. Tests replace both: an off-screen
+    /// test window shows no toolbar, and a bubble shouldn't pop up during a test run.
+    var isOnScreen: (NSToolbarItem) -> Bool = { $0.isVisible && $0.toolbar?.isVisible == true }
+    var presentTip: (NSPopover, NSToolbarItem) -> Void = { popover, item in popover.show(relativeTo: item) }
 
     init(url: URL, catalog: PluginCatalog, config: Config, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?,
-         sidebarMemory: SidebarMemory = .shared) {
+         sidebarMemory: SidebarMemory = .shared, tips: TipStore = .shared) {
         self.sidebarMemory = sidebarMemory
+        self.tips = tips
         self.url = url
         history = NavigationHistory(NavigationHistory.Entry(url: url, pluginID: ""))
         self.catalog = catalog
@@ -84,6 +93,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         guard tool.spec.isEditTool else {
             guard pressed.isSingleKey, !typing else { return false }
             document.run(tool.spec)
+            showTipIfNeeded(forToolAt: document.tools.firstIndex { $0.spec.id == tool.spec.id })
             return true
         }
         switch document.editability {
@@ -92,6 +102,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         case .notEditable: return false
         }
         document.run(tool.spec)
+        showTipIfNeeded(forToolAt: document.tools.firstIndex { $0.spec.id == tool.spec.id })
         return true
     }
 
@@ -185,6 +196,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSToolbarItem)?.tag ?? (sender as? NSControl)?.tag ?? -1
         guard let document = current, document.tools.indices.contains(tag) else { return }
         document.run(document.tools[tag].spec)
+        showTipIfNeeded(forToolAt: tag)
         showActiveTool()  // clicking a toolbar tool selects it; only the document's active one stays selected
         showToolStates()
     }
@@ -203,11 +215,40 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         identifier.rawValue.hasPrefix("tool.") ? Int(identifier.rawValue.dropFirst("tool.".count)) : nil
     }
 
-    /// Shows the document's active tool as the toolbar's selected item, or none.
+    /// The first time a tool with a tip runs, shows the tip in a bubble from its toolbar item, then never again. A tool
+    /// that's greyed out, or whose item isn't on screen (toolbar hidden, or the item in the overflow menu), keeps its tip
+    /// for a later run.
+    func showTipIfNeeded(forToolAt index: Int?) {
+        guard let index, let document = current, document.tools.indices.contains(index) else { return }
+        let (spec, shortcut) = document.tools[index]
+        let id = "\(document.entry.id).\(spec.id)"
+        guard let tip = spec.tip, !tips.hasShown(id), unavailableReason(forToolAt: index) == nil,
+              let item = window?.toolbar?.items.first(where: { toolIndex($0.itemIdentifier) == index }), isOnScreen(item) else { return }
+        let text = TipStore.text(tip, title: spec.title, key: shortcut)
+        let label = NSTextField(wrappingLabelWithString: text)
+        label.preferredMaxLayoutWidth = 260
+        let content = NSViewController()
+        let box = NSStackView(views: [label])
+        box.edgeInsets = NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14)
+        content.view = box
+        content.preferredContentSize = box.fittingSize  // a popover doesn't size itself to its content
+        let popover = NSPopover()
+        popover.contentViewController = content
+        popover.behavior = .transient  // the next click anywhere closes it
+        presentTip(popover, item)
+        tipPopover = popover
+        tipText = text
+        tips.markShown(id)
+    }
+
+    /// Fills the document's active tool's capsule with the accent color, and only that one. (Selectable items
+    /// would lose their capsules.)
     private func showActiveTool() {
         let active = current?.pluginDocument?.activeTool
-        let index = current?.tools.firstIndex { $0.spec.id == active }
-        window?.toolbar?.selectedItemIdentifier = index.map { NSToolbarItem.Identifier("tool.\($0)") }
+        for item in window?.toolbar?.items ?? [] {
+            guard let index = toolIndex(item.itemIdentifier), let tools = current?.tools, tools.indices.contains(index) else { continue }
+            item.style = tools[index].spec.id == active ? .prominent : .plain
+        }
     }
 
     @objc private func reopenWith(_ sender: NSPopUpButton) {
@@ -317,7 +358,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         if item.action == #selector(goForward(_:)) { return history.canGoForward }
         guard item.action == #selector(runTool(_:)) else { return true }
         let reason = unavailableReason(forToolAt: item.tag)
-        item.toolTip = reason ?? current.flatMap { $0.tools.indices.contains(item.tag) ? $0.tools[item.tag].spec.title : nil }
+        item.toolTip = reason ?? current.flatMap { document in
+            document.tools.indices.contains(item.tag) ? Shortcut.tooltip(title: document.tools[item.tag].spec.title, shortcut: document.tools[item.tag].shortcut) : nil
+        }
         return reason == nil
     }
 
@@ -405,11 +448,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     /// Takes a newly saved config; Open With switches use it too.
     func apply(_ config: Config) {
+        let captions = (self.config.showShortcuts, current?.tools.map(\.shortcut))
         self.config = config
         current?.apply(config)
         let shown = openWithChoices.map(\.id)
         refreshOpenWith()
-        if openWithChoices.map(\.id) != shown { rebuildToolbar() }
+        // The items' captions show the keys, so a changed key or the captions turned on or off rebuilds them too.
+        if openWithChoices.map(\.id) != shown || captions != (config.showShortcuts, current?.tools.map(\.shortcut)) { rebuildToolbar() }
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -450,28 +495,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let view = shown.filter { !document.tools[$0].spec.isEditTool }.map(identifier)
         let tools = shown.filter { document.tools[$0].spec.isEditTool }.map(identifier)
         // The tracking separator keeps the sidebar button over the sidebar, as in Finder, and the rest past it. A space
-        // between the two runs of tools puts view tools and edit tools on separate pieces of glass.
-        return (document.hasSidebar ? [.toggleSidebar, .sidebarTrackingSeparator] : []) + (showsBackAndForward ? [Self.back, Self.forward] : [])
+        // between tools puts each on a capsule of its own, view tools first.
+        return (document.hasSidebar ? [Self.sidebar, .sidebarTrackingSeparator] : []) + (showsBackAndForward ? [Self.back, Self.forward] : [])
             + openWithItem + [.flexibleSpace]
-            + view + (view.isEmpty || tools.isEmpty ? [] : [.space]) + tools
+            + (view + tools).flatMap { [$0, NSToolbarItem.Identifier.space] }.dropLast()
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         toolbarDefaultItemIdentifiers(toolbar)
     }
 
-    /// The tools: the document's active one shows selected, the toolbar's native look for one choice at a time.
-    func toolbarSelectableItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        toolbarDefaultItemIdentifiers(toolbar).filter { identifier in
-            toolIndex(identifier).map { isSwitch(at: $0) == false } ?? false
-        }
-    }
-
-    /// Whether the tool turns something on and off, so its button shows that instead of being selectable.
-    private func isSwitch(at index: Int) -> Bool {
-        guard let document = current, document.tools.indices.contains(index) else { return false }
-        return document.pluginDocument?.isOn(document.tools[index].spec.id) != nil
-    }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if let item = navigationItem(identifier) { return item }
@@ -488,11 +521,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             item.toolTip = "Open With"
             return item
         }
-        guard let document = current, let index = Int(identifier.rawValue.dropFirst("tool.".count)), document.tools.indices.contains(index) else { return nil }
-        let spec = document.tools[index].spec
+        guard let document = current, let index = toolIndex(identifier), document.tools.indices.contains(index) else { return nil }
+        let (spec, shortcut) = document.tools[index]
         item.label = spec.title
-        item.toolTip = spec.title
-        let image = spec.symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: spec.title) }
+        item.toolTip = Shortcut.tooltip(title: spec.title, shortcut: shortcut)
+        let image = ToolbarImage.make(symbol: spec.symbol, name: spec.title, key: shortcut, showsKey: showsKeys)
         if let on = document.pluginDocument?.isOn(spec.id) {
             let button = NSButton(image: image ?? NSImage(), target: self, action: #selector(runTool(_:)))
             button.setButtonType(.pushOnPushOff)
@@ -508,4 +541,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         item.action = #selector(runTool(_:))
         return item
     }
+
+    /// Whether toolbar items show their keys beside their icons.
+    var showsKeys: Bool { config.showShortcuts }
 }

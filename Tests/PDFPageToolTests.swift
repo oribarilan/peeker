@@ -43,8 +43,8 @@ private func texts(_ document: PDFDocument) -> [String] {
 @Suite(.serialized) struct PDFPageTools {
     @Test func theToolsAreEditToolsWithTheirShortcuts() {
         let byID = Dictionary(uniqueKeysWithValues: PDFPlugin.tools.map { ($0.id, $0) })
-        #expect(byID["rotate-left"]?.shortcut == "cmd+l" && byID["rotate-left"]?.isEditTool == true)
-        #expect(byID["rotate-right"]?.shortcut == "cmd+r" && byID["rotate-right"]?.isEditTool == true)
+        #expect(byID["rotate-left"]?.shortcut == nil && byID["rotate-left"]?.isEditTool == true, "rotating is rare enough to have no default key")
+        #expect(byID["rotate-right"]?.shortcut == nil && byID["rotate-right"]?.isEditTool == true)
         #expect(byID["delete-page"]?.isEditTool == true)
     }
 

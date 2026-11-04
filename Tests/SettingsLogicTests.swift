@@ -59,6 +59,19 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         }
     }
 
+    @Test func showTipsAgainIsOnOnceATipWasShownAndAsksTheAppToReset() throws {
+        try withDefaults { defaults in
+            let model = try model(defaults)
+            #expect(!model.hasShownTips)
+            TipStore(defaults: defaults).markShown("pdf.highlight")
+            #expect(model.hasShownTips)
+            var resets = 0
+            model.resetTips = { resets += 1 }
+            model.showTipsAgain()
+            #expect(resets == 1)
+        }
+    }
+
     @Test func resetPanelSizeAsksTheAppToResetThePanel() throws {
         try withDefaults { defaults in
             let model = try model(defaults)
@@ -229,6 +242,17 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         model.showWhatsNew = false
         #expect(try saved(file)?["showWhatsNew"] as? Bool == false)
         #expect(!model.showWhatsNew)
+    }
+
+    @Test func clearingShortcutCaptionsRewritesTheConfig() throws {
+        let file = try TempFile.make(Data("{}".utf8), name: "config.json")
+        let store = ConfigStore(url: file, plugins: plugins)
+        defer { store.stop() }
+        let model = SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"))
+        model.showShortcuts = false
+        let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        #expect(saved["showShortcuts"] as? Bool == false)
+        #expect(!model.showShortcuts)
     }
 
     @Test func theModesHaveTheirSettingsNames() {

@@ -55,6 +55,13 @@ final class SettingsModel {
     @ObservationIgnored var onRecordingChange: ((Bool) -> Void)?
     /// Forgets the Peek panel's saved frame; the app sets it.
     @ObservationIgnored var resetPeekPanel: () -> Void = {}
+    /// Forgets which first-use tips were shown; the app sets it.
+    @ObservationIgnored var resetTips: () -> Void = {}
+
+    /// Whether any first-use tip has been shown, which Show Tips Again undoes.
+    var hasShownTips: Bool { defaults.map { TipStore(defaults: $0).hasShownAny } ?? false }
+
+    func showTipsAgain() { resetTips() }
 
     /// Whether the user has moved or resized the Peek panel, which Reset Panel Size undoes.
     var hasSavedPeekPanelFrame: Bool { defaults.map(PeekPanel.hasSavedFrame(in:)) ?? false }
@@ -103,6 +110,12 @@ final class SettingsModel {
     var textAppearance: String {
         get { store.config.textAppearance }
         set { save { $0.textAppearance = newValue } }
+    }
+
+    /// The "Show shortcuts in the toolbar" checkbox: the config's `showShortcuts`.
+    var showShortcuts: Bool {
+        get { store.config.showShortcuts }
+        set { save { $0.showShortcuts = newValue } }
     }
 
     var plugins: [PluginEntry] { store.plugins }

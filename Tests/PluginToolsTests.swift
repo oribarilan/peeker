@@ -55,7 +55,13 @@ import Testing
     }
 
     @Test func signLeavesControlCommandSToTheSidebar() {
-        #expect(PDFPlugin.tools.first { $0.id == "sign" }?.shortcut == nil)
+        let keys = Dictionary(uniqueKeysWithValues: PDFPlugin.tools.map { ($0.id, $0.shortcut) })
+        #expect(keys["text-box"] == "t" && keys["sign"] == "s" && keys["highlight"] == "h", "single letters, as Crop's C")
+        #expect(keys["delete-page"] == .some(nil), "nothing destructive on a bare key")
+        let tipped = PDFPlugin.tools.filter { $0.tip != nil }.map(\.id)
+        #expect(tipped == ["text-box", "sign", "highlight"], "the tools that wait for a next step")
+        #expect(PDFPlugin.tools.first { $0.id == "highlight" }?.tip?.contains("{key}") == true, "the key as the user set it")
+        #expect(ImagePlugin.tools.filter { $0.tip != nil }.map(\.id) == ["crop"])
     }
 
     /// Option-Command-W is the standard key for closing all windows.

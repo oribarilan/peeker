@@ -30,6 +30,15 @@ struct AppearancePane: View {
             .pickerStyle(.segmented)
             .disabled(!model.store.isUsable)
             Section {
+                Toggle("Show shortcuts in the toolbar", isOn: $model.showShortcuts)
+            } header: {
+                Text("Toolbar")
+            } footer: {
+                Text("Each toolbar tool shows its key beside its icon. Off, the keys stay in tooltips, the menus and the plugin panes.")
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!model.store.isUsable)
+            Section {
                 LazyVGrid(columns: columns, spacing: 12) {
                     let dark = ThemeCard.isDark(textAppearance: model.textAppearance, appIsDark: scheme == .dark)
                     ForEach(TextTheme.all, id: \.id) { theme in

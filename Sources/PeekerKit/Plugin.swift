@@ -225,14 +225,18 @@ public struct ToolSpec: Sendable, Equatable {
     public let isEditTool: Bool
     /// False keeps the tool out of the toolbar: it's in its menu, with its shortcut, only. Zoom tools are.
     public let showsInToolbar: Bool
+    /// What to do next, shown once from the toolbar button the first time the tool runs, for tools that wait for a
+    /// selection, a click or a drag. `{key}` stands for the tool's key, which the user may have changed.
+    public let tip: String?
 
     public init(id: String, title: String, symbol: String? = nil, shortcut: String? = nil, isEditTool: Bool = false,
-                showsInToolbar: Bool = true) {
+                showsInToolbar: Bool = true, tip: String? = nil) {
         self.id = id
         self.title = title
         self.symbol = symbol
         self.shortcut = shortcut
         self.isEditTool = isEditTool
         self.showsInToolbar = showsInToolbar
+        self.tip = tip
     }
 }

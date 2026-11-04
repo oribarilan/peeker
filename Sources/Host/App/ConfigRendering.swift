@@ -25,6 +25,7 @@ extension Config {
             "textTheme": textTheme,
             "appearance": appearance,
             "textAppearance": textAppearance,
+            "showShortcuts": showShortcuts,
             "plugins": pluginSettings,
         ]
         // Can't fail: the tree holds only strings, booleans, arrays and dictionaries.
