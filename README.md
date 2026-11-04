@@ -38,6 +38,8 @@ scripts/build.sh                     # Release build into build/dd; scripts/buil
 open build/dd/Build/Products/Release/Peeker.app
 ```
 
+[CONTRIBUTING.md](CONTRIBUTING.md) covers how the code fits together, tests, the changelog and versions.
+
 ## Use it every day
 
 1. Build, then copy the app: `cp -R build/dd/Build/Products/Release/Peeker.app /Applications/`.
