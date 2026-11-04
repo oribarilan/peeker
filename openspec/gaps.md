@@ -23,7 +23,3 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 ## Future work
 
 - **Find and Print in the Peek panel.** Both work only in Editor windows for now (decided 2026-10-31). The panel never takes the keyboard from Finder, so Cmd+F and Cmd+P go to Finder; making them work means routing them through the global key monitor and handing keyboard focus to the panel and back.
-
-## Risks
-
-- **Space waits on Finder** (peek-panel). Space asks Finder for its selection through a synchronous Apple Event on the main thread. While Finder is busy, Space does nothing, and a hung Finder could freeze Peeker for up to the event's two-minute timeout. Seen only in the recorded flow, which selects files through Finder a moment before pressing Space. If it shows up in real use, cap the wait at a fraction of a second and pass Space on to Finder.
