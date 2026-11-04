@@ -14,7 +14,7 @@
 ## 3. Docs and version
 
 - [x] 3.1 Add an Unreleased line to CHANGELOG ("Photos stay sharp when zoomed in or at Actual Size."); in openspec/gaps.md cut the zoom part of the Images line and keep the multi-page TIFF part; check README.md says nothing about decoding at screen size (it didn't when this was written). Verify `openspec validate --all --strict`
-- [ ] 3.2 Bump `MARKETING_VERSION` in `project.yml` to `0.6.2-dev` (a fix), in its own commit after the change's, when the maintainer asks for the commits; verify `scripts/build.sh` succeeds
+- [x] 3.2 Bump `MARKETING_VERSION` in `project.yml` to `0.6.2-dev` (a fix), in its own commit after the change's, when the maintainer asks for the commits; verify `scripts/build.sh` succeeds
 
 ## 4. Screen test
 
@@ -29,3 +29,5 @@
 ## Workflow follow-up
 
 - Archive with `/opsx:archive` once done.
+
+The four changes landed together, so they share one bump, to `0.7.0-dev` (8a40ced).

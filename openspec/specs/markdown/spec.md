@@ -8,16 +8,21 @@ The Markdown plugin: edit `.md` files in a window as source styled while you typ
 
 ### Requirement: Renders Markdown with native text
 
-The Peek panel SHALL show Markdown files rendered: headings, paragraphs with bold, italic, inline code and strikethrough, ordered and unordered lists, task lists, code blocks, block quotes, horizontal rules and tables. Images SHALL appear as their alt text in brackets, not as pictures. A file that isn't text SHALL show an error.
+The Peek panel SHALL show Markdown files rendered: headings, paragraphs with bold, italic, inline code and strikethrough, ordered and unordered lists, task lists, code blocks, block quotes, horizontal rules and tables. Images on this Mac SHALL appear as pictures and every other image as its alt text in brackets, as the image requirements below describe. A file that isn't text SHALL show an error.
 
 #### Scenario: A README
 
 - **WHEN** the user presses Space on a README with headings, a list and a code block
 - **THEN** the Peek panel shows it rendered, with the code block in a monospaced font and no `#` before the headings
 
+#### Scenario: A README with a screenshot
+
+- **WHEN** the user presses Space on a README with `![Main window](docs/window.png)` and that file exists
+- **THEN** the Peek panel shows the screenshot as a picture where the image is written, not `[Main window]`
+
 ### Requirement: Links open outside the app
 
-In the Editor a plain click on a link SHALL place the cursor, and Cmd-click SHALL open it; in the Peek panel a click SHALL open it. A web link (`http:` or `https:`) or an email link (`mailto:`) SHALL open with the system's default handler. Any other scheme, such as `file:` or another app's own, SHALL first ask, showing the address, and open only after Open. A link without a scheme SHALL do nothing.
+In the Editor a plain click on a link SHALL place the cursor, and Cmd-click SHALL follow it; in the Peek panel a click SHALL follow it. A web link (`http:` or `https:`) or an email link (`mailto:`) SHALL open with the system's default handler. Any other scheme, such as `file:` or another app's own, SHALL first ask, showing the address, and open only after Open. A link without a scheme SHALL be followed inside Peeker, as a heading link or a link to a file.
 
 #### Scenario: Web link
 
@@ -33,6 +38,11 @@ In the Editor a plain click on a link SHALL place the cursor, and Cmd-click SHAL
 
 - **WHEN** the user Cmd-clicks a `file:` link or a link with another app's scheme
 - **THEN** Peeker asks whether to open it, showing the address, and opens it only after Open
+
+#### Scenario: Relative link
+
+- **WHEN** the user Cmd-clicks a link to `other.md` in the Editor
+- **THEN** Peeker follows it inside the app instead of doing nothing
 
 ### Requirement: Outline and info in the sidebar
 
@@ -184,3 +194,173 @@ A Markdown file SHALL open in the Editor with the cursor at the start of the tex
 
 - **WHEN** the user opens a Markdown file with 4,000 headings
 - **THEN** the cursor is at the start, the outline marks the first heading and shows the top of the list
+
+### Requirement: Actual Size in the Markdown Editor
+
+Actual Size (Cmd+0) SHALL put the Markdown Editor's text back at the size it opens at, every style together, listed in the View menu only, with no toolbar button. The Markdown Editor SHALL NOT offer Zoom to Fit, since its text always wraps to the window's width.
+
+#### Scenario: Back to the default size
+
+- **WHEN** the user presses Cmd+= twice in a Markdown window and then Cmd+0
+- **THEN** body text and headings are at the sizes they opened at, and View lists Zoom In, Zoom Out and Actual Size but no Zoom to Fit
+
+### Requirement: Local images show as pictures
+
+In the Peek panel and in print, an image whose source is a path relative to the Markdown file's folder, an absolute path or a `file:` URL SHALL show as a picture. A picture SHALL scale down to fit the text width, keeping its proportions, and SHALL never be drawn larger than its pixel size, one point per pixel. The Editor SHALL keep showing the image's Markdown source.
+
+#### Scenario: A relative path
+
+- **WHEN** `notes/plan.md` contains `![chart](img/chart.png)` and `notes/img/chart.png` exists
+- **THEN** the Peek panel shows that chart as a picture
+
+#### Scenario: A wide picture
+
+- **WHEN** the image is 3000 pixels wide and the text is 600 points wide
+- **THEN** the picture is drawn 600 points wide with its height scaled to match, and it narrows or widens with the panel up to 3000 points
+
+#### Scenario: A small picture
+
+- **WHEN** the image is 120 by 40 pixels
+- **THEN** the picture is drawn 120 by 40 points, however wide the text is
+
+#### Scenario: Printing
+
+- **WHEN** the user prints a Markdown file with a local image from the Editor
+- **THEN** the printout shows the picture, fitted to the page width
+
+#### Scenario: The Editor
+
+- **WHEN** the user opens the same file in a window
+- **THEN** the window shows the line `![chart](img/chart.png)` as styled source, with no picture
+
+### Requirement: Web images are never fetched
+
+An image whose source is a web address (`http:` or `https:`), a `data:` URI or any scheme other than `file:` SHALL show its alt text in brackets, as before, and opening or printing the file SHALL never fetch it or reach the network for it.
+
+#### Scenario: A badge
+
+- **WHEN** a README contains `![build](https://example.com/badge.svg)`
+- **THEN** the Peek panel shows `[build]` and makes no network request
+
+### Requirement: Images that can't show keep their alt text
+
+An image SHALL show its alt text in brackets when its file is missing, isn't a regular file, can't be read, isn't a picture the system can decode, is over 20 MB or 50 megapixels, is an iCloud file not yet downloaded, sits in a table cell, or comes after the document's 50th picture. A missing image SHALL never show an error or a broken-picture mark.
+
+#### Scenario: A missing file
+
+- **WHEN** a file contains `![diagram](diagram.png)` and no `diagram.png` sits beside it
+- **THEN** the Peek panel shows `[diagram]` as it did before
+
+#### Scenario: Not a picture
+
+- **WHEN** an image's source points at a text file or a folder
+- **THEN** the Peek panel shows its alt text in brackets
+
+#### Scenario: Many images
+
+- **WHEN** a file has 60 local images that all exist
+- **THEN** the first 50 show as pictures and the last 10 show their alt text
+
+### Requirement: Pictures never hold up the text
+
+The Peek panel SHALL draw a Markdown file's text without waiting for its pictures to decode, with each picture's space already laid out so the text doesn't move when it arrives. Pictures SHALL decode off the main thread, at no more pixels than they are drawn at, and SHALL stop decoding when the panel closes. Opening a file without local images SHALL do no extra work.
+
+#### Scenario: Large pictures
+
+- **WHEN** the user presses Space on a file with five large photos referenced by relative paths
+- **THEN** the text shows first and each photo appears in its place as it decodes, without the text below it moving
+
+#### Scenario: Closing early
+
+- **WHEN** the user closes the Peek panel while pictures are still decoding
+- **THEN** the remaining pictures aren't decoded
+
+### Requirement: Heading links go to the heading
+
+A link that is `#` followed by a name SHALL go to the heading in the same file whose name matches, ignoring case, after decoding percent escapes. In the Editor the cursor SHALL move to the start of the heading's line and the view SHALL scroll to it; in the Peek panel the view SHALL scroll to it. A name that matches no heading SHALL beep and move nothing. HTML anchors such as `<a id="x">` SHALL not count as headings.
+
+#### Scenario: Jumping to a section
+
+- **WHEN** the user Cmd-clicks `[see install](#install)` in a file with a `## Install` heading
+- **THEN** the view scrolls to Install and the cursor sits at the start of its line
+
+#### Scenario: No such heading
+
+- **WHEN** the user Cmd-clicks a link to `#missing` in a file with no heading of that name
+- **THEN** Peeker beeps and the view and cursor stay where they were
+
+#### Scenario: An HTML anchor
+
+- **WHEN** the file has `<a id="top"></a>` and no heading named top, and the user follows `#top`
+- **THEN** Peeker beeps
+
+### Requirement: Headings are named by GitHub's rule
+
+A heading's name SHALL be its text as shown, lowercased, with each space turned into a hyphen and every character other than letters, digits, hyphens and underscores dropped. When two headings get the same name, the second SHALL get `-1` added, the third `-2`, and so on, in the order they appear.
+
+#### Scenario: Punctuation
+
+- **WHEN** a file has the heading `## What's new?`
+- **THEN** a link to `#whats-new` goes to it
+
+#### Scenario: Code and emphasis
+
+- **WHEN** a file has the heading ``## The `peek` **command**``
+- **THEN** a link to `#the-peek-command` goes to it
+
+#### Scenario: Repeated headings
+
+- **WHEN** a file has two `## Notes` headings
+- **THEN** `#notes` goes to the first and `#notes-1` to the second
+
+### Requirement: Links to Markdown files open in the same tab
+
+A link without a scheme that names a path SHALL be resolved against the folder of the file it is in, after decoding percent escapes; a path starting with `/` SHALL start at the disk's root. In the Editor, a link to a file the Markdown plugin opens SHALL show that file in the same tab, at the heading its `#name` names, or else at the top. A link to the file itself SHALL act as a heading link, or do nothing without a `#name`. A link to a file that doesn't exist SHALL beep.
+
+#### Scenario: Another Markdown file
+
+- **WHEN** the user Cmd-clicks `[guide](docs/guide.md)` in `README.md`
+- **THEN** the same tab shows `docs/guide.md` from the top, and no new tab opens
+
+#### Scenario: A heading in another file
+
+- **WHEN** the user Cmd-clicks `[setup](../other.md#setup)`
+- **THEN** the tab shows `other.md`, the folder above, scrolled to its Setup heading
+
+#### Scenario: A name with spaces
+
+- **WHEN** the user Cmd-clicks `[notes](my%20notes.md)` and `my notes.md` exists next to the file
+- **THEN** the tab shows `my notes.md`
+
+#### Scenario: Missing file
+
+- **WHEN** the user Cmd-clicks a link to `gone.md` and no such file exists
+- **THEN** Peeker beeps and the tab stays as it was
+
+### Requirement: Links to other files open outside the tab
+
+A link without a scheme to an existing file the Markdown plugin doesn't open SHALL open in Peeker in its own tab when an enabled plugin opens it. Otherwise, a folder included, Peeker SHALL first ask, as for a `file:` link, showing the path, and open it in its default app only after Open. Neither SHALL change the tab the link was in or its history.
+
+#### Scenario: A text file
+
+- **WHEN** the user Cmd-clicks `[log](./notes/a.txt)`
+- **THEN** `a.txt` opens in Plain Text in a new tab, and the Markdown tab is unchanged
+
+#### Scenario: A file no plugin opens
+
+- **WHEN** the user Cmd-clicks a link to `report.numbers`, which no enabled plugin opens
+- **THEN** Peeker asks whether to open it, showing its path, and opens it in its default app only after Open
+
+### Requirement: Links in the Peek panel
+
+In the Peek panel a heading link SHALL scroll to the heading. A link to another existing file SHALL close the panel and open the file in an Editor window, as Open in Peeker does, at the heading its `#name` names; a file no plugin opens SHALL ask first, as in the Editor. A missing file or heading SHALL beep. The panel SHALL keep no history.
+
+#### Scenario: Heading link in the panel
+
+- **WHEN** the user clicks a `#install` link in the Peek panel
+- **THEN** the panel scrolls to Install and Finder keeps the keyboard
+
+#### Scenario: File link in the panel
+
+- **WHEN** the user clicks `[setup](other.md#setup)` in the Peek panel
+- **THEN** the panel closes and `other.md` opens in an Editor window, scrolled to Setup

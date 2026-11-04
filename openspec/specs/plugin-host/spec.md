@@ -17,12 +17,17 @@ Each plugin SHALL be code built into the app that declares an id, a display name
 
 ### Requirement: Plugins draw their own content
 
-A plugin SHALL provide the native views for its file's content and its sidebar panels, and the tools it offers. The host SHALL provide the window, tabs, toolbar, Open With and the menus that list plugin tools (View and Tools). Plugins that zoom SHALL use Cmd+= and Cmd+- for it.
+A plugin SHALL provide the native views for its file's content and its sidebar panels, and the tools it offers. The host SHALL provide the window, tabs, toolbar, Open With and the menus that list plugin tools (View and Tools). Plugins that zoom SHALL use Cmd+= and Cmd+- for it, and Cmd+0 for Actual Size and Cmd+9 for Zoom to Fit wherever they offer those.
 
 #### Scenario: Highlighting a PDF selection
 
 - **WHEN** the user runs Highlight Selection on a PDF
 - **THEN** the PDF plugin's own view draws the highlight
+
+#### Scenario: The same zoom keys in every plugin
+
+- **WHEN** the user presses Cmd+0 in an image, a PDF, a text file and a Markdown window in turn
+- **THEN** each shows its content at actual size, the way its plugin defines it
 
 ### Requirement: Plugin code is isolated
 
@@ -204,9 +209,9 @@ A document MAY name one of its tools as active, such as a tool waiting for its c
 - **WHEN** a PDF document names Text Box as its active tool
 - **THEN** the window's Text Box toolbar button shows as selected and Tools > Text Box is checked, until the document names none
 
-### Requirement: The menu bar holds seven menus
+### Requirement: The menu bar holds eight menus
 
-The menu bar SHALL hold Peeker, File, Edit, View, Tools, Window and Help, in that order, whichever window is in front and whatever its plugin. A document's view tools SHALL be listed in View and its edit tools in Tools, with the shortcuts they have.
+The menu bar SHALL hold Peeker, File, Edit, View, Go, Tools, Window and Help, in that order, whichever window is in front and whatever its plugin. A document's view tools SHALL be listed in View and its edit tools in Tools, with the shortcuts they have.
 
 #### Scenario: An image in front
 - **WHEN** an image document is in front
@@ -214,7 +219,7 @@ The menu bar SHALL hold Peeker, File, Edit, View, Tools, Window and Help, in tha
 
 #### Scenario: Switching tabs
 - **WHEN** the user switches from a PDF tab to a Markdown tab
-- **THEN** the same seven menus stay in the menu bar, and View and Tools list the Markdown document's tools
+- **THEN** the same eight menus stay in the menu bar, and View and Tools list the Markdown document's tools
 
 ### Requirement: The Tools menu lists edit tools
 
@@ -263,3 +268,26 @@ When a file opens in the Editor, its content SHALL show before the window adds t
 
 - **WHEN** the user opens a PDF
 - **THEN** its pages show, and its tools join the toolbar in the next frame
+
+### Requirement: A document can follow links
+
+A document SHALL be able to hand the host a link to a local file, its own file included, with an optional place name such as a heading's; to tell the host where it is scrolled; and to go to a place by name, saying whether that place exists. The host SHALL decide where each link goes and keep the history. A document that doesn't take part SHALL work as before, with no Back or Forward.
+
+#### Scenario: Markdown hands over a link
+
+- **WHEN** the user follows a link to `other.md` in a Markdown document
+- **THEN** the host, not the plugin, decides whether it opens in the same tab, its own tab or another app
+
+#### Scenario: A plugin that doesn't take part
+
+- **WHEN** a text file is open in the Editor
+- **THEN** its window has no Back or Forward buttons and works as it did before
+
+### Requirement: The Go menu
+
+Go SHALL offer Back (Cmd-[) and Forward (Cmd-]), which move through the front Editor tab's history. Each SHALL be greyed out when there's no place in its direction or no Editor window is in front.
+
+#### Scenario: The Peek panel in front
+
+- **WHEN** only the Peek panel and Settings are open
+- **THEN** Go > Back and Go > Forward are greyed out

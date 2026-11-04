@@ -30,7 +30,7 @@ Test first throughout: write or change the test, see it fail, then change the co
 - [x] 5.3 Run `scripts/build.sh` and `scripts/build.sh test`; verify no new warnings and every suite passes
 - [x] 5.4 Run `scripts/bench-ab.sh main` once; verify no regression (nothing should touch the open path)
 - [x] 5.5 Run `openspec validate --all --strict`; verify it passes
-- [ ] 5.6 In `docs/design-review-2026-11-01.md`, set the status of M6, M7 and D2 to "fixed (commit)", filling in the short hash of the commit that lands this change at commit time
+- [x] 5.6 In `docs/design-review-2026-11-01.md`, set the status of M6, M7 and D2 to "fixed (commit)", filling in the short hash of the commit that lands this change at commit time
 
 ## Workflow follow-up
 

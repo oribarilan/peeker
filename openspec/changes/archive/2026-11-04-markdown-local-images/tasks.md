@@ -23,7 +23,7 @@
 ## 5. Docs and version
 
 - [x] 5.1 Add a CHANGELOG line under Unreleased ("The Peek panel and printing show images stored on your Mac in Markdown files; web images still show their alt text, so nothing is fetched."); remove "images show as their alt text;" from the Markdown line in `openspec/gaps.md`, leaving the rest of the line; verify `openspec validate --all --strict` passes
-- [ ] 5.2 In its own commit after the change's, bump `MARKETING_VERSION` in `project.yml` to the next minor `-dev` version (from `0.6.1-dev`, `0.7.0-dev`, unless another change bumped it first); verify `scripts/build.sh` shows the new version in the built app's Info.plist
+- [x] 5.2 In its own commit after the change's, bump `MARKETING_VERSION` in `project.yml` to the next minor `-dev` version (from `0.6.1-dev`, `0.7.0-dev`, unless another change bumped it first); verify `scripts/build.sh` shows the new version in the built app's Info.plist
 
 ## 6. Screen flow
 
@@ -34,3 +34,5 @@
 
 - [x] 7.1 Run `scripts/build.sh` and `scripts/build.sh test`; verify all tests pass with no new warnings and the plugin import check passes with the new `ImageIO` and `UniformTypeIdentifiers` imports
 - [x] 7.2 With the maintainer's go, run `scripts/bench-ab.sh` against the commit before this change; verify opening the Markdown fixtures (which have no images) doesn't regress. Then time the Peek panel by hand on a Markdown file with five photos against the same file with the image lines removed, and report both numbers with the change
+
+The four changes landed together, so they share one bump, to `0.7.0-dev` (8a40ced).

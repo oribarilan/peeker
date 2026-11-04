@@ -41,7 +41,7 @@ Each code task starts with a failing Swift Testing test next to the existing sui
 
 - [x] 7.1 Add a CHANGELOG line under Unreleased (links to other files and headings in Markdown work, with Back, Forward and a trail); in `openspec/gaps.md` drop "relative links such as `other.md` most likely do nothing (untested)" from the Markdown line, leaving whatever the `markdown-local-images` change left; verify `openspec validate --all --strict` passes
 - [x] 7.2 Extend `scripts/screen/markdown-edit-flow.sh`: write `notes.md` linking to `#later` and to a new `other.md`, Cmd-click the heading link and check the cursor's line, Cmd-click the file link and check the window title is `other.md`, read the trail's crumbs through Accessibility, press Cmd-[ and check `notes.md` is back at its scroll position, click a crumb; and in the panel click the file link and check an Editor window opens. Verify `bash -n`; add the run to `.local/screen-queue.md` for the maintainer's go
-- [ ] 7.3 Bump `MARKETING_VERSION` in `project.yml` to the next minor version in its own commit after this change's (from `0.6.1-dev` to `0.7.0-dev` unless another change bumped it first); verify `scripts/build.sh` builds
+- [x] 7.3 Bump `MARKETING_VERSION` in `project.yml` to the next minor version in its own commit after this change's (from `0.6.1-dev` to `0.7.0-dev` unless another change bumped it first); verify `scripts/build.sh` builds
 
 ## 8. Wrap-up
 
@@ -52,3 +52,5 @@ Each code task starts with a failing Swift Testing test next to the existing sui
 ## Workflow follow-up
 
 - Archive with `/opsx:archive` once the maintainer accepts the change.
+
+The four changes landed together, so they share one bump, to `0.7.0-dev` (8a40ced).
