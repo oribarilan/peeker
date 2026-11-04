@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- With "Show scroll bars" set to Always, Markdown files, images, the outline and the page thumbnails no longer show an empty scroll bar track when there's nothing to scroll; in the Peek panel it sat under the Open in Peeker button.
 - The Peek panel remembers its size and position, and opens on the display with the pointer. Its first size is capped at 900 × 700 points, so it's no longer a tall column on a portrait display, and it can't be made smaller than 400 × 300. Settings > General has Reset Panel Size to go back to the default.
 - Updates found by the daily check no longer pop up behind your work: the menu bar icon shows a dot and its menu offers "Update to" the new version. Peeker can also download and install updates by itself, relaunching once no window is open: pick Download and Install in Settings > General, or `"updates": {"automatic": "download"}` in the config, which replaces `updates.check`. After an update, a window lists what's new; turn it off with "Show what's new after updating" or `updates.showWhatsNew`.
 - Multi-page TIFFs show every page: thumbnails in the sidebar, Next Page and Previous Page in the View menu (Page Down and Page Up), the zoom kept from page to page, and every page printed. The Peek panel still shows the first page. Shortcuts in the config and in Settings can now be `pageup` and `pagedown`.

@@ -75,6 +75,7 @@ final class ImageDocument: PluginDocument {
         scrollView.minMagnification = Self.minimumZoom
         scrollView.maxMagnification = 16
         scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
         scrollView.hasHorizontalScroller = true
         scrollView.drawsBackground = false
         canvas.autoresizingMask = [.width, .height]

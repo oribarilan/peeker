@@ -19,6 +19,7 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
     init(url: URL, parsed: MarkdownPlugin.Parsed) {
         self.url = url
         textView = scrollView.documentView as! NSTextView  // what scrollableTextView() always holds
+        scrollView.autohidesScrollers = true  // no empty track beside a short file when scroll bars always show
         pictures = MarkdownPictures(textView: textView)
         super.init()
         pictures.onFallback = { [weak self] location, delta in

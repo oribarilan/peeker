@@ -79,6 +79,7 @@ final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
         textView.onClick = { [weak self] index, command in self?.click(at: index, command: command) ?? false }
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
         textView.postsFrameChangedNotifications = true
         storage.setAttributedString(NSAttributedString(string: source.file.text, attributes: baseAttributes))
         textView.setSelectedRange(NSRange(location: 0, length: 0))  // setting the text leaves the cursor at its end

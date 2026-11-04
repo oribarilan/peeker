@@ -23,6 +23,7 @@ final class OutlineList: NSScrollView, NSTableViewDataSource, NSTableViewDelegat
         table.action = #selector(clicked)
         documentView = table
         hasVerticalScroller = true
+        autohidesScrollers = true
         drawsBackground = false
         addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
                                        owner: self))

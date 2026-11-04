@@ -27,6 +27,7 @@ final class PageList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         table.setAccessibilityLabel("Pages")
         documentView = table
         hasVerticalScroller = true
+        autohidesScrollers = true
         drawsBackground = false
         select(0)
     }
