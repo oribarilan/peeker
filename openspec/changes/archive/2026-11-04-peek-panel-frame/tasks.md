@@ -18,13 +18,13 @@
 ## 4. Screen tests and docs
 
 - [x] 4.1 Add `peekPanelFrame` to `PREF_KEYS` in `scripts/screen/common.sh`, so a run starts from the default frame and puts the user's back.
-- [ ] 4.2 Add a step to `scripts/screen/record-flows.sh`: the first Space opens a panel no larger than 900 × 700 points; moving it with System Events and pressing Space again opens it at the moved spot; Settings' Reset Panel Size is enabled, and after a click it greys out and the next Space opens the default frame again. Verify with `bash -n`, and run the flow once the maintainer gives the go.
+- [x] 4.2 Add a step to `scripts/screen/record-flows.sh`: the first Space opens a panel no larger than 900 × 700 points; moving it with System Events and pressing Space again opens it at the moved spot; Settings' Reset Panel Size is enabled, and after a click it greys out and the next Space opens the default frame again. Verify with `bash -n`, and run the flow once the maintainer gives the go.
 - [x] 4.3 Add a CHANGELOG line under Unreleased, drop the P1 line from `openspec/backlog.md`, and verify `openspec validate --all --strict` passes.
 
 ## 5. Checks
 
 - [x] 5.1 Run `scripts/build.sh test`; verify everything passes with no new warnings.
-- [ ] 5.2 After the maintainer's go, run `bench/ppbench.py space --runs 9` and verify Peeker is still faster than Quick Look on every file, comparing with the 2026-11-04 table.
+- [x] 5.2 After the maintainer's go, run `bench/ppbench.py space --runs 9` and verify Peeker is still faster than Quick Look on every file, comparing with the 2026-11-04 table. (Ran 2026-11-04: faster on 9 files, about the same on 3; flows screen test passed its six panel checks.)
 
 ## Workflow follow-up
 

@@ -80,7 +80,7 @@ Highest user impact first; sizes in the tables.
 
 | ID | Finding | Where | Rule | Direction | Size | Status |
 |---|---|---|---|---|---|---|
-| P1 | The panel is always 55% × 75% of the main screen's visible area, centered. A resize lasts only until quit, and the shape ignores the file: on a portrait display it's a tall column even for a wide photo. | `Sources/Host/QuickLook/QuickLookPanel.swift:10-14` | Taste (the app remembers) | Remember the frame with `setFrameAutosaveName`. Sizing to the content is a bigger call and must not slow the panel down. | S | open |
+| P1 | The panel is always 55% × 75% of the main screen's visible area, centered. A resize lasts only until quit, and the shape ignores the file: on a portrait display it's a tall column even for a wide photo. | `Sources/Host/QuickLook/QuickLookPanel.swift:10-14` | Taste (the app remembers) | Remember the frame with `setFrameAutosaveName`. Sizing to the content is a bigger call and must not slow the panel down. | S | fixed (17a9a99) |
 
 ## Text and Markdown
 
