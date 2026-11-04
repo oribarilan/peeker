@@ -25,6 +25,28 @@ import UniformTypeIdentifiers
         return url
     }
 
+    @Test func aMultiPageTIFFDecodesAnyPage() async throws {
+        let url = try multiPageTIFF([(40, 20), (30, 60), (10, 10)])
+        let first = try await ImagePlugin.decode(url, maxPixels: 1000)
+        #expect(first.pageCount == 3 && first.pixelSize == CGSize(width: 40, height: 20))
+        let second = try await ImagePlugin.decode(url, maxPixels: 1000, page: 1)
+        #expect(second.pixelSize == CGSize(width: 30, height: 60))
+        #expect((second.image.width, second.image.height) == (30, 60))
+    }
+
+    @Test func onlyATIFFHasPages() async throws {
+        #expect(try await ImagePlugin.decode(twoFrameGIF(), maxPixels: 100).pageCount == 1)
+        #expect(try await ImagePlugin.decode(multiPageTIFF([(20, 20)]), maxPixels: 100).pageCount == 1)
+    }
+
+    @Test func aPagesInfoSaysWhichPageItIs() async throws {
+        let url = try multiPageTIFF([(40, 20), (30, 60), (10, 10)])
+        let rows = await ImagePlugin.info(of: url, page: 1)
+        #expect(rows.first == InfoRow(label: "Page", value: "2 of 3"))
+        #expect(rows.contains(InfoRow(label: "Dimensions", value: "30 × 60")))
+        #expect(await ImagePlugin.info(of: try multiPageTIFF([(20, 20)])).allSatisfy { $0.label != "Page" })
+    }
+
     @Test func appliesTheOrientationTag() async throws {
         // Orientation 6: stored landscape, shown rotated a quarter turn, so it appears portrait.
         let url = try image(width: 40, height: 20, type: .jpeg, orientation: 6)

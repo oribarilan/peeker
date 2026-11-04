@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Multi-page TIFFs show every page: thumbnails in the sidebar, Next Page and Previous Page in the View menu (Page Down and Page Up), the zoom kept from page to page, and every page printed. The Peek panel still shows the first page. Shortcuts in the config and in Settings can now be `pageup` and `pagedown`.
 - Space no longer waits on a busy Finder: if Finder doesn't say what's selected within half a second, the key goes to Finder's Quick Look, and the arrow keys leave the Peek panel as it is.
 - Open With in a window lists only the plugins that can show the file: Markdown and Plain Text for a Markdown file, but no longer Image or PDF. When only one can, the toolbar leaves Open With out and File > Open With is greyed out.
 - Links in Markdown to other files and to headings work. A heading link scrolls to the heading, a link to another Markdown file opens it in the same tab, and any other file opens in a tab of its own. Back and Forward (Cmd-[ and Cmd-], in the toolbar and in a new Go menu) return to where you were, and a trail under the toolbar lists the places you've been. In the Peek panel, a link to a file opens it in a window.

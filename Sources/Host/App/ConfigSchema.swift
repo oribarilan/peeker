@@ -16,7 +16,7 @@ enum ConfigSchema {
                 ],
                 "tools": object("Shortcuts for the plugin's tools.", Dictionary(uniqueKeysWithValues: plugin.tools.map { command in
                     (command.id, object("\(command.title)" + (command.shortcut.map { ". Default: \($0)." } ?? "."), [
-                        "shortcut": ["type": "string", "description": "A key with modifiers, such as cmd+shift+h, or \"off\" for no shortcut. An edit tool may also use a single key, such as c, which works while no text field has the keyboard."],
+                        "shortcut": ["type": "string", "description": "A key with modifiers, such as cmd+shift+h, or \"off\" for no shortcut. Named keys are space, esc, tab, enter, pageup and pagedown. An edit tool may also use a single key, such as c, which works while no text field has the keyboard; any tool may use pageup or pagedown alone."],
                     ]))
                 })),
             ]))

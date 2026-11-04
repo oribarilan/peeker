@@ -1,10 +1,10 @@
 import AppKit
 
-/// A key plus modifiers, written in config as `cmd+shift+e`, `space` or `opt+space`.
+/// A key plus modifiers, written in config as `cmd+shift+e`, `space`, `opt+space` or `pagedown`.
 struct Shortcut: Equatable {
     enum Key: Equatable {
         case character(Character)
-        case space, escape, tab, enter
+        case space, escape, tab, enter, pageUp, pageDown
     }
 
     let key: Key
@@ -15,7 +15,7 @@ struct Shortcut: Equatable {
     enum Rules {
         /// The Peek panel key: Space alone, or a key with Command, Option or Control.
         case peekPanel
-        /// A view tool: always with Command, Option or Control.
+        /// A view tool: with Command, Option or Control, or Page Up or Page Down, which type nothing.
         case viewTool
         /// An edit tool: like a view tool, or a single letter or digit.
         case editTool
@@ -29,7 +29,7 @@ struct Shortcut: Equatable {
                 if shortcut == Shortcut(key: .space) || hasModifier { return nil }
                 return "Use Space alone, or add Command, Option or Control."
             case .viewTool:
-                return hasModifier ? nil : "Add Command, Option or Control."
+                return hasModifier || shortcut.key == .pageUp || shortcut.key == .pageDown ? nil : "Add Command, Option or Control."
             case .editTool:
                 if hasModifier { return nil }
                 if case .character = shortcut.key { return nil }
@@ -68,6 +68,8 @@ struct Shortcut: Equatable {
         case "esc", "escape": .escape
         case "tab": .tab
         case "enter", "return": .enter
+        case "pageup": .pageUp
+        case "pagedown": .pageDown
         default: name.count == 1 && ansiKeyCodes[name.first!] != nil ? .character(name.first!) : nil
         }
     }
@@ -80,6 +82,8 @@ struct Shortcut: Equatable {
         case 53: .escape
         case 48: .tab
         case 36: .enter
+        case 116: .pageUp
+        case 121: .pageDown
         default: Self.ansiKeyCodes.first { $0.value == code }.map { .character($0.key) }
         }
         guard let key else { return nil }
@@ -95,6 +99,8 @@ struct Shortcut: Equatable {
         case .escape: "esc"
         case .tab: "tab"
         case .enter: "enter"
+        case .pageUp: "pageup"
+        case .pageDown: "pagedown"
         }
         return (names.filter { modifiers.contains($0.0) }.map(\.1) + [keyName]).joined(separator: "+")
     }
@@ -108,6 +114,8 @@ struct Shortcut: Equatable {
         case .escape: "Esc"
         case .tab: "Tab"
         case .enter: "Return"
+        case .pageUp: "Page Up"
+        case .pageDown: "Page Down"
         }
         return symbols.filter { modifiers.contains($0.0) }.map(\.1).joined() + name
     }
@@ -123,6 +131,8 @@ struct Shortcut: Equatable {
         case .escape: "\u{1b}"
         case .tab: "\t"
         case .enter: "\r"
+        case .pageUp: String(UnicodeScalar(NSPageUpFunctionKey)!)
+        case .pageDown: String(UnicodeScalar(NSPageDownFunctionKey)!)
         }
     }
 
@@ -133,6 +143,8 @@ struct Shortcut: Equatable {
         case .escape: 53
         case .tab: 48
         case .enter: 36
+        case .pageUp: 116
+        case .pageDown: 121
         case .character(let c): Self.ansiKeyCodes[c]
         }
     }

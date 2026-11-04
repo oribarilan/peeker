@@ -5,6 +5,8 @@ import PeekerKit
 /// crop, rotate, flip and resize, saved on Cmd+S at full resolution.
 final class ImageDocument: PluginDocument {
     private let url: URL
+    /// The largest side a page is decoded at, as opening decoded the first.
+    private let maxPixels: Int
     private let scrollView = NSScrollView()
     /// Below fit, down to an eighth, or to actual size when that's smaller.
     private static let minimumZoom: CGFloat = 1.0 / 8
@@ -15,6 +17,7 @@ final class ImageDocument: PluginDocument {
     /// Editable: crop and Rotate & Resize work from the start.
     var isEditing: Bool { editability == .editable }
     var onEdit: (() -> Void)?
+    var onSidebarChange: (() -> Void)?
     /// The screen-size decode of the file as last loaded or saved, which opening makes, and the file's full size in
     /// pixels. Kept beside `full`: saving starts its next picture from it.
     private var base: CGImage
@@ -25,12 +28,18 @@ final class ImageDocument: PluginDocument {
     /// The full decode while it runs.
     private(set) var sharpening: Task<Void, Never>?
     /// How the full decode is made; tests hold it back.
-    var decodeFull: @concurrent @Sendable (URL, CGSize) async throws(PluginError) -> CGImage = ImagePlugin.decodeFull
-    /// Goes up on each save, so a full decode of the file from before it is dropped.
+    var decodeFull: @concurrent @Sendable (URL, CGSize, Int) async throws(PluginError) -> CGImage = ImagePlugin.decodeFull
+    /// Goes up on each save and page change, so a full decode of the file or page from before it is dropped.
     private var generation = 0
+    /// The page shown, counted from 0; always 0 but for a multi-page TIFF.
+    private(set) var page = 0
     private var pinchObserver: NSObjectProtocol?
-    /// Print points per pixel, from the file's resolution.
-    private let pointsPerPixel: CGFloat
+    /// Print points per pixel, from the file's or page's resolution.
+    private var pointsPerPixel: CGFloat
+    /// The pages of a multi-page TIFF; 1 for any other image.
+    let pageCount: Int
+    /// The decode of the page being moved to, while it runs.
+    private(set) var pageChange: Task<Void, Never>?
     /// The unsaved edits, oldest first.
     private(set) var edits: [ImageEdit] = []
     /// The crop being chosen, and the Rotate & Resize panel, while shown.
@@ -47,8 +56,10 @@ final class ImageDocument: PluginDocument {
     /// Undo for the edits since the last save; a save clears it, since a crop's pixels are then gone from the file.
     private(set) lazy var undoManager = UndoManager()
 
-    init(url: URL, decoded: ImagePlugin.Decoded, editable: Bool) {
+    init(url: URL, decoded: ImagePlugin.Decoded, editable: Bool, maxPixels: Int) {
         self.url = url
+        self.maxPixels = maxPixels
+        pageCount = decoded.pageCount
         base = decoded.image
         baseSize = decoded.pixelSize
         pointsPerPixel = decoded.pointsPerPixel
@@ -74,16 +85,36 @@ final class ImageDocument: PluginDocument {
 
     isolated deinit {
         sharpening?.cancel()
+        pageChange?.cancel()
         pinchObserver.map(NotificationCenter.default.removeObserver)
     }
 
     var contentView: NSView { scrollView }
     /// The canvas takes the keyboard when editable, so Undo reaches the document's history.
     var focusView: NSView? { isEditing ? canvas : nil }
-    func makeSidebar() -> [SidebarPanel] { InfoPanel.make(info).map { [$0] } ?? [] }
+    /// The page thumbnails of a multi-page TIFF, above the info panel.
+    func makeSidebar() -> [SidebarPanel] {
+        (pageList.map { [SidebarPanel($0, sizing: .fill)] } ?? []) + (InfoPanel.make(info).map { [$0] } ?? [])
+    }
+
+    /// The thumbnails of a multi-page TIFF; nil for any other image.
+    private(set) lazy var pageList: PageList? = pageCount > 1
+        ? PageList(url: url, pageCount: pageCount) { [weak self] in self?.showPage($0) } : nil
 
     var tools: [ToolSpec] {
-        editability == .notEditable ? ImagePlugin.tools.filter { !$0.isEditTool } : ImagePlugin.tools
+        ImagePlugin.tools.filter { tool in
+            !(tool.isEditTool && editability == .notEditable) && (pageCount > 1 || !Self.pageTools.contains(tool.id))
+        }
+    }
+
+    private static let pageTools: Set = ["next-page", "previous-page"]
+
+    func unavailableReason(for tool: String) -> String? {
+        switch tool {
+        case "previous-page" where page == 0: "This is the first page."
+        case "next-page" where page == pageCount - 1: "This is the last page."
+        default: nil
+        }
     }
 
     /// The size the window shows, in the pixels of the decode it shows: the screen-size one, or the full one.
@@ -92,8 +123,10 @@ final class ImageDocument: PluginDocument {
     var pixelSize: CGSize { ImageEditing.size(after: edits, from: baseSize) }
 
     /// One page, centered, at the image's own size, shrunk to fit and never enlarged (what fit pagination does).
-    /// It prints the picture the window shows; the screen-size decode is sharp enough for paper.
+    /// It prints the picture the window shows; the screen-size decode is sharp enough for paper. A multi-page TIFF
+    /// prints every page instead.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
+        if pageCount > 1 { return printPages }
         let image = canvas.image
         let size = CGSize(width: pixelSize.width * pointsPerPixel, height: pixelSize.height * pointsPerPixel)
         return { info in
@@ -109,6 +142,17 @@ final class ImageDocument: PluginDocument {
         }
     }
 
+    /// Every page of a multi-page TIFF, one per sheet; the orientation follows the first page.
+    private var printPages: (NSPrintInfo) -> NSPrintOperation? {
+        let url = url, maxPixels = maxPixels
+        return { info in
+            let pages = ImagePlugin.printPages(url, maxSide: maxPixels)
+            guard let first = pages.first else { return nil }
+            info.orientation = first.size.width > first.size.height ? .landscape : .portrait
+            return NSPrintOperation(view: PagesPrintView(pages: pages, printInfo: info), printInfo: info)
+        }
+    }
+
     func perform(_ id: String) -> Bool {
         switch id {
         case "zoom-in":
@@ -119,6 +163,8 @@ final class ImageDocument: PluginDocument {
         case "zoom-actual":
             zoomToActualSize()
             sharpenIfNeeded(atActualSize: true)
+        case "next-page" where pageCount > 1: showPage(page + 1)
+        case "previous-page" where pageCount > 1: showPage(page - 1)
         case "crop" where isEditing: startCrop()
         case "transform" where isEditing: showTransform()
         default: return false
@@ -145,15 +191,49 @@ final class ImageDocument: PluginDocument {
     private func sharpenIfNeeded(atActualSize: Bool = false) {
         guard atActualSize || scrollView.magnification > 1, animation == nil, full == nil, sharpening == nil,
               max(base.width, base.height) < ImagePlugin.fullSide(for: baseSize) else { return }
-        let started = generation, url = url, size = baseSize, decode = decodeFull
+        let started = generation, url = url, size = baseSize, page = page, decode = decodeFull
         sharpening = Task { [weak self] in
-            let image = try? await decode(url, size)
+            let image = try? await decode(url, size, page)
             // After a save the file has changed, and a new decode has taken this one's place.
             guard let self, generation == started else { return }
             sharpening = nil
             guard let image else { return }
             full = image
             redraw()
+        }
+    }
+
+    // MARK: Pages
+
+    /// Moves to `index`, counted from 0, once its decode is ready, keeping the zoom: fit stays fit, any other
+    /// magnification stays, scrolled to the page's top left. Past the first or last page it does nothing.
+    func showPage(_ index: Int) {
+        guard (0..<pageCount).contains(index), index != page else { return }
+        page = index
+        pageList?.select(index)
+        generation += 1
+        sharpening?.cancel()
+        sharpening = nil
+        pageChange?.cancel()
+        let started = generation, url = url, maxPixels = maxPixels
+        pageChange = Task { [weak self] in
+            let decoded = try? await ImagePlugin.decode(url, maxPixels: maxPixels, page: index)
+            guard let self, generation == started else { return }
+            pageChange = nil
+            guard let decoded else { return NSSound.beep() }
+            base = decoded.image
+            baseSize = decoded.pixelSize
+            pointsPerPixel = decoded.pointsPerPixel
+            info = decoded.info
+            full = nil
+            redraw()
+            if scrollView.magnification != 1 {
+                let image = canvas.imageRect, clip = scrollView.contentView.bounds
+                scrollView.contentView.scroll(to: NSPoint(x: image.minX, y: image.maxY - clip.height))
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+                sharpenIfNeeded()
+            }
+            onSidebarChange?()
         }
     }
 

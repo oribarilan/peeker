@@ -48,6 +48,22 @@ func twoFrameGIF() throws -> URL {
     return url
 }
 
+/// A TIFF with one page per size, each filled with one color: red, green, blue, then red again.
+func multiPageTIFF(_ sizes: [(width: Int, height: Int)]) throws -> URL {
+    let url = try TempFile.make(Data(), name: "pages.tiff")
+    let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.tiff.identifier as CFString, sizes.count, nil))
+    for (index, size) in sizes.enumerated() {
+        let context = try #require(CGContext(data: nil, width: size.width, height: size.height, bitsPerComponent: 8, bytesPerRow: 0,
+                                             space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        let rgb = [(1.0, 0.0, 0.0), (0, 1, 0), (0, 0, 1)][index % 3]
+        context.setFillColor(red: rgb.0, green: rgb.1, blue: rgb.2, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: size.width, height: size.height))
+        CGImageDestinationAddImage(destination, try #require(context.makeImage()), nil)
+    }
+    #expect(CGImageDestinationFinalize(destination))
+    return url
+}
+
 /// Writes `image` to a new file of `type` with optional properties (orientation, EXIF).
 func imageFile(_ image: CGImage, type: UTType, properties: [CFString: Any] = [:]) throws -> URL {
     let url = try TempFile.make(Data(), name: "f." + (type.preferredFilenameExtension ?? "img"))

@@ -2,7 +2,7 @@ import AppKit
 import Testing
 
 @Suite struct ShortcutText {
-    private static let keys: [Shortcut.Key] = [.space, .escape, .tab, .enter, .character("a"), .character("9"), .character("="), .character("-"), .character("/")]
+    private static let keys: [Shortcut.Key] = [.space, .escape, .tab, .enter, .pageUp, .pageDown, .character("a"), .character("9"), .character("="), .character("-"), .character("/")]
     private static let modifierSets: [NSEvent.ModifierFlags] = [[], [.command], [.command, .shift], [.control, .option, .shift, .command], [.option]]
 
     @Test func configTextParsesBackToTheSameShortcut() {
@@ -56,3 +56,36 @@ import Testing
         #expect(Shortcut(event: event(keyCode: 122)) == nil)  // F1
     }
 }
+
+/// Page Up and Page Down type nothing, so a view tool may use them alone.
+@Suite struct PageKeys {
+    private func event(keyCode: UInt16) -> NSEvent {
+        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+                         characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: keyCode)!
+    }
+
+    @Test func theConfigNamesThem() {
+        #expect(Shortcut(parsing: "pageup") == Shortcut(key: .pageUp))
+        #expect(Shortcut(parsing: "opt+pagedown") == Shortcut(key: .pageDown, modifiers: .option))
+        #expect(Shortcut(key: .pageDown, modifiers: .option).configText == "opt+pagedown")
+    }
+
+    @Test func menusAndSettingsShowThem() {
+        #expect(Shortcut(key: .pageUp).displayText == "Page Up")
+        #expect(Shortcut(key: .pageDown, modifiers: .option).displayText == "⌥Page Down")
+        #expect(Shortcut(key: .pageUp).keyEquivalent == String(UnicodeScalar(NSPageUpFunctionKey)!))
+        #expect(Shortcut(key: .pageDown).keyEquivalent == String(UnicodeScalar(NSPageDownFunctionKey)!))
+    }
+
+    @Test func keyEventsGiveThem() {
+        #expect(Shortcut(event: event(keyCode: 116)) == Shortcut(key: .pageUp))
+        #expect(Shortcut(event: event(keyCode: 121)) == Shortcut(key: .pageDown))
+    }
+
+    @Test func aViewToolTakesThemAlone() {
+        #expect(Shortcut.Rules.viewTool.refusal(for: Shortcut(key: .pageUp)) == nil)
+        #expect(Shortcut.Rules.viewTool.refusal(for: Shortcut(key: .character("j"))) != nil)
+        #expect(Shortcut.Rules.peekPanel.refusal(for: Shortcut(key: .pageDown)) != nil)
+    }
+}
+

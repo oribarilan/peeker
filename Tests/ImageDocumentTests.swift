@@ -271,9 +271,9 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
 
     /// A full decoder that answers a request for `image`'s size with `image` once `gate` ends, whatever cancels it
     /// meanwhile, like a decode that finished its work just before being cancelled. Other sizes decode the file.
-    private func holdingBack(_ image: CGImage, until gate: Task<Void, Never>) -> @concurrent @Sendable (URL, CGSize) async throws(PluginError) -> CGImage {
-        { url, size throws(PluginError) in
-            guard size == CGSize(width: image.width, height: image.height) else { return try await ImagePlugin.decodeFull(url, pixelSize: size) }
+    private func holdingBack(_ image: CGImage, until gate: Task<Void, Never>) -> @concurrent @Sendable (URL, CGSize, Int) async throws(PluginError) -> CGImage {
+        { url, size, page throws(PluginError) in
+            guard size == CGSize(width: image.width, height: image.height) else { return try await ImagePlugin.decodeFull(url, pixelSize: size, page: page) }
             await gate.value
             return image
         }
