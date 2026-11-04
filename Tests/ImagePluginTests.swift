@@ -90,6 +90,33 @@ import UniformTypeIdentifiers
         #expect(max(decoded.image.width, decoded.image.height) == 100)
     }
 
+    @Test func theFullDecodeIsTheWholeImageWithinTheCaps() {
+        #expect(ImagePlugin.fullSide(for: CGSize(width: 4000, height: 3000)) == 4000)
+        #expect(ImagePlugin.fullSide(for: CGSize(width: 30_000, height: 1_000)) <= 16_384)
+        let side = ImagePlugin.fullSide(for: CGSize(width: 20_000, height: 15_000))
+        #expect(side <= 16_384)
+        #expect(side * Int((Double(side) * 15_000 / 20_000).rounded(.up)) <= ImagePlugin.maxEditablePixels)
+        #expect(side > 11_000, "as sharp as the cap allows")
+    }
+
+    @Test func decodesInFullIntoTheDisplayLayout() async throws {
+        let url = try image(width: 2000, height: 1000, type: .png)
+        let full = try await ImagePlugin.decodeFull(url, pixelSize: CGSize(width: 2000, height: 1000))
+        #expect((full.width, full.height) == (2000, 1000))
+        #expect(full.alphaInfo == .premultipliedFirst)
+        #expect(full.colorSpace?.name == CGColorSpace.sRGB)
+    }
+
+    /// The same PNG quirk as the screen decode: the properties must be read before the thumbnail.
+    @Test func decodesInFullUprightLikeTheScreenDecode() async throws {
+        let exif: [CFString: Any] = [kCGImagePropertyOrientation: 6, kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: "2026:10:31 09:00:00"]]
+        let url = try imageFile(try cornerImage(), type: .png, properties: exif)
+        let screen = try await ImagePlugin.decode(url, maxPixels: 1000)
+        let full = try await ImagePlugin.decodeFull(url, pixelSize: screen.pixelSize)
+        #expect((full.width, full.height) == (20, 40))
+        #expect(try corners(full) == corners(screen.image))
+    }
+
     @Test func infoListsTheFullDimensions() async throws {
         let url = try image(width: 400, height: 200, type: .png)
         let decoded = try await ImagePlugin.decode(url, maxPixels: 100)

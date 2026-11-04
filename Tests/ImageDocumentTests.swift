@@ -173,6 +173,152 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(document.perform("zoom-in"))
         #expect(!document.perform("no-such-command"))
     }
+
+    // MARK: The full decode
+    //
+    // Opened with `maxPixels: 1000`, a 2000 × 1000 image first decodes at 1000 × 500.
+
+    private func wideImage() throws -> URL { try imageFile(try cornerImage(width: 2000, height: 1000), type: .png) }
+
+    /// The document in a window, so zoom has a size to work from.
+    private func shown(_ url: URL) async throws -> (ImageDocument, NSScrollView, NSWindow) {
+        let document = try await open(url)
+        let window = offscreenWindow(holding: document.contentView, width: 500, height: 250)
+        return (document, try #require(document.contentView as? NSScrollView), window)
+    }
+
+    @Test func openingDecodesAtScreenSizeOnly() async throws {
+        let (document, _, window) = try await shown(try wideImage())
+        defer { window.close() }
+        #expect(document.shownSize == CGSize(width: 1000, height: 500))
+        #expect(document.sharpening == nil)
+    }
+
+    @Test(arguments: ["zoom-actual", "zoom-in"])
+    func zoomingInSwapsInTheFullDecodeWithoutMoving(_ command: String) async throws {
+        let (document, scroll, window) = try await shown(try wideImage())
+        defer { window.close() }
+        #expect(document.perform(command))
+        let magnification = scroll.magnification, imageRect = document.canvas.imageRect
+        await (try #require(document.sharpening)).value
+        #expect(document.shownSize == CGSize(width: 2000, height: 1000))
+        #expect(scroll.magnification == magnification && document.canvas.imageRect == imageRect)
+        #expect(document.sharpening == nil)
+    }
+
+    @Test func zoomingInAgainKeepsTheFullDecode() async throws {
+        let (document, _, window) = try await shown(try wideImage())
+        defer { window.close() }
+        #expect(document.perform("zoom-in"))
+        await (try #require(document.sharpening)).value
+        let sharp = document.canvas.image
+        #expect(document.perform("zoom-fit"))
+        #expect(document.perform("zoom-in"))
+        #expect(document.sharpening == nil)
+        #expect(document.canvas.image === sharp)
+    }
+
+    @Test func zoomingOutDecodesNothing() async throws {
+        let (document, _, window) = try await shown(try wideImage())
+        defer { window.close() }
+        #expect(document.perform("zoom-out"))
+        #expect(document.sharpening == nil)
+    }
+
+    @Test func anIconOrAnAnimationIsNeverDecodedAgain() async throws {
+        let icon = try imageFile(try cornerImage(width: 64, height: 64), type: .png)
+        let gif = try TempFile.make(Data(), name: "f.gif")
+        let destination = try #require(CGImageDestinationCreateWithURL(gif as CFURL, UTType.gif.identifier as CFString, 2, nil))
+        for _ in 0..<2 { CGImageDestinationAddImage(destination, try cornerImage(width: 2000, height: 1000), nil) }
+        #expect(CGImageDestinationFinalize(destination))
+        for url in [icon, gif] {
+            let (document, _, window) = try await shown(url)
+            defer { window.close() }
+            #expect(document.perform("zoom-in"))
+            #expect(document.perform("zoom-actual"))
+            #expect(document.sharpening == nil)
+        }
+    }
+
+    @Test func theEndOfAPinchStartsTheFullDecode() async throws {
+        let (document, scroll, window) = try await shown(try wideImage())
+        defer { window.close() }
+        scroll.magnification = 2
+        NotificationCenter.default.post(name: NSScrollView.didEndLiveMagnifyNotification, object: scroll)
+        await (try #require(document.sharpening)).value
+        #expect(document.shownSize == CGSize(width: 2000, height: 1000))
+    }
+
+    @Test func aCropAfterTheFullDecodeIsSharp() async throws {
+        let (document, _, window) = try await shown(try wideImage())
+        defer { window.close() }
+        #expect(document.perform("zoom-actual"))
+        await (try #require(document.sharpening)).value
+        document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
+        #expect(document.shownSize == CGSize(width: 1000, height: 1000))
+    }
+
+    @Test func anUndoBeforeTheFullDecodeLandsShowsTheUnrotatedImage() async throws {
+        let (document, _, window) = try await shown(try wideImage())
+        defer { window.close() }
+        #expect(document.perform("zoom-actual"))
+        let decode = try #require(document.sharpening)
+        document.apply(.rotate(by: 90))
+        document.undoManager.undo()
+        await decode.value
+        #expect(document.shownSize == CGSize(width: 2000, height: 1000))
+    }
+
+    /// A full decoder that answers a request for `image`'s size with `image` once `gate` ends, whatever cancels it
+    /// meanwhile, like a decode that finished its work just before being cancelled. Other sizes decode the file.
+    private func holdingBack(_ image: CGImage, until gate: Task<Void, Never>) -> @concurrent @Sendable (URL, CGSize) async throws(PluginError) -> CGImage {
+        { url, size throws(PluginError) in
+            guard size == CGSize(width: image.width, height: image.height) else { return try await ImagePlugin.decodeFull(url, pixelSize: size) }
+            await gate.value
+            return image
+        }
+    }
+
+    /// A decode of the file from before a save, landing after it, must not show the old pixels.
+    @Test func aDecodeFromBeforeASaveIsDroppedAndTheSavedFileDecodes() async throws {
+        let url = try wideImage()
+        let (document, _, window) = try await shown(url)
+        defer { window.close() }
+        let (stream, release) = AsyncStream<Void>.makeStream()
+        let gate = Task { for await _ in stream {} }
+        document.decodeFull = holdingBack(try await ImagePlugin.decodeFull(url, pixelSize: document.pixelSize), until: gate)
+        #expect(document.perform("zoom-actual"))
+        let old = try #require(document.sharpening)
+        document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
+        try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+        let fresh = try #require(document.sharpening, "the saved file decodes again")
+        #expect(fresh != old)
+        release.finish()
+        await old.value
+        #expect(document.shownSize.width <= 1000, "never the 2000-pixel-wide image from before the save")
+        await fresh.value
+        #expect(document.shownSize == CGSize(width: 1000, height: 1000))
+        #expect(document.sharpening == nil)
+    }
+
+    @Test func closingWithADecodeRunningFreesTheDocument() async throws {
+        let url = try wideImage()
+        var document: ImageDocument? = try await open(url)
+        let canvas = try #require(document?.canvas)
+        let window = offscreenWindow(holding: try #require(document?.contentView), width: 500, height: 250)
+        defer { window.close() }
+        let (stream, release) = AsyncStream<Void>.makeStream()
+        let gate = Task { for await _ in stream {} }
+        document?.decodeFull = holdingBack(try await ImagePlugin.decodeFull(url, pixelSize: CGSize(width: 2000, height: 1000)), until: gate)
+        #expect(document?.perform("zoom-actual") == true)
+        let decode = try #require(document?.sharpening)
+        weak let gone = document
+        document = nil
+        #expect(gone == nil)
+        release.finish()
+        await decode.value
+        #expect(canvas.image.width == 1000, "the canvas left as it was")
+    }
 }
 
 @Suite(.serialized) struct ImageAnimation {

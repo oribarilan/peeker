@@ -2,7 +2,8 @@
 # The viewer flow on screen: find in a PDF (its bar below the toolbar), the print panel for each format, hiding the
 # sidebar from the View menu (still hidden after a save) and showing it from the toolbar, Wrap Lines' checkmark,
 # unlocking a password-protected PDF, Actual Size and Zoom to Fit on that PDF, Actual Size and zooming out on an image,
-# and an animated GIF playing, pausing on a click and playing on. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
+# an animated GIF playing, pausing on a click and playing on, and Actual Size on a photo larger than the screen
+# showing its own pixels. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
 # recording with SCREEN_RECORD=1.
 #
 # Takes over the mouse and keyboard for about 50 seconds: the screen must be unlocked and left alone. Clicks and keys
@@ -12,6 +13,7 @@ FLOW=viewer
 source "$(dirname "$0")/common.sh" "$@"
 
 PAGES="$OUT/pages.pdf" LOCKED="$OUT/locked.pdf" NOTES="$OUT/notes.txt" MD="$OUT/notes.md" PHOTO="$OUT/photo.png" GIF="$OUT/blink.gif"
+STRIPES="$OUT/stripes.png"
 "$PDF" pages "$PAGES" 4
 "$PDF" locked "$LOCKED" secret 3
 printf 'Plain text to print.\n' > "$NOTES"
@@ -19,6 +21,8 @@ printf '# Notes\n\nMarkdown to print.\n' > "$MD"
 sips -s format png -z 900 1600 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$PHOTO" >/dev/null
 # Two 64-pixel frames, red then blue, 0.4 s each, looping.
 base64 -d <<< 'R0lGODdhQABAAKIAAAAAAAAA//8AAP///wAAAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQFKAAEACwAAAAAQABAAAADRyi63P4wykmrvTjrzbv/YCiOZGmeaKqubOu+cCzPdG3feK7vfO//wKBwSCwaj8ikcslsOp/QqHRKrVqv2Kx2y+16v+CwWJAAACH5BAUoAAQALAAAAABAAEAAAANHGLrc/jDKSau9OOvNu/9gKI5kaZ5oqq5s675wLM90bd94ru987//AoHBILBqPyKRyyWw6n9CodEqtWq/YrHbL7Xq/4LA4kAAAOw==' > "$GIF"
+# Larger than any screen, in one-pixel black and white columns: enlarged screen-size pixels would read as gray.
+"$DRIVE" stripes "$STRIPES" 6000 4000
 
 front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.5; }
 # Opens a file in the running app (it joins the window as a tab) and waits for it in front.
@@ -133,5 +137,13 @@ check "A click pauses it" "$(frames)" 1
 "$DRIVE" click Peeker $((x + w / 2)) $((y + h / 2))
 sleep 0.3
 check "Another click plays it on" "$([ "$(frames)" -gt 1 ] && echo yes)" yes
+
+# Actual Size on a photo larger than the screen: once the full decode lands, neighbouring screen pixels differ by
+# most of the black-to-white range.
+show "$STRIPES"
+"$DRIVE" keys Peeker cmd+0 && sleep 1
+"$DRIVE" shot Peeker "$OUT/13-sharp-actual-size.png" stripes.png
+contrast=$("$DRIVE" contrast "$OUT/13-sharp-actual-size.png" || echo 0)
+check "Actual Size on a large photo shows its own pixels" "$([ "$contrast" -gt 160 ] && echo yes)" yes
 
 finish

@@ -65,31 +65,60 @@ public enum ImagePlugin: Plugin {
     /// Decodes the first image, upright and at most `maxPixels` on its longer side, into premultiplied sRGB, the
     /// layout Core Animation draws without converting on the main thread.
     @concurrent nonisolated static func decode(_ url: URL, maxPixels: Int) async throws(PluginError) -> Decoded {
+        let (source, properties) = try source(url)
+        let image = try displayDecode(source, maxSide: min(maxPixels, maxDimension))
+        let width = properties[kCGImagePropertyPixelWidth] as? Int ?? image.width
+        let height = properties[kCGImagePropertyPixelHeight] as? Int ?? image.height
+        // Orientations 5 to 8 turn the image a quarter turn.
+        let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
+        let type = CGImageSourceGetType(source).map { $0 as String } ?? ""
+        let frames = CGImageSourceGetCount(source)
+        let reason = uneditableReason(type: type, frames: frames, pixels: width * height, isFloat: properties[kCGImagePropertyIsFloat] as? Bool ?? false)
+        return Decoded(image: image, pointsPerPixel: pointsPerPixel(properties),
+                       pixelSize: turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height),
+                       uneditableReason: reason, isAnimated: frames > 1 && animatedTypes.contains(type), info: info(properties, source, url))
+    }
+
+    /// The first image of the file, `pixelSize` large upright, decoded as `decode` does but at `fullSide(for:)`, for
+    /// showing it zoomed in.
+    @concurrent nonisolated static func decodeFull(_ url: URL, pixelSize: CGSize) async throws(PluginError) -> CGImage {
+        try displayDecode(try source(url).source, maxSide: fullSide(for: pixelSize))
+    }
+
+    /// The longer side of the full decode of an image `pixelSize` large: its own, at most `maxDimension`, and smaller
+    /// still where needed to hold no more than `maxEditablePixels`.
+    nonisolated static func fullSide(for pixelSize: CGSize) -> Int {
+        let longer = max(pixelSize.width, pixelSize.height), shorter = max(min(pixelSize.width, pixelSize.height), 1)
+        guard longer >= 1 else { return 1 }
+        func pixels(_ side: Int) -> Int { side * Int((CGFloat(side) * shorter / longer).rounded(.up)) }
+        var side = Int(min(longer, CGFloat(maxDimension)))
+        if pixels(side) > maxEditablePixels { side = Int((CGFloat(maxEditablePixels) * longer / shorter).squareRoot()) }
+        while pixels(side) > maxEditablePixels { side -= 1 }
+        return side
+    }
+
+    /// The file's image source and its first image's properties.
+    private nonisolated static func source(_ url: URL) throws(PluginError) -> (source: CGImageSource, properties: [CFString: Any]) {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               CGImageSourceGetCount(source) > 0 else { throw PluginError("This file isn't a readable image.") }
         // Before the thumbnail: otherwise ImageIO ignores a PNG's orientation tag when the PNG has other EXIF too,
         // and the window would show it unturned while saving turns it.
-        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
+        return (source, CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:])
+    }
+
+    /// The first image, upright and at most `maxSide` on its longer side, in the layout `displayReady` gives.
+    private nonisolated static func displayDecode(_ source: CGImageSource, maxSide: Int) throws(PluginError) -> CGImage {
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: min(maxPixels, maxDimension),
+            kCGImageSourceThumbnailMaxPixelSize: maxSide,
             kCGImageSourceShouldCacheImmediately: true,
         ]
         guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
             throw PluginError("This image couldn't be decoded.")
         }
         if Task.isCancelled { throw PluginError.cancelled }
-        let width = properties[kCGImagePropertyPixelWidth] as? Int ?? thumbnail.width
-        let height = properties[kCGImagePropertyPixelHeight] as? Int ?? thumbnail.height
-        // Orientations 5 to 8 turn the image a quarter turn.
-        let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
-        let type = CGImageSourceGetType(source).map { $0 as String } ?? ""
-        let frames = CGImageSourceGetCount(source)
-        let reason = uneditableReason(type: type, frames: frames, pixels: width * height, isFloat: properties[kCGImagePropertyIsFloat] as? Bool ?? false)
-        return Decoded(image: try displayReady(thumbnail), pointsPerPixel: pointsPerPixel(properties),
-                       pixelSize: turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height),
-                       uneditableReason: reason, isAnimated: frames > 1 && animatedTypes.contains(type), info: info(properties, source, url))
+        return try displayReady(thumbnail)
     }
 
     /// The info rows for the file as it is now, such as after a save.

@@ -15,9 +15,20 @@ final class ImageDocument: PluginDocument {
     /// Editable: crop and Rotate & Resize work from the start.
     var isEditing: Bool { editability == .editable }
     var onEdit: (() -> Void)?
-    /// The screen-size decode of the file as last loaded or saved, and the file's full size in pixels.
+    /// The screen-size decode of the file as last loaded or saved, which opening makes, and the file's full size in
+    /// pixels. Kept beside `full`: saving starts its next picture from it.
     private var base: CGImage
     private var baseSize: CGSize
+    /// The file decoded at full resolution, up to `ImagePlugin.fullSide`, once zoomed past fit; kept until the
+    /// document closes, and decoded again after a save.
+    private var full: CGImage?
+    /// The full decode while it runs.
+    private(set) var sharpening: Task<Void, Never>?
+    /// How the full decode is made; tests hold it back.
+    var decodeFull: @concurrent @Sendable (URL, CGSize) async throws(PluginError) -> CGImage = ImagePlugin.decodeFull
+    /// Goes up on each save, so a full decode of the file from before it is dropped.
+    private var generation = 0
+    private var pinchObserver: NSObjectProtocol?
     /// Print points per pixel, from the file's resolution.
     private let pointsPerPixel: CGFloat
     /// The unsaved edits, oldest first.
@@ -55,6 +66,15 @@ final class ImageDocument: PluginDocument {
         canvas.autoresizingMask = [.width, .height]
         animation = decoded.isAnimated ? AnimationPlayer(url: url, canvas: canvas) : nil
         if isEditing { canvas.editUndoManager = undoManager }
+        pinchObserver = NotificationCenter.default.addObserver(forName: NSScrollView.didEndLiveMagnifyNotification, object: scrollView,
+                                                               queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.sharpenIfNeeded() }
+        }
+    }
+
+    isolated deinit {
+        sharpening?.cancel()
+        pinchObserver.map(NotificationCenter.default.removeObserver)
     }
 
     var contentView: NSView { scrollView }
@@ -66,13 +86,13 @@ final class ImageDocument: PluginDocument {
         editability == .notEditable ? ImagePlugin.tools.filter { !$0.isEditTool } : ImagePlugin.tools
     }
 
-    /// The size the window shows, in screen-decode pixels.
+    /// The size the window shows, in the pixels of the decode it shows: the screen-size one, or the full one.
     var shownSize: CGSize { CGSize(width: canvas.image.width, height: canvas.image.height) }
     /// The full image's size in pixels with the edits applied.
     var pixelSize: CGSize { ImageEditing.size(after: edits, from: baseSize) }
 
     /// One page, centered, at the image's own size, shrunk to fit and never enlarged (what fit pagination does).
-    /// The screen-size decode is sharp enough for paper.
+    /// It prints the picture the window shows; the screen-size decode is sharp enough for paper.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
         let image = canvas.image
         let size = CGSize(width: pixelSize.width * pointsPerPixel, height: pixelSize.height * pointsPerPixel)
@@ -91,10 +111,14 @@ final class ImageDocument: PluginDocument {
 
     func perform(_ id: String) -> Bool {
         switch id {
-        case "zoom-in": scrollView.magnification *= 1.25
+        case "zoom-in":
+            scrollView.magnification *= 1.25
+            sharpenIfNeeded()
         case "zoom-out": scrollView.magnification /= 1.25
         case "zoom-fit": scrollView.magnification = 1
-        case "zoom-actual": zoomToActualSize()
+        case "zoom-actual":
+            zoomToActualSize()
+            sharpenIfNeeded(atActualSize: true)
         case "crop" where isEditing: startCrop()
         case "transform" where isEditing: showTransform()
         default: return false
@@ -113,6 +137,24 @@ final class ImageDocument: PluginDocument {
         let target = Self.actualMagnification(pixelWidth: pixelSize.width, backingScale: scale, fittedWidth: canvas.imageRect.width)
         scrollView.minMagnification = min(Self.minimumZoom, target)
         scrollView.setMagnification(min(target, scrollView.maxMagnification), centeredAt: NSPoint(x: canvas.bounds.midX, y: canvas.bounds.midY))
+    }
+
+    /// Starts the full decode when the view shows more than the screen-size decode holds: zoomed past fit, or at
+    /// Actual Size, which shows the image's own pixels. Never for an animation, nor twice, nor when the screen-size
+    /// decode already has every pixel the full one would.
+    private func sharpenIfNeeded(atActualSize: Bool = false) {
+        guard atActualSize || scrollView.magnification > 1, animation == nil, full == nil, sharpening == nil,
+              max(base.width, base.height) < ImagePlugin.fullSide(for: baseSize) else { return }
+        let started = generation, url = url, size = baseSize, decode = decodeFull
+        sharpening = Task { [weak self] in
+            let image = try? await decode(url, size)
+            // After a save the file has changed, and a new decode has taken this one's place.
+            guard let self, generation == started else { return }
+            sharpening = nil
+            guard let image else { return }
+            full = image
+            redraw()
+        }
     }
 
     // MARK: Editing
@@ -153,9 +195,9 @@ final class ImageDocument: PluginDocument {
         onEdit?()
     }
 
-    /// Shows the base with the edits applied.
+    /// Shows the sharpest decode there is with the edits applied.
     private func redraw() {
-        canvas.image = ImageEditing.preview(edits, of: base, fullSize: baseSize)
+        canvas.image = ImageEditing.preview(edits, of: full ?? base, fullSize: baseSize)
     }
 
     func unsavedEdits() -> UnsavedEdits? {
@@ -181,7 +223,12 @@ final class ImageDocument: PluginDocument {
         base = ImageEditing.preview(snapshot.edits, of: base, fullSize: baseSize)
         baseSize = ImageEditing.size(after: snapshot.edits, from: baseSize)
         edits = remainder
+        generation += 1
+        sharpening?.cancel()
+        sharpening = nil
+        full = nil
         redraw()
+        sharpenIfNeeded()
         undoManager.removeAllActions()
         info = await ImagePlugin.info(of: url)
     }

@@ -47,6 +47,10 @@
 //                                                  in a full-screen capture, the pixel inside the rectangle (screen points,
 //                                                  as textframe prints) nearest the color: "distance RRGGBB", distance
 //                                                  being the largest channel difference
+//        drive stripes <out.png> <width> <height>  write a gray PNG of one-pixel black and white columns
+//        drive contrast <png>                      print how much neighbouring pixels in a row differ on average, 0 to
+//                                                  255, in a 200-pixel square from the middle of an image: sharp
+//                                                  one-pixel stripes read near 255, enlarged or blurred ones far lower
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -550,6 +554,28 @@ case "closest":
         }
     }
     print(best.distance, best.hex)
+case "stripes":
+    guard let width = Int(arg(2)), let height = Int(arg(3)), width > 0, height > 0,
+          let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
+                                  space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue) else { fail("stripes needs a width and height") }
+    context.setFillColor(gray: 1, alpha: 1)
+    for x in stride(from: 1, to: width, by: 2) { context.fill(CGRect(x: x, y: 0, width: 1, height: height)) }
+    guard let image = context.makeImage(), let destination = CGImageDestinationCreateWithURL(URL(filePath: arg(1)) as CFURL, "public.png" as CFString, 1, nil)
+    else { fail("can't write \(arg(1))") }
+    CGImageDestinationAddImage(destination, image, nil)
+    guard CGImageDestinationFinalize(destination) else { fail("can't write \(arg(1))") }
+case "contrast":
+    guard let data = try? Data(contentsOf: URL(filePath: arg(1))),
+          let image = NSBitmapImageRep(data: data)?.converting(to: .genericGray, renderingIntent: .default) else { fail("can't read \(arg(1))") }
+    let side = min(200, image.pixelsWide - 1, image.pixelsHigh)
+    let left = (image.pixelsWide - side) / 2, top = (image.pixelsHigh - side) / 2
+    var total = 0.0
+    for y in top..<top + side {
+        for x in left..<left + side {
+            total += abs((image.colorAt(x: x, y: y)?.whiteComponent ?? 0) - (image.colorAt(x: x + 1, y: y)?.whiteComponent ?? 0))
+        }
+    }
+    print(Int((total / Double(side * side) * 255).rounded()))
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|focus|pixel|closest ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|focus|pixel|closest|stripes|contrast ...; see the top of drive.swift")
 }

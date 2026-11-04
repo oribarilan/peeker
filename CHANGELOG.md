@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Photos stay sharp when zoomed in or at Actual Size.
 - PDFs gain Actual Size (Cmd+0) and Zoom to Fit (Cmd+9) in the View menu, as images have. Plain text and Markdown windows gain Actual Size (Cmd+0), which puts the text back at the size it opened at.
 - Wrap Lines no longer takes Opt+Cmd+W, the standard key for closing all windows; set a shortcut for it in Settings if you want one. A config saved from Settings keeps Opt+Cmd+W on Wrap Lines until you clear it in Settings > Plain Text.
 - The signature pad's line and edge show in dark mode.
