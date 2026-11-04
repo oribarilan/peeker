@@ -8,12 +8,12 @@ Which plugin opens a file, how the user turns plugins on and off and overrides t
 
 ### Requirement: Config is a JSON file
 
-The app SHALL read its settings from `~/.config/peeker/config.json`, or from the path in `$PEEKER_CONFIG` when set. The file SHALL be a JSON object with sections `peekPanel`, `plugins` (keyed by plugin id) and `updates` (`automatic` and `showWhatsNew`), and the strings `textTheme`, `appearance` and `textAppearance`. A missing file or a missing key SHALL mean that setting's default. The old `~/.config/peeker/config` dotfile SHALL NOT be read.
+The app SHALL read its settings from `~/.config/peeker/config.json`, or from the path in `$PEEKER_CONFIG` when set. The file SHALL be a JSON object with sections `peekPanel`, `plugins` (keyed by plugin id) and `updates` (`automatic` and `showWhatsNew`), the strings `textTheme`, `appearance` and `textAppearance`, and the boolean `showShortcuts`. A missing file or a missing key SHALL mean that setting's default. The old `~/.config/peeker/config` dotfile SHALL NOT be read.
 
 #### Scenario: No config file
 
 - **WHEN** no `config.json` exists
-- **THEN** every plugin is enabled with its default extension list, Space opens the Peek panel, Peeker checks for updates daily and asks before installing, shows what's new after an update, the text theme is System, the app follows the Mac's appearance and text matches the app
+- **THEN** every plugin is enabled with its default extension list, Space opens the Peek panel, Peeker checks for updates daily and asks before installing, shows what's new after an update, the text theme is System, the app follows the Mac's appearance, text matches the app, and the toolbar shows shortcut captions
 
 #### Scenario: Only one setting
 
@@ -44,6 +44,11 @@ The app SHALL read its settings from `~/.config/peeker/config.json`, or from the
 
 - **WHEN** the user saves `{"appearance": "dark", "textAppearance": "light"}`
 - **THEN** Peeker's windows turn dark and the text in Markdown and text files shows its theme's light variant, without a restart
+
+#### Scenario: Hiding shortcut captions
+
+- **WHEN** the user saves `{"showShortcuts": false}`
+- **THEN** the toolbar's key captions go away in every open window, without a restart
 
 ### Requirement: Saving the config applies it everywhere at once
 
