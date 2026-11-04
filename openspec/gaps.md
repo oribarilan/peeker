@@ -12,7 +12,6 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Requirements the code misses
 
-- **Space vs Quick Look** (peek-panel). A 3-run `bench/ppbench.py space` on 2026-11-02 had Peeker 1.3 to 4.3 times slower than Quick Look on 10 of 11 files (42-81 ms against 17-60 ms). It times the panel appearing, not content drawn, and Peeker's time includes asking Finder for its selection. Either find where the time goes or restate what the requirement compares.
 - **Large Markdown** (markdown) opened in 472 ms against TextEdit's 286 ms in the published run. After the in-app move the A/B run measured 310 to 400 ms, but TextEdit wasn't timed in that run, so the requirement is still unconfirmed.
 
 ## Missing next to Preview
