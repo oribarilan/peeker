@@ -6,7 +6,7 @@ import PeekerKit
 ///     {
 ///       "$schema": "schema.json",
 ///       "peekPanel": { "key": "space" },          // bare key: Finder only, not while typing; with modifiers: anywhere; "off"
-///       "updates": { "check": true },             // false: no daily update check
+///       "updates": { "automatic": "check", "showWhatsNew": true },   // off, check (and ask) or download (and install)
 ///       "textTheme": "system",                    // colors for Markdown and text: one of TextTheme.ids
 ///       "appearance": "system",                   // the app's look: system, light or dark
 ///       "textAppearance": "app",                  // the text theme's variant: app (match the app), light or dark
@@ -25,8 +25,11 @@ struct Config: Equatable {
     /// `keyID(plugin:tool:)` of each tool the config leaves without a shortcut (`"off"`).
     var noShortcut: Set<String> = []
     var peekPanelKey: Shortcut? = Shortcut(key: .space)
-    /// Whether Peeker checks for updates once a day by itself.
-    var checkForUpdates = true
+    /// One of `automaticUpdateModes`: no daily check, a daily check that asks before installing, or one that
+    /// downloads and installs by itself.
+    var automaticUpdates = "check"
+    /// Whether a window lists what's new after Peeker updates.
+    var showWhatsNew = true
     /// A `TextTheme` id.
     var textTheme = "system"
     /// One of `appearances`.
@@ -36,6 +39,7 @@ struct Config: Equatable {
 
     static let appearances = ["system", "light", "dark"]
     static let textAppearances = ["app", "light", "dark"]
+    static let automaticUpdateModes = ["off", "check", "download"]
 
     @MainActor var theme: TextTheme { TextTheme.named(textTheme) ?? .system }
 
@@ -201,8 +205,12 @@ private struct ConfigReader {
 
     private mutating func readUpdates(_ settings: [String: JSONValue]) {
         for (key, value) in sorted(settings) {
-            guard key == "check" else { unknown("updates.\(key)"); continue }
-            if let check = bool(value, at: "updates.check") { config.checkForUpdates = check }
+            let path = "updates.\(key)"
+            switch key {
+            case "automatic": if let mode = choice(value, at: path, from: Config.automaticUpdateModes, "an update mode") { config.automaticUpdates = mode }
+            case "showWhatsNew": if let show = bool(value, at: path) { config.showWhatsNew = show }
+            default: unknown(path)
+            }
         }
     }
 

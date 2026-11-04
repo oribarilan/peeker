@@ -7,6 +7,8 @@ final class PeekPanel: NSPanel {
     private(set) var document: DocumentViewController?
     /// Opens a file in an Editor window, at a place in it such as a heading a link named.
     var onOpenInWindow: ((URL, String?) -> Void)?
+    /// Called after the panel goes away.
+    var onDismiss: (() -> Void)?
     /// The id of the enabled plugin that opens a file, for links; the app sets it.
     var owner: (URL) -> String? = { _ in nil }
     /// Tests replace these two.
@@ -68,6 +70,7 @@ final class PeekPanel: NSPanel {
         document?.close()
         document = nil
         contentViewController = nil
+        onDismiss?()
     }
 
     override func close() {

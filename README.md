@@ -55,7 +55,7 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change th
 {
   "$schema": "schema.json",
   "peekPanel": { "key": "space" },
-  "updates": { "check": true },
+  "updates": { "automatic": "check", "showWhatsNew": true },
   "textTheme": "paper",
   "appearance": "system",
   "textAppearance": "light",
@@ -69,7 +69,8 @@ Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change th
 ```
 
 - `peekPanel.key`: the key that opens the Peek panel. A bare key works only in Finder and not while typing; one with modifiers works anywhere; `"off"` turns the Peek panel off.
-- `updates.check`: `false` stops the daily check for a new version; Check for Updates… still checks when you ask.
+- `updates.automatic`: `"check"` (the default) looks for a new version once a day and offers it with its release notes; `"download"` also downloads it and installs it, relaunching quietly once no Peeker window is open; `"off"` checks only when you choose Check for Updates…. An update found while you work in another app waits behind a dot on the menu bar icon instead of opening a window.
+- `updates.showWhatsNew`: `false` stops the window that lists what's new after Peeker updates.
 - `textTheme`: the colors of Markdown and text files, in windows and the Peek panel: `system` (the default), `paper`, `slate`, `graphite`, `ink`, `catppuccin`, `tokyo-night` or `high-contrast`. Each has a light and a dark look. Settings > Appearance shows them as cards to pick from. Catppuccin and Tokyo Night use their projects' colors under the MIT license ([notices](THIRD_PARTY_NOTICES.md)).
 - `appearance`: `system` (the default) follows the Mac; `light` or `dark` holds Peeker's windows in that look.
 - `textAppearance`: which look of the text theme Markdown and text files use: `app` (the default) matches Peeker's appearance, and `light` or `dark` holds it, so a page can stay light in a dark app.

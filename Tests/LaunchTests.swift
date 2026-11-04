@@ -15,6 +15,10 @@ import Testing
         #expect(!AppDelegate.showsSettingsAtLaunch(openedWindows: 0, atLogin: true))
     }
 
+    @Test func anUpdateRelaunchDoesNot() {
+        #expect(!AppDelegate.showsSettingsAtLaunch(openedWindows: 0, atLogin: false, afterUpdate: true))
+    }
+
     @Test func reopeningWithNoWindowShowsSettings() {
         #expect(AppDelegate.showsSettingsOnReopen(hasVisibleWindows: false))
         #expect(!AppDelegate.showsSettingsOnReopen(hasVisibleWindows: true))

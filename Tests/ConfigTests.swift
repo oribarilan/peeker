@@ -79,10 +79,19 @@ private func config(_ json: String) throws -> Config {
         #expect(try config(#"{"peekPanel": {"key": "off"}}"#).peekPanelKey == nil)
     }
 
-    @Test func updateChecksAreOnUnlessTheConfigTurnsThemOff() throws {
-        #expect(try config("{}").checkForUpdates)
-        #expect(try config(#"{"updates": {"check": true}}"#).checkForUpdates)
-        #expect(try config(#"{"updates": {"check": false}}"#).checkForUpdates == false)
+    @Test func updatesCheckAndAskAndShowWhatsNewByDefault() throws {
+        let defaults = try config("{}")
+        #expect(defaults.automaticUpdates == "check")
+        #expect(defaults.showWhatsNew)
+    }
+
+    @Test(arguments: ["off", "check", "download"])
+    func automaticUpdatesReadsEachMode(mode: String) throws {
+        #expect(try config(#"{"updates": {"automatic": "\#(mode)"}}"#).automaticUpdates == mode)
+    }
+
+    @Test func whatsNewCanBeTurnedOff() throws {
+        #expect(try config(#"{"updates": {"showWhatsNew": false}}"#).showWhatsNew == false)
     }
 
     @Test func theDefaultFileIsJSONAndTheOldDotfileIsNotRead() {
@@ -120,11 +129,19 @@ private func config(_ json: String) throws -> Config {
         #expect(Set(reading.problems.map(\.path)) == ["plugins.text.enabled", "plugins.text.extensions", "peekPanel.key"])
     }
 
-    @Test func badUpdateSettingsKeepChecksOn() throws {
-        let reading = read(#"{"updates": {"check": "no", "channel": "beta"}}"#)
-        #expect(try #require(reading.config).checkForUpdates)
-        #expect(reading.problems.map(\.path) == ["updates.channel", "updates.check"])
+    @Test func badUpdateSettingsKeepTheDefaults() throws {
+        let reading = read(#"{"updates": {"automatic": "daily", "showWhatsNew": "yes", "channel": "beta"}}"#)
+        let config = try #require(reading.config)
+        #expect(config.automaticUpdates == "check")
+        #expect(config.showWhatsNew)
+        #expect(reading.problems.map(\.path) == ["updates.automatic", "updates.channel", "updates.showWhatsNew"])
         #expect(read(#"{"updates": false}"#).problems.map(\.path) == ["updates"])
+    }
+
+    @Test func theOldCheckKeyIsUnknown() throws {
+        let reading = read(#"{"updates": {"check": false}}"#)
+        #expect(try #require(reading.config).automaticUpdates == "check")
+        #expect(reading.problems.map(\.path) == ["updates.check"])
     }
 
     @Test func unparseableShortcutKeepsTheDefault() throws {
@@ -267,7 +284,8 @@ private func config(_ json: String) throws -> Config {
         let root = try object(Config())
         #expect(root["$schema"] as? String == "schema.json")
         #expect((root["peekPanel"] as? [String: Any])?["key"] as? String == "space")
-        #expect((root["updates"] as? [String: Any])?["check"] as? Bool == true)
+        #expect((root["updates"] as? [String: Any])?["automatic"] as? String == "check")
+        #expect((root["updates"] as? [String: Any])?["showWhatsNew"] as? Bool == true)
         let pluginSettings = try #require(root["plugins"] as? [String: [String: Any]])
         #expect(pluginSettings.keys.sorted() == ["markdown", "pdf", "text"])
         #expect(pluginSettings["markdown"]?["enabled"] as? Bool == true)
@@ -279,7 +297,7 @@ private func config(_ json: String) throws -> Config {
 
     @Test func readingTheRenderingGivesBackTheSameSettings() throws {
         let original = try config("""
-            {"peekPanel": {"key": "off"}, "updates": {"check": false},
+            {"peekPanel": {"key": "off"}, "updates": {"automatic": "off", "showWhatsNew": false},
              "plugins": {"text": {"enabled": false, "extensions": ["txt", "log"]},
                          "pdf": {"tools": {"highlight": {"shortcut": "cmd+shift+h"}}}}}
             """)
@@ -287,7 +305,8 @@ private func config(_ json: String) throws -> Config {
         #expect(reading.problems.isEmpty)
         let back = try #require(reading.config)
         #expect(back.peekPanelKey == nil)
-        #expect(back.checkForUpdates == false)
+        #expect(back.automaticUpdates == "off")
+        #expect(back.showWhatsNew == false)
         #expect(back.disabled == ["text"])
         #expect(back.extensions["text"] == ["txt", "log"])
         #expect(back.keys["pdf.highlight"] == Shortcut(key: .character("h"), modifiers: [.command, .shift]))

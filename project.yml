@@ -68,6 +68,9 @@ targets:
     platform: macOS
     sources:
       - Sources/Host
+      # The release notes the "Updated to Peeker" window lists, read offline.
+      - path: CHANGELOG.md
+        buildPhase: resources
     dependencies:
       # Static frameworks are linked into the app binary; there's nothing to embed.
       - { target: PeekerKit, embed: false }
@@ -107,7 +110,6 @@ targets:
         SUEnableAutomaticChecks: true
         SUScheduledCheckInterval: 86400
         SUEnableSystemProfiling: false
-        SUAllowsAutomaticUpdates: false
         NSAppleEventsUsageDescription: Peeker reads which files are selected in Finder so it can show them when you press the Peek panel key.
         CFBundleDocumentTypes:
           - CFBundleTypeName: Text

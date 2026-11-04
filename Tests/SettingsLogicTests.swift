@@ -187,15 +187,34 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
 }
 
 @Suite struct UpdateSettings {
-    @Test func clearingTheCheckboxRewritesTheConfig() throws {
+    private func saved(_ file: URL) throws -> [String: Any]? {
+        try (JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])?["updates"] as? [String: Any]
+    }
+
+    @Test(arguments: ["off", "download", "check"])
+    func pickingAModeRewritesTheConfig(mode: String) throws {
         let file = try TempFile.make(Data("{}".utf8), name: "config.json")
         let store = ConfigStore(url: file, plugins: plugins)
         defer { store.stop() }
         let model = SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"))
-        model.checkForUpdates = false
-        let saved = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
-        #expect((saved["updates"] as? [String: Any])?["check"] as? Bool == false)
-        #expect(!model.checkForUpdates)
+        model.automaticUpdates = mode
+        #expect(try saved(file)?["automatic"] as? String == mode)
+        #expect(model.automaticUpdates == mode)
+    }
+
+    @Test func clearingWhatsNewRewritesTheConfig() throws {
+        let file = try TempFile.make(Data("{}".utf8), name: "config.json")
+        let store = ConfigStore(url: file, plugins: plugins)
+        defer { store.stop() }
+        let model = SettingsModel(store: store, accessibility: AccessibilityStatus(), updater: Updater(version: "0.1.0", build: "100"))
+        model.showWhatsNew = false
+        #expect(try saved(file)?["showWhatsNew"] as? Bool == false)
+        #expect(!model.showWhatsNew)
+    }
+
+    @Test func theModesHaveTheirSettingsNames() {
+        #expect(SettingsModel.automaticUpdateChoices.map(\.title) == ["Off", "Check and Ask", "Download and Install"])
+        #expect(SettingsModel.automaticUpdateChoices.map(\.mode) == Config.automaticUpdateModes)
     }
 }
 
@@ -252,15 +271,43 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         #expect(menu.items.map(\.title) == ["Settings…", "Check for Updates…", "Open at Login", "", "Quit Peeker"])
         #expect(menu.items[1].action == #selector(AppDelegate.checkForUpdates(_:)) && menu.items[1].target === delegate)
     }
+
+    @Test func theStatusLinesComeFirstAndTheUpdateLineOpensTheUpdateWindow() {
+        let delegate = AppDelegate()
+        defer { withExtendedLifetime(delegate) {} }
+        let lines = MenuBarItem.lines(target: delegate)
+        #expect(lines.update.action == #selector(AppDelegate.checkForUpdates(_:)) && lines.update.target === delegate)
+        let menu = MenuBarItem.menu(target: delegate, lines: lines.all)
+        let firstThree = Array(menu.items.prefix(3))
+        #expect(firstThree == lines.all)
+        #expect(lines.all.first === lines.update)
+        let hidden = lines.all.filter(\.isHidden)
+        #expect(hidden.count == 3)
+    }
 }
 
 @Suite struct MenuBarStates {
     @Test func theDotShowsForProblemsOrMissingAccessibility() {
         #expect(MenuBarItem.accessibilityTitle == "The Peek panel needs Accessibility…")
-        #expect(MenuBarItem.State(problems: 0, needsAccessibility: false) == .init(dot: false, problemsLine: nil, accessibilityLine: false))
-        #expect(MenuBarItem.State(problems: 2, needsAccessibility: false) == .init(dot: true, problemsLine: "Config has 2 problems", accessibilityLine: false))
-        #expect(MenuBarItem.State(problems: 0, needsAccessibility: true) == .init(dot: true, problemsLine: nil, accessibilityLine: true))
-        #expect(MenuBarItem.State(problems: 1, needsAccessibility: true) == .init(dot: true, problemsLine: "Config has 1 problem", accessibilityLine: true))
+        #expect(MenuBarItem.State(problems: 0, needsAccessibility: false) == .init(dot: nil, problemsLine: nil, accessibilityLine: false))
+        #expect(MenuBarItem.State(problems: 2, needsAccessibility: false) == .init(dot: .red, problemsLine: "Config has 2 problems", accessibilityLine: false))
+        #expect(MenuBarItem.State(problems: 0, needsAccessibility: true) == .init(dot: .red, problemsLine: nil, accessibilityLine: true))
+        #expect(MenuBarItem.State(problems: 1, needsAccessibility: true) == .init(dot: .red, problemsLine: "Config has 1 problem", accessibilityLine: true))
+    }
+
+    @Test func anUpdateAloneShowsTheAccentDotAndItsLine() {
+        let state = MenuBarItem.State(problems: 0, needsAccessibility: false, update: "0.3.0")
+        #expect(state.dot == .accent)
+        #expect(state.updateLine == "Update to 0.3.0…")
+        #expect(state.accessibilityLabel == "Peeker, update available")
+    }
+
+    @Test func theRedDotWinsOverAnUpdate() {
+        let state = MenuBarItem.State(problems: 0, needsAccessibility: true, update: "0.3.0")
+        #expect(state.dot == .red)
+        #expect(state.updateLine == "Update to 0.3.0…")
+        #expect(state.accessibilityLine)
+        #expect(state.accessibilityLabel == "Peeker, needs Accessibility, update available")
     }
 }
 

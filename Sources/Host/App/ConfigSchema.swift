@@ -34,7 +34,9 @@ enum ConfigSchema {
             "textAppearance": ["type": "string", "enum": Config.textAppearances, "default": "app",
                                "description": "Which variant of the text theme Markdown and text files use: app matches Peeker's appearance, light or dark holds that variant. Default: app."],
             "updates": object("Checking for new versions of Peeker.", [
-                "check": ["type": "boolean", "default": true, "description": "True checks for a new version once a day and offers it with its release notes; false checks only when you ask. Default: true."],
+                "automatic": ["type": "string", "enum": Config.automaticUpdateModes, "default": "check",
+                              "description": "off checks only when you ask; check looks for a new version once a day and offers it with its release notes; download also downloads it and installs it once no window is open. Default: check."],
+                "showWhatsNew": ["type": "boolean", "default": true, "description": "True shows a window with the release notes after Peeker updates. Default: true."],
             ]),
         ])
         schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"

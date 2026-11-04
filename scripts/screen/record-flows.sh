@@ -176,12 +176,20 @@ front
 "$DRIVE" press Peeker "Peek panel" && sleep 1
 check "On again is Space" "$(cfg "c['peekPanel']['key']")" space
 
-# Updates: the checkbox writes updates.check, and a development build's Check for Updates… says it doesn't update.
-"$DRIVE" press Peeker "Check for updates automatically" && sleep 1
-check "Clearing the update checkbox writes check false" "$(cfg "c['updates']['check']")" False
-"$DRIVE" shot Peeker "$OUT/12f-settings-updates-off.png"
-"$DRIVE" press Peeker "Check for updates automatically" && sleep 1
-check "Ticking it again writes check true" "$(cfg "c['updates']['check']")" True
+# Updates: the pop-up writes updates.automatic, the checkbox updates.showWhatsNew, the menu bar menu has no update
+# line while none waits, and a development build's Check for Updates… says it doesn't update.
+"$DRIVE" choose Peeker "Download and Install" "Automatic updates" && sleep 1
+check "Download and Install writes download" "$(cfg "c['updates']['automatic']")" download
+"$DRIVE" shot Peeker "$OUT/12f-settings-updates-download.png"
+"$DRIVE" choose Peeker "Off" "Automatic updates" && sleep 1
+check "Updates Off writes off" "$(cfg "c['updates']['automatic']")" off
+"$DRIVE" choose Peeker "Check and Ask" "Automatic updates" && sleep 1
+check "Check and Ask writes check" "$(cfg "c['updates']['automatic']")" check
+"$DRIVE" press Peeker "Show what's new after updating" && sleep 1
+check "Clearing what's new writes false" "$(cfg "c['updates']['showWhatsNew']")" False
+"$DRIVE" press Peeker "Show what's new after updating" && sleep 1
+check "Ticking it again writes true" "$(cfg "c['updates']['showWhatsNew']")" True
+check "No update line while none waits" "$(DRIVE_HOLD=1 "$DRIVE" menuextra Peeker | grep -c 'Update to')" 0
 "$DRIVE" menuextra Peeker "Check for Updates…"
 "$DRIVE" wait Peeker control OK
 check "A development build says it doesn't update" "$("$DRIVE" tree Peeker 8 | grep -c "Development builds don’t update\|Development builds don't update")" 1

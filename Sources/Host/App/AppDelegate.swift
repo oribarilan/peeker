@@ -20,8 +20,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let panel = PeekPanel()
         panel.onOpenInWindow = { [weak self] url, place in self?.openInWindow(url, place: place) }
         panel.owner = { [weak self] in self?.catalog.owner(for: $0)?.id }
+        panel.onDismiss = { [weak self] in self?.updater.installIfIdle() }
+        panelIsMade = true
         return panel
     }()
+    private var panelIsMade = false
     private lazy var finder = FinderBridge()
     private var hotkey: HotkeyMonitor?
     /// The key the hotkey monitor was started with; nil when it's off.
@@ -42,14 +45,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private(set) lazy var updater: Updater = {
         let updater = Updater()
         updater.apply(config)
+        updater.isIdle = { [weak self] in self?.isIdle ?? false }
+        updater.onUpdateAvailable = { [weak self] version in
+            self?.waitingUpdate = version
+            self?.updateMenuBar()
+        }
         return updater
     }()
+    /// Nothing open that a relaunch would close: no Editor window, no Settings window, no Peek panel. Unsaved edits
+    /// live in Editor windows, so there are none either.
+    private var isIdle: Bool { windows.isEmpty && settings == nil && !(panelIsMade && panel.isVisible) }
+    /// The version of an update a scheduled check found while Peeker wasn't active, until the user sees it.
+    private var waitingUpdate: String?
     private var recoveryRestored = false
     /// One for the whole app, so recovered texts that land on the clipboard during a launch don't replace each other.
     private lazy var recoveryClipboard = RecoveryClipboard(pasteboard: .general, store: .shared) { [weak self] in self?.catalog.recoveryText($0) }
 
     /// Whether macOS launched Peeker as a login item, from the launch's Apple event (only current until launching ends).
     private var launchedAtLogin = false
+    /// The "Updated to Peeker" window, kept so it stays open.
+    private var whatsNew: WhatsNewWindowController?
+    /// Releases to list in that window when the user next opens an Editor or Settings window.
+    private var whatsNewForFirstWindow: [Changelog.Release]?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         config.applyLooks()  // before any window or the Peek panel draws
@@ -96,10 +113,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         menuBarItem = MenuBarItem(target: self)
         accessibility.onChange = { [weak self] in self?.accessibilityChanged() }
+        let marks = WhatsNew.takeMarks(from: .standard)
+        let whatsNewNow = prepareWhatsNew(installedQuietly: marks.installedQuietly)
         restoreRecoveredDocuments()
         files.forEach(openInWindow)
         startHotkey()
-        if Self.showsSettingsAtLaunch(openedWindows: windows.count, atLogin: launchedAtLogin) { showSettings(nil) }
+        let afterUpdate = marks.relaunched || marks.installedQuietly
+        if Self.showsSettingsAtLaunch(openedWindows: windows.count, atLogin: launchedAtLogin, afterUpdate: afterUpdate) { showSettings(nil) }
+        if let whatsNewNow { showWhatsNew(whatsNewNow) }
         DispatchQueue.main.async { [weak self] in self?.updater.start() }
         do {
             try ConfigSchema.write(nextTo: Config.defaultURL, plugins: catalog.entries)
@@ -123,9 +144,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     /// Opening Peeker by hand with nothing to show brings up Settings, so it doesn't look as if it didn't start. A launch
-    /// at login stays quiet.
-    static func showsSettingsAtLaunch(openedWindows: Int, atLogin: Bool) -> Bool {
-        openedWindows == 0 && !atLogin
+    /// at login, or a relaunch to finish an update, stays quiet.
+    static func showsSettingsAtLaunch(openedWindows: Int, atLogin: Bool, afterUpdate: Bool = false) -> Bool {
+        openedWindows == 0 && !atLogin && !afterUpdate
     }
 
     /// Opening Peeker again while it runs with no window showing (from the Dock, Launchpad or Spotlight) shows Settings.
@@ -184,7 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func updateMenuBar() {
-        menuBarItem?.show(MenuBarItem.State(problems: configStore.problems.count, needsAccessibility: accessibility.isMissing))
+        menuBarItem?.show(MenuBarItem.State(problems: configStore.problems.count, needsAccessibility: accessibility.isMissing, update: waitingUpdate))
     }
 
     /// Applies a saved config everywhere: routing for files opened next, the Peek panel key, and tool shortcuts in
@@ -211,6 +232,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     @objc func checkForUpdates(_ sender: Any?) { updater.checkNow() }
+
+    // MARK: What's new
+
+    /// Decides whether this launch follows an update and records the version for the next one. Returns the releases
+    /// to show at once, or keeps them for the first window.
+    private func prepareWhatsNew(installedQuietly: Bool) -> [Changelog.Release]? {
+        guard updater.updatesThisBuild else { return nil }
+        let defaults = UserDefaults.standard
+        let lastRun = defaults.string(forKey: WhatsNew.lastRunKey)
+        defaults.set(updater.version, forKey: WhatsNew.lastRunKey)
+        let timing = WhatsNew.timing(lastRun: lastRun, running: updater.version, enabled: config.showWhatsNew,
+                                     installedQuietly: installedQuietly, atLogin: launchedAtLogin)
+        guard timing != .never, let lastRun, let url = Bundle.main.url(forResource: "CHANGELOG", withExtension: "md"),
+              let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        let releases = Changelog.releases(in: text, after: lastRun, upTo: updater.version)
+        guard !releases.isEmpty else { return nil }
+        if timing == .withFirstWindow { whatsNewForFirstWindow = releases; return nil }
+        return releases
+    }
+
+    private func showWhatsNew(_ releases: [Changelog.Release]) {
+        let controller = WhatsNewWindowController(version: updater.version, releases: releases)
+        whatsNew = controller
+        controller.showWindow(nil)
+        NSApp.activate()
+    }
+
+    /// Shows the what's-new window kept for the first window, once.
+    private func showWhatsNewForFirstWindow() {
+        guard let releases = whatsNewForFirstWindow else { return }
+        whatsNewForFirstWindow = nil
+        showWhatsNew(releases)
+    }
+
     @objc func showSettings(_ sender: Any?) { showSettings(pane: nil) }
     @objc func showConfigFileSettings(_ sender: Any?) { showSettings(pane: .configFile) }
     @objc func showPermissionsSettings(_ sender: Any?) { showSettings(pane: .permissions) }
@@ -223,6 +278,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         updatePresence()
         controller.showWindow(nil)
         NSApp.activate()
+        showWhatsNewForFirstWindow()
     }
 
     private func makeSettings() -> SettingsWindowController {
@@ -235,6 +291,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         controller.onClose = { [weak self] in
             self?.settings = nil
             self?.updatePresence()
+            self?.updater.installIfIdle()
         }
         return controller
     }
@@ -302,6 +359,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             self?.windows.removeAll { $0 === closed }
             if self?.windows.isEmpty == true { self?.showCommands(of: nil) }
             self?.updatePresence()
+            self?.updater.installIfIdle()
         }
         windows.append(controller)
         updatePresence()  // before the window shows, so the menus are there with it
@@ -314,6 +372,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         controller.pendingArrival = place.map { .place($0) }
         controller.show(with: entry, restoring: record)
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
+        showWhatsNewForFirstWindow()
     }
 
     /// Where Open Settings goes for a file no enabled plugin opens: the turned-off plugin whose list has its extension,

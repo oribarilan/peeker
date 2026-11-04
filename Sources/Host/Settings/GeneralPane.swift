@@ -26,15 +26,20 @@ struct GeneralPane: View {
             LoginSection()
             DefaultAppSection(model: model)
             Section {
-                Toggle("Check for updates automatically", isOn: $model.checkForUpdates)
-                    .disabled(!store.isUsable)
+                Group {
+                    Picker("Automatic updates", selection: $model.automaticUpdates) {
+                        ForEach(SettingsModel.automaticUpdateChoices, id: \.mode) { Text($0.title).tag($0.mode) }
+                    }
+                    Toggle("Show what's new after updating", isOn: $model.showWhatsNew)
+                }
+                .disabled(!store.isUsable)
                 LabeledContent(model.updater.versionLine) {
                     Button("Check Now") { model.updater.checkNow() }
                 }
             } header: {
                 Text("Updates")
             } footer: {
-                Text("Peeker checks once a day and shows what's new before installing anything.")
+                Text(SettingsModel.automaticUpdateChoices.first { $0.mode == model.automaticUpdates }?.footer ?? "")
                     .foregroundStyle(.secondary)
             }
         }

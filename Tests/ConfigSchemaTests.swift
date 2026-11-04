@@ -35,9 +35,14 @@ import Testing
     }
 
     @Test func describesTheUpdateCheck() throws {
-        let check = try #require(properties(properties(try schema(), "updates"), "check"))
-        #expect(check["type"] as? String == "boolean")
-        #expect(check["default"] as? Bool == true)
+        let updates = properties(try schema(), "updates")
+        let automatic = try #require(properties(updates, "automatic"))
+        #expect(automatic["enum"] as? [String] == ["off", "check", "download"])
+        #expect(automatic["default"] as? String == "check")
+        let whatsNew = try #require(properties(updates, "showWhatsNew"))
+        #expect(whatsNew["type"] as? String == "boolean")
+        #expect(whatsNew["default"] as? Bool == true)
+        #expect(properties(updates, "check") == nil)
     }
 
     @Test func theOldOpenSectionIsGone() throws {

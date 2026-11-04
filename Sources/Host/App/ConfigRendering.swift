@@ -21,7 +21,7 @@ extension Config {
         let root: [String: Any] = [
             "$schema": "schema.json",
             "peekPanel": ["key": peekPanelKey?.configText ?? "off"],
-            "updates": ["check": checkForUpdates],
+            "updates": ["automatic": automaticUpdates, "showWhatsNew": showWhatsNew],
             "textTheme": textTheme,
             "appearance": appearance,
             "textAppearance": textAppearance,

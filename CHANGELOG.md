@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Updates found by the daily check no longer pop up behind your work: the menu bar icon shows a dot and its menu offers "Update to" the new version. Peeker can also download and install updates by itself, relaunching once no window is open: pick Download and Install in Settings > General, or `"updates": {"automatic": "download"}` in the config, which replaces `updates.check`. After an update, a window lists what's new; turn it off with "Show what's new after updating" or `updates.showWhatsNew`.
 - Multi-page TIFFs show every page: thumbnails in the sidebar, Next Page and Previous Page in the View menu (Page Down and Page Up), the zoom kept from page to page, and every page printed. The Peek panel still shows the first page. Shortcuts in the config and in Settings can now be `pageup` and `pagedown`.
 - Space no longer waits on a busy Finder: if Finder doesn't say what's selected within half a second, the key goes to Finder's Quick Look, and the arrow keys leave the Peek panel as it is.
 - Open With in a window lists only the plugins that can show the file: Markdown and Plain Text for a Markdown file, but no longer Image or PDF. When only one can, the toolbar leaves Open With out and File > Open With is greyed out.

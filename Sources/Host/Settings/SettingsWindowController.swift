@@ -62,10 +62,21 @@ final class SettingsModel {
         if let stored, SettingsPane.all(plugins: store.plugins).contains(stored) { selection = stored }
     }
 
-    /// The "Check for updates automatically" checkbox: the config's `updates.check`.
-    var checkForUpdates: Bool {
-        get { store.config.checkForUpdates }
-        set { save { $0.checkForUpdates = newValue } }
+    /// The Automatic updates pop-up's choices, one per `Config.automaticUpdateModes`.
+    static let automaticUpdateChoices = [(mode: "off", title: "Off", footer: "Peeker checks for a new version only when you click Check Now."),
+                                         (mode: "check", title: "Check and Ask", footer: "Peeker checks once a day and shows what's new before installing anything."),
+                                         (mode: "download", title: "Download and Install", footer: "Peeker checks once a day, downloads a new version and installs it once no Peeker window is open.")]
+
+    /// The Automatic updates pop-up: the config's `updates.automatic`.
+    var automaticUpdates: String {
+        get { store.config.automaticUpdates }
+        set { save { $0.automaticUpdates = newValue } }
+    }
+
+    /// The "Show what's new after updating" checkbox: the config's `updates.showWhatsNew`.
+    var showWhatsNew: Bool {
+        get { store.config.showWhatsNew }
+        set { save { $0.showWhatsNew = newValue } }
     }
 
     /// The theme cards: the config's `textTheme`.
