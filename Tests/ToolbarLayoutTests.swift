@@ -26,8 +26,10 @@ private final class BareDocument: PluginDocument {
         let file = try TempFile.make(Data("# One\ntext\n".utf8), name: "f.md")
         let controller = try await documentWindow(for: MarkdownPlugin.self, file: file)
         defer { controller.close() }
-        #expect(Array(identifiers(controller).prefix(3))
-                == [NSToolbarItem.Identifier.toggleSidebar.rawValue, NSToolbarItem.Identifier.sidebarTrackingSeparator.rawValue, "openWith"])
+        // Back and Forward, which Markdown documents get, come between the separator and Open With.
+        #expect(Array(identifiers(controller).prefix(5))
+                == [NSToolbarItem.Identifier.toggleSidebar.rawValue, NSToolbarItem.Identifier.sidebarTrackingSeparator.rawValue,
+                    "back", "forward", "openWith"])
     }
 
     @Test func withoutASidebarOpenWithComesFirst() async throws {

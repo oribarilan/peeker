@@ -33,6 +33,7 @@
 //                                                  as "location length line N": UTF-16 offsets and a 0-based line
 //                                                  counted as laid out, so a wrapped line counts more than once
 //        drive click <process> <x> <y> [count]     click at a screen point, only while <process> is in front
+//        drive cmdclick <process> <x> <y>          Cmd-click at a screen point, only while <process> is in front
 //        drive type <process> <text>               type <text>, only while <process> is in front
 //        drive drag <process> <x y>...             press at the first point, drag through the rest, release at the last
 //        drive keys <process> <combo>              press a combo such as opt+space, ctrl+cmd+h, return or cmd+up, only while <process> is in front
@@ -128,13 +129,13 @@ func requireFront(_ process: String) {
     if front != process { fail("\(process) isn't in front (\(front) is): not sending input") }
 }
 
-func click(at point: CGPoint, count: Int) {
+func click(at point: CGPoint, count: Int, flags: CGEventFlags = []) {
     let source = CGEventSource(stateID: .hidSystemState)
     for index in 1...count {
         for type in [CGEventType.leftMouseDown, .leftMouseUp] {
             let event = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: point, mouseButton: .left)
             event?.setIntegerValueField(.mouseEventClickState, value: Int64(index))
-            event?.flags = []  // a plain click, whatever modifiers the system thinks are held
+            event?.flags = flags  // only these modifiers, whatever the system thinks is held
             event?.post(tap: .cghidEventTap)
             usleep(30_000)
         }
@@ -482,6 +483,10 @@ case "click":
     requireFront(arg(1))
     guard let x = Double(arg(2)), let y = Double(arg(3)) else { fail("click needs numbers") }
     click(at: CGPoint(x: x, y: y), count: args.count > 4 ? Int(args[4]) ?? 1 : 1)
+case "cmdclick":
+    requireFront(arg(1))
+    guard let x = Double(arg(2)), let y = Double(arg(3)) else { fail("cmdclick needs numbers") }
+    click(at: CGPoint(x: x, y: y), count: 1, flags: .maskCommand)
 case "type":
     requireFront(arg(1))
     type(arg(2))

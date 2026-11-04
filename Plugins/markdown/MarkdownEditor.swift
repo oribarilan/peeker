@@ -3,7 +3,7 @@ import PeekerKit
 
 /// A Markdown file in the Editor: its source, editable, styled as it's typed. TextKit 1 with non-contiguous layout,
 /// like Plain Text's view, for the same speed reasons (see `TextDocument`).
-final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
+final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
     private let url: URL
     private let scrollView = NSScrollView()
     /// Owns the layout manager and text container; a TextKit 1 text view doesn't retain its storage.
@@ -27,8 +27,11 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
     private var pendingRestyle: DispatchWorkItem?
     var onEdit: (() -> Void)?
     var onSidebarChange: (() -> Void)?
-    /// Opens a Cmd-clicked link; replaced in tests.
+    /// Opens a Cmd-clicked link that has a scheme, such as a web page; replaced in tests.
     var openLink: (String) -> Void
+    var onFollowLink: ((URL) -> Void)?
+    /// The parse of the whole file when the plugin parsed only its start; a heading link waits for it.
+    private var fullParse: Task<Void, Never>?
 
     static let defaultSize: CGFloat = 14
     private static let sizes: ClosedRange<CGFloat> = 8...48
@@ -76,6 +79,7 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         textView.onClick = { [weak self] index, command in self?.click(at: index, command: command) ?? false }
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
+        textView.postsFrameChangedNotifications = true
         storage.setAttributedString(NSAttributedString(string: source.file.text, attributes: baseAttributes))
         textView.setSelectedRange(NSRange(location: 0, length: 0))  // setting the text leaves the cursor at its end
         applyThemeColors()
@@ -84,7 +88,7 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         // the run loop, unless the text has changed by then.
         applyStyle(upTo: Self.firstScreen)
         if source.partial {
-            Task { [weak self] in await self?.restyle() }
+            fullParse = Task { [weak self] in await self?.restyle() }
         } else if storage.length > Self.firstScreen {
             let opened = generation
             DispatchQueue.main.async { [weak self] in
@@ -94,6 +98,7 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         }
         // Selector-based, so the observation ends with the document.
         NotificationCenter.default.addObserver(self, selector: #selector(applyTheme), name: TextTheme.didChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(applyAnchor), name: NSView.frameDidChangeNotification, object: textView)
     }
 
     /// The theme's colors for the view, in the text appearance, then a style pass for the text's.
@@ -259,7 +264,7 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
     /// A plain click on a task box flips it; a Cmd-click on a link opens it. Returns whether the click was used.
     func click(at index: Int, command: Bool) -> Bool {
         if command, let link = style.links.first(where: { NSLocationInRange(index, $0.range) }) {
-            openLink(link.destination)
+            if let local = LinkOpener.resolve(link.destination, against: url) { onFollowLink?(local) } else { openLink(link.destination) }
             return true
         }
         guard !command, readOnlyReason == nil, let box = style.taskBoxes.first(where: { NSLocationInRange(index, $0) }),
@@ -275,9 +280,84 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         guard starts.indices.contains(line - 1) else { return }
         let range = NSRange(location: starts[line - 1], length: 0)
         textView.setSelectedRange(range)
-        textView.scrollRangeToVisible(range)
+        scroll(toTopOf: range.location)
         textView.window?.makeFirstResponder(textView)
         if range.location < storage.length { textView.showFindIndicator(for: NSRange(location: range.location, length: 1)) }
+    }
+
+    // MARK: Following links
+
+    /// How long a jump or Back holds the view in place while the window settles.
+    private static let anchorTime: TimeInterval = 0.5
+    private var anchor: (location: Int, offset: CGFloat)?
+
+    /// The character at the top of the visible text, how far into its line the view is scrolled, and the selection,
+    /// so a restyle that changes line heights still lands on the same text.
+    struct Position: Sendable, Equatable {
+        let top: Int
+        let offset: CGFloat
+        let selection: NSRange
+    }
+
+    var position: any Sendable {
+        var top = 0, offset: CGFloat = 0
+        if let layoutManager = textView.layoutManager, let container = textView.textContainer, storage.length > 0 {
+            let y = max(visibleTop - textView.textContainerOrigin.y, 0)
+            top = layoutManager.characterIndexForGlyph(at: layoutManager.glyphIndex(for: NSPoint(x: 0, y: y), in: container))
+            offset = visibleTop - lineTop(of: top)
+        }
+        return Position(top: top, offset: offset, selection: textView.selectedRange())
+    }
+
+    /// Scrolls back to where the position was taken and selects as before, both clamped to the text as it is now.
+    func restore(_ position: any Sendable) {
+        guard let position = position as? Position else { return }
+        let length = storage.length
+        let start = min(position.selection.location, length)
+        textView.setSelectedRange(NSRange(location: start, length: min(position.selection.length, length - start)))
+        scroll(toTopOf: min(position.top, max(length - 1, 0)), offset: position.offset)
+    }
+
+    /// The top of the text the toolbar and the history trail leave visible, in the text view's coordinates.
+    private var visibleTop: CGFloat {
+        let clip = scrollView.contentView
+        return clip.bounds.minY + clip.contentInsets.top
+    }
+
+    private func lineTop(of location: Int) -> CGFloat {
+        guard let layoutManager = textView.layoutManager, location < storage.length else { return textView.textContainerOrigin.y }
+        layoutManager.ensureLayout(forCharacterRange: NSRange(location: 0, length: location + 1))
+        return layoutManager.lineFragmentRect(forGlyphAt: layoutManager.glyphIndexForCharacter(at: location), effectiveRange: nil).minY
+            + textView.textContainerOrigin.y
+    }
+
+    /// Puts the line holding `location` at the top of the visible text, `offset` points above it, as far as the
+    /// text's length allows, and holds it there for a moment: a trail that just appeared sets its insets only once the
+    /// window has laid out, and a layout that resizes the text makes the text view scroll its selection to the middle.
+    private func scroll(toTopOf location: Int, offset: CGFloat = 0) {
+        let held = (location: location, offset: offset)
+        anchor = held
+        applyAnchor()
+        DispatchQueue.main.async { [weak self] in self?.applyAnchor() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.anchorTime) { [weak self] in
+            if let self, anchor.map({ $0 == held }) == true { anchor = nil }
+        }
+    }
+
+    @objc private func applyAnchor() {
+        guard let anchor else { return }
+        let clip = scrollView.contentView
+        let origin = NSPoint(x: clip.bounds.minX, y: lineTop(of: anchor.location) + anchor.offset - clip.contentInsets.top)
+        clip.scroll(to: clip.constrainBoundsRect(NSRect(origin: origin, size: clip.bounds.size)).origin)
+        scrollView.reflectScrolledClipView(clip)
+    }
+
+    /// Puts the cursor on the heading `name` names, once a large file's full parse has landed.
+    func go(to name: String) async -> String? {
+        await fullParse?.value
+        guard let index = HeadingNames.index(of: name, in: outline) else { return nil }
+        jump(toLine: outline[index].line)
+        return outline[index].title
     }
 
     // MARK: Zoom

@@ -1,10 +1,12 @@
 #!/bin/bash
 # The Markdown editing flow on screen: Space on a Markdown file in Finder shows it rendered in the Peek panel (no #
 # or ** in its text, and the picture beside it shown as a picture, not its alt text); in the Editor, typing at the end of a line and Cmd+S write exactly that to the file; a click on
-# a task box ticks it as an unsaved edit (closing asks to save; the file keeps [ ] until Cmd+S); and a click on a
-# heading in the sidebar outline puts the cursor at the start of its line and marks the heading, the mark follows the
-# cursor into another section, and the sidebar button sits over the sidebar. Writes screenshots and results.txt (one
-# ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
+# a task box ticks it as an unsaved edit (closing asks to save; the file keeps [ ] until Cmd+S); a click on a heading
+# in the sidebar outline puts the cursor at the start of its line and marks the heading, the mark follows the cursor
+# into another section, and the sidebar button sits over the sidebar; and Cmd-click follows a heading link and a file
+# link in the same tab, the trail lists the places, Cmd-[ and a crumb move through them, and a file link in the Peek
+# panel opens a window. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a
+# screen recording with SCREEN_RECORD=1.
 #
 # Text is found on screen through Accessibility (drive textframe), so the clicks follow the text wherever it's laid out.
 # Takes over the mouse, keyboard and Finder for about 20 seconds: the screen must be unlocked and left alone. Clicks
@@ -105,5 +107,58 @@ check "The sidebar button sits over the sidebar" \
 closed=$("$DRIVE" wait Peeker window notes.md --gone --timeout 3 2>/dev/null && echo closed)
 check "Closing after the save asks nothing" "$closed" closed
 [ -n "$closed" ] || "$DRIVE" press Peeker "Don't Save"
+
+# Following links: Cmd-click on a heading link puts the cursor on the heading; Cmd-click on a file link shows that
+# file in the same tab; the trail lists the places; Cmd-[ goes back to the heading, scrolled as it was left; a crumb
+# goes forward again; and in the Peek panel a click on the file link opens it in an Editor window.
+LINKS="$OUT/links.md"
+filler=$(for i in $(seq 60); do echo "Line $i of filler."; done)
+# Filler after Later too, so the jump puts it at the top rather than stopping at the end of the file.
+printf '# Links\n\nSee [the end](#later) or [the other file](other.md).\n\n%s\n\n## Later\n\n[the other file again](other.md)\n\n%s\n' "$filler" "$filler" > "$LINKS"
+printf '# Other\n\nBack to [links](links.md).\n' > "$OUT/other.md"
+open -a "$APP" "$LINKS"
+"$DRIVE" wait Peeker window links.md --timeout 10
+front
+read -r x y w h <<< "$(textframe "the end")"
+[ "$w" -gt 0 ] && "$DRIVE" cmdclick Peeker $((x + w / 2)) $((y + h / 2))
+sleep 0.5
+content=$(cat "$LINKS")
+before=${content%%"## Later"*}
+line=$(grep -n -m1 '^## Later$' "$LINKS" | cut -d: -f1)
+check "Cmd-click on #later puts the cursor at the start of ## Later" "$("$DRIVE" selection Peeker)" "${#before} 0 line $((line - 1))"
+read -r _ later_y _ _ <<< "$(textframe "## Later")"
+"$DRIVE" shot Peeker "$OUT/5-heading-link.png" links.md
+read -r x y w h <<< "$(textframe "the other file again")"
+[ "$w" -gt 0 ] && "$DRIVE" cmdclick Peeker $((x + w / 2)) $((y + h / 2))
+check "Cmd-click on other.md shows it in the same tab" "$("$DRIVE" wait Peeker window other.md --timeout 3 2>/dev/null && echo shown)" shown
+check "The links.md window is gone, replaced in its tab" "$("$DRIVE" wait Peeker window links.md --gone --timeout 3 2>/dev/null && echo replaced)" replaced
+crumbs=""
+for crumb in "links.md" "Later" "other.md"; do  # their titles; drive reads a title before a description
+    "$DRIVE" frame Peeker AXButton "$crumb" >/dev/null 2>&1 && crumbs="$crumbs[$crumb]"
+done
+check "The trail lists links.md, Later and other.md" "$crumbs" "[links.md][Later][other.md]"
+"$DRIVE" shot Peeker "$OUT/6-trail.png" other.md
+"$DRIVE" keys Peeker "cmd+["
+check "Cmd-[ goes back to links.md" "$("$DRIVE" wait Peeker window links.md --timeout 3 2>/dev/null && echo back)" back
+sleep 0.5
+read -r _ back_y _ _ <<< "$(textframe "## Later")"
+check "Back returns to the heading where it was on screen" "$([ $((back_y - later_y)) -le 20 ] && [ $((later_y - back_y)) -le 20 ] && echo same || echo "$later_y then $back_y")" same
+read -r x y w h <<< "$("$DRIVE" frame Peeker AXButton "other.md" || echo "0 0 0 0")"
+[ "$w" -gt 0 ] && "$DRIVE" click Peeker $((x + w / 2)) $((y + h / 2))
+check "A click on the other.md crumb goes forward to it" "$("$DRIVE" wait Peeker window other.md --timeout 3 2>/dev/null && echo forward)" forward
+"$DRIVE" keys Peeker cmd+w
+"$DRIVE" wait Peeker window other.md --gone
+
+# In the Peek panel a click on a file link closes the panel and opens the file in an Editor window.
+"$DRIVE" select "$LINKS"
+sleep 2.5
+"$DRIVE" keys Finder space
+"$DRIVE" wait Peeker window links.md --timeout 5
+read -r x y w h <<< "$(textframe "the other file")"
+[ "$w" -gt 0 ] && "$DRIVE" click Finder $((x + w / 2)) $((y + h / 2))  # the panel never activates Peeker
+check "A file link in the Peek panel opens it in an Editor window" "$("$DRIVE" wait Peeker window other.md --timeout 5 2>/dev/null && echo opened)" opened
+"$DRIVE" shot Peeker "$OUT/7-panel-link.png" other.md
+front
+"$DRIVE" keys Peeker cmd+w
 
 finish

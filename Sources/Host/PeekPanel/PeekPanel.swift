@@ -1,10 +1,17 @@
 import AppKit
+import PeekerKit
 
 /// The Peek panel: a floating panel like Finder's Quick Look. It never activates the app, so Finder stays frontmost and keeps
 /// handling arrow keys; the hotkey monitor closes it on the same key or Escape.
 final class PeekPanel: NSPanel {
     private(set) var document: DocumentViewController?
-    var onOpenInWindow: ((URL) -> Void)?
+    /// Opens a file in an Editor window, at a place in it such as a heading a link named.
+    var onOpenInWindow: ((URL, String?) -> Void)?
+    /// The id of the enabled plugin that opens a file, for links; the app sets it.
+    var owner: (URL) -> String? = { _ in nil }
+    /// Tests replace these two.
+    var beep: () -> Void = { NSSound.beep() }
+    var confirmOpenElsewhere: (PeekPanel, URL) async -> Bool = { await OpenElsewhere.confirm($1, on: $0) }
     /// Its name is what tells the panel apart from Quick Look, whose button opens Preview.
     let openButton = NSButton(title: "Open in Peeker", target: nil, action: nil)
 
@@ -37,10 +44,18 @@ final class PeekPanel: NSPanel {
 
     var url: URL? { document?.url }
 
+    /// AppKit spends a first click on making the panel key when the content needs that (selectable text), so a link
+    /// took two clicks. Making it key first lets the same click act. It still doesn't activate the app.
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown, !isKeyWindow { makeKey() }
+        super.sendEvent(event)
+    }
+
     func show(_ document: DocumentViewController) {
         self.document?.close()
         self.document = document
         title = document.url.lastPathComponent
+        document.onFollowLink = { [weak self] document, link in Task { await self?.follow(link, from: document) } }
         let frame = self.frame
         contentViewController = document
         setFrame(frame, display: false)
@@ -62,6 +77,22 @@ final class PeekPanel: NSPanel {
     @objc private func openInWindow() {
         guard let url else { return }
         dismiss()
-        onOpenInWindow?(url)
+        onOpenInWindow?(url, nil)
+    }
+
+    /// A link from the panel's document: a heading scrolls the panel; a file closes it and opens in an Editor window,
+    /// as Open in Peeker does. The panel keeps no history.
+    func follow(_ link: URL, from document: DocumentViewController) async {
+        switch LinkRoute(link: link, from: document.url, plugin: document.entry.id, owner: owner, isOpenElsewhere: { _ in false }) {
+        case .missing: beep()
+        case .stay, .bringForward: break  // nothing is open elsewhere for the panel; opening brings a window forward
+        case .place(let name):
+            if await (document.pluginDocument as? any LinkFollowing)?.go(to: name) == nil { beep() }
+        case .sameTab(let file, let place), .ownTab(let file, let place):
+            dismiss()
+            onOpenInWindow?(file, place)
+        case .ask(let file):
+            if await confirmOpenElsewhere(self, file) { NSWorkspace.shared.open(file) }
+        }
     }
 }

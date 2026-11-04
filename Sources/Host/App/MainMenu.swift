@@ -112,6 +112,11 @@ enum MainMenu {
             item("Show Toolbar", #selector(NSWindow.toggleToolbarShown(_:)), "t", [.option, .command]),
             item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.control, .command]),
         ])
+        // Where Preview and Finder keep them. Only an Editor window answers, so they're greyed out elsewhere.
+        submenu("Go", [
+            item("Back", #selector(DocumentWindowController.goBack(_:)), "["),
+            item("Forward", #selector(DocumentWindowController.goForward(_:)), "]"),
+        ])
         submenu("Tools", [noToolsItem()])
         submenu("Window", [
             item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m"),

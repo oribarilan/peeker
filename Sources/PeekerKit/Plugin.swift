@@ -143,6 +143,22 @@ public extension PluginDocument {
     var editability: Editability { .notEditable }
 }
 
+/// A document that follows links to local files, such as Markdown's relative links. The host decides where each
+/// link goes (a place in this document, this tab, another tab or another app) and keeps the tab's Back and Forward
+/// history; the document resolves its own link syntax and moves its own view.
+@MainActor public protocol LinkFollowing: PluginDocument {
+    /// Set by the host: call it with a link to a local file, resolved to an absolute file URL, its fragment naming a
+    /// place in it. Links to this document's own file come here too. Links with a scheme stay with the document.
+    var onFollowLink: ((URL) -> Void)? { get set }
+    /// Where the view is now, opaque to the host, handed back to `restore(_:)` when Back or Forward returns here.
+    var position: any Sendable { get }
+    /// Returns to a position this document gave earlier, as near as the current content allows.
+    func restore(_ position: any Sendable)
+    /// Goes to the place `name` names, such as a heading; returns its title for the history trail, or nil when there's
+    /// no such place. Waits for content still being parsed or drawn.
+    func go(to name: String) async -> String?
+}
+
 public enum Editability: Sendable, Equatable {
     case editable
     /// The file can't be edited; the reason is shown to the user, such as "This PDF's permissions don't allow changes."

@@ -2,7 +2,7 @@ import AppKit
 import PeekerKit
 
 /// A Markdown file rendered with native text, with an outline: the Peek panel's view, which only views.
-final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
+final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
     private let url: URL
     private let scrollView = ThemedFindTextView.scrollableTextView()
     private let textView: NSTextView
@@ -14,6 +14,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private var blocks: [MarkdownBlock] = []
     let pictures: MarkdownPictures
     private var images: [String: LocalImage] = [:]
+    var onFollowLink: ((URL) -> Void)?
 
     init(url: URL, parsed: MarkdownPlugin.Parsed) {
         self.url = url
@@ -119,8 +120,39 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     }
 
     func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
-        guard let url = link as? URL else { return false }
-        LinkOpener.open(url, from: scrollView.window)
+        guard let link = link as? URL else { return false }
+        // The renderer builds links without a base, so the relative string is the destination as written.
+        if let local = LinkOpener.resolve(link.relativeString, against: url) { onFollowLink?(local) } else { LinkOpener.open(link, from: scrollView.window) }
         return true
+    }
+
+    // MARK: Following links
+
+    /// The character at the top of the view.
+    var position: any Sendable {
+        let visible = scrollView.contentView.bounds
+        return textView.characterIndexForInsertion(at: NSPoint(x: textView.textContainerOrigin.x, y: visible.minY + textView.textContainerOrigin.y))
+    }
+
+    /// Scrolls the line holding the position's character to the top.
+    func restore(_ position: any Sendable) {
+        guard let top = position as? Int, top > 0, let layout = textView.textLayoutManager, let content = layout.textContentManager,
+              let location = content.location(content.documentRange.location, offsetBy: min(top, textView.string.utf16.count - 1)),
+              let before = NSTextRange(location: content.documentRange.location, end: location) else { return textView.scroll(.zero) }
+        layout.ensureLayout(for: before)
+        guard let fragment = layout.textLayoutFragment(for: location) else { return }
+        let offset = content.offset(from: fragment.rangeInElement.location, to: location)
+        let line = fragment.textLineFragments.first { NSLocationInRange(offset, $0.characterRange) }
+        textView.scroll(NSPoint(x: 0, y: fragment.layoutFragmentFrame.minY + (line?.typographicBounds.minY ?? 0) + textView.textContainerOrigin.y))
+    }
+
+    /// Scrolls to the heading `name` names. A long file's tail is drawn a frame after its head, so a heading there may
+    /// need a moment to get its place.
+    func go(to name: String) async -> String? {
+        guard let index = HeadingNames.index(of: name, in: outline) else { return nil }
+        let line = outline[index].line
+        for _ in 0..<30 where anchors[line] == nil { try? await Task.sleep(for: .milliseconds(16)) }
+        scroll(toLine: line)
+        return outline[index].title
     }
 }

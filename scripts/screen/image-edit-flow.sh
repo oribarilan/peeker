@@ -1,7 +1,7 @@
 #!/bin/bash
 # The image editing flow on screen: right after opening, crop a 400 × 200 PNG with the Crop button by the rectangle, turn it
 # with R and flip it with H in Rotate & Resize, resize it to 100 pixels wide with the proportions kept, and save. Checks
-# the menus (View and Tools, no Commands), that Rotate & Resize opens below the toolbar, the size fields after the turn,
+# the menus (View, Go and Tools, no Commands), that Rotate & Resize opens below the toolbar, the size fields after the turn,
 # the saved file's pixel size, resolution and color profile, the info panel's Dimensions, that Preview opens the
 # saved file, and that closing after the save asks nothing. Writes screenshots and
 # results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
@@ -32,7 +32,7 @@ record image-edit 60
 "$DRIVE" wait Peeker control "Crop"
 
 # The menus: View holds the view tools, Tools the edit tools, and there's no Commands menu or Edit Mode item.
-check "The menu bar has View and Tools, no Commands" "$("$DRIVE" menuitems Peeker | paste -sd ' ' -)" "Peeker File Edit View Tools Window Help"
+check "The menu bar has View, Go and Tools, no Commands" "$("$DRIVE" menuitems Peeker | paste -sd ' ' -)" "Peeker File Edit View Go Tools Window Help"
 view_items=$("$DRIVE" menuitems Peeker View)
 check "View lists Zoom In" "$(grep -cx 'Zoom In' <<< "$view_items")" 1
 check "View has one full-screen item" "$(grep -c 'Full Screen' <<< "$view_items")" 1

@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Links in Markdown to other files and to headings work. A heading link scrolls to the heading, a link to another Markdown file opens it in the same tab, and any other file opens in a tab of its own. Back and Forward (Cmd-[ and Cmd-], in the toolbar and in a new Go menu) return to where you were, and a trail under the toolbar lists the places you've been. In the Peek panel, a link to a file opens it in a window.
 - The Peek panel and printing show images stored on your Mac in Markdown files; web images still show their alt text, so nothing is fetched.
 - Photos stay sharp when zoomed in or at Actual Size.
 - PDFs gain Actual Size (Cmd+0) and Zoom to Fit (Cmd+9) in the View menu, as images have. Plain text and Markdown windows gain Actual Size (Cmd+0), which puts the text back at the size it opened at.

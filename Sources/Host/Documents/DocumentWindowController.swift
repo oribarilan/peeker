@@ -2,10 +2,11 @@ import AppKit
 import PeekerKit
 
 /// An Editor window (tabbed). Owns the chrome: "Open With" and the plugin's tools in the toolbar, and the save
-/// prompts as sheets.
+/// prompts as sheets. Following links, Back, Forward and the trail are in DocumentWindowController+Navigation.swift.
 final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, NSToolbarItemValidation, SavePrompts {
-    let url: URL
-    private let catalog: PluginCatalog
+    /// The file the tab shows now; a followed link can change it.
+    private(set) var url: URL
+    let catalog: PluginCatalog
     private var config: Config
     private let recovery: RecoveryStore?
     private let recoveryClipboard: RecoveryClipboard?
@@ -27,10 +28,28 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
     private var keyMonitor: Any?
 
+    // Following links: see DocumentWindowController+Navigation.swift.
+    var history: NavigationHistory
+    /// Where to take the next document once its content shows: a place a link named, or a position from the history.
+    var pendingArrival: Arrival?
+    var trailAccessory: NSTitlebarAccessoryViewController?
+    /// Opens a file in a tab of its own, at a place in it; the app sets it.
+    var openInOwnTab: ((URL, String?) -> Void)?
+    /// Another Editor window showing a file; the app sets it.
+    var otherWindow: (URL) -> DocumentWindowController? = { _ in nil }
+    /// Tests replace these three.
+    var bringForward: @MainActor (DocumentWindowController) -> Void = { $0.window?.makeKeyAndOrderFront(nil) }
+    var confirmOpenElsewhere: @MainActor (DocumentWindowController, URL) async -> Bool = { controller, url in
+        guard let window = controller.window else { return false }
+        return await OpenElsewhere.confirm(url, on: window)
+    }
+    var beep: () -> Void = { NSSound.beep() }
+
     init(url: URL, catalog: PluginCatalog, config: Config, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?,
          sidebarMemory: SidebarMemory = .shared) {
         self.sidebarMemory = sidebarMemory
         self.url = url
+        history = NavigationHistory(NavigationHistory.Entry(url: url, pluginID: ""))
         self.catalog = catalog
         self.config = config
         self.recovery = recovery
@@ -71,9 +90,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// Opens the file with `entry`. With a recovery record, its edits are applied once the file is showing.
-    func show(with entry: PluginEntry, restoring record: RecoveryRecord? = nil) {
+    /// Opens the file with `entry`; with `file`, from a followed link, the tab shows that file from now on. With a
+    /// recovery record, its edits are applied once the file is showing.
+    func show(with entry: PluginEntry, file: URL? = nil, restoring record: RecoveryRecord? = nil) {
         current?.close()
+        if let file { url = file }
+        if history.current.pluginID != entry.id { history.reopened(with: entry.id) }  // the first open, or Open With
         let document = DocumentViewController(url: url, entry: entry, config: config,
                                               allowsEditing: true, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString,
                                               sidebarMemory: sidebarMemory)
@@ -82,13 +104,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             guard document.hasShownContent || document.pluginDocument == nil else { return }
             self?.toolsChanged()
         }
-        document.onContentShown = { [weak self] _ in self?.toolsChanged() }
+        document.onContentShown = { [weak self] in
+            self?.toolsChanged()
+            self?.arrive($0)
+        }
+        document.onFollowLink = { [weak self] _, link in Task { await self?.follow(link) } }
         document.onRecovery = { [weak self] _, result in self?.report(result) }
         document.onEditRefused = { [weak self] _, reason in self?.showMessage(reason) }
         document.onActiveToolChanged = { [weak self] _ in self?.showActiveTool() }
         // Before loading, so closing the window while the file opens keeps the record for the next launch.
         if let record { document.restore(record) }
         self.current = document
+        window?.title = url.lastPathComponent
+        window?.representedURL = url
         window?.subtitle = entry.name
         if let window {
             let frame = window.frame
@@ -177,8 +205,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     @objc private func reopenWith(_ sender: NSPopUpButton) {
         let candidates = catalog.openWithChoices(for: url)
         guard candidates.indices.contains(sender.indexOfSelectedItem) else { return }
-        reopen(with: candidates[sender.indexOfSelectedItem]) { [weak self] in
-            if let index = candidates.firstIndex(where: { $0.id == self?.current?.entry.id }) { sender.selectItem(at: index) }
+        Task {
+            guard await !reopen(with: candidates[sender.indexOfSelectedItem]) else { return }
+            if let index = candidates.firstIndex(where: { $0.id == current?.entry.id }) { sender.selectItem(at: index) }
         }
     }
 
@@ -186,15 +215,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     @objc func reopenWithMenu(_ sender: NSMenuItem) {
         let candidates = catalog.openWithChoices(for: url)
         guard sender.submenu == nil, candidates.indices.contains(sender.tag) else { return }
-        reopen(with: candidates[sender.tag])
+        Task { await reopen(with: candidates[sender.tag]) }
     }
 
-    /// Reopens the tab with `entry` once unsaved edits are resolved; `onCancel` runs when the user cancels.
-    private func reopen(with entry: PluginEntry, onCancel: @escaping () -> Void = {}) {
-        Task {
-            guard await resolveUnsavedEdits() else { return onCancel() }
-            show(with: entry)
-        }
+    /// Reopens the tab with `entry` once unsaved edits are resolved. False when the user cancels.
+    @discardableResult func reopen(with entry: PluginEntry) async -> Bool {
+        guard await resolveUnsavedEdits() else { return false }
+        pendingArrival = nil
+        show(with: entry)
+        return true
     }
 
     /// Lists the plugins in File > Open With's submenu; the check on the current one comes with each menu check.
@@ -267,6 +296,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             return true
         case #selector(NSSplitViewController.toggleSidebar(_:)):
             return current?.validateUserInterfaceItem(menuItem) ?? false
+        case #selector(goBack(_:)): return history.canGoBack
+        case #selector(goForward(_:)): return history.canGoForward
         default:
             return true
         }
@@ -274,6 +305,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     /// Greys out a tool that can't run now, with the reason as the tooltip.
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
+        if item.action == #selector(goBack(_:)) { return history.canGoBack }
+        if item.action == #selector(goForward(_:)) { return history.canGoForward }
         guard item.action == #selector(runTool(_:)) else { return true }
         let reason = unavailableReason(forToolAt: item.tag)
         item.toolTip = reason ?? current.flatMap { $0.tools.indices.contains(item.tag) ? $0.tools[item.tag].spec.title : nil }
@@ -398,7 +431,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let tools = shown.filter { document.tools[$0].spec.isEditTool }.map(identifier)
         // The tracking separator keeps the sidebar button over the sidebar, as in Finder, and the rest past it. A space
         // between the two runs of tools puts view tools and edit tools on separate pieces of glass.
-        return (document.hasSidebar ? [.toggleSidebar, .sidebarTrackingSeparator] : []) + [Self.openWith] + [.flexibleSpace]
+        return (document.hasSidebar ? [.toggleSidebar, .sidebarTrackingSeparator] : []) + (showsBackAndForward ? [Self.back, Self.forward] : [])
+            + [Self.openWith] + [.flexibleSpace]
             + view + (view.isEmpty || tools.isEmpty ? [] : [.space]) + tools
     }
 
@@ -420,6 +454,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if let item = navigationItem(identifier) { return item }
         let item = NSToolbarItem(itemIdentifier: identifier)
         if identifier == Self.openWith {
             let popup = NSPopUpButton(frame: .zero, pullsDown: false)

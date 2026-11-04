@@ -18,7 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var windows: [DocumentWindowController] = []
     private lazy var panel: PeekPanel = {
         let panel = PeekPanel()
-        panel.onOpenInWindow = { [weak self] url in self?.openInWindow(url) }
+        panel.onOpenInWindow = { [weak self] url, place in self?.openInWindow(url, place: place) }
+        panel.owner = { [weak self] in self?.catalog.owner(for: $0)?.id }
         return panel
     }()
     private lazy var finder = FinderBridge()
@@ -265,13 +266,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     // MARK: Windows
 
     func openInWindow(_ url: URL) {
-        openInWindow(url, restoring: nil)
+        openInWindow(url, place: nil)
     }
 
-    /// With a record, opens it with the record's plugin if that's still enabled and applies its edits.
-    private func openInWindow(_ url: URL, restoring record: RecoveryRecord?) {
-        if let existing = windows.first(where: { $0.url == url }) {
+    /// The Editor window showing `url`, seeing through symlinks. A tab's file changes as links are followed in it.
+    static func window(showing url: URL, in windows: [DocumentWindowController]) -> DocumentWindowController? {
+        windows.first { LinkRoute.sameFile($0.url, url) }
+    }
+
+    /// With a record, opens it with the record's plugin if that's still enabled and applies its edits. With a place,
+    /// such as a heading a link named, goes there once the file shows.
+    private func openInWindow(_ url: URL, restoring record: RecoveryRecord? = nil, place: String?) {
+        if let existing = Self.window(showing: url, in: windows) {
             existing.window?.makeKeyAndOrderFront(nil)
+            if let place { Task { await existing.jump(to: place) } }
             return
         }
         guard let entry = plugin(for: url, restoring: record) else {
@@ -286,6 +294,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: .shared, recoveryClipboard: recoveryClipboard)
         controller.onBecameKey = { [weak self] in self?.showCommands(of: $0) }
+        controller.openInOwnTab = { [weak self] in self?.openInWindow($0, place: $1) }
+        controller.otherWindow = { [weak self, weak controller] url in
+            self.flatMap { Self.window(showing: url, in: $0.windows.filter { $0 !== controller }) }
+        }
         controller.onClose = { [weak self] closed in
             self?.windows.removeAll { $0 === closed }
             if self?.windows.isEmpty == true { self?.showCommands(of: nil) }
@@ -299,6 +311,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         } else {
             controller.showWindow(nil)
         }
+        controller.pendingArrival = place.map { .place($0) }
         controller.show(with: entry, restoring: record)
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
     }
@@ -324,7 +337,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         RecoveryRestore(store: .shared, clipboard: recoveryClipboard,
                         canOpen: { [self] in plugin(for: $0.url, restoring: $0) != nil },
                         hasText: { [self] in catalog.recoveryText($0) != nil },
-                        open: { [self] in openInWindow($0.url, restoring: $0) }).run()
+                        open: { [self] in openInWindow($0.url, restoring: $0, place: nil) }).run()
     }
 
     private func startBench(_ bench: Bench, url: URL) {

@@ -48,7 +48,7 @@ import Testing
     @Test func holdsTheStandardMenusInOrder() {
         let (main, delegate) = bar()
         defer { withExtendedLifetime(delegate) {} }
-        #expect(main.items.map(\.title) == ["Peeker", "File", "Edit", "View", "Tools", "Window", "Help"])
+        #expect(main.items.map(\.title) == ["Peeker", "File", "Edit", "View", "Go", "Tools", "Window", "Help"])
     }
 
     @Test func viewHasTheSidebarToolbarAndOneFullScreenItem() throws {

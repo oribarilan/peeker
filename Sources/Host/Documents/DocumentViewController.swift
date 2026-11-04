@@ -74,6 +74,8 @@ final class DocumentViewController: NSSplitViewController {
     var onRecovery: ((DocumentViewController, RecoveryResult) -> Void)?
     /// An edit tool was run on a read-only document; the string says why.
     var onEditRefused: ((DocumentViewController, String) -> Void)?
+    /// A document that follows links handed over a link to a local file.
+    var onFollowLink: ((DocumentViewController, URL) -> Void)?
 
     /// `journalDelay` is how long after the last edit the recovery copy is written.
     init(url: URL, entry: PluginEntry, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString,
@@ -343,6 +345,7 @@ final class DocumentViewController: NSSplitViewController {
             installSidebar(document.makeSidebar())
         }
         document.onActiveToolChange = { [weak self] in self.map { $0.onActiveToolChanged?($0) } }
+        (document as? any LinkFollowing)?.onFollowLink = { [weak self] link in self.map { $0.onFollowLink?($0, link) } }
         // The note is the Editor's; the Peek panel only views, so it has nothing to explain.
         if allowsEditing, case .readOnly(let reason) = document.editability {
             content.show(ReadOnlyNote(reason: reason, content: document.contentView))

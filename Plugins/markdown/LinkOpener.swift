@@ -8,6 +8,16 @@ enum LinkOpener {
         ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "")
     }
 
+    /// The local file a link without a scheme points to, resolved against the folder of `file` (a `/` path starts at
+    /// the disk's root), its fragment kept as the place to go and any query dropped. `#name` alone points to `file`
+    /// itself. Nil for a link with a scheme, which `open` handles.
+    static func resolve(_ destination: String, against file: URL) -> URL? {
+        guard URL(string: destination)?.scheme == nil, let link = URL(string: destination, relativeTo: file),
+              var parts = URLComponents(url: link.absoluteURL, resolvingAgainstBaseURL: false) else { return nil }
+        parts.query = nil
+        return parts.url
+    }
+
     static func open(_ destination: String, from window: NSWindow?) {
         if let url = URL(string: destination) { open(url, from: window) }
     }
