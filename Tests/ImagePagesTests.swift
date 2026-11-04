@@ -23,6 +23,15 @@ import Testing
         #expect(!single.tools.map(\.id).contains("next-page"))
     }
 
+    @Test func thePeekPanelShowsOnlyTheFirstPage() async throws {
+        let url = try multiPageTIFF([(40, 20), (30, 60)])
+        let document = try await openDocument(url, with: ImagePlugin.self, as: ImageDocument.self, editing: false, maxPixels: 1000)
+        #expect(document.pageList == nil)
+        #expect(!document.tools.map(\.id).contains("next-page"))
+        #expect(!document.perform("next-page"))
+        #expect(document.page == 0)
+    }
+
     @Test func nextPageShowsTheNextPageAndItsDetails() async throws {
         let document = try await pages()
         var sidebarChanges = 0

@@ -91,6 +91,20 @@ private final class LetterDocument: PluginDocument {
         #expect(document.cropOverlay != nil)
     }
 
+    @Test func pageDownAndPageUpMoveBetweenTIFFPages() async throws {
+        let controller = try await documentWindow(for: ImagePlugin.self, file: try multiPageTIFF([(40, 20), (20, 40)]))
+        defer { controller.close() }
+        let window = try #require(controller.window)
+        let document = try #require(controller.current?.pluginDocument as? ImageDocument)
+        let pageDown = String(UnicodeScalar(NSPageDownFunctionKey)!), pageUp = String(UnicodeScalar(NSPageUpFunctionKey)!)
+        #expect(controller.handleToolKey(key(pageDown, code: 121, in: window)))
+        await document.pageChange?.value
+        #expect(document.page == 1)
+        #expect(controller.handleToolKey(key(pageUp, code: 116, in: window)))
+        await document.pageChange?.value
+        #expect(document.page == 0)
+    }
+
     @Test func aReadOnlyImageSaysWhyAndDoesntCrop() async throws {
         let controller = try await documentWindow(for: ImagePlugin.self, file: try twoFrameGIF())
         defer { controller.close() }

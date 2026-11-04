@@ -38,6 +38,8 @@ final class ImageDocument: PluginDocument {
     private var pointsPerPixel: CGFloat
     /// The pages of a multi-page TIFF; 1 for any other image.
     let pageCount: Int
+    /// Whether the pages can be browsed: a multi-page TIFF in the Editor. The Peek panel shows only the first page.
+    private let showsPages: Bool
     /// The decode of the page being moved to, while it runs.
     private(set) var pageChange: Task<Void, Never>?
     /// The unsaved edits, oldest first.
@@ -60,6 +62,7 @@ final class ImageDocument: PluginDocument {
         self.url = url
         self.maxPixels = maxPixels
         pageCount = decoded.pageCount
+        showsPages = editable && decoded.pageCount > 1
         base = decoded.image
         baseSize = decoded.pixelSize
         pointsPerPixel = decoded.pointsPerPixel
@@ -98,12 +101,12 @@ final class ImageDocument: PluginDocument {
     }
 
     /// The thumbnails of a multi-page TIFF; nil for any other image.
-    private(set) lazy var pageList: PageList? = pageCount > 1
+    private(set) lazy var pageList: PageList? = showsPages
         ? PageList(url: url, pageCount: pageCount) { [weak self] in self?.showPage($0) } : nil
 
     var tools: [ToolSpec] {
         ImagePlugin.tools.filter { tool in
-            !(tool.isEditTool && editability == .notEditable) && (pageCount > 1 || !Self.pageTools.contains(tool.id))
+            !(tool.isEditTool && editability == .notEditable) && (showsPages || !Self.pageTools.contains(tool.id))
         }
     }
 
@@ -163,8 +166,8 @@ final class ImageDocument: PluginDocument {
         case "zoom-actual":
             zoomToActualSize()
             sharpenIfNeeded(atActualSize: true)
-        case "next-page" where pageCount > 1: showPage(page + 1)
-        case "previous-page" where pageCount > 1: showPage(page - 1)
+        case "next-page" where showsPages: showPage(page + 1)
+        case "previous-page" where showsPages: showPage(page - 1)
         case "crop" where isEditing: startCrop()
         case "transform" where isEditing: showTransform()
         default: return false

@@ -73,14 +73,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         }
     }
 
-    /// Handles an edit tool's shortcut before the menus do. In an editable document it runs a tool whose shortcut is a
-    /// single key, such as C for Crop, unless a text field or text view has the keyboard (a single key would swallow
-    /// typing as a menu key). In a read-only one any edit tool's shortcut says why, since its greyed-out menu item can't.
-    /// True when it took the key.
+    /// Handles a tool's shortcut before the menus do. A tool whose shortcut is a single key, such as C for Crop or Page
+    /// Down for Next Page, has no menu key equivalent, so it runs here unless a text field or text view has the keyboard
+    /// (a single key would swallow typing as a menu key). In a read-only document any edit tool's shortcut says why,
+    /// since its greyed-out menu item can't. True when it took the key.
     func handleToolKey(_ event: NSEvent) -> Bool {
         guard event.window === window, let document = current, let pressed = Shortcut(event: event),
-              let tool = document.tools.first(where: { $0.spec.isEditTool && $0.shortcut == pressed }) else { return false }
+              let tool = document.tools.first(where: { $0.shortcut == pressed }) else { return false }
         let typing = window?.firstResponder is NSText
+        guard tool.spec.isEditTool else {
+            guard pressed.isSingleKey, !typing else { return false }
+            document.run(tool.spec)
+            return true
+        }
         switch document.editability {
         case .editable: guard pressed.isSingleKey, !typing else { return false }
         case .readOnly: guard !(pressed.isSingleKey && typing) else { return false }

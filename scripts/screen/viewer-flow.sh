@@ -13,7 +13,7 @@ FLOW=viewer
 source "$(dirname "$0")/common.sh" "$@"
 
 PAGES="$OUT/pages.pdf" LOCKED="$OUT/locked.pdf" NOTES="$OUT/notes.txt" MD="$OUT/notes.md" PHOTO="$OUT/photo.png" GIF="$OUT/blink.gif"
-STRIPES="$OUT/stripes.png"
+STRIPES="$OUT/stripes.png" TIFF="$OUT/scan.tiff"
 "$PDF" pages "$PAGES" 4
 "$PDF" locked "$LOCKED" secret 3
 printf 'Plain text to print.\n' > "$NOTES"
@@ -21,6 +21,10 @@ printf '# Notes\n\nMarkdown to print.\n' > "$MD"
 sips -s format png -z 900 1600 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$PHOTO" >/dev/null
 # Two 64-pixel frames, red then blue, 0.4 s each, looping.
 base64 -d <<< 'R0lGODdhQABAAKIAAAAAAAAA//8AAP///wAAAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQFKAAEACwAAAAAQABAAAADRyi63P4wykmrvTjrzbv/YCiOZGmeaKqubOu+cCzPdG3feK7vfO//wKBwSCwaj8ikcslsOp/QqHRKrVqv2Kx2y+16v+CwWJAAACH5BAUoAAQALAAAAABAAEAAAANHGLrc/jDKSau9OOvNu/9gKI5kaZ5oqq5s675wLM90bd94ru987//AoHBILBqPyKRyyWw6n9CodEqtWq/YrHbL7Xq/4LA4kAAAOw==' > "$GIF"
+# Two pages of different sizes, as a scanner writes them.
+sips -s format tiff "$PHOTO" --out "$OUT/page1.tiff" >/dev/null
+sips -s format tiff -z 400 300 "$PHOTO" --out "$OUT/page2.tiff" >/dev/null
+tiffutil -cat "$OUT/page1.tiff" "$OUT/page2.tiff" -out "$TIFF" >/dev/null 2>&1
 # Larger than any screen, in one-pixel black and white columns: enlarged screen-size pixels would read as gray.
 "$DRIVE" stripes "$STRIPES" 6000 4000
 
@@ -138,12 +142,21 @@ check "A click pauses it" "$(frames)" 1
 sleep 0.3
 check "Another click plays it on" "$([ "$(frames)" -gt 1 ] && echo yes)" yes
 
+# A multi-page TIFF: Page Down and Page Up move between its pages, and the thumbnail of the page shown is selected.
+show "$TIFF"
+check "A multi-page TIFF opens on page 1" "$("$DRIVE" marked Peeker | tail -1)" 1
+"$DRIVE" keys Peeker pagedown && sleep 1
+check "Page Down shows page 2" "$("$DRIVE" marked Peeker | tail -1)" 2
+"$DRIVE" shot Peeker "$OUT/13-tiff-page-2.png" scan.tiff
+"$DRIVE" keys Peeker pageup && sleep 1
+check "Page Up shows page 1 again" "$("$DRIVE" marked Peeker | tail -1)" 1
+
 # Actual Size on a photo larger than the screen: once the full decode lands, neighbouring screen pixels differ by
 # most of the black-to-white range.
 show "$STRIPES"
 "$DRIVE" keys Peeker cmd+0 && sleep 1
-"$DRIVE" shot Peeker "$OUT/13-sharp-actual-size.png" stripes.png
-contrast=$("$DRIVE" contrast "$OUT/13-sharp-actual-size.png" || echo 0)
+"$DRIVE" shot Peeker "$OUT/14-sharp-actual-size.png" stripes.png
+contrast=$("$DRIVE" contrast "$OUT/14-sharp-actual-size.png" || echo 0)
 check "Actual Size on a large photo shows its own pixels" "$([ "$contrast" -gt 160 ] && echo yes)" yes
 
 finish

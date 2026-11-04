@@ -16,7 +16,7 @@ In the Editor, a TIFF with more than one page SHALL show one page at a time, wit
 
 #### Scenario: In the Peek panel
 - **WHEN** the user presses Space on a multi-page TIFF in Finder
-- **THEN** the Peek panel shows its first page
+- **THEN** the Peek panel shows its first page, with no page thumbnails
 
 ### Requirement: Moving between TIFF pages
 

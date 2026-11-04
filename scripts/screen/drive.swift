@@ -156,7 +156,7 @@ func drag(through points: [CGPoint]) {
 /// ANSI key codes for the keys a combo can name.
 let comboKeys: [String: CGKeyCode] = {
     var keys: [String: CGKeyCode] = ["space": 49, "return": 36, "tab": 48, "escape": 53, "delete": 51,
-                                     "left": 123, "right": 124, "down": 125, "up": 126]
+                                     "left": 123, "right": 124, "down": 125, "up": 126, "pageup": 116, "pagedown": 121]
     for (key, code) in zip("asdfhgzxcv", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) { keys[String(key)] = CGKeyCode(code) }
     for (key, code) in zip("bqweryt123465=97-80]ou[ip", [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]) { keys[String(key)] = CGKeyCode(code) }
     for (key, code) in zip("lj'k;\\,/nm.", [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]) { keys[String(key)] = CGKeyCode(code) }
