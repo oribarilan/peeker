@@ -36,12 +36,17 @@ The image SHALL appear fitted to the window, keeping its aspect ratio and resizi
 
 ### Requirement: Image details in the sidebar
 
-The sidebar SHALL show the details the file has: dimensions, kind, color model, color profile, resolution, camera, lens, the date it was taken, and file size.
+The sidebar SHALL show the details the file has: dimensions, kind, color model, color profile, resolution, camera, lens, the date it was taken, and file size. For a multi-page TIFF the details SHALL be the page shown, with which page of how many, and SHALL follow the page as it changes.
 
 #### Scenario: iPhone photo
 
 - **WHEN** the user opens a HEIC photo from an iPhone
 - **THEN** the sidebar shows its dimensions, the camera model, the lens and when it was taken
+
+#### Scenario: A page of a TIFF
+
+- **WHEN** the third page of a five-page TIFF shows
+- **THEN** the sidebar says page 3 of 5 and gives that page's dimensions
 
 ### Requirement: Opening images beats Preview
 
@@ -132,6 +137,14 @@ Printing an image SHALL print it on one page, centered, at its own size as given
 - **WHEN** the photo's file says it was taken rotated
 - **THEN** it prints upright, as the window shows it
 
+### Requirement: Print every page of a multi-page TIFF
+
+A multi-page TIFF SHALL print every page, each on a sheet of its own by the rules for printing an image, the orientation following the first page.
+
+#### Scenario: A multi-page TIFF
+- **WHEN** the user prints a three-page TIFF while its second page shows
+- **THEN** the print panel offers three sheets, one per page
+
 ### Requirement: Actual size and zooming out
 
 Actual Size (Cmd+0) SHALL show the image at one image pixel per screen pixel, centered. Zoom Out SHALL go below fit, down to an eighth of fit or to actual size when that's smaller. An image smaller than the window SHALL stay centered.
@@ -146,7 +159,7 @@ Actual Size (Cmd+0) SHALL show the image at one image pixel per screen pixel, ce
 
 ### Requirement: Animated images
 
-An image with several frames that its format animates (GIF, animated PNG, WebP, HEIC sequence) SHALL play in a loop with the frame timing its file gives, in the Editor and the Peek panel. A click on the image SHALL pause it and another click resume it. A multi-page TIFF SHALL keep showing its first page.
+An image with several frames that its format animates (GIF, animated PNG, WebP, HEIC sequence) SHALL play in a loop with the frame timing its file gives, in the Editor and the Peek panel. A click on the image SHALL pause it and another click resume it. A multi-page TIFF SHALL never play; its pages show as "Multi-page TIFFs show every page" says.
 
 #### Scenario: Playing
 - **WHEN** the user opens an animated GIF
@@ -231,3 +244,35 @@ Once an image has its full-resolution decode, the Editor SHALL show crop, rotate
 
 - **WHEN** the user rotates a zoomed photo and presses Cmd+Z before its sharp preview is ready
 - **THEN** the window shows the unrotated photo, and the rotated preview never appears
+
+### Requirement: Multi-page TIFFs show every page
+
+In the Editor, a TIFF with more than one page SHALL show one page at a time, with a thumbnail of every page in the sidebar, the page shown selected. A click on a thumbnail SHALL show that page. The Peek panel SHALL show the first page.
+
+#### Scenario: Thumbnails
+- **WHEN** the user opens a five-page TIFF in the Editor
+- **THEN** the first page shows, and the sidebar has five thumbnails with the first selected
+
+#### Scenario: A click on a thumbnail
+- **WHEN** the user clicks the fourth thumbnail
+- **THEN** the fourth page shows
+
+#### Scenario: In the Peek panel
+- **WHEN** the user presses Space on a multi-page TIFF in Finder
+- **THEN** the Peek panel shows its first page, with no page thumbnails
+
+### Requirement: Moving between TIFF pages
+
+Next Page and Previous Page (Page Down and Page Up), view tools listed only for a multi-page TIFF, SHALL move one page and do nothing past the first or last. Moving to a page SHALL keep the zoom mode: fit stays fit, and another zoom keeps its magnification, scrolled to the top left.
+
+#### Scenario: Next page
+- **WHEN** the first page of a multi-page TIFF shows and the user presses Page Down
+- **THEN** the second page shows and its thumbnail is selected
+
+#### Scenario: Zoom carries over
+- **WHEN** the user zooms a page to about 156% of fit and presses Page Down
+- **THEN** the next page shows at the same magnification, scrolled to its top left
+
+#### Scenario: A single image has no page tools
+- **WHEN** the user opens a one-page TIFF or a JPEG
+- **THEN** the View menu has no Next Page or Previous Page and the sidebar has no thumbnails

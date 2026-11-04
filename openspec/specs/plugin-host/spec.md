@@ -150,11 +150,19 @@ An Editor window whose plugin shows sidebar panels SHALL have the system sidebar
 
 ### Requirement: File menu additions
 
-File SHALL offer Open Recent, listing recently opened files with Clear Menu at the end; choosing a file SHALL open it as Open… would. File SHALL offer Open With, a submenu listing the plugins the toolbar's Open With control lists, with the current one checked, switching the same way. File SHALL offer Revert to Saved…, enabled only while the document has unsaved edits; it SHALL ask before discarding them, and confirming SHALL return the document to its last saved or loaded state.
+File SHALL offer Open Recent, listing recently opened files with Clear Menu at the end; choosing a file SHALL open it as Open… would. File SHALL offer Open With, a submenu listing the plugins the toolbar's Open With control lists, with the current one checked, switching the same way; when the toolbar hides that control because only one plugin can show the file, File > Open With SHALL stay in the menu, greyed out.
 
 #### Scenario: Reopening a recent file
 - **WHEN** the user opened notes.md earlier and chooses File > Open Recent > notes.md
 - **THEN** notes.md opens in the Editor
+
+#### Scenario: Open With with one choice
+- **WHEN** a photo is open in a window
+- **THEN** File > Open With is greyed out
+
+### Requirement: Revert to Saved
+
+File SHALL offer Revert to Saved…, enabled only while the document has unsaved edits; it SHALL ask before discarding them, and confirming SHALL return the document to its last saved or loaded state.
 
 #### Scenario: Reverting
 - **WHEN** a text document has unsaved edits and the user chooses Revert to Saved… and confirms
@@ -186,7 +194,7 @@ A document SHALL be able to report that one of its tools can't run right now, wi
 
 ### Requirement: Single-key edit tool shortcuts
 
-An edit tool's shortcut MAY be a single key with no Command, Option or Control. Such a shortcut SHALL run its tool in the Editor while no text field, text view or text box has keyboard focus; otherwise, and in the Peek panel, the key SHALL go where it would have gone. The Settings window's recorder SHALL accept single keys for edit tools and keep requiring a modifier for view tools.
+An edit tool's shortcut MAY be a single key with no Command, Option or Control. Such a shortcut SHALL run its tool in the Editor while no text field, text view or text box has keyboard focus; otherwise, and in the Peek panel, the key SHALL go where it would have gone. The Settings window's recorder SHALL accept single keys for edit tools and keep requiring a modifier for view tools, except Page Up and Page Down.
 
 #### Scenario: A letter in the Editor
 - **WHEN** an image is open in the Editor and the user presses C
@@ -291,3 +299,15 @@ Go SHALL offer Back (Cmd-[) and Forward (Cmd-]), which move through the front Ed
 
 - **WHEN** only the Peek panel and Settings are open
 - **THEN** Go > Back and Go > Forward are greyed out
+
+### Requirement: Page Up and Page Down as shortcuts
+
+A tool's shortcut MAY be Page Up or Page Down, written `pageup` and `pagedown` in the config, with or without modifiers. Since they type nothing, a view tool MAY use them without Command, Option or Control. Menus SHALL show them with the system's symbols, and the Settings recorder SHALL accept them.
+
+#### Scenario: Rebinding to Page Up
+- **WHEN** the config sets `plugins.image.tools.previous-page.shortcut` to `opt+pageup`
+- **THEN** Option-Page Up shows the previous page and plain Page Up no longer does
+
+#### Scenario: Recording Page Down
+- **WHEN** the user records Page Down for a view tool in Settings
+- **THEN** it's accepted

@@ -19,9 +19,9 @@
 
 ## 4. Screen flow and docs
 
-- [ ] 4.1 In `scripts/screen/record-flows.sh`, replace the "Image from the toolbar" step with a check that a Markdown window's Open With lists only Markdown and Plain Text, and add a step that a photo window has no Open With control; verify with `bash -n` now, and run the flow once the maintainer gives the go.
+- [x] 4.1 In `scripts/screen/record-flows.sh`, replace the "Image from the toolbar" step with a check that a Markdown window's Open With lists only Markdown and Plain Text, and add a step that a photo window has no Open With control; verify with `bash -n` now, and run the flow once the maintainer gives the go.
 - [x] 4.2 Add a CHANGELOG line under Unreleased, drop the Open With picker line from `openspec/backlog.md`, and verify `openspec validate --all` passes.
-- [ ] 4.3 Run `scripts/bench-ab.sh main` once, after the maintainer's go, and verify no regression is flagged.
+- [x] 4.3 Run `scripts/bench-ab.sh main` once, after the maintainer's go, and verify no regression is flagged. Two runs against `aa7855d` on 2026-11-04 each flagged one different measurement (Peek panel small.md open, then window small.png memory) and neither repeated; accepted as noise.
 
 ## Workflow follow-up
 

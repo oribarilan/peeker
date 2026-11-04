@@ -25,7 +25,7 @@
 ## 5. Docs and checks
 
 - [x] 5.1 Remove the multi-page TIFF line from `openspec/gaps.md`, add a CHANGELOG line under Unreleased, and verify `openspec validate --all` passes.
-- [ ] 5.2 After the maintainer's go: check the queued "Multi-page TIFF pages" item in the real app (thumbnails, Page Up/Down, zoom, info, print panel, Peek panel), and run `scripts/bench-ab.sh main` once with no regression flagged.
+- [x] 5.2 After the maintainer's go: check the queued "Multi-page TIFF pages" item in the real app (thumbnails, Page Up/Down, zoom, info, print panel, Peek panel), and run `scripts/bench-ab.sh main` once with no regression flagged. Two runs against `aa7855d` on 2026-11-04 each flagged one different measurement (Peek panel small.md open, then window small.png memory) and neither repeated; accepted as noise.
 
 ## Workflow follow-up
 

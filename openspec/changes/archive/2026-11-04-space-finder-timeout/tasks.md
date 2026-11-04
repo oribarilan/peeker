@@ -8,7 +8,7 @@
 
 ## 2. In the real app
 
-- [ ] 2.1 After the maintainer's go: Space and the arrow keys still show Finder's selection in the Peek panel (the `flows` screen test), and with Finder made busy Space falls through to Quick Look within about half a second.
+- [x] 2.1 After the maintainer's go: Space and the arrow keys still show Finder's selection in the Peek panel (the `flows` screen test), and with Finder made busy Space falls through to Quick Look within about half a second.
 
 ## Workflow follow-up
 
