@@ -91,6 +91,7 @@ check "Revert to Saved… asks first" "$("$DRIVE" wait Peeker sheet --timeout 5 
 check "Reverting brings the saved text back" "$(typed)" 0
 openwithitems() { "$DRIVE" choose Peeker | grep AXMenuItem | sed -E 's/.*“(.*)”.*/\1/' | paste -sd , -; }
 check "Open With lists only plugins that read a .md" "$(openwithitems)" "Markdown,Plain Text"
+sleep 1  # let the listed menu finish closing, or the next press finds it still open
 "$DRIVE" choose Peeker "Markdown" && sleep 1.5
 "$DRIVE" shot Peeker "$OUT/7-openwith-markdown.png" notes.md
 check "Open With switches back to Markdown" "$(openwith)" "Markdown"

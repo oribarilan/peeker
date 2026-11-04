@@ -7,8 +7,9 @@
 //        drive shot <owner> <out.png> [title]      screenshot of the owner's largest window (or the one with that title)
 //        drive select <path>                       activate Finder and select <path>
 //        drive tree <process> [depth]              print the Accessibility tree of the process's windows
-//        drive choose <process> <item> [label]     pick <item> in the front window's toolbar pop-up (Open With), or in
-//                                                  the pop-up labeled <label> in any window (a Settings pop-up)
+//        drive choose <process> [item] [label]     pick <item> in the front window's toolbar pop-up (Open With), or in
+//                                                  the pop-up labeled <label> in any window (a Settings pop-up); without
+//                                                  <item>, print the front window's pop-up and its items
 //        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close", and wait for the menu to close
 //        drive menuitems <process> [menu]          print the menu bar's menus, or open <menu> and print its items, "✓ "
 //                                                  before checked ones, then close it (DRIVE_HOLD=<s> waits first);
@@ -366,7 +367,7 @@ case "choose":
         ? appWindows.lazy.compactMap { find($0, where: { isPopUp($0) && label($0) == arg(3) }) ?? controlAfterText(arg(3), in: $0, isControl: isPopUp) }.first
         : appWindows.first.flatMap { find($0, where: isPopUp) }
     guard let popup else { fail(args.count > 3 ? "no pop-up “\(arg(3))”" : "no pop-up in the front window") }
-    pick(in: popup, item: arg(2))
+    pick(in: popup, item: args.count > 2 ? args[2] : nil)
 case "menu":
     guard let bar: AXUIElement = attr(application(arg(1)), kAXMenuBarAttribute),
           let menu = children(bar).first(where: { label($0) == arg(2) }),
