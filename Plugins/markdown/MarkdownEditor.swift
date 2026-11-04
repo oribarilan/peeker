@@ -134,10 +134,12 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
 
     /// The current text rendered as the Peek panel shows it, printed in the light appearance.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
-        { [weak self] info in self.flatMap { TextPrinting.job(for: $0.printText, info: info) } }
+        { [weak self] info in self.flatMap { TextPrinting.job(for: $0.printText(for: info), info: info) } }
     }
 
-    var printText: NSAttributedString { MarkdownRenderer.render(MarkdownTree.blocks(from: textView.string), theme: .system).text }
+    func printText(for info: NSPrintInfo) -> NSAttributedString {
+        MarkdownPictures.printText(MarkdownTree.blocks(from: textView.string), folder: url.deletingLastPathComponent(), info: info)
+    }
 
     // MARK: Editing
 

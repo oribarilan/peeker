@@ -97,7 +97,7 @@ extension ThemeState { @Suite struct ThemedViews {
         #expect(document.renderedText.contains("Title"))
 
         let editor = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownEditor.self)
-        let printed = try #require(editor.printText.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor)
+        let printed = try #require(editor.printText(for: NSPrintInfo()).attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor)
         #expect(hex(printed, in: .aqua) == hex(.labelColor, in: .aqua), "printing uses the system colors")
     }
 

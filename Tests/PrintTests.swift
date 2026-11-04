@@ -81,6 +81,58 @@ import Testing
         #expect(!string.contains("#") && !string.contains("**"))
         #expect(job(NSPrintInfo())?.view?.appearance?.name == .aqua)
     }
+
+    /// The pictures in a print job's text view, with the width each is laid out at.
+    private func pictures(in job: (NSPrintInfo) -> NSPrintOperation?) throws -> (pictures: [(MarkdownImageAttachment, CGFloat)], view: NSTextView) {
+        let info = NSPrintInfo()
+        info.paperSize = NSSize(width: 612, height: 792)
+        let view = try #require(job(info)?.view as? NSTextView)
+        let storage = try #require(view.textStorage), layout = try #require(view.layoutManager)
+        var found: [(MarkdownImageAttachment, CGFloat)] = []
+        storage.enumerateAttribute(.attachment, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            guard let attachment = value as? MarkdownImageAttachment else { return }
+            found.append((attachment, layout.attachmentSize(forGlyphAt: layout.glyphIndexForCharacter(at: range.location)).width))
+        }
+        return (found, view)
+    }
+
+    private func editor(_ markdown: String, pictures: [String] = []) async throws -> MarkdownEditor {
+        let file = try markdownFolder(markdown, pictures: pictures, size: CGSize(width: 3000, height: 1500))
+        return try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownEditor.self)
+    }
+
+    @Test func aLocalPicturePrintsDecodedAndFittedToThePage() async throws {
+        let editor = try await editor("# Chart\n\n![chart](img/chart.png)\n", pictures: ["img/chart.png"])
+        let (found, view) = try pictures(in: try #require(editor.printJob))
+        let (attachment, width) = try #require(found.first)
+        #expect(attachment.isDecoded)
+        #expect(width > 0 && width <= view.frame.width)
+        let pixels = try #require(attachment.image?.cgImage(forProposedRect: nil, context: nil, hints: nil)?.width)
+        #expect(pixels < 3000 && pixels <= Int(view.frame.width * 2))
+        #expect(!view.string.contains("[chart]"))
+    }
+
+    @Test func aWebImagePrintsItsAltText() async throws {
+        let editor = try await editor("![build](https://example.com/badge.svg)\n")
+        let (found, view) = try pictures(in: try #require(editor.printJob))
+        #expect(found.isEmpty)
+        #expect(view.string.contains("[build]"))
+    }
+
+    @Test func anUnsavedImageLinePrintsThePicture() async throws {
+        let editor = try await editor("# Notes\n", pictures: ["new.png"])
+        let view = try #require(editor.focusView as? NSTextView)
+        view.insertText("\n![new](new.png)\n", replacementRange: NSRange(location: (view.string as NSString).length, length: 0))
+        let (found, _) = try pictures(in: try #require(editor.printJob))
+        #expect(found.count == 1 && found.first?.0.isDecoded == true)
+    }
+
+    @Test func thePeekPanelPrintsItsPicturesToo() async throws {
+        let file = try markdownFolder("![chart](chart.png)\n", pictures: ["chart.png"])
+        let document = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownDocument.self, editing: false)
+        let (found, _) = try pictures(in: try #require(document.printJob))
+        #expect(found.count == 1 && found.first?.0.isDecoded == true)
+    }
 }
 
 @Suite struct PDFPrinting {

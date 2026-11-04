@@ -282,7 +282,7 @@ private func large(_ size: Int) -> Data {
     @Test func printingRendersTheCurrentText() async throws {
         let (_, editor) = try await edit("# Title\n")
         editor.type("\n## Fresh\n")
-        let printed = editor.printText.string
+        let printed = editor.printText(for: NSPrintInfo()).string
         #expect(printed.contains("Fresh") && printed.contains("Title"))
         #expect(!printed.contains("#"))
     }

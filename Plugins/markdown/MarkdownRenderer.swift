@@ -4,8 +4,9 @@ import PeekerSyntax
 
 /// Lays out the block tree as native attributed text, with each heading's source line mapped to where it starts.
 enum MarkdownRenderer {
-    static func render(_ blocks: some Collection<MarkdownBlock>, theme: TextTheme, leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
-        var context = Context(theme: theme)
+    static func render(_ blocks: some Collection<MarkdownBlock>, theme: TextTheme, images: [String: LocalImage] = [:],
+                       leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
+        var context = Context(theme: theme, images: images)
         if leadingBreak { context.out.append(NSAttributedString(string: "\n")) }
         for block in blocks { context.render(block, indent: 0) }
         if context.out.length > 0 { context.out.deleteCharacters(in: NSRange(location: context.out.length - 1, length: 1)) }
@@ -32,6 +33,7 @@ enum MarkdownRenderer {
 
     private struct Context {
         let theme: TextTheme
+        let images: [String: LocalImage]
         let out = NSMutableAttributedString()
         var anchors: [Int: Int] = [:]
 
@@ -103,7 +105,7 @@ enum MarkdownRenderer {
                 style.tabStops = [NSTextTab(textAlignment: .left, location: indent)]
                 out.append(prefix)
             }
-            appendSpans(spans, font: font, color: color ?? theme.text)
+            appendSpans(spans, font: font, color: color ?? theme.text, images: images)
             out.append(NSAttributedString(string: "\n"))
             out.addAttribute(.paragraphStyle, value: style, range: NSRange(location: start, length: out.length - start))
         }
@@ -116,14 +118,16 @@ enum MarkdownRenderer {
                 let start = out.length
                 for (column, cell) in row.enumerated() {
                     if column > 0 { out.append(NSAttributedString(string: "\t")) }
-                    appendSpans(cell, font: index == 0 ? .systemFont(ofSize: 13, weight: .semibold) : .systemFont(ofSize: 13), color: theme.text)
+                    appendSpans(cell, font: index == 0 ? .systemFont(ofSize: 13, weight: .semibold) : .systemFont(ofSize: 13), color: theme.text,
+                                images: [:])
                 }
                 out.append(NSAttributedString(string: "\n"))
                 out.addAttribute(.paragraphStyle, value: style, range: NSRange(location: start, length: out.length - start))
             }
         }
 
-        private func appendSpans(_ spans: [Span], font: NSFont, color: NSColor) {
+        /// Pictures come from `images`; an image without an entry shows its alt text in brackets.
+        private func appendSpans(_ spans: [Span], font: NSFont, color: NSColor, images: [String: LocalImage]) {
             for span in spans {
                 var attributes: [NSAttributedString.Key: Any] = [.foregroundColor: color]
                 let style = span.style
@@ -132,6 +136,11 @@ enum MarkdownRenderer {
                 if style.contains(.image) { attributes[.foregroundColor] = theme.marker }
                 if let link = span.link, let url = URL(string: link) { attributes[.link] = url }
                 attributes[.font] = MarkdownRenderer.font(font, style)
+                if style.contains(.image), let local = span.link.flatMap({ images[$0] }) {
+                    attributes[.attachment] = MarkdownImageAttachment(local, alt: span.text)
+                    out.append(NSAttributedString(string: "\u{FFFC}", attributes: attributes))
+                    continue
+                }
                 out.append(NSAttributedString(string: style.contains(.image) ? "[\(span.text)]" : span.text, attributes: attributes))
             }
         }

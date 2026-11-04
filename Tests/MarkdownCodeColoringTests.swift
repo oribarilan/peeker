@@ -71,7 +71,7 @@ extension ThemeState { @Suite struct MarkdownCodeColoring {
         defer { TextTheme.current = .system }
         TextTheme.current = TextTheme.named("tokyo-night")!
         let editor = try await openDocument(try TempFile.make(Data(source.utf8), name: "f.md"), with: MarkdownPlugin.self, as: MarkdownEditor.self)
-        let printed = editor.printText
+        let printed = editor.printText(for: NSPrintInfo())
         let location = (printed.string as NSString).range(of: "def size").location
         let keyword = try #require(printed.attribute(.foregroundColor, at: location, effectiveRange: nil) as? NSColor)
         #expect(hex(keyword, in: .aqua) == 0x9B2393)

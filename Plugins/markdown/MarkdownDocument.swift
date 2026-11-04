@@ -6,17 +6,24 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private let url: URL
     private let scrollView = ThemedFindTextView.scrollableTextView()
     private let textView: NSTextView
-    private var anchors: [Int: Int] = [:]
+    private(set) var anchors: [Int: Int] = [:]
     /// Counts renders, so a tail scheduled by an older one is dropped.
     private var renders = 0
     private(set) var outline: [OutlineItem] = []
     private(set) var info: [InfoRow] = []
     private var blocks: [MarkdownBlock] = []
+    let pictures: MarkdownPictures
+    private var images: [String: LocalImage] = [:]
 
     init(url: URL, parsed: MarkdownPlugin.Parsed) {
         self.url = url
         textView = scrollView.documentView as! NSTextView  // what scrollableTextView() always holds
+        pictures = MarkdownPictures(textView: textView)
         super.init()
+        pictures.onFallback = { [weak self] location, delta in
+            guard let self else { return }
+            for (line, anchor) in anchors where anchor > location { anchors[line] = anchor + delta }
+        }
         textView.isEditable = false
         textView.delegate = self
         textView.textContainerInset = NSSize(width: 28, height: 22)
@@ -24,6 +31,10 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
         apply(parsed)
         // Selector-based, so the observation ends with the document.
         NotificationCenter.default.addObserver(self, selector: #selector(themeChanged), name: TextTheme.didChange, object: nil)
+    }
+
+    isolated deinit {
+        pictures.cancel()
     }
 
     @objc private func themeChanged() {
@@ -45,7 +56,9 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
 
     /// The document rendered in the system colors, printed in the light appearance, whatever the theme.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
-        { [blocks] info in TextPrinting.job(for: MarkdownRenderer.render(blocks, theme: .system).text, info: info) }
+        { [blocks, url] info in
+            TextPrinting.job(for: MarkdownPictures.printText(blocks, folder: url.deletingLastPathComponent(), info: info), info: info)
+        }
     }
 
     func makeSidebar() -> [SidebarPanel] {
@@ -66,6 +79,7 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
         outline = parsed.outline
         info = parsed.info
         blocks = parsed.blocks
+        images = parsed.images
         update(blocks: parsed.blocks)
     }
 
@@ -78,19 +92,23 @@ final class MarkdownDocument: NSObject, PluginDocument, NSTextViewDelegate {
         let render = renders
         let visible = scrollView.contentView.bounds.origin
         let theme = TextTheme.current
-        let head = MarkdownRenderer.render(blocks.prefix(Self.firstPaintBlocks), theme: theme)
+        let shown = pictures.usable(images)
+        let head = MarkdownRenderer.render(blocks.prefix(Self.firstPaintBlocks), theme: theme, images: shown)
         anchors = head.anchors
         textView.textStorage?.setAttributedString(head.text)
         scrollView.contentView.scroll(to: visible)
+        // Pictures decode after the text shows, which already holds their space.
+        pictures.start(shown)
         guard blocks.count > Self.firstPaintBlocks else { return }
-        let offset = head.text.length
         // One frame later, so the first screen is drawn and shown before the rest is laid out.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak self] in
-            guard let self, renders == render else { return }
-            let tail = MarkdownRenderer.render(blocks.dropFirst(Self.firstPaintBlocks), theme: theme, leadingBreak: true)
-            self.textView.textStorage?.append(tail.text)
-            for (line, location) in tail.anchors { self.anchors[line] = location + offset }
-            self.scrollView.contentView.scroll(to: visible)
+            guard let self, renders == render, let storage = textView.textStorage else { return }
+            let tail = MarkdownRenderer.render(blocks.dropFirst(Self.firstPaintBlocks), theme: theme, images: pictures.usable(images), leadingBreak: true)
+            let offset = storage.length  // not the head's length: a picture that failed to decode changed it
+            storage.append(tail.text)
+            for (line, location) in tail.anchors { anchors[line] = location + offset }
+            pictures.fill()
+            scrollView.contentView.scroll(to: visible)
         }
     }
 

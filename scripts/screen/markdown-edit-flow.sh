@@ -1,6 +1,6 @@
 #!/bin/bash
 # The Markdown editing flow on screen: Space on a Markdown file in Finder shows it rendered in the Peek panel (no #
-# or ** in its text); in the Editor, typing at the end of a line and Cmd+S write exactly that to the file; a click on
+# or ** in its text, and the picture beside it shown as a picture, not its alt text); in the Editor, typing at the end of a line and Cmd+S write exactly that to the file; a click on
 # a task box ticks it as an unsaved edit (closing asks to save; the file keeps [ ] until Cmd+S); and a click on a
 # heading in the sidebar outline puts the cursor at the start of its line and marks the heading, the mark follows the
 # cursor into another section, and the sidebar button sits over the sidebar. Writes screenshots and results.txt (one
@@ -15,7 +15,9 @@ source "$(dirname "$0")/common.sh" "$@"
 
 FILE="$OUT/notes.md"
 # Short lines, so each source line is one laid-out line and drive selection's line number is the source line's.
-printf '# Notes\n\nSome **bold** words.\n\n- [ ] buy milk\n\n## Later\n\nmore text\n' > "$FILE"
+printf '# Notes\n\nSome **bold** words.\n\n![logo](logo.png)\n\n- [ ] buy milk\n\n## Later\n\nmore text\n' > "$FILE"
+# A picture beside the file, which the Peek panel shows in place of its alt text.
+sips -s format png -z 64 64 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$OUT/logo.png" >/dev/null
 front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.5; }
 # The screen frame of some text in the window: x y width height.
 # A failed lookup gives 0 0 0 0, and the click it was for is skipped rather than sent to the screen's corner.
@@ -40,6 +42,8 @@ echo "$rendered" > "$OUT/peek-panel-text.txt"
 check "The Peek panel shows the bold word" "$(grep -c bold <<< "$rendered")" 1
 check "The Peek panel shows no ** markers" "$(grep -cF '**' <<< "$rendered")" 0
 check "The Peek panel shows no # markers" "$(grep -cF '# ' <<< "$rendered")" 0
+check "The Peek panel shows the picture, not [logo]" "$(grep -cF '[logo]' <<< "$rendered")" 0
+sleep 0.5  # the picture decodes after the text shows
 "$DRIVE" shot Peeker "$OUT/1-peek-panel.png"
 "$DRIVE" keys Finder escape  # the panel never takes focus, so Finder stays in front
 "$DRIVE" wait Peeker window notes.md --gone
@@ -55,7 +59,7 @@ read -r x y w h <<< "$(textframe "more text")"
 [ "$w" -gt 0 ] && "$DRIVE" click Peeker $((x + w + 15)) $((y + h / 2))  # right of the line's end, which puts the cursor there
 "$DRIVE" type Peeker " added"
 "$DRIVE" keys Peeker cmd+s
-printf '# Notes\n\nSome **bold** words.\n\n- [ ] buy milk\n\n## Later\n\nmore text added\n' > "$OUT/expected-typed.md"
+printf '# Notes\n\nSome **bold** words.\n\n![logo](logo.png)\n\n- [ ] buy milk\n\n## Later\n\nmore text added\n' > "$OUT/expected-typed.md"
 for _ in $(seq 50); do cmp -s "$FILE" "$OUT/expected-typed.md" && break; sleep 0.1; done
 check "Cmd+S writes the typed text" "$(cmp -s "$FILE" "$OUT/expected-typed.md" && echo same || echo different)" same
 
