@@ -114,7 +114,9 @@ import Testing
             _ = SyntaxScanner.spans(in: text, language: language)
             let clock = ContinuousClock()
             let took = clock.measure { _ = SyntaxScanner.spans(in: text, language: language) }
-            #expect(took < .milliseconds(10), "\(language): \(took)")
+            // About three times what a scan takes on a recent Mac (6-8 ms), leaving room for CI's slower runner
+            // (11-15 ms) while still catching a scanner that got several times slower.
+            #expect(took < .milliseconds(25), "\(language): \(took)")
         }
     }
 }

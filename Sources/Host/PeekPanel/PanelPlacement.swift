@@ -22,7 +22,9 @@ enum PanelPlacement {
                height: max(minimumSize.height, min((screen.height * defaultShare.height).rounded(), maximumDefault.height)))
     }
 
+    /// Centered on whole points, as AppKit keeps window frames.
     private static func centered(_ size: NSSize, on screen: NSRect) -> NSRect {
-        NSRect(x: screen.midX - size.width / 2, y: screen.midY - size.height / 2, width: size.width, height: size.height)
+        NSRect(x: (screen.midX - size.width / 2).rounded(.down), y: (screen.midY - size.height / 2).rounded(.down),
+               width: size.width, height: size.height)
     }
 }

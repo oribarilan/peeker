@@ -6,7 +6,8 @@ import Testing
     private let laptop = NSRect(x: 0, y: 0, width: 1280, height: 800)
 
     private func centered(_ size: NSSize, on screen: NSRect) -> NSRect {
-        NSRect(x: screen.midX - size.width / 2, y: screen.midY - size.height / 2, width: size.width, height: size.height)
+        NSRect(x: (screen.midX - size.width / 2).rounded(.down), y: (screen.midY - size.height / 2).rounded(.down),
+               width: size.width, height: size.height)
     }
 
     @Test func withNothingSavedItOpensAtTheCappedDefaultCentered() {
@@ -45,5 +46,12 @@ import Testing
         #expect(PanelPlacement.frame(saved: .zero, screen: laptop) == centered(NSSize(width: 704, height: 600), on: laptop))
         let tooSmall = NSRect(x: 10, y: 10, width: 200, height: 100)
         #expect(PanelPlacement.frame(saved: tooSmall, screen: laptop) == centered(NSSize(width: 704, height: 600), on: laptop))
+    }
+
+    @Test func itCentersOnWholePoints() {
+        // An odd difference between screen and panel, as on CI's display, would put the panel on a half point.
+        let odd = NSRect(x: 0, y: 0, width: 1024, height: 675)
+        let frame = PanelPlacement.frame(saved: NSRect(x: 2000, y: 0, width: 563, height: 506), screen: odd)
+        #expect(frame.origin.x == frame.origin.x.rounded() && frame.origin.y == frame.origin.y.rounded())
     }
 }

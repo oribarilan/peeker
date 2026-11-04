@@ -63,7 +63,8 @@ private final class Drag: NSObject, NSDraggingInfo {
     return bar.collectionView(NSCollectionView(), validateDrop: Drag(), proposedIndexPath: &path, dropOperation: &dropOperation)
 }
 
-@Suite(.serialized) struct ThumbnailDropBars {
+@Suite(.serialized, .enabled(if: PageThumbnails.dragsReorderPages, "thumbnail drags reorder pages only on macOS 27 and later"))
+struct ThumbnailDropBars {
     @Test func itStandsInForPDFKitsDelegateAndPassesItsMessagesOn() async throws {
         let thumbnails = try await Thumbnails(pages: 3)
         defer { thumbnails.close() }
