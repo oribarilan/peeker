@@ -351,3 +351,33 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         #expect(Set(UserDefaults.standard.dictionaryRepresentation().keys) == defaults)
     }
 }
+
+/// The pad is white paper in either appearance, so its line and edge must show on white in dark mode too.
+@Suite struct SignaturePadLooks {
+    private struct Pixels: Equatable {
+        let line: CGFloat, edge: CGFloat, paper: CGFloat
+    }
+
+    /// The brightness of the empty pad's signature line, its left edge and its middle, drawn in `appearance`.
+    private func pixels(_ appearance: NSAppearance.Name) throws -> Pixels {
+        let canvas = SignatureCanvas(frame: NSRect(x: 0, y: 0, width: 440, height: 150))
+        let look = try #require(NSAppearance(named: appearance))
+        canvas.appearance = look
+        let bitmap = try #require(canvas.bitmapImageRepForCachingDisplay(in: canvas.bounds))
+        look.performAsCurrentDrawingAppearance { canvas.cacheDisplay(in: canvas.bounds, to: bitmap) }
+        let scale = CGFloat(bitmap.pixelsWide) / canvas.bounds.width
+        // The darkest pixel within a point of (x, y), with y measured from the bottom as the view draws.
+        func brightness(_ x: CGFloat, _ y: CGFloat) -> CGFloat {
+            let column = Int(x * scale), row = bitmap.pixelsHigh - 1 - Int(y * scale)
+            return (row - Int(scale)...row + Int(scale)).compactMap { bitmap.colorAt(x: column, y: $0)?.usingColorSpace(.deviceRGB)?.brightnessComponent }.min() ?? -1
+        }
+        return Pixels(line: brightness(220, 36), edge: brightness(0, 75), paper: brightness(220, 100))
+    }
+
+    @Test func theLineAndEdgeShowInDarkModeAsInLight() throws {
+        let dark = try pixels(.darkAqua), light = try pixels(.aqua)
+        #expect(dark.paper > 0.99)
+        #expect(dark.line < 0.9 && dark.edge < 0.9, "\(dark)")
+        #expect(dark == light)
+    }
+}

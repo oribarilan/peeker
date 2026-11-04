@@ -1,8 +1,8 @@
 #!/bin/bash
 # The viewer flow on screen: find in a PDF (its bar below the toolbar), the print panel for each format, hiding the
 # sidebar from the View menu (still hidden after a save) and showing it from the toolbar, Wrap Lines' checkmark,
-# unlocking a password-protected PDF, Actual Size and zooming out on an image, and an animated GIF playing, pausing on
-# a click and playing on. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
+# unlocking a password-protected PDF, Actual Size and Zoom to Fit on that PDF, Actual Size and zooming out on an image,
+# and an animated GIF playing, pausing on a click and playing on. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
 # recording with SCREEN_RECORD=1.
 #
 # Takes over the mouse and keyboard for about 50 seconds: the screen must be unlocked and left alone. Clicks and keys
@@ -98,15 +98,26 @@ sleep 1
 check "Unlocking shows the three pages" "$(thumbnails)" 3
 "$DRIVE" shot Peeker "$OUT/8-unlocked.png" locked.pdf
 
+# The same PDF at Actual Size, then fitted to the window again as it opened.
+fit=$(looks locked.pdf)
+"$DRIVE" keys Peeker cmd+0 && sleep 0.5
+actual=$(looks locked.pdf)
+"$DRIVE" shot Peeker "$OUT/9-pdf-actual-size.png" locked.pdf
+"$DRIVE" keys Peeker cmd+9 && sleep 0.5
+check "Actual Size changes a PDF's view" "$([ "$fit" != "$actual" ] && echo yes)" yes
+# Not compared with the first look: Zoom to Fit keeps the reading position, which may differ from how it opened.
+check "Zoom to Fit changes it back from Actual Size" "$([ "$(looks locked.pdf)" != "$actual" ] && echo yes)" yes
+"$DRIVE" shot Peeker "$OUT/9-pdf-zoom-to-fit.png" locked.pdf
+
 # An image: fitted, at Actual Size, then zoomed out below fit; each shows the image differently.
 show "$PHOTO"
 fit=$(looks photo.png)
 "$DRIVE" keys Peeker cmd+0 && sleep 0.5
 actual=$(looks photo.png)
-"$DRIVE" shot Peeker "$OUT/9-actual-size.png" photo.png
+"$DRIVE" shot Peeker "$OUT/10-actual-size.png" photo.png
 "$DRIVE" keys Peeker cmd+- && sleep 0.3 && "$DRIVE" keys Peeker cmd+- && sleep 0.3 && "$DRIVE" keys Peeker cmd+- && sleep 0.5
 smaller=$(looks photo.png)
-"$DRIVE" shot Peeker "$OUT/10-zoomed-out.png" photo.png
+"$DRIVE" shot Peeker "$OUT/11-zoomed-out.png" photo.png
 check "Actual Size changes the view" "$([ "$fit" != "$actual" ] && echo yes)" yes
 check "Zooming out changes it again" "$([ "$smaller" != "$actual" ] && [ "$smaller" != "$fit" ] && echo yes)" yes
 
@@ -118,7 +129,7 @@ read -r x y w h <<< "$("$DRIVE" frame Peeker AXScrollArea || echo "0 0 0 0")"
 "$DRIVE" click Peeker $((x + w / 2)) $((y + h / 2))
 sleep 0.3
 check "A click pauses it" "$(frames)" 1
-"$DRIVE" shot Peeker "$OUT/11-gif-paused.png" blink.gif
+"$DRIVE" shot Peeker "$OUT/12-gif-paused.png" blink.gif
 "$DRIVE" click Peeker $((x + w / 2)) $((y + h / 2))
 sleep 0.3
 check "Another click plays it on" "$([ "$(frames)" -gt 1 ] && echo yes)" yes

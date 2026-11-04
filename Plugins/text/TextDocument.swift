@@ -186,6 +186,8 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         switch id {
         case "zoom-in": setFontSize(fontSize + 1)
         case "zoom-out": setFontSize(fontSize - 1)
+        // No beep at the default size, unlike Zoom In at its limit: there's no limit being hit.
+        case "zoom-actual": if fontSize != Self.defaultFontSize { setFontSize(Self.defaultFontSize) }
         case "toggle-wrap":
             wraps.toggle()
             applyWrap()

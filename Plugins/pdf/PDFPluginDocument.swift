@@ -121,6 +121,10 @@ final class PDFPluginDocument: PluginDocument {
         switch id {
         case "zoom-in": pdfView.zoomIn(nil)
         case "zoom-out": pdfView.zoomOut(nil)
+        case "zoom-fit": pdfView.autoScales = true
+        case "zoom-actual":
+            pdfView.autoScales = false
+            pdfView.scaleFactor = 1
         case "text-box" where isEditing:
             prepareEditing()?.chooseTextBox()
         case "sign" where isEditing:

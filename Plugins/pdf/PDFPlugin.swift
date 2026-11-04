@@ -11,6 +11,8 @@ public enum PDFPlugin: Plugin {
     public static let tools = [
         ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
         ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
+        ToolSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", showsInToolbar: false),
+        ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
         ToolSpec(id: "text-box", title: "Text Box", symbol: "character.textbox", shortcut: "ctrl+cmd+t", isEditTool: true),
         ToolSpec(id: "sign", title: "Sign", symbol: "signature", isEditTool: true),
         ToolSpec(id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "ctrl+cmd+h", isEditTool: true),

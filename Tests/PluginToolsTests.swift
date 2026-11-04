@@ -30,9 +30,9 @@ import Testing
 
     @Test func pluginsDeclareTheirTools() {
         #expect(ImagePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "crop", "transform"])
-        #expect(PDFPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
-        #expect(TextPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "toggle-wrap"])
-        #expect(MarkdownPlugin.tools.map(\.id) == ["zoom-in", "zoom-out"])
+        #expect(PDFPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
+        #expect(TextPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "toggle-wrap"])
+        #expect(MarkdownPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])
     }
 
     @Test func eachPluginNamesItsSettingsIcon() {
@@ -56,5 +56,11 @@ import Testing
 
     @Test func signLeavesControlCommandSToTheSidebar() {
         #expect(PDFPlugin.tools.first { $0.id == "sign" }?.shortcut == nil)
+    }
+
+    /// Option-Command-W is the standard key for closing all windows.
+    @Test func wrapLinesHasNoDefaultShortcut() {
+        let wrap = TextPlugin.tools.first { $0.id == "toggle-wrap" }
+        #expect(wrap != nil && wrap?.shortcut == nil)
     }
 }

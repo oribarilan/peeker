@@ -37,6 +37,32 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 
 }
 
+@Suite struct PDFZooming {
+    @Test func actualSizeAndZoomToFitAreMenuOnlyWithTheImageKeys() {
+        let tools = PDFPlugin.tools.filter { $0.id == "zoom-actual" || $0.id == "zoom-fit" }
+        #expect(tools.map { [$0.id, $0.symbol, $0.shortcut] } == [
+            ["zoom-fit", "arrow.up.left.and.down.right.magnifyingglass", "cmd+9"],
+            ["zoom-actual", "1.magnifyingglass", "cmd+0"],
+        ])
+        #expect(tools.allSatisfy { !$0.showsInToolbar && !$0.isEditTool })
+    }
+
+    @Test func actualSizeShowsThePagesAt100Percent() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1))
+        #expect(document.perform("zoom-actual"))
+        #expect(!document.pdfView.autoScales)
+        #expect(document.pdfView.scaleFactor == 1)
+    }
+
+    @Test func zoomToFitFitsTheWindowAgain() async throws {
+        let document = try await open(try TempFile.makePDF(pages: 1))
+        #expect(document.perform("zoom-in") && document.perform("zoom-in"))
+        #expect(!document.pdfView.autoScales)
+        #expect(document.perform("zoom-fit"))
+        #expect(document.pdfView.autoScales)
+    }
+}
+
 @Suite struct PDFRefusingToEdit {
     private func restricted(_ permissions: UInt) throws -> URL {
         let plain = try #require(PDFDocument(url: try TempFile.makePDF(pages: 1)))
@@ -157,7 +183,7 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
     @Test func viewOnlyDocumentRefusesEditsAndHasNoEditTools() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1), editable: false)
         #expect(!document.restore(encoded: try encoded([highlight()])))
-        #expect(document.tools.map(\.id) == ["zoom-in", "zoom-out"])
+        #expect(document.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual"])
         #expect(document.editability == .notEditable)
     }
 

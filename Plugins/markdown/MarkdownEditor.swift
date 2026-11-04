@@ -284,6 +284,8 @@ final class MarkdownEditor: NSObject, PluginDocument, NSTextViewDelegate {
         switch id {
         case "zoom-in": setSize(baseSize + 1)
         case "zoom-out": setSize(baseSize - 1)
+        // No beep at the default size, unlike Zoom In at its limit: there's no limit being hit.
+        case "zoom-actual": if baseSize != Self.defaultSize { setSize(Self.defaultSize) }
         default: return false
         }
         return true

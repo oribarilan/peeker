@@ -119,7 +119,9 @@ final class SignatureCanvas: NSView {
     override func draw(_ dirtyRect: NSRect) {
         NSColor.white.setFill()
         bounds.fill()
-        NSColor.separatorColor.setStroke()
+        // Fixed colors, not ones that follow the appearance: the canvas is white paper even in dark mode.
+        NSColor.black.withAlphaComponent(0.25).setStroke()
+        NSBezierPath(rect: bounds.insetBy(dx: 0.5, dy: 0.5)).stroke()
         let line = NSBezierPath()
         line.move(to: CGPoint(x: 20, y: 36))
         line.line(to: CGPoint(x: bounds.maxX - 20, y: 36))

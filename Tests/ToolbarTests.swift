@@ -1,6 +1,7 @@
 import AppKit
 import PeekerImage
 import PeekerKit
+import PeekerMarkdown
 import PeekerPDF
 import PeekerText
 import Testing
@@ -42,8 +43,9 @@ private final class MixedDocument: PluginDocument {
     @Test func zoomToolsAreMenuOnly() {
         let menuOnly = { (tools: [ToolSpec]) in tools.filter { !$0.showsInToolbar }.map(\.id) }
         #expect(menuOnly(ImagePlugin.tools) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual"])
-        #expect(menuOnly(PDFPlugin.tools) == ["zoom-in", "zoom-out"])
-        #expect(menuOnly(TextPlugin.tools) == ["zoom-in", "zoom-out"])
+        #expect(menuOnly(PDFPlugin.tools) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual"])
+        #expect(menuOnly(TextPlugin.tools) == ["zoom-in", "zoom-out", "zoom-actual"])
+        #expect(menuOnly(MarkdownPlugin.tools) == ["zoom-in", "zoom-out", "zoom-actual"])
     }
 
     @Test func aMenuOnlyToolIsInViewButNotTheToolbar() async throws {

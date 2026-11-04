@@ -35,6 +35,23 @@ private func pending(_ document: TextDocument) -> String? {
         #expect(view.textContainer?.widthTracksTextView == false)
     }
 
+    @Test func actualSizeGoesBackToTheDefaultFontSize() async throws {
+        let (_, document) = try await open("a")
+        #expect(document.perform("zoom-in") && document.perform("zoom-in"))
+        #expect(document.perform("zoom-actual"))
+        let view = try #require(document.focusView as? NSTextView)
+        #expect(view.font?.pointSize == 12)
+        #expect(document.perform("zoom-actual"), "at the default size it does nothing, without failing")
+        #expect(view.font?.pointSize == 12)
+    }
+
+    @Test func offersActualSizeButNotZoomToFit() {
+        let zoom = TextPlugin.tools.filter { $0.id.hasPrefix("zoom-") }
+        #expect(zoom.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])
+        #expect(zoom.last.map { [$0.title, $0.symbol, $0.shortcut] } == ["Actual Size", "1.magnifyingglass", "cmd+0"])
+        #expect(zoom.last?.showsInToolbar == false)
+    }
+
     /// A log that grows past the edit limit turns read-only in the same view, with the note bar appearing.
     @Test func reloadAcrossTheEditLimitKeepsTheView() async throws {
         let (file, document) = try await open("a\n")

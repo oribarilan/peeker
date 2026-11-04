@@ -17,6 +17,15 @@ import Testing
         #expect(store.problems.isEmpty)
     }
 
+    /// The Settings window writes defaults out, so a config saved before Wrap Lines lost its default still names it.
+    @Test func aWrapLinesShortcutInTheConfigStays() throws {
+        let (store, _) = try store(#"{"plugins": {"text": {"tools": {"toggle-wrap": {"shortcut": "opt+cmd+w"}}}}}"#)
+        defer { store.stop() }
+        let wrap = try #require(TextPlugin.tools.first { $0.id == "toggle-wrap" })
+        #expect(store.config.shortcut(for: wrap, of: "text") == Shortcut(parsing: "opt+cmd+w"))
+        #expect(store.problems.isEmpty)
+    }
+
     @Test func aSaveApplies() async throws {
         let (store, file) = try store("{}")
         defer { store.stop() }

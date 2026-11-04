@@ -228,6 +228,6 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
 
     @Test func documentListsTheViewTools() async throws {
         let document = try await open(try TempFile.make(Data("a\n".utf8)))
-        #expect(document.tools.map { [$0.title, $0.shortcut] } == [["Zoom In", "cmd+="], ["Zoom Out", "cmd+-"], ["Wrap Lines", "opt+cmd+w"]])
+        #expect(document.tools.map { [$0.title, $0.shortcut] } == [["Zoom In", "cmd+="], ["Zoom Out", "cmd+-"], ["Actual Size", "cmd+0"], ["Wrap Lines", nil]])
     }
 }

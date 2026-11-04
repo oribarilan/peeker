@@ -163,6 +163,24 @@ private func large(_ size: Int) -> Data {
         #expect(editor.fontSize(at: late) > body, "the full parse styles the rest")
     }
 
+    @Test func actualSizeGoesBackToTheDefaultSize() async throws {
+        let (_, editor) = try await edit("# Big\nbody\n")
+        let heading = editor.fontSize(at: 2)
+        #expect(editor.perform("zoom-in") && editor.perform("zoom-in"))
+        #expect(editor.perform("zoom-actual"))
+        #expect(editor.fontSize(at: 7) == 14)
+        #expect(editor.fontSize(at: 2) == heading)
+        #expect(editor.perform("zoom-actual"), "at the default size it does nothing, without failing")
+        #expect(editor.fontSize(at: 7) == 14)
+    }
+
+    @Test func offersActualSizeButNotZoomToFit() {
+        let zoom = MarkdownPlugin.tools.filter { $0.id.hasPrefix("zoom-") }
+        #expect(zoom.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])
+        #expect(zoom.last.map { [$0.title, $0.symbol, $0.shortcut] } == ["Actual Size", "1.magnifyingglass", "cmd+0"])
+        #expect(zoom.last?.showsInToolbar == false)
+    }
+
     @Test func aFileOver1MBOpensUnstyledAndEditable() async throws {
         let (_, editor) = try await open(large(3 * 1_048_576))
         #expect(editor.editability == .editable)
