@@ -35,6 +35,8 @@
 //                                                  counted as laid out, so a wrapped line counts more than once
 //        drive click <process> <x> <y> [count]     click at a screen point, only while <process> is in front
 //        drive cmdclick <process> <x> <y>          Cmd-click at a screen point, only while <process> is in front
+//        drive move <process> <x> <y>              move the pointer to a screen point without clicking, only while
+//                                                  <process> is in front
 //        drive type <process> <text>               type <text>, only while <process> is in front
 //        drive drag <process> <x y>...             press at the first point, drag through the rest, release at the last
 //        drive keys <process> <combo>              press a combo such as opt+space, ctrl+cmd+h, return or cmd+up, only while <process> is in front
@@ -490,6 +492,15 @@ case "cmdclick":
     requireFront(arg(1))
     guard let x = Double(arg(2)), let y = Double(arg(3)) else { fail("cmdclick needs numbers") }
     click(at: CGPoint(x: x, y: y), count: 1, flags: .maskCommand)
+case "move":
+    requireFront(arg(1))
+    guard let x = Double(arg(2)), let y = Double(arg(3)) else { fail("move needs numbers") }
+    // Two steps, as a real pointer arrives: AppKit sometimes drops a lone jump, and the hover never starts.
+    for (dx, pause) in [(-2.0, 50_000 as useconds_t), (0, 0)] {
+        CGEvent(mouseEventSource: CGEventSource(stateID: .hidSystemState), mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: x + dx, y: y),
+                mouseButton: .left)?.post(tap: .cghidEventTap)
+        usleep(pause)
+    }
 case "type":
     requireFront(arg(1))
     type(arg(2))
@@ -599,5 +610,5 @@ case "contrast":
     }
     print(Int((total / Double(side * side) * 255).rounded()))
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|loginlaunch|focus|pixel|closest|stripes|contrast ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|move|type|keys|drag|wait|loginlaunch|focus|pixel|closest|stripes|contrast ...; see the top of drive.swift")
 }

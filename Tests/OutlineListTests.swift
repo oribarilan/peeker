@@ -1,4 +1,5 @@
 import AppKit
+import PeekerKit
 @testable import PeekerMarkdown
 import Testing
 
@@ -25,14 +26,23 @@ import Testing
         defer { window.close() }
         list.mouseMoved(with: mouse(.mouseMoved, over: 1, in: list))
         #expect(list.hoveredRow == 1)
-        #expect((list.table.rowView(atRow: 1, makeIfNecessary: false) as? OutlineRowView)?.isHovered == true)
+        #expect((list.table.rowView(atRow: 1, makeIfNecessary: false) as? HoverRowView)?.hoverFill.isHovered == true)
         list.mouseMoved(with: mouse(.mouseMoved, over: 2, in: list))
         #expect(list.hoveredRow == 2)
-        #expect((list.table.rowView(atRow: 1, makeIfNecessary: false) as? OutlineRowView)?.isHovered == false)
+        #expect((list.table.rowView(atRow: 1, makeIfNecessary: false) as? HoverRowView)?.hoverFill.isHovered == false)
         list.mouseExited(with: mouse(.mouseMoved, over: -1, in: list))
         #expect(list.hoveredRow == nil)
         #expect(list.table.selectedRow == -1, "hovering selects nothing")
         #expect(anchors.isEmpty, "and jumps nowhere")
+    }
+
+    @Test func theMarkedRowShowsNoHover() {
+        let (list, window) = outline()
+        defer { window.close() }
+        list.mark(1)
+        list.mouseMoved(with: mouse(.mouseMoved, over: 1, in: list))
+        #expect(list.hoveredRow == 1)
+        #expect((list.table.rowView(atRow: 1, makeIfNecessary: false) as? HoverRowView)?.hoverFill.isHovered == false)
     }
 
     @Test func markSelectsARowOrNoneWithoutJumping() {

@@ -32,7 +32,7 @@ import AppKit
         return dropBar
     }
 
-    private static func firstCollectionView(in view: NSView) -> NSCollectionView? {
+    static func firstCollectionView(in view: NSView) -> NSCollectionView? {
         (view as? NSCollectionView) ?? view.subviews.lazy.compactMap(firstCollectionView).first
     }
 

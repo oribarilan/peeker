@@ -85,6 +85,24 @@ import Testing
         #expect(list.table.selectedRow == 0)
     }
 
+    @Test func aPageUnderThePointerShowsTheHoverButTheShownOneDoesNot() async throws {
+        let list = try #require(try await pages().pageList)
+        let window = offscreenWindow(holding: list, width: 200, height: 800)
+        defer { window.close() }
+        list.layoutSubtreeIfNeeded()
+        func move(over row: Int) {
+            let rect = list.table.rect(ofRow: row)
+            let point = list.table.convert(NSPoint(x: rect.midX, y: rect.midY), to: nil)
+            list.mouseMoved(with: NSEvent.mouseEvent(with: .mouseMoved, location: point, modifierFlags: [], timestamp: 0,
+                                                     windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!)
+        }
+        func fill(_ row: Int) -> Bool? { (list.table.rowView(atRow: row, makeIfNecessary: false) as? HoverRowView)?.hoverFill.isHovered }
+        move(over: 1)
+        #expect(list.hoveredRow == 1 && fill(1) == true)
+        move(over: 0)
+        #expect(list.hoveredRow == 0 && fill(0) == false && fill(1) == false, "the shown page keeps its selected look")
+    }
+
     @Test func selectingARowShowsThatPage() async throws {
         let document = try await pages()
         let list = try #require(document.pageList)

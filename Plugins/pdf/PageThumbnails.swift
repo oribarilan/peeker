@@ -1,9 +1,10 @@
 import AppKit
 import PDFKit
+import PeekerKit
 
 /// The sidebar's page thumbnails. Several can be selected. In the Editor they can be dragged to reorder (when the
 /// file allows page changes, on macOS 27 and later), Delete removes the selected pages, and a right-click shows the
-/// page tools.
+/// page tools. The thumbnail under the pointer shows the hover tint, unless it's selected.
 final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
     var isEditing = false {
         didSet { update() }
@@ -19,6 +20,12 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
     /// The insertion bar shown while a thumbnail is dragged; nil before the thumbnails are in a window or where pages
     /// can't be dragged.
     private(set) var dropBar: ThumbnailDropBar?
+    /// The hover tint, in the background view of PDFKit's collection view, which has no hover of its own; nil before
+    /// the thumbnails are in a window, or if PDFKit's insides change and there's no collection view.
+    private(set) var hoverFill: HoverFill?
+    private(set) weak var hoverCollection: NSCollectionView?
+    private var hoveredItem: Int?
+    private var selectionObservation: NSKeyValueObservation?
 
     init(tools: [(id: String, title: String)]) {
         super.init(frame: .zero)
@@ -46,12 +53,61 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         installDropBar()
+        installHover()
     }
 
     /// Again if PDFKit has since put its own delegate back.
     private func installDropBar() {
         guard Self.dragsReorderPages, window != nil, dropBar == nil || dropBar?.collectionView?.delegate !== dropBar else { return }
         dropBar = ThumbnailDropBar.install(in: self)
+    }
+
+    // MARK: Hover
+
+    private func installHover() {
+        guard window != nil, hoverFill == nil, let collection = ThumbnailDropBar.firstCollectionView(in: self) else { return }
+        // The items draw into the collection view's own layer, so a subview would cover them; its background view
+        // stays behind them.
+        let fill = HoverFill()
+        let background = collection.backgroundView ?? NSView()
+        background.addSubview(fill)
+        collection.backgroundView = background
+        hoverFill = fill
+        hoverCollection = collection
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+                                       owner: self))
+        selectionObservation = collection.observe(\.selectionIndexPaths) { [weak self] _, _ in
+            MainActor.assumeIsolated { self?.setHovered(self?.hoveredItem) }
+        }
+        if let clip = collection.enclosingScrollView?.contentView {
+            clip.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(self, selector: #selector(scrolled), name: NSView.boundsDidChangeNotification, object: clip)
+        }
+    }
+
+    override func mouseMoved(with event: NSEvent) { hover(at: event.locationInWindow) }
+    override func mouseEntered(with event: NSEvent) { hover(at: event.locationInWindow) }
+    override func mouseExited(with event: NSEvent) { setHovered(nil) }
+
+    /// Thumbnails moved under a pointer that stayed put.
+    @objc private func scrolled() {
+        if let window, hoveredItem != nil { hover(at: window.mouseLocationOutsideOfEventStream) }
+    }
+
+    private func hover(at windowPoint: NSPoint) {
+        guard let collection = hoverCollection else { return }
+        setHovered(collection.indexPathForItem(at: collection.convert(windowPoint, from: nil))?.item)
+    }
+
+    private func setHovered(_ item: Int?) {
+        hoveredItem = item
+        guard let collection = hoverCollection, let fill = hoverFill else { return }
+        guard let item, !collection.selectionIndexPaths.contains(IndexPath(item: item, section: 0)) else {
+            fill.isHovered = false
+            return
+        }
+        fill.frame = collection.convert(collection.frameForItem(at: item), to: fill.superview)
+        fill.isHovered = true
     }
 
     override func deleteBackward(_ sender: Any?) {

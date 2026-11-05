@@ -5,7 +5,7 @@ import PeekerKit
 import Testing
 
 /// A PDF of `pages` pages open in the Editor, with its thumbnails laid out in a window of their own.
-@MainActor private final class Thumbnails {
+@MainActor final class Thumbnails {
     let document: PDFPluginDocument
     let view: PageThumbnails
     private let windows: [NSWindow]

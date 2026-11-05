@@ -1,11 +1,12 @@
 import AppKit
+import PeekerKit
 
-/// The sidebar's thumbnails of a multi-page TIFF, one row per page, the page shown selected. Thumbnails decode off
-/// the main thread when their row first shows and stay cached while the document is open.
-final class PageList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
+/// The sidebar's thumbnails of a multi-page TIFF, one row per page, the page shown selected and the one under the
+/// pointer tinted. Thumbnails decode off the main thread when their row first shows and stay cached while the
+/// document is open.
+final class PageList: HoverTableScrollView, NSTableViewDataSource, NSTableViewDelegate {
     /// The longer side of a thumbnail, in pixels.
     static let thumbnailSide = 256
-    let table = NSTableView()
     private let url: URL
     private let pageCount: Int
     private let onSelect: (Int) -> Void
@@ -25,7 +26,6 @@ final class PageList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         table.dataSource = self
         table.delegate = self
         table.setAccessibilityLabel("Pages")
-        documentView = table
         hasVerticalScroller = true
         autohidesScrollers = true
         drawsBackground = false
@@ -62,6 +62,8 @@ final class PageList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { pageCount }
+
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { rowView(for: row) }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let cell = tableView.makeView(withIdentifier: PageCell.identifier, owner: nil) as? PageCell ?? PageCell()

@@ -1,11 +1,15 @@
 import AppKit
+import PeekerKit
 
 /// The one-line trail under an Editor window's toolbar: every place in the tab's history, the current one marked.
-/// Clicking a crumb goes there, as Back or Forward would. When it doesn't fit, the oldest crumbs are cut first.
+/// Clicking a crumb goes there, as Back or Forward would, and the one under the pointer shows the hover tint. When it
+/// doesn't fit, the oldest crumbs are cut first.
 final class HistoryTrail: NSView {
     var onSelect: ((Int) -> Void)?
     private let stack = NSStackView()
     private(set) var crumbs: [NSButton] = []
+    let hoverFill = HoverFill()
+    private var current = 0
 
     init() {
         super.init(frame: NSRect(x: 0, y: 0, width: 400, height: 24))
@@ -13,6 +17,7 @@ final class HistoryTrail: NSView {
         stack.spacing = 4
         stack.setClippingResistancePriority(.defaultLow, for: .horizontal)  // crumbs truncate; the window stays resizable
         stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(hoverFill)
         addSubview(stack)
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
@@ -20,12 +25,16 @@ final class HistoryTrail: NSView {
             stack.centerYAnchor.constraint(equalTo: centerYAnchor),
             heightAnchor.constraint(equalToConstant: 24),
         ])
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+                                       owner: self))
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
     func show(_ history: NavigationHistory) {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        hoverFill.isHovered = false
+        current = history.index
         crumbs = history.entries.enumerated().map { index, entry in
             crumb(entry, at: index, current: index == history.index)
         }
@@ -58,6 +67,21 @@ final class HistoryTrail: NSView {
         label.textColor = .tertiaryLabelColor
         label.setAccessibilityElement(false)
         return label
+    }
+
+    override func mouseMoved(with event: NSEvent) { hover(at: convert(event.locationInWindow, from: nil)) }
+    override func mouseEntered(with event: NSEvent) { hover(at: convert(event.locationInWindow, from: nil)) }
+    override func mouseExited(with event: NSEvent) { hoverFill.isHovered = false }
+
+    /// Tints the crumb under `point`, except the current place.
+    private func hover(at point: NSPoint) {
+        let frames = crumbs.map { convert($0.frame, from: $0.superview) }
+        guard let index = frames.firstIndex(where: { $0.contains(point) }), index != current else {
+            hoverFill.isHovered = false
+            return
+        }
+        hoverFill.frame = NSRect(x: frames[index].minX - 6, y: bounds.midY - 10, width: frames[index].width + 12, height: 20)
+        hoverFill.isHovered = true
     }
 
     @objc private func select(_ sender: NSButton) {

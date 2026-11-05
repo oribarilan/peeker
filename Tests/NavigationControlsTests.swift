@@ -142,6 +142,35 @@ import Testing
     }
 }
 
+@Suite struct TrailHover {
+    @Test func aPlaceShowsTheTintUnderThePointerButTheCurrentOneDoesNot() {
+        var history = NavigationHistory(.init(url: URL(fileURLWithPath: "/a/README.md"), pluginID: "markdown"))
+        history.push(.init(url: URL(fileURLWithPath: "/a/README.md"), pluginID: "markdown", place: "install", title: "Install"))
+        history.push(.init(url: URL(fileURLWithPath: "/a/other.md"), pluginID: "markdown"))
+        let trail = HistoryTrail()
+        let window = offscreenWindow(holding: trail, width: 400, height: 24)
+        defer { window.close() }
+        trail.show(history)
+        trail.layoutSubtreeIfNeeded()
+        func move(over crumb: Int?) {
+            let point = crumb.map { trail.convert(NSPoint(x: trail.crumbs[$0].frame.midX, y: trail.crumbs[$0].frame.midY), from: trail.crumbs[$0].superview) }
+            let event = NSEvent.mouseEvent(with: .mouseMoved, location: trail.convert(point ?? NSPoint(x: -50, y: -50), to: nil), modifierFlags: [],
+                                           timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!
+            crumb == nil ? trail.mouseExited(with: event) : trail.mouseMoved(with: event)
+        }
+        move(over: 1)
+        let fill = trail.hoverFill
+        let crumb = trail.convert(trail.crumbs[1].frame, from: trail.crumbs[1].superview)
+        #expect(fill.isHovered && fill.frame.contains(crumb), "behind Install")
+        move(over: 2)
+        #expect(!fill.isHovered, "the current place keeps its own look")
+        move(over: 0)
+        #expect(fill.isHovered)
+        move(over: nil)
+        #expect(!fill.isHovered)
+    }
+}
+
 @Suite(.serialized) struct PeekPanelLinks {
     /// The panel's view of README.md, with what the panel did.
     private func panelDocument(_ files: LinkedFiles) async -> (PeekPanel, DocumentViewController, LinkEffects, () -> [(URL, String?)]) {

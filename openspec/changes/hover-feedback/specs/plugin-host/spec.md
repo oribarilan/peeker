@@ -4,12 +4,12 @@
 
 ### Requirement: Clickable things show where the pointer is
 
-Everything clickable in Peeker that has no button frame of its own SHALL show one hover look while the pointer is over it: a faint rounded tint in the accent color, fading in quickly, or at once with Reduce Motion. That covers toolbar buttons, PDF and TIFF page thumbnails, the trail's places and outline rows. A selected item SHALL keep its own look. Framed system buttons SHALL keep macOS's.
+Everything clickable in Peeker that has no button frame of its own SHALL show one hover look while the pointer is over it: a faint rounded tint in the accent color, fading in quickly, or at once with Reduce Motion. That covers PDF and TIFF page thumbnails, the trail's places and outline rows. A selected item SHALL keep its own look. Toolbar buttons and framed system buttons SHALL keep macOS's own look, which on macOS 26 already lightens a toolbar button's glass capsule on hover.
 
 #### Scenario: A toolbar tool
 
 - **WHEN** the pointer moves over the Highlight button in a PDF window
-- **THEN** a faint accent-colored tint appears behind it, and goes when the pointer leaves
+- **THEN** its glass capsule lightens as macOS draws it, with no accent tint added
 
 #### Scenario: A page thumbnail
 

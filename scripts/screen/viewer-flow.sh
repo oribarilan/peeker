@@ -1,9 +1,9 @@
 #!/bin/bash
-# The viewer flow on screen: find in a PDF (its bar below the toolbar), the print panel for each format, hiding the
-# sidebar from the View menu (still hidden after a save) and showing it from the toolbar, Wrap Lines' checkmark,
-# unlocking a password-protected PDF, Actual Size and Zoom to Fit on that PDF, Actual Size and zooming out on an image,
-# an animated GIF playing, pausing on a click and playing on, and Actual Size on a photo larger than the screen
-# showing its own pixels. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
+# The viewer flow on screen: the hover tint on a PDF's thumbnails, find in a PDF (its bar below the toolbar), the
+# print panel for each format, hiding the sidebar from the View menu (still hidden after a save) and showing it from
+# the toolbar, Wrap Lines' checkmark, unlocking a password-protected PDF, Actual Size and Zoom to Fit on that PDF,
+# Actual Size and zooming out on an image, an animated GIF playing, pausing on a click and playing on, and Actual Size
+# on a photo larger than the screen showing its own pixels. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
 # recording with SCREEN_RECORD=1.
 #
 # Takes over the mouse and keyboard for about 50 seconds: the screen must be unlocked and left alone. Clicks and keys
@@ -40,7 +40,26 @@ front
 "$DRIVE" type Peeker "" || { echo "Peeker didn't come to the front; nothing was sent"; exit 2; }
 record viewer 90
 
-# Find: the bar counts matches, and Find Next steps through them.
+# Hover: page 2's thumbnail shows the accent tint under the pointer; page 1, clicked to select it, keeps its own look.
+# Each check compares captures of the thumbnail and its number with the pointer away and over it.
+read -r wx wy ww wh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
+away() { "$DRIVE" move Peeker $((wx + ww * 2 / 3)) $((wy + wh / 2)) && sleep 0.4; }
+thumb() { read -r hx hy hw hh <<< "$("$DRIVE" frame Peeker AXStaticText "$1" || echo "0 0 0 0")"; }
+capture() { thumb "$1"; screencapture -x -R"$((hx - 50)),$((hy - 125)),$((hw + 100)),$((hh + 130))" "$OUT/$2.png"; shasum "$OUT/$2.png" | cut -c1-12; }
+over() { thumb "$1"; "$DRIVE" move Peeker $((hx + hw / 2)) $((hy - 40)) && sleep 0.4; }
+thumb 1 && "$DRIVE" click Peeker $((hx + hw / 2)) $((hy - 40))
+away
+before2=$(capture 2 0a-thumb-2) before1=$(capture 1 0b-thumb-1)
+over 2
+for _ in $(seq 10); do [ "$(capture 2 0c-thumb-2-hovered)" != "$before2" ] && break; sleep 0.2; done
+check "A thumbnail under the pointer shows the hover tint" "$([ "$(capture 2 0c-thumb-2-hovered)" != "$before2" ] && echo yes)" yes
+check "The tint stays behind the page" "$("$DRIVE" pixel "$OUT/0c-thumb-2-hovered.png" 0.5 0.5)" FFFFFF
+over 1
+check "The selected thumbnail shows none" "$(capture 1 0d-thumb-1-hovered)" "$before1"
+away
+
+# Find, with the thumbnails still focused from the click above: the bar counts matches, and Find Next steps through
+# them.
 find_status() { "$DRIVE" tree Peeker 14 | grep -oE '[0-9]+ of [0-9]+|[0-9]+ matches|Not found' | head -1; }
 "$DRIVE" keys Peeker cmd+f
 "$DRIVE" wait Peeker control Done
