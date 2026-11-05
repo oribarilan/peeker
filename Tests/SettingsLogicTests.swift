@@ -190,7 +190,7 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         let delegate = AppDelegate()  // menu items hold their target weakly
         defer { withExtendedLifetime(delegate) {} }
         let shortcuts = menuShortcuts(in: MainMenu.make(target: delegate))
-        #expect(shortcutConflict(Shortcut(parsing: "cmd+p")!, command: "highlight", plugin: plugins[0], config: Config(), menu: shortcuts) == "Print…")
+        #expect(shortcutConflict(Shortcut(parsing: "cmd+p")!, command: "highlight", plugin: plugins[0], config: Config(), menu: shortcuts) == "Print", "named in a sentence, so without the menu's ellipsis")
         #expect(shortcutConflict(Shortcut(parsing: "cmd+shift+g")!, command: "highlight", plugin: plugins[0], config: Config(), menu: shortcuts) == "Find Previous")
     }
 }
@@ -280,10 +280,10 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         let note = RefusalNote()
         var announced: [String] = []
         note.announce = { announced.append($0) }
-        note.show("⌘P is used by Print….")
-        #expect(announced == ["⌘P is used by Print…."])
+        note.show("⌘P is used by Print.")
+        #expect(announced == ["⌘P is used by Print."])
         try await Task.sleep(for: .seconds(3.5))
-        #expect(note.text == "⌘P is used by Print….", "no longer clears itself after three seconds")
+        #expect(note.text == "⌘P is used by Print.", "no longer clears itself after three seconds")
         note.clear()
         #expect(note.text == nil)
     }

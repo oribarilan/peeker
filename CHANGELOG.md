@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- A shortcut refused in Settings or the config names the menu item without its ellipsis: "⌘P is used by Print."
 - Animated images open paused on their first frame when Reduce Motion is on, and View > Play Animation plays and pauses them from the menu, checked while they play.
 - The PDF tools have single-letter keys: T for Text Box, S for Sign and H for Highlight, like C for Crop in images; they type as usual while a form field or text box has the keyboard. Rotate Left and Rotate Right no longer have keys by default. A key set in Settings or the config stays as it is.
 - Each toolbar tool sits on its own capsule with its key beside the icon, and the tool in use fills with the accent color; turn that off with "Show shortcuts in the toolbar" in Settings > Appearance or `"showShortcuts": false`. Every toolbar button and icon-only button has a tooltip with its name and key.

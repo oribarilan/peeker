@@ -10,7 +10,8 @@ func shortcutConflict(_ shortcut: Shortcut, command: String, plugin: PluginEntry
     }?.title
 }
 
-/// The shortcuts of every item in `menu` and its submenus, except plugin tools, which the document fills in.
+/// The shortcuts of every item in `menu` and its submenus, except plugin tools, which the document fills in. Titles
+/// drop a trailing ellipsis, since they're named in sentences such as "⌘P is used by Print."
 func menuShortcuts(in menu: NSMenu) -> [(title: String, shortcut: Shortcut)] {
     menu.items.flatMap { item -> [(title: String, shortcut: Shortcut)] in
         if let submenu = item.submenu { return menuShortcuts(in: submenu) }
@@ -18,7 +19,8 @@ func menuShortcuts(in menu: NSMenu) -> [(title: String, shortcut: Shortcut)] {
         guard let character = item.keyEquivalent.first, item.keyEquivalent.count == 1 else { return [] }
         var modifiers = item.keyEquivalentModifierMask.intersection([.control, .option, .shift, .command])
         if character.isUppercase { modifiers.insert(.shift) }  // AppKit reads an uppercase key equivalent as Shift
-        return [(item.title, Shortcut(key: .character(Character(character.lowercased())), modifiers: modifiers))]
+        let title = item.title.hasSuffix("…") ? String(item.title.dropLast()) : item.title
+        return [(title, Shortcut(key: .character(Character(character.lowercased())), modifiers: modifiers))]
     }
 }
 
