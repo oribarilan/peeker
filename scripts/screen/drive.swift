@@ -42,6 +42,8 @@
 //                                                  wait (5 s by default) for a window (title containing label), sheet,
 //                                                  menu or control (labeled like press finds it) to appear, or with
 //                                                  --gone to go away; exit 1 naming what it waited for on timeout
+//        drive loginlaunch <app> [NAME=value]...   launch <app> as macOS does a login item (an open-application event
+//                                                  marked as a login launch), with those environment variables
 //        drive focus <process>                     print the front app, the process's key window and focused element
 //        drive pixel <png> <x> <y>                 print the sRGB color (RRGGBB) at a point of an image given as fractions
 //                                                  of its width and height from the top left: 0.5 0.5 is the middle
@@ -524,6 +526,20 @@ case "wait":
         }
         usleep(50_000)
     }
+case "loginlaunch":
+    let event = NSAppleEventDescriptor(eventClass: kCoreEventClass, eventID: kAEOpenApplication, targetDescriptor: nil,
+                                       returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
+    event.setParam(NSAppleEventDescriptor(enumCode: OSType(keyAELaunchedAsLogInItem)), forKeyword: keyAEPropData)
+    let configuration = NSWorkspace.OpenConfiguration()
+    configuration.appleEvent = event
+    configuration.activates = false
+    configuration.environment = Dictionary(uniqueKeysWithValues: args.dropFirst(2).compactMap { pair in
+        pair.firstIndex(of: "=").map { (String(pair[..<$0]), String(pair[pair.index(after: $0)...])) }
+    })
+    var launched: Error?? = nil
+    NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: arg(1)), configuration: configuration) { _, error in launched = .some(error) }
+    while launched == nil { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+    if case .some(.some(let error)) = launched { fail("can't launch \(arg(1)): \(error.localizedDescription)") }
 case "focus":
     let app = application(arg(1))
     let window: AXUIElement? = attr(app, kAXFocusedWindowAttribute)
@@ -583,5 +599,5 @@ case "contrast":
     }
     print(Int((total / Double(side * side) * 255).rounded()))
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|focus|pixel|closest|stripes|contrast ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|type|keys|drag|wait|loginlaunch|focus|pixel|closest|stripes|contrast ...; see the top of drive.swift")
 }

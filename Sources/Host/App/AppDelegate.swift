@@ -71,9 +71,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         config.applyLooks()  // before any window or the Peek panel draws
-        let launch = NSAppleEventManager.shared().currentAppleEvent
-        launchedAtLogin = launch?.eventID == kAEOpenApplication
-            && launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
         let menu = MainMenu.make(target: self)
         viewMenu = menu.item(withTitle: "View")?.submenu
         toolsMenu = menu.item(withTitle: "Tools")?.submenu
@@ -103,6 +100,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // The launch's Apple event arrives only now: in applicationWillFinishLaunching there's none yet.
+        let launch = NSAppleEventManager.shared().currentAppleEvent
+        launchedAtLogin = launch?.eventID == kAEOpenApplication
+            && launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
         let files = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") && FileManager.default.fileExists(atPath: $0) }.map { URL(filePath: $0) }
         if let bench = Bench.current {
             // Launched from a terminal the file is an argument; through LaunchServices it arrives in application(_:open:).

@@ -1,7 +1,7 @@
 #!/bin/bash
-# Records the user-facing flows as evidence: Settings on a launch by hand, the Peek panel on Space in Finder for files
-# Peeker opens, Finder's Quick Look for files it leaves alone, the panel's capped first size, a move that sticks and
-# Settings' Reset Panel Size, Open With in an Editor window (the toolbar and File
+# Records the user-facing flows as evidence: no window on a launch at login, Settings on a launch by hand, the Peek
+# panel on Space in Finder for files Peeker opens, Finder's Quick Look for files it leaves alone, the panel's capped
+# first size, a move that sticks and Settings' Reset Panel Size, Open With in an Editor window (the toolbar and File
 # menu) and Revert to Saved…, a config clash in the menu bar icon, and changes made in Settings (a plugin off and on,
 # moving an extension and Reset, the Peek panel key recorder and Off, the update controls and a development build's
 # Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one recorder listening at a time, reopening on
@@ -23,6 +23,12 @@ printf 'not a real movie' > "$F/movie.mp4"
 printf 'a\n' > "$F/folder/inside.txt"
 base64 -d <<< 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' > "$F/pixel.png"
 "$PDF" form "$F/form.pdf"
+# A launch at login stays quiet: no Settings and no other window.
+"$DRIVE" loginlaunch "$APP" PEEKER_CONFIG="$CONFIG" PEEKER_RECOVERY="$OUT/recovery"
+for _ in $(seq 100); do pgrep -f "$BIN" >/dev/null && break; sleep 0.1; done
+sleep 2
+check "A launch at login opens no window" "$("$DRIVE" windows Peeker | awk '$4 < 25' | wc -l | tr -d ' ')" 0
+quit_app || { echo "Peeker launched at login won't quit"; exit 2; }
 launch
 # Opened by hand with nothing to open, Peeker shows Settings; close it before the Space checks.
 check "Opening Peeker by hand shows Settings" "$("$DRIVE" wait Peeker window Settings --timeout 5 2>/dev/null && echo yes)" yes
