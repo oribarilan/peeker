@@ -1,4 +1,5 @@
 import Foundation
+import PeekerKit
 @testable import PeekerPDF
 import Testing
 

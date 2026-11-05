@@ -1,11 +1,6 @@
 import CoreGraphics
 import Foundation
-
-nonisolated struct RGBA: Codable, Sendable, Equatable {
-    let red, green, blue, alpha: Double
-
-    var isValid: Bool { [red, green, blue, alpha].allSatisfy { (0...1).contains($0) } }
-}
+import PeekerKit
 
 /// What a mark is, for messages and for finding the annotation again.
 nonisolated enum MarkType: String, Codable, Sendable {
