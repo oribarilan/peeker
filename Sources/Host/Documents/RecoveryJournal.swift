@@ -12,7 +12,8 @@ final class RecoveryJournal {
 
     private let store: RecoveryStore
     private let id: String
-    private let url: URL
+    /// The file the edits belong to; Save As moves it.
+    var url: URL
     private let pluginID: String
     private let contents: () -> Contents?
     private var pending: DispatchWorkItem?

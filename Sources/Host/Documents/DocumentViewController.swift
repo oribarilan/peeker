@@ -12,7 +12,8 @@ enum RecoveryResult: Equatable {
 
 /// One open file, shown by one plugin. Used by both Editor windows and the Peek panel.
 final class DocumentViewController: NSSplitViewController {
-    let url: URL
+    /// The file shown; it changes only with Save As.
+    private(set) var url: URL
     let entry: PluginEntry
     private var config: Config
     private let content = HolderViewController()
@@ -242,6 +243,35 @@ final class DocumentViewController: NSSplitViewController {
         knownModification = Self.modificationDate(of: url)
         isEdited = editCount != editsAtSave
         journal?.write()  // removes the record, or keeps only edits made during the save
+        if !isClosed { installSidebar(document.makeSidebar()) }
+        return .saved
+    }
+
+    /// Save As: writes the file with its unsaved edits (or as it is, without any) to `destination`, then follows it:
+    /// file watching, the recovery record and the modification baseline move to the new file. On failure nothing moves.
+    func saveAs(to destination: URL) async -> SaveOutcome {
+        while let running = runningSave {
+            _ = await running.value
+            if runningSave == running { runningSave = nil }
+        }
+        guard let document = pluginDocument else { return .failed("The file isn't open.") }
+        isSaving = true
+        defer { isSaving = false }
+        let edits = document.unsavedEdits(), editsAtSave = editCount
+        do throws(PluginError) {
+            try await document.saveAs(edits, to: destination)
+        } catch {
+            Self.log.error("\(self.entry.id, privacy: .public): Save As of \(self.url.lastPathComponent, privacy: .private) failed: \(error.message, privacy: .private)")
+            return .failed(error.message)
+        }
+        url = destination
+        watcher?.stop()
+        watcher = nil
+        startWatching()
+        journal?.url = destination
+        knownModification = Self.modificationDate(of: destination)
+        isEdited = edits != nil && editCount != editsAtSave
+        journal?.write()
         if !isClosed { installSidebar(document.makeSidebar()) }
         return .saved
     }

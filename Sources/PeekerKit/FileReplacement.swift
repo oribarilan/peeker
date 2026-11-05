@@ -4,6 +4,12 @@ import os
 public nonisolated enum FileReplacement {
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "files")
 
+    /// Save As without changes: the bytes of the file at `source`, written to `destination` as `replaceContents` writes.
+    @concurrent public static func copy(_ source: URL, to destination: URL) async throws(PluginError) {
+        let data = try PluginError.catching { try Data(contentsOf: source, options: .mappedIfSafe) }
+        try replaceContents(ofFileAt: destination.path, with: data)
+    }
+
     /// Writes `data` to the file at `path` (or the file a symlink there points to) atomically, keeping its
     /// permissions. A file deleted or moved since it was opened is created again, with the default mode. On any
     /// failure the original is left as it was. Safe to call from any thread.

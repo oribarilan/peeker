@@ -7,7 +7,7 @@ import PeekerKit
 final class PageList: HoverTableScrollView, NSTableViewDataSource, NSTableViewDelegate {
     /// The longer side of a thumbnail, in pixels.
     static let thumbnailSide = 256
-    private let url: URL
+    var url: URL  // follows a Save As
     private let pageCount: Int
     private let onSelect: (Int) -> Void
     private var thumbnails: [Int: CGImage] = [:]

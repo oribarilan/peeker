@@ -112,6 +112,10 @@ public struct OpenContext: Sendable {
     /// those edits are saved; changes made since stay pending. A failure may come with an offer, such as saving in
     /// another encoding; when the user accepts it, the host calls again with that offer.
     func save(_ edits: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError)
+    /// Save As: writes the file to `destination`, a new file of the same format, off the main thread. With `edits`,
+    /// as `save` would write them, reading from the current file; with none, a copy of the file as it is. Once it
+    /// returns, the document uses `destination` for later saves and reads; when it throws, nothing changed.
+    func saveAs(_ edits: UnsavedEdits?, to destination: URL) async throws(PluginError)
     /// Drops the unsaved changes, going back to the file as last loaded or saved.
     func revertEdits()
 }
@@ -145,6 +149,9 @@ public extension PluginDocument {
     func unsavedEdits() -> UnsavedEdits? { nil }
     func restore(encoded edits: Data) -> Bool { false }
     func save(_ edits: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError) {
+        throw PluginError("This document can't be saved.")
+    }
+    func saveAs(_ edits: UnsavedEdits?, to destination: URL) async throws(PluginError) {
         throw PluginError("This document can't be saved.")
     }
     func revertEdits() {}

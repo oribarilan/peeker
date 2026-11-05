@@ -94,6 +94,7 @@ enum MainMenu {
             .separator(),
             item("Close", #selector(NSWindow.performClose(_:)), "w"),
             item("Save", #selector(DocumentWindowController.saveDocument(_:)), "s"),
+            item("Save As…", #selector(DocumentWindowController.saveDocumentAs(_:)), "s", [.command, .shift]),
             item("Revert to Saved…", #selector(DocumentWindowController.revertDocument(_:))),
             .separator(),
             item("Print…", #selector(DocumentWindowController.printDocument(_:)), "p"),

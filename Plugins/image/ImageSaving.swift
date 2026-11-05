@@ -11,10 +11,11 @@ nonisolated enum ImageSaving {
     /// Formats whose orientation tag apps read, where turning the image can leave its data untouched.
     private static let orientable: Set<String> = [UTType.jpeg.identifier, UTType.heic.identifier, UTType.heif.identifier, UTType.tiff.identifier]
 
-    /// Applies `edits` to the file at `path` and replaces it. Writes nothing on failure.
-    @concurrent static func save(_ edits: [ImageEdit], to path: String) async throws(PluginError) {
-        let name = URL(filePath: path).lastPathComponent
-        guard let source = CGImageSourceCreateWithURL(URL(filePath: path) as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
+    /// Applies `edits` to the file at `from` (by default `path`) and writes the result to `path`, in the source's
+    /// format. Writes nothing on failure.
+    @concurrent static func save(_ edits: [ImageEdit], from original: String? = nil, to path: String) async throws(PluginError) {
+        let name = URL(filePath: original ?? path).lastPathComponent
+        guard let source = CGImageSourceCreateWithURL(URL(filePath: original ?? path) as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               let type = CGImageSourceGetType(source), CGImageSourceGetCount(source) > 0 else {
             throw PluginError("“\(name)” is no longer a readable image.")
         }

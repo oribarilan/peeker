@@ -7,7 +7,7 @@ import PeekerKit
 /// registers the scroll view with the titlebar's edge effect, which kept a warm Space on a 10 KB file near 30 ms
 /// (TextKit 1: under 20). It also placed find results screens away from the match in a 90 MB log.
 final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
-    private let url: URL
+    private var url: URL
     private let allowsEditing: Bool
     private let root = NSView()
     private let scrollView = NSScrollView()
@@ -152,6 +152,17 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         info = TextPlugin.info(lineCount: TextCodec.lineCount(of: text), format: target, byteCount: byteCount)
         format = target
         baseline = text
+    }
+
+    func saveAs(_ edits: UnsavedEdits?, to destination: URL) async throws(PluginError) {
+        if isEditable, let text = (edits?.value as? TextEdits)?.text {
+            let byteCount = try await TextFile.write(text, as: format, to: destination.path)
+            info = TextPlugin.info(lineCount: TextCodec.lineCount(of: text), format: format, byteCount: byteCount)
+            baseline = text
+        } else {
+            try await FileReplacement.copy(url, to: destination)  // also keeps a file shown only in part whole
+        }
+        url = destination
     }
 
     func revertEdits() {

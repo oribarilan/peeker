@@ -4,7 +4,7 @@ import PeekerKit
 /// The decoded image fitted to the window, with zoom from fit to 16 times fit. In the Editor it has edit tools:
 /// crop, rotate, flip and resize, saved on Cmd+S at full resolution.
 final class ImageDocument: PluginDocument {
-    private let url: URL
+    private var url: URL
     /// The largest side a page is decoded at, as opening decoded the first.
     private let maxPixels: Int
     private let scrollView = NSScrollView()
@@ -308,6 +308,25 @@ final class ImageDocument: PluginDocument {
     func save(_ unsaved: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError) {
         guard let snapshot = unsaved.value as? ImageSnapshot else { throw PluginError("These changes aren't image edits.") }
         try await ImageSaving.save(snapshot.edits, to: url.path)
+        await saved(snapshot)
+    }
+
+    func saveAs(_ unsaved: UnsavedEdits?, to destination: URL) async throws(PluginError) {
+        if let snapshot = unsaved?.value as? ImageSnapshot {
+            try await ImageSaving.save(snapshot.edits, from: url.path, to: destination.path)
+            url = destination
+            await saved(snapshot)
+        } else {
+            try await FileReplacement.copy(url, to: destination)
+            url = destination
+            info = await ImagePlugin.info(of: url)
+        }
+        animation?.url = destination
+        pageList?.url = destination
+    }
+
+    /// Starts from the file just written with `snapshot`'s edits.
+    private func saved(_ snapshot: ImageSnapshot) async {
         // The file now has the saved edits; start from it. Edits added during the save stay pending on top. If the
         // list changed under the save (an undo), those changes no longer fit the file and are dropped.
         let remainder = edits.starts(with: snapshot.edits) ? Array(edits.dropFirst(snapshot.edits.count)) : []

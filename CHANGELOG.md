@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- File > Save As… (Shift+Cmd+S) writes the file, with your unsaved changes, to a new name or folder and keeps working on it there; the original stays as it was. Read-only files are copied as they are.
 - In a PDF window, a rotated page turns into place, a deleted page shrinks away, and Undo grows it back; nothing moves with Reduce Motion on.
 - Plain text remembers its text size and Wrap Lines, and Markdown its text size, for every file opened after, in windows and the Peek panel, across launches. Actual Size (Cmd+0) goes back to the default size.
 - The menu bar icon's menu has Open…, so a file can be opened in Peeker with no window open.

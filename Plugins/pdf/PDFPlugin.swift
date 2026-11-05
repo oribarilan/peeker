@@ -78,9 +78,10 @@ public enum PDFPlugin: Plugin {
 
     /// Applies `edits` in order to a fresh copy of the file at `path` and writes it. Writes nothing if any edit doesn't
     /// fit the file, and says which. Loads its own copy, so it's safe off the main thread.
-    @concurrent nonisolated static func write(_ edits: [PDFEdit], to path: String) async throws(PluginError) {
-        let name = URL(filePath: path).lastPathComponent
-        guard let document = PDFDocument(url: URL(filePath: path)) else { throw PluginError("“\(name)” is no longer a readable PDF.") }
+    /// Applies `edits` to the PDF at `source` (by default `path`) and writes the result to `path`.
+    @concurrent nonisolated static func write(_ edits: [PDFEdit], from source: String? = nil, to path: String) async throws(PluginError) {
+        let name = URL(filePath: source ?? path).lastPathComponent
+        guard let document = PDFDocument(url: URL(filePath: source ?? path)) else { throw PluginError("“\(name)” is no longer a readable PDF.") }
         guard !document.isLocked else { throw PluginError("This PDF is password protected.") }
         let stash = PageStash()
         for edit in edits { try PDFEditing.apply(edit, to: document, fileName: name, stash: stash) }

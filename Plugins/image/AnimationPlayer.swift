@@ -7,7 +7,7 @@ import ImageIO
 final class AnimationPlayer {
     /// Whether the user asked macOS to reduce motion; tests replace it.
     nonisolated(unsafe) static var reducesMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
-    private let url: URL
+    var url: URL  // follows a Save As
     private weak var canvas: ImageCanvas?
     private(set) var isPaused = false
     /// The frame shown, so a paused animation resumes from it.

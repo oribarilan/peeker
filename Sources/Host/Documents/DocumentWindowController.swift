@@ -1,5 +1,6 @@
 import AppKit
 import PeekerKit
+import UniformTypeIdentifiers
 
 /// An Editor window (tabbed). Owns the chrome: "Open With" and the plugin's tools in the toolbar, and the save
 /// prompts as sheets. Following links, Back, Forward and the trail are in DocumentWindowController+Navigation.swift.
@@ -297,6 +298,50 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         Task { _ = await save(document) }
     }
 
+    /// Asks for a name and folder in a sheet, with the file's own type, then writes a copy there with the edits.
+    @objc func saveDocumentAs(_ sender: Any?) {
+        guard let window, current?.pluginDocument != nil else { return }
+        finishTyping()
+        let panel = NSSavePanel()
+        let name = url.deletingPathExtension().lastPathComponent, ext = url.pathExtension
+        panel.nameFieldStringValue = ext.isEmpty ? "\(name) copy" : "\(name) copy.\(ext)"
+        panel.directoryURL = url.deletingLastPathComponent()
+        if let type = UTType(filenameExtension: ext) { panel.allowedContentTypes = [type] }
+        panel.allowsOtherFileTypes = false
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let destination = panel.url else { return }
+            Task { await self?.saveAs(to: destination) }
+        }
+    }
+
+    /// Writes the file with its edits to `destination` and shows it in this window from then on. False when it didn't.
+    @discardableResult
+    func saveAs(to destination: URL) async -> Bool {
+        guard let document = current else { return false }
+        let same = { (a: URL, b: URL) in a.resolvingSymlinksInPath().standardizedFileURL == b.resolvingSymlinksInPath().standardizedFileURL }
+        if same(destination, url) { return await save(document) }
+        let others = NSApp.windows.compactMap { $0.windowController as? DocumentWindowController }.filter { $0 !== self }
+        if others.contains(where: { same($0.url, destination) }) {
+            await present(self, "“\(destination.lastPathComponent)” is open in another window.", "Close it there first, or choose another name.")
+            return false
+        }
+        switch await document.saveAs(to: destination) {
+        case .saved:
+            url = destination
+            history.moved(to: destination)
+            navigationChanged()  // the trail names the new file
+            window?.title = destination.lastPathComponent
+            window?.representedURL = destination
+            NSDocumentController.shared.noteNewRecentDocumentURL(destination)
+            refreshOpenWith()
+            return true
+        case .cancelled: return false
+        case .failed(let message):
+            await present(self, "Couldn't save “\(destination.lastPathComponent)”", message)
+            return false
+        }
+    }
+
     @objc func revertDocument(_ sender: Any?) {
         Task { await revert() }
     }
@@ -334,6 +379,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         switch menuItem.action {
         case #selector(saveDocument(_:)), #selector(revertDocument(_:)):
             return current?.isEdited == true && current?.isSaving == false
+        case #selector(saveDocumentAs(_:)):
+            return current?.pluginDocument.map { $0.editability != .notEditable } == true && current?.isSaving == false
         case #selector(runTool(_:)):
             let id = current.flatMap { $0.tools.indices.contains(menuItem.tag) ? $0.tools[menuItem.tag].spec.id : nil }
             let on = id.flatMap { current?.pluginDocument?.isOn($0) } ?? false

@@ -4,7 +4,7 @@ import PeekerKit
 /// A Markdown file in the Editor: its source, editable, styled as it's typed. TextKit 1 with non-contiguous layout,
 /// like Plain Text's view, for the same speed reasons (see `TextDocument`).
 final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
-    private let url: URL
+    private var url: URL
     private let scrollView = NSScrollView()
     /// Owns the layout manager and text container; a TextKit 1 text view doesn't retain its storage.
     private let storage = NSTextStorage()
@@ -183,6 +183,16 @@ final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
         _ = try await TextFile.write(text, as: target, to: url.path)
         format = target
         baseline = text
+    }
+
+    func saveAs(_ edits: UnsavedEdits?, to destination: URL) async throws(PluginError) {
+        if readOnlyReason == nil, let text = (edits?.value as? TextEdits)?.text {
+            _ = try await TextFile.write(text, as: format, to: destination.path)
+            baseline = text
+        } else {
+            try await FileReplacement.copy(url, to: destination)
+        }
+        url = destination
     }
 
     func revertEdits() { show(baseline) }

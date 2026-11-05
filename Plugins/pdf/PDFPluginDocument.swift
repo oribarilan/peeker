@@ -9,7 +9,7 @@ final class PDFPluginDocument: PluginDocument {
     let pdfView = PeekerPDFView()
     /// The PDF shown, unsaved edits included.
     private let document: PeekerPDFDocument
-    private let url: URL
+    private var url: URL
     private let editable: Bool
     /// The file's details for the info panel, read again after a save.
     private var info: [InfoRow]
@@ -211,6 +211,17 @@ final class PDFPluginDocument: PluginDocument {
         guard let snapshot = edits.value as? PDFSnapshot else { throw PluginError("These changes aren't PDF edits.") }
         try await PDFPlugin.write(snapshot.edits, to: url.path)
         pending.removeAll { $0.number <= snapshot.through }  // edits made during the save stay pending
+        if let checked = try? await PDFPlugin.check(url) { info = checked.info }
+    }
+
+    func saveAs(_ unsaved: UnsavedEdits?, to destination: URL) async throws(PluginError) {
+        if let snapshot = unsaved?.value as? PDFSnapshot {
+            try await PDFPlugin.write(snapshot.edits, from: url.path, to: destination.path)
+            pending.removeAll { $0.number <= snapshot.through }
+        } else {
+            try await FileReplacement.copy(url, to: destination)
+        }
+        url = destination
         if let checked = try? await PDFPlugin.check(url) { info = checked.info }
     }
 

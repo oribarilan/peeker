@@ -58,6 +58,11 @@ struct NavigationHistory {
         if entries.indices.contains(target) { entries[target].title = title }
     }
 
+    /// Save As moved the current place to a new file; other places keep theirs.
+    mutating func moved(to url: URL) {
+        entries[index].url = url
+    }
+
     /// Open With showed the current file with another plugin; the old plugin's position means nothing to it.
     mutating func reopened(with pluginID: String) {
         entries[index].pluginID = pluginID
