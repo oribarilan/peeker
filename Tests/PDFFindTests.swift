@@ -101,6 +101,19 @@ private func menuItem(_ action: NSFindPanelAction) -> NSMenuItem {
 }
 
 @Suite(.serialized) struct PDFFindBarTests {
+    /// A click on a page thumbnail gives the thumbnails the keyboard, and Cmd+F from there must still open the bar.
+    @Test func cmdFWorksWithTheThumbnailsFocused() async throws {
+        let document = try await open(["invoice"])
+        let window = inWindow(document)
+        defer { window.close() }
+        let thumbnails = try #require(document.makeSidebar().first?.view as? PageThumbnails)
+        thumbnails.frame = NSRect(x: 0, y: 0, width: 150, height: 400)
+        window.contentView?.addSubview(thumbnails)
+        window.makeFirstResponder(thumbnails)
+        #expect(window.firstResponder?.tryToPerform(#selector(NSTextView.performFindPanelAction(_:)), with: menuItem(.showFindPanel)) == true)
+        #expect(try container(document).bar?.isHidden == false)
+    }
+
     @Test func cmdFShowsTheBarWithTheCursorInItsField() async throws {
         let document = try await open(["invoice"])
         let window = inWindow(document)

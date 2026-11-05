@@ -62,14 +62,18 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
         guard let id = sender.representedObject as? String, onCommand?(id) == true else { return NSSound.beep() }
     }
 
-    // A page tool run from here leaves the thumbnails the keyboard, so Undo passes through them to the document.
+    // A click or a page tool leaves the thumbnails the keyboard, outside the pages' responder chain, so Undo and Find
+    // pass through them to the document.
 
     @objc func undo(_ sender: Any?) { (pdfView as? PeekerPDFView)?.undo(sender) }
     @objc func redo(_ sender: Any?) { (pdfView as? PeekerPDFView)?.redo(sender) }
+    @objc func performFindPanelAction(_ sender: Any?) { findContainer?.performFindPanelAction(sender) }
+    private var findContainer: PDFFindContainer? { pdfView?.superview as? PDFFindContainer }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
         case #selector(undo(_:)), #selector(redo(_:)): return (pdfView as? PeekerPDFView)?.validateMenuItem(menuItem) ?? false
+        case #selector(performFindPanelAction(_:)): return findContainer?.validateMenuItem(menuItem) ?? false
         default: break
         }
         guard let id = menuItem.representedObject as? String else { return true }

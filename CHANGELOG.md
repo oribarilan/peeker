@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Cmd+F opens Find in a PDF after you click a page thumbnail; before, it did nothing until you clicked the page.
 - With Open at Login on, Peeker starts quietly at login instead of opening Settings, and after an update it waits for your first window to say what's new.
 - A shortcut refused in Settings or the config names the menu item without its ellipsis: "⌘P is used by Print."
 - Animated images open paused on their first frame when Reduce Motion is on, and View > Play Animation plays and pauses them from the menu, checked while they play.
