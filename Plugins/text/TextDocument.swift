@@ -31,13 +31,18 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private var readOnlyReason: String?
     private(set) var info: [InfoRow]
     var onEdit: (() -> Void)?
+    /// Where the font size and wrapping are kept for the next file; nil keeps them only here.
+    private let preferences: PluginPreferences?
 
     private static let defaultFontSize: CGFloat = 12
     private static let fontSizes: ClosedRange<CGFloat> = 6...72
 
-    init(url: URL, loaded: TextFile.Loaded, code: CodeColoring.Scan? = nil, allowsEditing: Bool) {
+    init(url: URL, loaded: TextFile.Loaded, code: CodeColoring.Scan? = nil, allowsEditing: Bool, preferences: PluginPreferences? = nil) {
         self.url = url
         self.allowsEditing = allowsEditing
+        self.preferences = preferences
+        if let size = preferences?.double("fontSize"), Self.fontSizes.contains(size) { fontSize = size }
+        if let wraps = preferences?.bool("wraps") { self.wraps = wraps }
         baseline = loaded.text
         format = loaded.format
         info = TextPlugin.info(lineCount: loaded.lineCount, format: loaded.format, byteCount: loaded.byteCount)
@@ -77,6 +82,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         apply(editable: loaded.editable, note: loaded.note)
         textView.string = loaded.text
         textView.setSelectedRange(NSRange(location: 0, length: 0))  // setting the text leaves the cursor at its end
+        if !wraps { applyWrap() }
         applyTheme()
         coloring = code.map { CodeColoring($0, in: textView) }
         // Selector-based, so the observation ends with the document.
@@ -190,6 +196,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         case "zoom-actual": if fontSize != Self.defaultFontSize { setFontSize(Self.defaultFontSize) }
         case "toggle-wrap":
             wraps.toggle()
+            preferences?.set(wraps, for: "wraps")
             applyWrap()
         default: return false
         }
@@ -200,6 +207,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         let clamped = min(max(size, Self.fontSizes.lowerBound), Self.fontSizes.upperBound)
         guard clamped != fontSize else { return NSSound.beep() }
         fontSize = clamped
+        preferences?.set(Double(clamped), for: "fontSize")
         applyFont()
         if !wraps { applyWrap() }
     }

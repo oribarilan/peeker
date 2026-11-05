@@ -4,9 +4,10 @@ import PeekerSyntax
 
 /// Lays out the block tree as native attributed text, with each heading's source line mapped to where it starts.
 enum MarkdownRenderer {
+    /// `scale` sizes every font together: 1 draws body text at 14 points.
     static func render(_ blocks: some Collection<MarkdownBlock>, theme: TextTheme, images: [String: LocalImage] = [:],
-                       leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
-        var context = Context(theme: theme, images: images)
+                       scale: CGFloat = 1, leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
+        var context = Context(theme: theme, images: images, scale: scale)
         if leadingBreak { context.out.append(NSAttributedString(string: "\n")) }
         for block in blocks { context.render(block, indent: 0) }
         if context.out.length > 0 { context.out.deleteCharacters(in: NSRange(location: context.out.length - 1, length: 1)) }
@@ -34,22 +35,31 @@ enum MarkdownRenderer {
     private struct Context {
         let theme: TextTheme
         let images: [String: LocalImage]
+        let scale: CGFloat
         let out = NSMutableAttributedString()
         var anchors: [Int: Int] = [:]
+        private let body: NSFont
+        private let mono: NSFont
 
-        private static let body = NSFont.systemFont(ofSize: 14)
-        private static let mono = NSFont.monospacedSystemFont(ofSize: 12.5, weight: .regular)
         private static let headingSizes: [CGFloat] = [26, 21, 18, 16, 14, 13]
+
+        init(theme: TextTheme, images: [String: LocalImage], scale: CGFloat) {
+            self.theme = theme
+            self.images = images
+            self.scale = scale
+            body = .systemFont(ofSize: 14 * scale)
+            mono = .monospacedSystemFont(ofSize: 12.5 * scale, weight: .regular)
+        }
 
         mutating func render(_ block: MarkdownBlock, indent: CGFloat, prefix: NSAttributedString? = nil) {
             switch block {
             case .heading(let level, let spans, let line):
                 let level = min(max(level, 1), 6)
                 anchors[line] = out.length
-                let font = NSFont.systemFont(ofSize: Self.headingSizes[level - 1], weight: .bold)
+                let font = NSFont.systemFont(ofSize: Self.headingSizes[level - 1] * scale, weight: .bold)
                 paragraph(spans, font: font, color: theme.heading, indent: indent, before: level <= 2 ? 14 : 8, prefix: prefix)
             case .paragraph(let spans):
-                paragraph(spans, font: Self.body, indent: indent, before: 0, prefix: prefix)
+                paragraph(spans, font: body, indent: indent, before: 0, prefix: prefix)
             case .list(let ordered, let start, let items):
                 for (index, item) in items.enumerated() {
                     listItem(item, marker: ordered ? "\(start + index)." : "•", indent: indent)
@@ -60,7 +70,7 @@ enum MarkdownRenderer {
                 let code = text.trimmingCharacters(in: .newlines)
                 let start = out.length
                 out.append(NSAttributedString(string: code + "\n", attributes: [
-                    .font: Self.mono, .foregroundColor: theme.text, .backgroundColor: theme.codeBackground, .paragraphStyle: style,
+                    .font: mono, .foregroundColor: theme.text, .backgroundColor: theme.codeBackground, .paragraphStyle: style,
                 ]))
                 if let language = tag.flatMap(SyntaxLanguage.init(fenceTag:)) {
                     for span in SyntaxScanner.spans(in: code, language: language) {
@@ -82,10 +92,10 @@ enum MarkdownRenderer {
         }
 
         private mutating func listItem(_ item: ListItem, marker: String, indent: CGFloat) {
-            let prefix = NSMutableAttributedString(string: marker + "\t", attributes: [.font: Self.body, .foregroundColor: theme.marker])
+            let prefix = NSMutableAttributedString(string: marker + "\t", attributes: [.font: body, .foregroundColor: theme.marker])
             if let checked = item.checked {
                 prefix.setAttributedString(NSAttributedString(string: (checked ? "☑" : "☐") + "\t", attributes: [
-                    .font: NSFont.systemFont(ofSize: 15), .foregroundColor: theme.marker,
+                    .font: NSFont.systemFont(ofSize: 15 * scale), .foregroundColor: theme.marker,
                 ]))
             }
             guard let first = item.blocks.first else {
@@ -118,7 +128,7 @@ enum MarkdownRenderer {
                 let start = out.length
                 for (column, cell) in row.enumerated() {
                     if column > 0 { out.append(NSAttributedString(string: "\t")) }
-                    appendSpans(cell, font: index == 0 ? .systemFont(ofSize: 13, weight: .semibold) : .systemFont(ofSize: 13), color: theme.text,
+                    appendSpans(cell, font: index == 0 ? .systemFont(ofSize: 13 * scale, weight: .semibold) : .systemFont(ofSize: 13 * scale), color: theme.text,
                                 images: [:])
                 }
                 out.append(NSAttributedString(string: "\n"))

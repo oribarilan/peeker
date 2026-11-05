@@ -348,7 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func showInPanel(_ url: URL, entry: PluginEntry) {
-        let document = DocumentViewController(url: url, entry: entry, config: config, allowsEditing: false, recovery: nil)
+        let document = DocumentViewController(url: url, entry: entry, config: config, allowsEditing: false, recovery: nil, preferences: .standard)
         panel.show(document)
     }
 
@@ -381,7 +381,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if alert.runModal() == .alertFirstButtonReturn { showSettings(pane: Self.settingsPane(forUnopenable: url, in: catalog)) }
             return
         }
-        let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: .shared, recoveryClipboard: recoveryClipboard)
+        let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: .shared, recoveryClipboard: recoveryClipboard,
+                                                  preferences: .standard)
         controller.onBecameKey = { [weak self] in self?.showCommands(of: $0) }
         controller.openInOwnTab = { [weak self] in self?.openInWindow($0, place: $1) }
         controller.otherWindow = { [weak self, weak controller] url in

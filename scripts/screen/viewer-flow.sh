@@ -1,10 +1,10 @@
 #!/bin/bash
-# The viewer flow on screen: the hover tint on a PDF's thumbnails, find in a PDF (its bar below the toolbar), the
-# print panel for each format, hiding the sidebar from the View menu (still hidden after a save) and showing it from
-# the toolbar, Wrap Lines' checkmark, unlocking a password-protected PDF, Actual Size and Zoom to Fit on that PDF,
-# Actual Size and zooming out on an image, an animated GIF playing, pausing on a click and playing on, and Actual Size
-# on a photo larger than the screen showing its own pixels. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen
-# recording with SCREEN_RECORD=1.
+# The viewer flow on screen: the hover tint on a PDF's thumbnails, find in a PDF (its bar below the toolbar), the print
+# panel for each format, hiding the sidebar from the View menu (still hidden after a save) and showing it from the
+# toolbar, Wrap Lines' checkmark, unlocking a password-protected PDF, Actual Size and Zoom to Fit on that PDF, Actual
+# Size and zooming out on an image, an animated GIF playing, pausing on a click and playing on, text zoom and wrapping
+# kept across a relaunch, and Actual Size on a photo larger than the screen showing its own pixels. Writes screenshots
+# and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
 #
 # Takes over the mouse and keyboard for about 50 seconds: the screen must be unlocked and left alone. Clicks and keys
 # are sent only while Peeker is in front.
@@ -186,5 +186,18 @@ show "$STRIPES"
 "$DRIVE" shot Peeker "$OUT/14-sharp-actual-size.png" stripes.png
 contrast=$("$DRIVE" contrast "$OUT/14-sharp-actual-size.png" || echo 0)
 check "Actual Size on a large photo shows its own pixels" "$([ "$contrast" -gt 160 ] && echo yes)" yes
+
+# Text zoom and wrapping are remembered: notes.txt's Wrap Lines went off above; zoomed in twice and Peeker quit, a
+# text file opened after a relaunch is unwrapped, with its text taller than notes.txt's before the zoom.
+show "$NOTES"
+read -r _ _ _ small <<< "$("$DRIVE" textframe Peeker "Plain text" || echo "0 0 0 0")"
+"$DRIVE" keys Peeker cmd+= && "$DRIVE" keys Peeker cmd+= && sleep 0.3
+quit_app || { echo "Peeker didn't quit (a Save prompt?)"; exit 2; }
+AGAIN="$OUT/again.txt"
+printf 'Plain text after a relaunch.\n' > "$AGAIN"
+launch "$AGAIN"
+check "Wrap Lines stays off after a relaunch" "$("$DRIVE" menuitems Peeker View | grep -cx 'Wrap Lines')" 1
+read -r _ _ _ large <<< "$("$DRIVE" textframe Peeker "Plain text" || echo "0 0 0 0")"
+check "and text keeps the larger size" "$([ "$small" -gt 0 ] && [ "$large" -gt "$small" ] && echo yes)" yes
 
 finish

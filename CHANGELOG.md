@@ -7,6 +7,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 ## [Unreleased]
 
 - In a PDF window, a rotated page turns into place, a deleted page shrinks away, and Undo grows it back; nothing moves with Reduce Motion on.
+- Plain text remembers its text size and Wrap Lines, and Markdown its text size, for every file opened after, in windows and the Peek panel, across launches. Actual Size (Cmd+0) goes back to the default size.
 - The menu bar icon's menu has Open…, so a file can be opened in Peeker with no window open.
 - The first Space after Peeker starts shows the Peek panel about twice as fast as before: Peeker gets it ready a second after launch, without asking for any permission early.
 - Page thumbnails in PDFs and multi-page TIFFs, the trail under the toolbar and the Markdown outline show a faint tint of the accent color under the pointer, so it's clear what can be clicked. The outline's tint replaces its gray.

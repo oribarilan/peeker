@@ -42,8 +42,17 @@ enum TempFile {
 
 /// What `plugin` opens for `url`, as `type`. `editing` is false for the Peek panel's view-only documents.
 func openDocument<Document>(_ url: URL, with plugin: any Plugin.Type, as type: Document.Type, editing: Bool = true,
-                            maxPixels: Int = 0) async throws -> Document {
-    try #require(try await plugin.open(url, context: OpenContext(maxPixels: maxPixels, allowsEditing: editing)) as? Document)
+                            maxPixels: Int = 0, preferences: PluginPreferences? = nil) async throws -> Document {
+    try #require(try await plugin.open(url, context: OpenContext(maxPixels: maxPixels, allowsEditing: editing, preferences: preferences)) as? Document)
+}
+
+/// Preferences of their own, so a test never reads or writes the app's; `close()` throws them away.
+final class ScratchDefaults {
+    let name = "peeker-test-\(UUID().uuidString)"
+    let defaults: UserDefaults
+    init() { defaults = UserDefaults(suiteName: name)! }
+    func preferences(_ pluginID: String) -> PluginPreferences { PluginPreferences(pluginID: pluginID, defaults: defaults) }
+    func close() { defaults.removePersistentDomain(forName: name) }
 }
 
 /// An off-screen window with `view` filling its content area.

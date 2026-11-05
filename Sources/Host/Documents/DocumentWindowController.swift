@@ -11,6 +11,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     private let recovery: RecoveryStore?
     private let recoveryClipboard: RecoveryClipboard?
     private let sidebarMemory: SidebarMemory
+    /// The app's preferences, for the plugins' settings; nil in tests and benchmarks.
+    private let preferences: UserDefaults?
     private(set) var current: DocumentViewController?
     /// What Open With lists for the file shown, owner first.
     private var openWithChoices: [PluginEntry] = []
@@ -56,8 +58,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     var presentTip: (NSPopover, NSToolbarItem) -> Void = { popover, item in popover.show(relativeTo: item) }
 
     init(url: URL, catalog: PluginCatalog, config: Config, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?,
-         sidebarMemory: SidebarMemory = .shared, tips: TipStore = .shared) {
+         sidebarMemory: SidebarMemory = .shared, tips: TipStore = .shared, preferences: UserDefaults? = nil) {
         self.sidebarMemory = sidebarMemory
+        self.preferences = preferences
         self.tips = tips
         self.url = url
         history = NavigationHistory(NavigationHistory.Entry(url: url, pluginID: ""))
@@ -116,7 +119,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         if history.current.pluginID != entry.id { history.reopened(with: entry.id) }  // the first open, or Open With
         let document = DocumentViewController(url: url, entry: entry, config: config,
                                               allowsEditing: true, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString,
-                                              sidebarMemory: sidebarMemory)
+                                              sidebarMemory: sidebarMemory, preferences: preferences)
         document.onToolsChanged = { [weak self] document in
             // While a file opens, its tools wait for its content (onContentShown); a failure shows at once.
             guard document.hasShownContent || document.pluginDocument == nil else { return }

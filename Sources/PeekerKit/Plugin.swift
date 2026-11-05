@@ -41,10 +41,13 @@ public struct OpenContext: Sendable {
     public let maxPixels: Int
     /// False in the Peek panel, which only views.
     public let allowsEditing: Bool
+    /// Where the plugin keeps settings between launches; nil in tests and benchmarks, which keep nothing.
+    public let preferences: PluginPreferences?
 
-    public init(maxPixels: Int, allowsEditing: Bool) {
+    public init(maxPixels: Int, allowsEditing: Bool, preferences: PluginPreferences? = nil) {
         self.maxPixels = maxPixels
         self.allowsEditing = allowsEditing
+        self.preferences = preferences
     }
 }
 

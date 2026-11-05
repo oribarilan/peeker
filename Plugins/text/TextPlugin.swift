@@ -24,7 +24,8 @@ public enum TextPlugin: Plugin {
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let loaded = try await TextFile.load(url)
-        return TextDocument(url: url, loaded: loaded, code: await CodeColoring.scan(url, text: loaded.text), allowsEditing: context.allowsEditing)
+        return TextDocument(url: url, loaded: loaded, code: await CodeColoring.scan(url, text: loaded.text), allowsEditing: context.allowsEditing,
+                            preferences: context.preferences)
     }
 
     public static func recoveryText(from edits: Data) -> String? {

@@ -6,7 +6,6 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 - M8: maybe a setting to hide the menu bar icon (Open… is in its menu now).
 - I2: Cmd+R in images (rotate like Preview vs Rotate & Resize).
-- T2: text zoom and wrap remembered per file or globally.
 - T3: Markdown task boxes readable by VoiceOver.
 - A1: keyboard-only use of PDF marks and crop.
 

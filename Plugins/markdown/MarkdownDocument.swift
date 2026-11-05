@@ -4,6 +4,8 @@ import PeekerKit
 /// A Markdown file rendered with native text, with an outline: the Peek panel's view, which only views.
 final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
     private let url: URL
+    /// The fonts' scale for the remembered text size.
+    private let scale: CGFloat
     private let scrollView = ThemedFindTextView.scrollableTextView()
     private let textView: NSTextView
     private(set) var anchors: [Int: Int] = [:]
@@ -16,8 +18,9 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
     private var images: [String: LocalImage] = [:]
     var onFollowLink: ((URL) -> Void)?
 
-    init(url: URL, parsed: MarkdownPlugin.Parsed) {
+    init(url: URL, parsed: MarkdownPlugin.Parsed, preferences: PluginPreferences? = nil) {
         self.url = url
+        scale = MarkdownEditor.size(in: preferences) / MarkdownEditor.defaultSize
         textView = scrollView.documentView as! NSTextView  // what scrollableTextView() always holds
         scrollView.autohidesScrollers = true  // no empty track beside a short file when scroll bars always show
         pictures = MarkdownPictures(textView: textView)
@@ -95,7 +98,7 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
         let visible = scrollView.contentView.bounds.origin
         let theme = TextTheme.current
         let shown = pictures.usable(images)
-        let head = MarkdownRenderer.render(blocks.prefix(Self.firstPaintBlocks), theme: theme, images: shown)
+        let head = MarkdownRenderer.render(blocks.prefix(Self.firstPaintBlocks), theme: theme, images: shown, scale: scale)
         anchors = head.anchors
         textView.textStorage?.setAttributedString(head.text)
         scrollView.contentView.scroll(to: visible)
@@ -105,7 +108,7 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
         // One frame later, so the first screen is drawn and shown before the rest is laid out.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak self] in
             guard let self, renders == render, let storage = textView.textStorage else { return }
-            let tail = MarkdownRenderer.render(blocks.dropFirst(Self.firstPaintBlocks), theme: theme, images: pictures.usable(images), leadingBreak: true)
+            let tail = MarkdownRenderer.render(blocks.dropFirst(Self.firstPaintBlocks), theme: theme, images: pictures.usable(images), scale: scale, leadingBreak: true)
             let offset = storage.length  // not the head's length: a picture that failed to decode changed it
             storage.append(tail.text)
             for (line, location) in tail.anchors { anchors[line] = location + offset }

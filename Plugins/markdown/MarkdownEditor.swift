@@ -35,13 +35,24 @@ final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
 
     static let defaultSize: CGFloat = 14
     private static let sizes: ClosedRange<CGFloat> = 8...48
+    private static let sizeKey = "textSize"
+    /// Where the text size is kept for the next file; nil keeps it only here.
+    private let preferences: PluginPreferences?
+
+    /// The body text size kept in `preferences`, or the default when there's none or it's out of range.
+    static func size(in preferences: PluginPreferences?) -> CGFloat {
+        guard let size = preferences?.double(sizeKey), sizes.contains(size) else { return defaultSize }
+        return size
+    }
     /// How long typing pauses before the source is parsed and styled again.
     static let restyleDelay: TimeInterval = 0.15
     /// How much of the text (UTF-16) is styled before the window shows: several screens at any size.
     static let firstScreen = 20_000
 
-    init(url: URL, source: MarkdownPlugin.Source) {
+    init(url: URL, source: MarkdownPlugin.Source, preferences: PluginPreferences? = nil) {
         self.url = url
+        self.preferences = preferences
+        baseSize = Self.size(in: preferences)
         baseline = source.file.text
         format = source.file.format
         readOnlyReason = source.file.editable ? nil : source.file.note ?? TextFile.readOnlyNote
@@ -378,6 +389,7 @@ final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
         let clamped = min(max(size, Self.sizes.lowerBound), Self.sizes.upperBound)
         guard clamped != baseSize else { return NSSound.beep() }
         baseSize = clamped
+        preferences?.set(Double(clamped), for: Self.sizeKey)
         applyStyle()
         let cursor = textView.selectedRange().location
         if storage.length > 0 { textView.typingAttributes = storage.attributes(at: min(max(cursor - 1, 0), storage.length - 1), effectiveRange: nil) }

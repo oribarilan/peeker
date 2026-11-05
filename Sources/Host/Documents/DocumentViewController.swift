@@ -20,6 +20,8 @@ final class DocumentViewController: NSSplitViewController {
     private var sidebarHolder: HolderViewController?
     /// Editor windows share whether the sidebar shows and its width; the Peek panel and the benchmark don't.
     private let sidebarMemory: SidebarMemory?
+    /// The app's preferences, where the plugin keeps its settings; nil in tests and benchmarks.
+    private let preferences: UserDefaults?
     /// A document just opened: its sidebar is built after the content is on screen, so it doesn't delay it.
     private var sidebarPending = false
     /// Editor windows edit; the Peek panel and the benchmark only view.
@@ -79,12 +81,13 @@ final class DocumentViewController: NSSplitViewController {
 
     /// `journalDelay` is how long after the last edit the recovery copy is written.
     init(url: URL, entry: PluginEntry, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString,
-         journalDelay: TimeInterval = 2, sidebarMemory: SidebarMemory? = nil) {
+         journalDelay: TimeInterval = 2, sidebarMemory: SidebarMemory? = nil, preferences: UserDefaults? = nil) {
         self.url = url
         self.entry = entry
         self.config = config
         self.allowsEditing = allowsEditing
         self.sidebarMemory = sidebarMemory
+        self.preferences = preferences
         super.init(nibName: nil, bundle: nil)
         if let sidebarMemory {
             NotificationCenter.default.addObserver(self, selector: #selector(applySidebarMemory), name: SidebarMemory.didChange, object: sidebarMemory)
@@ -117,7 +120,8 @@ final class DocumentViewController: NSSplitViewController {
         opened = .now
         openTask?.cancel()
         let plugin = entry.plugin, url = url
-        let context = OpenContext(maxPixels: Self.maxPixels, allowsEditing: allowsEditing)
+        let context = OpenContext(maxPixels: Self.maxPixels, allowsEditing: allowsEditing,
+                                  preferences: preferences.map { PluginPreferences(pluginID: entry.id, defaults: $0) })
         // Read before the plugin reads the file, so a write in between shows as a change and reloads.
         let modified = Self.modificationDate(of: url)
         // A window with nothing to show yet gets a spinner once the open is slow; the Peek panel never does.

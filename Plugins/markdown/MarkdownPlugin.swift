@@ -17,8 +17,8 @@ public enum MarkdownPlugin: Plugin {
     ]
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
-        guard context.allowsEditing else { return MarkdownDocument(url: url, parsed: try await parse(url)) }
-        return MarkdownEditor(url: url, source: try await load(url))
+        guard context.allowsEditing else { return MarkdownDocument(url: url, parsed: try await parse(url), preferences: context.preferences) }
+        return MarkdownEditor(url: url, source: try await load(url), preferences: context.preferences)
     }
 
     public static func recoveryText(from edits: Data) -> String? {
