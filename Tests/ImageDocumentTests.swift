@@ -70,7 +70,10 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(document.unsavedEdits() == nil)
         #expect(try stored(url).image.width == 200)
         #expect(document.pixelSize == CGSize(width: 200, height: 200))
-        #expect(!document.undoManager.canUndo, "the cropped pixels are gone from the file")
+        document.undoManager.undo()
+        #expect(document.pixelSize == CGSize(width: 400, height: 200), "Undo reaches past the save")
+        try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+        #expect(try stored(url).image.width == 400, "and saving writes the whole image again")
     }
 
     @Test func theInfoShowsTheSavedFile() async throws {
@@ -122,8 +125,8 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(try corners(after.image) == ["blue", "red", "black", "black"])
     }
 
-    /// An undo while saving must not leave the window showing something other than the file.
-    @Test func anUndoDuringASaveStillStartsFromTheSavedFile() async throws {
+    /// An undo while saving stays on screen and unsaved, and the next save writes it.
+    @Test func anUndoDuringASaveStaysPending() async throws {
         let url = try imageFile(try cornerImage(width: 400, height: 200), type: .png)
         let document = try await open(url)
         document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
@@ -131,8 +134,9 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         document.undoManager.undo()
         try await document.save(snapshot, accepting: nil)
         #expect(try stored(url).image.width == 200)
-        #expect(document.pixelSize == CGSize(width: 200, height: 200))
-        #expect(document.unsavedEdits() == nil)
+        #expect(document.pixelSize == CGSize(width: 400, height: 200))
+        try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+        #expect(try stored(url).image.width == 400)
     }
 
     @Test func recoveryRefusesAHugeList() async throws {
@@ -152,7 +156,7 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         let document = try await open(try imageFile(try cornerImage(width: 400, height: 200), type: .png))
         let window = offscreenWindow(holding: document.contentView, width: 400, height: 200)
         defer { window.close() }
-        let scroll = try #require(document.contentView as? NSScrollView)
+        let scroll = document.contentScrollView
         #expect(scroll.minMagnification <= 0.125)
         for _ in 0..<4 { #expect(document.perform("zoom-out")) }
         #expect(scroll.magnification < 1)
@@ -184,7 +188,7 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     private func shown(_ url: URL) async throws -> (ImageDocument, NSScrollView, NSWindow) {
         let document = try await open(url)
         let window = offscreenWindow(holding: document.contentView, width: 500, height: 250)
-        return (document, try #require(document.contentView as? NSScrollView), window)
+        return (document, document.contentScrollView, window)
     }
 
     @Test func openingDecodesAtScreenSizeOnly() async throws {
@@ -279,8 +283,8 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         }
     }
 
-    /// A decode of the file from before a save, landing after it, must not show the old pixels.
-    @Test func aDecodeFromBeforeASaveIsDroppedAndTheSavedFileDecodes() async throws {
+    /// The full decode is of the file as it opened, so one started before a save still serves after it.
+    @Test func aDecodeFromBeforeASaveStillServes() async throws {
         let url = try wideImage()
         let (document, _, window) = try await shown(url)
         defer { window.close() }
@@ -291,13 +295,10 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         let old = try #require(document.sharpening)
         document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
         try await document.save(try #require(document.unsavedEdits()), accepting: nil)
-        let fresh = try #require(document.sharpening, "the saved file decodes again")
-        #expect(fresh != old)
+        #expect(document.sharpening == old, "no second decode of the saved file")
         release.finish()
         await old.value
-        #expect(document.shownSize.width <= 1000, "never the 2000-pixel-wide image from before the save")
-        await fresh.value
-        #expect(document.shownSize == CGSize(width: 1000, height: 1000))
+        #expect(document.shownSize == CGSize(width: 1000, height: 1000), "the full decode, cropped")
         #expect(document.sharpening == nil)
     }
 

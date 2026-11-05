@@ -29,3 +29,5 @@
 - [Keeping the opened bytes costs memory] → compressed, so a few MB for a photo, at most the file's size.
 - [Undo past saves differs from today's image behavior] → it now matches PDF and text.
 - [Many pen strokes slow the overlay] → points thinned while drawing; one path per stroke.
+- [Marks on an HDR photo] → it's saved in standard range, since marks are drawn in an ordinary bitmap; without marks, HDR stays.
+- [Recovery after a save] → the recovery copy keeps every edit and mark with the path of the private copy of the file as it opened, in the temporary folder, which outlives a crash.

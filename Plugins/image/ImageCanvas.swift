@@ -11,6 +11,10 @@ final class ImageCanvas: NSView, NSMenuItemValidation {
     var isEditing: Bool { editUndoManager != nil }
     /// A click on an image that can't be edited, which pauses or plays an animation.
     var onClick: (() -> Void)?
+    /// Copy and Paste in the Editor; the markup overlay passes them up.
+    var onCopy: (() -> Void)?
+    var onPaste: (() -> Void)?
+    var canPaste: () -> Bool = { false }
 
     override func mouseDown(with event: NSEvent) {
         guard !isEditing, let onClick else { return super.mouseDown(with: event) }
@@ -46,11 +50,15 @@ final class ImageCanvas: NSView, NSMenuItemValidation {
 
     @objc func undo(_ sender: Any?) { if isEditing { undoManager?.undo() } }
     @objc func redo(_ sender: Any?) { if isEditing { undoManager?.redo() } }
+    @objc func copy(_ sender: Any?) { onCopy?() }
+    @objc func paste(_ sender: Any?) { onPaste?() }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
         case #selector(undo(_:)): isEditing && undoManager?.canUndo == true
         case #selector(redo(_:)): isEditing && undoManager?.canRedo == true
+        case #selector(copy(_:)): onCopy != nil
+        case #selector(paste(_:)): onPaste != nil && canPaste()
         default: true
         }
     }

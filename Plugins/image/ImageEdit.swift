@@ -108,7 +108,7 @@ nonisolated enum ImageEditing {
 
     /// A bitmap context as close to `image` as Core Graphics allows: its color space and 8 or 16 bits per channel,
     /// with alpha only when it has alpha.
-    private static func context(like image: CGImage, width: Int, height: Int) -> CGContext? {
+    static func context(like image: CGImage, width: Int, height: Int) -> CGContext? {
         let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
         let bits = image.bitsPerComponent > 8 ? 16 : 8
         let hasAlpha = ![.none, .noneSkipFirst, .noneSkipLast].contains(image.alphaInfo)

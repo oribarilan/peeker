@@ -1,0 +1,157 @@
+import CoreGraphics
+import CoreText
+import Foundation
+import PeekerKit
+
+/// Draws markup marks over an image with Core Graphics, the same way on screen and in the saved file. Safe off the
+/// main thread.
+nonisolated enum MarkRenderer {
+    /// `image` with `marks` drawn on it. Marks are in pixels of an image of `imageSize` (the full image as edited);
+    /// `image` may be a smaller decode of it, and the marks scale to it. Nil when there are no marks or no context.
+    static func render(_ marks: [ImageMark], on image: CGImage, imageSize: CGSize) -> CGImage? {
+        guard !marks.isEmpty, imageSize.width > 0, let context = ImageEditing.context(like: image, width: image.width, height: image.height)
+        else { return nil }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        draw(marks, on: image, imageSize: imageSize, in: context)
+        return context.makeImage()
+    }
+
+    /// Draws `marks` into `context`, which holds `image` at its pixel size.
+    static func draw(_ marks: [ImageMark], on image: CGImage, imageSize: CGSize, in context: CGContext) {
+        let scale = CGFloat(image.width) / imageSize.width
+        context.saveGState()
+        // From here on, image pixels from the top left.
+        context.translateBy(x: 0, y: CGFloat(image.height))
+        context.scaleBy(x: scale, y: -scale)
+        context.setLineCap(.round)
+        context.setLineJoin(.round)
+        for mark in marks { if case .pixelate(let rect) = mark.kind { pixelate(rect, of: image, scale: scale, imageSize: imageSize, in: context) } }
+        let lit = marks.compactMap { mark -> CGRect? in if case .spotlight(let rect) = mark.kind { rect.standardized } else { nil } }
+        if !lit.isEmpty { dim(outside: lit, imageSize: imageSize, in: context) }
+        let numbers = ImageMark.stepNumbers(marks)
+        for mark in marks { draw(mark, number: numbers[mark.id], in: context) }
+        context.restoreGState()
+    }
+
+    private static func draw(_ mark: ImageMark, number: Int?, in context: CGContext) {
+        let color = mark.color.cgColor, width = mark.width
+        context.setStrokeColor(color)
+        context.setFillColor(color)
+        context.setLineWidth(width)
+        switch mark.kind {
+        case .arrow(let from, let to):
+            let angle = atan2(to.y - from.y, to.x - from.x), head = width * 4
+            let base = CGPoint(x: to.x - cos(angle) * head * 0.8, y: to.y - sin(angle) * head * 0.8)
+            context.strokeLineSegments(between: [from, base])
+            context.move(to: to)
+            context.addLine(to: CGPoint(x: to.x - cos(angle - 0.45) * head, y: to.y - sin(angle - 0.45) * head))
+            context.addLine(to: CGPoint(x: to.x - cos(angle + 0.45) * head, y: to.y - sin(angle + 0.45) * head))
+            context.closePath()
+            context.fillPath()
+        case .box(let rect, let ellipse):
+            ellipse ? context.strokeEllipse(in: rect.standardized) : context.stroke(rect.standardized)
+        case .pen(let points):
+            stroke(points, in: context)
+        case .marker(let points):
+            context.saveGState()
+            context.setBlendMode(.multiply)
+            context.setStrokeColor(mark.color.cgColor.copy(alpha: 0.4) ?? color)
+            context.setLineWidth(width * 4)
+            context.setLineCap(.butt)
+            stroke(points, in: context)
+            context.restoreGState()
+        case .step(let center):
+            let radius = width * ImageMark.stepScale
+            context.fillEllipse(in: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
+            let line = textLine("\(number ?? 1)", size: radius * 1.2, bold: true, color: contrast(to: mark.color))
+            let bounds = CTLineGetBoundsWithOptions(line, .useOpticalBounds)
+            drawLine(line, at: CGPoint(x: center.x - bounds.width / 2 - bounds.minX, y: center.y + bounds.height / 2 + bounds.minY), in: context)
+        case .text(let origin, let string, let label):
+            drawText(string, at: origin, size: width * ImageMark.textScale, color: mark.color, label: label, in: context)
+        case .pixelate, .spotlight:
+            break  // drawn first, under everything
+        }
+    }
+
+    private static func stroke(_ points: [CGPoint], in context: CGContext) {
+        guard let first = points.first else { return }
+        context.move(to: first)
+        if points.count == 1 { context.addLine(to: first) }  // a dot
+        for point in points.dropFirst() { context.addLine(to: point) }
+        context.strokePath()
+    }
+
+    /// Averages `rect` into blocks of at least 1/60 of the image's shorter side, too coarse to read back.
+    private static func pixelate(_ rect: CGRect, of image: CGImage, scale: CGFloat, imageSize: CGSize, in context: CGContext) {
+        let area = rect.standardized.intersection(CGRect(origin: .zero, size: imageSize))
+        guard !area.isEmpty else { return }
+        let block = max(min(imageSize.width, imageSize.height) / 60, 8)
+        let pixels = CGRect(x: area.minX * scale, y: area.minY * scale, width: area.width * scale, height: area.height * scale).integral
+        guard let part = image.cropping(to: pixels) else { return }
+        let columns = max(Int((area.width / block).rounded(.up)), 1), rows = max(Int((area.height / block).rounded(.up)), 1)
+        guard let small = ImageEditing.context(like: part, width: columns, height: rows) else { return }
+        small.interpolationQuality = .medium
+        small.draw(part, in: CGRect(x: 0, y: 0, width: columns, height: rows))
+        guard let blocks = small.makeImage() else { return }
+        context.saveGState()
+        context.interpolationQuality = .none
+        context.translateBy(x: area.minX, y: area.maxY)
+        context.scaleBy(x: 1, y: -1)
+        context.draw(blocks, in: CGRect(x: 0, y: 0, width: area.width, height: area.height))
+        context.restoreGState()
+    }
+
+    private static func dim(outside lit: [CGRect], imageSize: CGSize, in context: CGContext) {
+        context.saveGState()
+        context.addRect(CGRect(origin: .zero, size: imageSize))
+        for rect in lit { context.addRect(rect) }
+        context.setFillColor(CGColor(gray: 0, alpha: 0.5))
+        context.fillPath(using: .evenOdd)
+        context.restoreGState()
+    }
+
+    /// Text from its top left: plain with a thin outline in a contrasting color, or white or black on a rounded box.
+    private static func drawText(_ string: String, at origin: CGPoint, size: CGFloat, color: RGBA, label: Bool, in context: CGContext) {
+        let lines = string.components(separatedBy: "\n")
+        let lineHeight = size * 1.25, pad = size * 0.35
+        if label {
+            let widest = lines.map { CTLineGetTypographicBounds(textLine($0, size: size, bold: true, color: color.cgColor), nil, nil, nil) }.max() ?? 0
+            let box = CGRect(x: origin.x, y: origin.y, width: widest + pad * 2, height: lineHeight * CGFloat(lines.count) + pad)
+            context.setFillColor(color.cgColor)
+            context.addPath(CGPath(roundedRect: box, cornerWidth: pad, cornerHeight: pad, transform: nil))
+            context.fillPath()
+        }
+        let ink = label ? contrast(to: color) : color.cgColor
+        for (index, text) in lines.enumerated() {
+            let baseline = CGPoint(x: origin.x + (label ? pad : 0), y: origin.y + (label ? pad / 2 : 0) + size + lineHeight * CGFloat(index))
+            if !label { drawLine(textLine(text, size: size, bold: true, color: contrast(to: color), stroke: size * 0.12), at: baseline, in: context) }
+            drawLine(textLine(text, size: size, bold: true, color: ink), at: baseline, in: context)
+        }
+    }
+
+    private static func textLine(_ text: String, size: CGFloat, bold: Bool, color: CGColor, stroke: CGFloat = 0) -> CTLine {
+        let font = CTFontCreateUIFontForLanguage(bold ? .emphasizedSystem : .system, size, nil)
+            ?? CTFontCreateWithName("Helvetica-Bold" as CFString, size, nil)
+        var attributes: [NSAttributedString.Key: Any] = [.init(kCTFontAttributeName as String): font, .init(kCTForegroundColorAttributeName as String): color]
+        if stroke > 0 {
+            attributes[.init(kCTStrokeColorAttributeName as String)] = color
+            attributes[.init(kCTStrokeWidthAttributeName as String)] = stroke / size * 100  // percent of the font size, stroked only
+        }
+        return CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: attributes))
+    }
+
+    /// Draws a line with its baseline at `point`, upright in the flipped context.
+    private static func drawLine(_ line: CTLine, at point: CGPoint, in context: CGContext) {
+        context.saveGState()
+        context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+        context.textPosition = point
+        CTLineDraw(line, context)
+        context.restoreGState()
+    }
+
+    /// White on dark colors, black on light ones.
+    static func contrast(to color: RGBA) -> CGColor {
+        let luminance = 0.2126 * color.red + 0.7152 * color.green + 0.0722 * color.blue
+        return luminance > 0.6 ? CGColor(gray: 0, alpha: 1) : CGColor(gray: 1, alpha: 1)
+    }
+}

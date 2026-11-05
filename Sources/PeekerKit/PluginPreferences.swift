@@ -13,6 +13,8 @@ public struct PluginPreferences: Sendable {
 
     public func double(_ key: String) -> Double? { defaults.object(forKey: prefix + key) as? Double }
     public func bool(_ key: String) -> Bool? { defaults.object(forKey: prefix + key) as? Bool }
+    public func string(_ key: String) -> String? { defaults.object(forKey: prefix + key) as? String }
+    public func set(_ value: String, for key: String) { defaults.set(value, forKey: prefix + key) }
     public func set(_ value: Double, for key: String) { defaults.set(value, forKey: prefix + key) }
     public func set(_ value: Bool, for key: String) { defaults.set(value, forKey: prefix + key) }
 }

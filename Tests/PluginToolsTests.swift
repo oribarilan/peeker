@@ -29,7 +29,7 @@ import Testing
     }
 
     @Test func pluginsDeclareTheirTools() {
-        #expect(ImagePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "previous-page", "next-page", "play-animation", "crop", "transform"])
+        #expect(ImagePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "previous-page", "next-page", "play-animation", "crop", "transform", "markup", "markup-arrow", "markup-box", "markup-text", "markup-pixelate", "markup-step", "markup-pen", "markup-marker", "markup-spotlight"])
         #expect(PDFPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
         #expect(TextPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "toggle-wrap"])
         #expect(MarkdownPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])
@@ -61,7 +61,7 @@ import Testing
         let tipped = PDFPlugin.tools.filter { $0.tip != nil }.map(\.id)
         #expect(tipped == ["text-box", "sign", "highlight"], "the tools that wait for a next step")
         #expect(PDFPlugin.tools.first { $0.id == "highlight" }?.tip?.contains("{key}") == true, "the key as the user set it")
-        #expect(ImagePlugin.tools.filter { $0.tip != nil }.map(\.id) == ["crop"])
+        #expect(ImagePlugin.tools.filter { $0.tip != nil }.map(\.id) == ["crop", "markup"])
     }
 
     /// Option-Command-W is the standard key for closing all windows.

@@ -65,7 +65,7 @@ import Testing
         let document = try await pages()
         let window = offscreenWindow(holding: document.contentView, width: 400, height: 300)
         defer { window.close() }
-        let scroll = try #require(document.contentView as? NSScrollView)
+        let scroll = document.contentScrollView
         await show("next-page", in: document)
         #expect(scroll.magnification == 1)
         #expect(document.perform("zoom-in"))

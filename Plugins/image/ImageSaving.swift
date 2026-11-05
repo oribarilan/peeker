@@ -11,9 +11,9 @@ nonisolated enum ImageSaving {
     /// Formats whose orientation tag apps read, where turning the image can leave its data untouched.
     private static let orientable: Set<String> = [UTType.jpeg.identifier, UTType.heic.identifier, UTType.heif.identifier, UTType.tiff.identifier]
 
-    /// Applies `edits` to the file at `from` (by default `path`) and writes the result to `path`, in the source's
-    /// format. Writes nothing on failure.
-    @concurrent static func save(_ edits: [ImageEdit], from original: String? = nil, to path: String) async throws(PluginError) {
+    /// Applies `edits` and then draws `marks` on the file at `from` (by default `path`) and writes the result to `path`,
+    /// in the source's format. Writes nothing on failure.
+    @concurrent static func save(_ edits: [ImageEdit], marks: [ImageMark] = [], from original: String? = nil, to path: String) async throws(PluginError) {
         let name = URL(filePath: original ?? path).lastPathComponent
         guard let source = CGImageSourceCreateWithURL(URL(filePath: original ?? path) as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               let type = CGImageSourceGetType(source), CGImageSourceGetCount(source) > 0 else {
@@ -22,14 +22,24 @@ nonisolated enum ImageSaving {
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
         let orientation = (properties[kCGImagePropertyOrientation] as? UInt32).flatMap(CGImagePropertyOrientation.init(rawValue:)) ?? .up
         var data: Data?
-        if edits.allSatisfy(\.isOrientationOnly), orientable.contains(type as String) {
+        if marks.isEmpty, edits.allSatisfy(\.isOrientationOnly), orientable.contains(type as String) {
             data = reoriented(source, type: type, to: edits.reduce(orientation) { $0.then($1) })
         }
         if data == nil {
-            data = redrawn(source, type: type, properties: properties, edits: orientation.uprightEdits + edits)
+            data = redrawn(source, type: type, properties: properties, edits: orientation.uprightEdits + edits, marks: marks)
         }
         guard let data else { throw PluginError("“\(name)” couldn't be saved as \(UTType(type as String)?.localizedDescription ?? "an image").") }
         try FileReplacement.replaceContents(ofFileAt: path, with: data)
+    }
+
+    /// The full image at `path`, upright, with `edits` applied and `marks` drawn: what a save would write, for Copy.
+    @concurrent static func image(_ edits: [ImageEdit], marks: [ImageMark], from path: String) async -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(URL(filePath: path) as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
+              CGImageSourceGetCount(source) > 0, let full = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
+        let orientation = (properties[kCGImagePropertyOrientation] as? UInt32).flatMap(CGImagePropertyOrientation.init(rawValue:)) ?? .up
+        guard let edited = ImageEditing.apply(orientation.uprightEdits + edits, to: full) else { return nil }
+        return MarkRenderer.render(marks, on: edited, imageSize: CGSize(width: edited.width, height: edited.height)) ?? edited
     }
 
     /// The same image data with a new orientation tag.
@@ -41,14 +51,19 @@ nonisolated enum ImageSaving {
     }
 
     /// The full image turned upright, edited, and written with its metadata, orientation 1 and its new size.
-    private static func redrawn(_ source: CGImageSource, type: CFString, properties: [CFString: Any], edits: [ImageEdit]) -> Data? {
+    /// With marks, an HDR photo is saved in standard range: they're drawn in an ordinary bitmap.
+    private static func redrawn(_ source: CGImageSource, type: CFString, properties: [CFString: Any], edits: [ImageEdit], marks: [ImageMark]) -> Data? {
         // An HDR photo's gain map would be lost with the plain decode, which gives only the SDR base image. Decoded
         // to HDR, edited, then redrawn in extended linear sRGB at its headroom, it's written with a new ISO gain map.
-        let hdr = CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil
-            || CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil
+        let hdr = marks.isEmpty && (CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil
+            || CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil)
         let decode = hdr ? [kCGImageSourceDecodeRequest: kCGImageSourceDecodeToHDR] as CFDictionary : nil
-        guard let full = CGImageSourceCreateImageAtIndex(source, 0, decode), let edited = ImageEditing.apply(edits, to: full),
-              let image = hdr ? extendedRange(edited) : edited else { return nil }
+        guard let full = CGImageSourceCreateImageAtIndex(source, 0, decode), var edited = ImageEditing.apply(edits, to: full) else { return nil }
+        if !marks.isEmpty {
+            guard let marked = MarkRenderer.render(marks, on: edited, imageSize: CGSize(width: edited.width, height: edited.height)) else { return nil }
+            edited = marked
+        }
+        guard let image = hdr ? extendedRange(edited) : edited else { return nil }
         var written = properties
         for key in [kCGImagePropertyPixelWidth, kCGImagePropertyPixelHeight, kCGImagePropertyDepth] { written[key] = nil }
         written[kCGImagePropertyOrientation] = 1

@@ -1,10 +1,11 @@
 #!/bin/bash
-# The image editing flow on screen: right after opening, crop a 400 × 200 PNG with the Crop button by the rectangle, turn it
-# with R and flip it with H in Rotate & Resize, resize it to 100 pixels wide with the proportions kept, and save. Checks
-# the menus (View, Go and Tools, no Commands), that Rotate & Resize opens below the toolbar, the size fields after the turn,
-# the saved file's pixel size, resolution and color profile, the info panel's Dimensions, that Preview opens the
-# saved file, and that closing after the save asks nothing. Writes screenshots and
-# results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
+# The image editing flow on screen: right after opening, crop a 400 × 200 PNG with the Crop button by the rectangle,
+# turn it with R and flip it with H in Rotate & Resize, resize it to 100 pixels wide with the proportions kept, and
+# save. Checks the menus (View, Go and Tools, no Commands), that Rotate & Resize opens below the toolbar, the size
+# fields after the turn, the saved file's pixel size, resolution and color profile, the info panel's Dimensions, that
+# Preview opens the saved file, that closing after the save asks nothing, and markup: an arrow and a pixelated rectangle
+# drawn from the strip and saved into a second image. Writes screenshots and results.txt (one ok/FAIL line per check) to
+# its evidence folder, plus a screen recording with SCREEN_RECORD=1.
 #
 # Every expected size comes from the fields after the crop, so where the crop drag lands doesn't matter.
 # Takes over the mouse and keyboard for about 20 seconds: the screen must be unlocked and left alone. Clicks and keys
@@ -91,5 +92,27 @@ front
 
 "$DRIVE" keys Peeker cmd+w
 check "Closing after the save asks nothing" "$("$DRIVE" wait Peeker window wide.png --gone --timeout 3 2>/dev/null && echo closed)" closed
+
+# Markup: M shows the strip; A and a drag draw an arrow, X and a drag pixelate a rectangle, and Cmd+S writes them into
+# the file. Copy stays a unit test, so a run never touches the clipboard.
+MARKS="$OUT/marks.png"
+sips -s format png -z 300 600 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$MARKS" >/dev/null
+unmarked=$(shasum "$MARKS" | cut -c1-12)
+open -a "$APP" "$MARKS"
+"$DRIVE" wait Peeker window marks.png
+front
+"$DRIVE" keys Peeker m && sleep 0.5
+check "Markup shows its strip" "$("$DRIVE" tree Peeker 20 | grep -c 'Markup tools')" 1
+read -r wx wy ww wh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
+"$DRIVE" keys Peeker a
+"$DRIVE" drag Peeker $((wx + ww / 3)) $((wy + wh / 2)) $((wx + ww / 2)) $((wy + wh * 2 / 3))
+"$DRIVE" keys Peeker x
+"$DRIVE" drag Peeker $((wx + ww * 3 / 5)) $((wy + wh * 2 / 5)) $((wx + ww * 4 / 5)) $((wy + wh * 3 / 5))
+"$DRIVE" shot Peeker "$OUT/5-marked.png"
+"$DRIVE" keys Peeker cmd+s && sleep 1
+check "Saving writes the marks into the file" "$([ "$(shasum "$MARKS" | cut -c1-12)" != "$unmarked" ] && echo yes)" yes
+check "and keeps its size" "$(sips -g pixelWidth -g pixelHeight "$MARKS" | awk '/pixelWidth/ { w = $2 } /pixelHeight/ { h = $2 } END { print w " × " h }')" "600 × 300"
+check "Preview opens the marked image" "$(preview_shot "$MARKS" "$OUT/6-marked-in-preview.png" && echo yes)" yes
+front
 
 finish

@@ -92,11 +92,11 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(document.perform("crop"))
         let overlay = try #require(document.cropOverlay)
         let controls = overlay.controls
-        #expect(controls.superview === document.contentView, "in the scroll view, not on the zoomed image")
+        #expect(controls.superview === document.contentScrollView, "in the scroll view, not on the zoomed image")
         #expect(controls.isHidden)
         dragLeftHalf(overlay, of: document)
         #expect(!controls.isHidden)
-        #expect(document.contentView.bounds.contains(controls.frame))
+        #expect(document.contentScrollView.bounds.contains(controls.frame))
     }
 
     @Test func cropButtonsSitBelowTheRectangle() async throws {
@@ -140,7 +140,7 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         let size = controls.frame.size
         #expect(document.perform("zoom-in") && document.perform("zoom-in"))
         #expect(controls.convert(controls.bounds, to: nil).size == size)
-        #expect(document.contentView.bounds.contains(controls.frame))
+        #expect(document.contentScrollView.bounds.contains(controls.frame))
     }
 
     @Test func panelKeysTurnAndFlip() async throws {

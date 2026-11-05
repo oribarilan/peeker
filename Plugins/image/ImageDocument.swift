@@ -4,10 +4,11 @@ import PeekerKit
 /// The decoded image fitted to the window, with zoom from fit to 16 times fit. In the Editor it has edit tools:
 /// crop, rotate, flip and resize, saved on Cmd+S at full resolution.
 final class ImageDocument: PluginDocument {
-    private var url: URL
+    private(set) var url: URL
     /// The largest side a page is decoded at, as opening decoded the first.
     private let maxPixels: Int
     private let scrollView = NSScrollView()
+    var contentScrollView: NSScrollView { scrollView }
     /// Below fit, down to an eighth, or to actual size when that's smaller.
     private static let minimumZoom: CGFloat = 1.0 / 8
     let canvas: ImageCanvas
@@ -18,8 +19,8 @@ final class ImageDocument: PluginDocument {
     var isEditing: Bool { editability == .editable }
     var onEdit: (() -> Void)?
     var onSidebarChange: (() -> Void)?
-    /// The screen-size decode of the file as last loaded or saved, which opening makes, and the file's full size in
-    /// pixels. Kept beside `full`: saving starts its next picture from it.
+    /// The screen-size decode of the file as it opened (edits and marks draw on it) and the file's full size in
+    /// pixels, kept beside `full`.
     private var base: CGImage
     private var baseSize: CGSize
     /// The file decoded at full resolution, up to `ImagePlugin.fullSide`, once zoomed past fit; kept until the
@@ -42,8 +43,25 @@ final class ImageDocument: PluginDocument {
     private let showsPages: Bool
     /// The decode of the page being moved to, while it runs.
     private(set) var pageChange: Task<Void, Never>?
-    /// The unsaved edits, oldest first.
+    /// The edits since the file opened, oldest first, and the marks on top of them.
     private(set) var edits: [ImageEdit] = []
+    private(set) var marks: [ImageMark] = []
+    /// What the file on disk holds, as edits and marks on the file as it opened; nil when that's unknown (recovered
+    /// edits on a file saved since it opened), so everything counts as unsaved.
+    private var saved: ImageState? = ImageState()
+    /// Our copy of the file as it opened, made before the first save; nil until then.
+    var original: URL?
+    /// Where the markup style is kept between launches; nil keeps it only here.
+    let preferences: PluginPreferences?
+    var markupColor: RGBA
+    var markupSize: MarkSize
+    /// The image and, above it while marking up, the strip.
+    let container = MarkupContainer()
+    var strip: MarkupStrip?
+    var overlay: MarkupOverlay?
+    var onActiveToolChange: (() -> Void)?
+    /// Where Copy and Paste go; tests use one of their own, never the user's clipboard.
+    var pasteboard = NSPasteboard.general
     /// The crop being chosen, and the Rotate & Resize panel, while shown.
     private(set) var cropOverlay: CropOverlay?
     private var transformPanel: TransformPanel?
@@ -55,11 +73,13 @@ final class ImageDocument: PluginDocument {
     }
     /// Nil for a still image.
     let animation: AnimationPlayer?
-    /// Undo for the edits since the last save; a save clears it, since a crop's pixels are then gone from the file.
+    /// Undo for the edits and marks since the file opened; it reaches past saves, which draw from the file as it opened.
     private(set) lazy var undoManager = UndoManager()
 
-    init(url: URL, decoded: ImagePlugin.Decoded, editable: Bool, maxPixels: Int) {
+    init(url: URL, decoded: ImagePlugin.Decoded, editable: Bool, maxPixels: Int, preferences: PluginPreferences? = nil) {
         self.url = url
+        self.preferences = preferences
+        (markupColor, markupSize) = Self.markupStyle(in: preferences)
         self.maxPixels = maxPixels
         pageCount = decoded.pageCount
         showsPages = editable && decoded.pageCount > 1
@@ -79,8 +99,14 @@ final class ImageDocument: PluginDocument {
         scrollView.hasHorizontalScroller = true
         scrollView.drawsBackground = false
         canvas.autoresizingMask = [.width, .height]
+        container.image = scrollView
         animation = decoded.isAnimated ? AnimationPlayer(url: url, canvas: canvas) : nil
-        if isEditing { canvas.editUndoManager = undoManager }
+        if isEditing {
+            canvas.editUndoManager = undoManager
+            canvas.onCopy = { [weak self] in self?.copy() }
+            canvas.onPaste = { [weak self] in self?.paste() }
+            canvas.canPaste = { [weak self] in self?.canPasteMark ?? false }
+        }
         pinchObserver = NotificationCenter.default.addObserver(forName: NSScrollView.didEndLiveMagnifyNotification, object: scrollView,
                                                                queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.sharpenIfNeeded() }
@@ -88,12 +114,13 @@ final class ImageDocument: PluginDocument {
     }
 
     isolated deinit {
+        original.map { try? FileManager.default.removeItem(at: $0) }
         sharpening?.cancel()
         pageChange?.cancel()
         pinchObserver.map(NotificationCenter.default.removeObserver)
     }
 
-    var contentView: NSView { scrollView }
+    var contentView: NSView { container }
     /// The canvas takes the keyboard when editable, so Undo reaches the document's history.
     var focusView: NSView? { isEditing ? canvas : nil }
     /// The page thumbnails of a multi-page TIFF, above the info panel.
@@ -112,10 +139,14 @@ final class ImageDocument: PluginDocument {
         }
     }
 
-    /// Play Animation is checked while the animation plays.
+    /// Play Animation is checked while the animation plays; the armed markup tool, while the strip shows.
     func isOn(_ tool: String) -> Bool? {
-        tool == "play-animation" ? animation.map { !$0.isPaused } : nil
+        if let markup = MarkupTool(id: tool) { return isMarkingUp && overlay?.tool == markup }
+        return tool == "play-animation" ? animation.map { !$0.isPaused } : nil
     }
+
+    /// Markup shows as in use in the toolbar while its strip does.
+    var activeTool: String? { isMarkingUp ? "markup" : nil }
 
     private static let pageTools: Set = ["next-page", "previous-page"]
 
@@ -178,6 +209,8 @@ final class ImageDocument: PluginDocument {
         case "previous-page" where showsPages: showPage(page - 1)
         case "crop" where isEditing: startCrop()
         case "transform" where isEditing: showTransform()
+        case "markup" where isEditing: isMarkingUp ? hideMarkup() : showMarkup()
+        case let id where isEditing && MarkupTool(id: id) != nil: arm(MarkupTool(id: id))
         default: return false
         }
         return true
@@ -202,7 +235,7 @@ final class ImageDocument: PluginDocument {
     private func sharpenIfNeeded(atActualSize: Bool = false) {
         guard atActualSize || scrollView.magnification > 1, animation == nil, full == nil, sharpening == nil,
               max(base.width, base.height) < ImagePlugin.fullSide(for: baseSize) else { return }
-        let started = generation, url = url, size = baseSize, page = page, decode = decodeFull
+        let started = generation, url = original ?? url, size = baseSize, page = page, decode = decodeFull
         sharpening = Task { [weak self] in
             let image = try? await decode(url, size, page)
             // After a save the file has changed, and a new decode has taken this one's place.
@@ -251,6 +284,7 @@ final class ImageDocument: PluginDocument {
     // MARK: Editing
 
     private func startCrop() {
+        hideMarkup()
         transformPanel?.popover.close()
         cropOverlay?.finish(nil)
         let overlay = CropOverlay(canvas: canvas, in: scrollView, pixelSize: pixelSize) { [weak self] rect in
@@ -269,92 +303,158 @@ final class ImageDocument: PluginDocument {
         transform.show(below: scrollView)
     }
 
-    /// Adds an edit, shown at once and undoable.
+    /// Adds an edit, shown at once and undoable. Marks move with a crop, turn, flip or resize; a crop drops the ones
+    /// it leaves out.
     func apply(_ edit: ImageEdit) {
         guard edit.isValid else { return }
-        setEdits(edits + [edit])
+        setState(ImageState(edits: edits + [edit], marks: ImageMark.mapped(marks, through: edit, from: pixelSize)))
     }
 
-    private func setEdits(_ new: [ImageEdit]) {
-        let old = edits
-        edits = new
+    /// Adds a mark, or replaces the one with its id, shown at once and undoable.
+    func put(_ mark: ImageMark) {
+        guard mark.isValid else { return }
+        var new = marks
+        if let index = new.firstIndex(where: { $0.id == mark.id }) { new[index] = mark } else { new.append(mark) }
+        setState(ImageState(edits: edits, marks: new))
+    }
+
+    func removeMark(id: String) {
+        guard marks.contains(where: { $0.id == id }) else { return }
+        setState(ImageState(edits: edits, marks: marks.filter { $0.id != id }))
+    }
+
+    private var state: ImageState { ImageState(edits: edits, marks: marks) }
+
+    private func setState(_ new: ImageState) {
+        let old = state
+        edits = new.edits
+        marks = new.marks
         // A group of its own: in a window it nests in the event's group, so one action is one undo step.
         undoManager.beginUndoGrouping()
-        undoManager.registerUndo(withTarget: self) { $0.setEdits(old) }
+        undoManager.registerUndo(withTarget: self) { $0.setState(old) }
         undoManager.endUndoGrouping()
         redraw()
         onEdit?()
     }
 
-    /// Shows the sharpest decode there is with the edits applied.
-    private func redraw() {
-        canvas.image = ImageEditing.preview(edits, of: full ?? base, fullSize: baseSize)
+    /// Shows the sharpest decode there is with the edits applied and the marks drawn, `draft` in place of the mark
+    /// with its id, or added: a mark being drawn or dragged.
+    func redraw(draft: ImageMark? = nil) {
+        let edited = ImageEditing.preview(edits, of: full ?? base, fullSize: baseSize)
+        var shown = marks
+        if let draft { if let index = shown.firstIndex(where: { $0.id == draft.id }) { shown[index] = draft } else { shown.append(draft) } }
+        canvas.image = MarkRenderer.render(shown, on: edited, imageSize: pixelSize) ?? edited
     }
 
     func unsavedEdits() -> UnsavedEdits? {
-        edits.isEmpty ? nil : UnsavedEdits(ImageSnapshot(edits: edits))
+        state == saved ? nil : UnsavedEdits(ImageSnapshot(state: state, original: original))
     }
 
     func restore(encoded data: Data) -> Bool {
-        guard isEditing, let decoded = try? JSONDecoder().decode([ImageEdit].self, from: data),
-              (1...Self.maxRecoveredEdits).contains(decoded.count), decoded.allSatisfy(\.isValid) else { return false }
-        setEdits(decoded)
+        guard isEditing else { return false }
+        var recovered: ImageSnapshot.Recovered
+        if let plain = try? JSONDecoder().decode([ImageEdit].self, from: data) {
+            recovered = ImageSnapshot.Recovered(edits: plain, marks: [], original: nil)  // from before marks
+        } else if let decoded = try? JSONDecoder().decode(ImageSnapshot.Recovered.self, from: data) {
+            recovered = decoded
+        } else {
+            return false
+        }
+        guard recovered.edits.count + recovered.marks.count <= Self.maxRecoveredEdits, !(recovered.edits.isEmpty && recovered.marks.isEmpty),
+              recovered.edits.allSatisfy(\.isValid), recovered.marks.allSatisfy(\.isValid) else { return false }
+        if let path = recovered.original {
+            // Saved since it opened: the edits start from the file as it opened, kept in a copy of ours.
+            let copy = URL(filePath: path)
+            guard copy.deletingLastPathComponent().standardizedFileURL == Self.originalsFolder.standardizedFileURL,
+                  let decoded = try? ImagePlugin.decodeNow(copy, maxPixels: maxPixels) else { return false }
+            original = copy
+            base = decoded.image
+            baseSize = decoded.pixelSize
+            saved = nil
+        }
+        setState(ImageState(edits: recovered.edits, marks: recovered.marks))
         return true
     }
 
     /// More than any real session makes; a recovery record comes from a file.
     private static let maxRecoveredEdits = 1000
 
+    /// Where copies of files as they opened are kept, until their window closes.
+    static let originalsFolder = FileManager.default.temporaryDirectory.appending(path: "peeker-originals")
+
+    /// The file as it opened, copied before its first save writes over it; every save draws from it, so a mark stays
+    /// movable and Undo reaches past saves.
+    private func keepOriginal() throws(PluginError) -> URL {
+        if let original { return original }
+        let copy = Self.originalsFolder.appending(path: "\(UUID().uuidString)-\(url.lastPathComponent)")
+        try PluginError.catching {
+            try FileManager.default.createDirectory(at: Self.originalsFolder, withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: url, to: copy)
+        }
+        original = copy
+        return copy
+    }
+
     func save(_ unsaved: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError) {
         guard let snapshot = unsaved.value as? ImageSnapshot else { throw PluginError("These changes aren't image edits.") }
-        try await ImageSaving.save(snapshot.edits, to: url.path)
-        await saved(snapshot)
+        let source = try keepOriginal()
+        try await ImageSaving.save(snapshot.state.edits, marks: snapshot.state.marks, from: source.path, to: url.path)
+        saved = snapshot.state
+        info = await ImagePlugin.info(of: url)
     }
 
     func saveAs(_ unsaved: UnsavedEdits?, to destination: URL) async throws(PluginError) {
         if let snapshot = unsaved?.value as? ImageSnapshot {
-            try await ImageSaving.save(snapshot.edits, from: url.path, to: destination.path)
-            url = destination
-            await saved(snapshot)
+            let source = try keepOriginal()
+            try await ImageSaving.save(snapshot.state.edits, marks: snapshot.state.marks, from: source.path, to: destination.path)
+            saved = snapshot.state
         } else {
             try await FileReplacement.copy(url, to: destination)
-            url = destination
-            info = await ImagePlugin.info(of: url)
         }
+        url = destination
+        info = await ImagePlugin.info(of: url)
         animation?.url = destination
         pageList?.url = destination
     }
 
-    /// Starts from the file just written with `snapshot`'s edits.
-    private func saved(_ snapshot: ImageSnapshot) async {
-        // The file now has the saved edits; start from it. Edits added during the save stay pending on top. If the
-        // list changed under the save (an undo), those changes no longer fit the file and are dropped.
-        let remainder = edits.starts(with: snapshot.edits) ? Array(edits.dropFirst(snapshot.edits.count)) : []
-        base = ImageEditing.preview(snapshot.edits, of: base, fullSize: baseSize)
-        baseSize = ImageEditing.size(after: snapshot.edits, from: baseSize)
-        edits = remainder
-        generation += 1
-        sharpening?.cancel()
-        sharpening = nil
-        full = nil
-        redraw()
-        sharpenIfNeeded()
-        undoManager.removeAllActions()
-        info = await ImagePlugin.info(of: url)
-    }
-
+    /// Back to the file as last saved. When what it holds is unknown (recovered edits on a file saved since it
+    /// opened), it's decoded again and becomes the file as it opened.
     func revertEdits() {
-        edits = []
+        if saved == nil, let decoded = try? ImagePlugin.decodeNow(url, maxPixels: maxPixels) {
+            original.map { try? FileManager.default.removeItem(at: $0) }
+            original = nil
+            base = decoded.image
+            baseSize = decoded.pixelSize
+            full = nil
+            saved = ImageState()
+        }
+        let back = saved ?? ImageState()
+        edits = back.edits
+        marks = back.marks
         redraw()
         undoManager.removeAllActions()
     }
 }
 
-/// The edits a save writes; encodes as the list alone, for the recovery copy.
+/// An image's edits and marks, both made since the file opened.
+nonisolated struct ImageState: Codable, Sendable, Equatable {
+    var edits: [ImageEdit] = []
+    var marks: [ImageMark] = []
+}
+
+/// What a save writes: every edit and mark since the file opened. The recovery copy keeps them with the path of our
+/// copy of the file as it opened, once a save has written over the file.
 nonisolated struct ImageSnapshot: Encodable, Sendable {
-    let edits: [ImageEdit]
+    let state: ImageState
+    let original: URL?
+
+    struct Recovered: Codable {
+        let edits: [ImageEdit]
+        let marks: [ImageMark]
+        let original: String?
+    }
 
     func encode(to encoder: any Encoder) throws {
-        try edits.encode(to: encoder)
+        try Recovered(edits: state.edits, marks: state.marks, original: original?.path).encode(to: encoder)
     }
 }

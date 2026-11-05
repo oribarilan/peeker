@@ -29,13 +29,16 @@ public enum ImagePlugin: Plugin {
         // A single key, kept for Crop alone: other letters stay free for markup tools.
         ToolSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true, tip: "Drag a rectangle, then press Return."),
         ToolSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
-    ]
+        ToolSpec(id: "markup", title: "Markup", symbol: "pencil.tip.crop.circle", shortcut: "m", isEditTool: true,
+                 tip: "Pick a tool, or press its key, then drag on the image. Hold Option for an ellipse or a text label."),
+    ] + MarkupTool.allCases.map(\.spec)
     /// Larger decodes would be refused by Core Animation anyway.
     nonisolated static let maxDimension = 16_384
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let decoded = try await decode(url, maxPixels: context.maxPixels)
-        return ImageDocument(url: url, decoded: decoded, editable: context.allowsEditing, maxPixels: context.maxPixels)
+        return ImageDocument(url: url, decoded: decoded, editable: context.allowsEditing, maxPixels: context.maxPixels,
+                             preferences: context.preferences)
     }
 
     /// Formats ImageIO writes without losing what Peeker shows: no layers, no floating point, no camera RAW.
@@ -73,6 +76,11 @@ public enum ImagePlugin: Plugin {
     /// Decodes the image, or the page of a multi-page TIFF, upright and at most `maxPixels` on its longer side, into
     /// premultiplied sRGB, the layout Core Animation draws without converting on the main thread.
     @concurrent nonisolated static func decode(_ url: URL, maxPixels: Int, page: Int = 0) async throws(PluginError) -> Decoded {
+        try decodeNow(url, maxPixels: maxPixels, page: page)
+    }
+
+    /// `decode` on the calling thread, for the rare case that can't wait: recovered edits on the file as it opened.
+    nonisolated static func decodeNow(_ url: URL, maxPixels: Int, page: Int = 0) throws(PluginError) -> Decoded {
         let (source, properties) = try source(url, page: page)
         let image = try displayDecode(source, page: page, maxSide: min(maxPixels, maxDimension))
         let width = properties[kCGImagePropertyPixelWidth] as? Int ?? image.width
