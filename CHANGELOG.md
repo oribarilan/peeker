@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- The first Space after Peeker starts shows the Peek panel about twice as fast as before: Peeker gets it ready a second after launch, without asking for any permission early.
 - Page thumbnails in PDFs and multi-page TIFFs, the trail under the toolbar and the Markdown outline show a faint tint of the accent color under the pointer, so it's clear what can be clicked. The outline's tint replaces its gray.
 - Cmd+F opens Find in a PDF after you click a page thumbnail; before, it did nothing until you clicked the page.
 - With Open at Login on, Peeker starts quietly at login instead of opening Settings, and after an update it waits for your first window to say what's new.

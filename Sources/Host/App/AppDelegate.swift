@@ -124,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if Self.showsSettingsAtLaunch(openedWindows: windows.count, atLogin: launchedAtLogin, afterUpdate: afterUpdate) { showSettings(nil) }
         if let whatsNewNow { showWhatsNew(whatsNewNow) }
         DispatchQueue.main.async { [weak self] in self?.updater.start() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.warmUpPeekPanel() }
         do {
             try ConfigSchema.write(nextTo: Config.defaultURL, plugins: catalog.entries)
         } catch {
@@ -322,6 +323,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             return
         }
         showInPanel(url, entry: entry)
+    }
+
+    /// The first Space after launch paid for making the panel, the first Accessibility call and the first Finder request,
+    /// several times a warm press. They're done here, a moment after launch, instead; Finder is asked only when Peeker
+    /// already may, so this never brings up the permission request.
+    private func warmUpPeekPanel() {
+        guard hotkeyShortcut != nil, accessibility.isTrusted else { return }
+        _ = panel
+        HotkeyMonitor.warmUp()
+        Task {
+            let allowed = await Task.detached(priority: .utility) { PermissionChecks.finderStatus(asking: false) == noErr }.value
+            if allowed { _ = finder.selection() }
+        }
     }
 
     private func followFinderSelection() {

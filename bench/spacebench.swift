@@ -3,6 +3,7 @@
 // keys) and Automation for Finder (to select the file).
 //
 // usage: spacebench <file> [runs]       prints one line per run: owner and milliseconds to the new window
+// With SPACEBENCH_FIRST=1 the warm-up press is printed too, as the first line, for timing a press right after launch.
 import AppKit
 import CoreGraphics
 
@@ -62,7 +63,9 @@ for run in 0...runs {  // run 0 is a warm-up
         if found == nil { usleep(500) }
     }
     let ms = Double(DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds) / 1e6
-    if run > 0 { print(found.map { "\($0.owner)\t\(String(format: "%.1f", ms))" } ?? "timeout") }
+    if run > 0 || ProcessInfo.processInfo.environment["SPACEBENCH_FIRST"] == "1" {
+        print(found.map { "\($0.owner)\t\(String(format: "%.1f", ms))" } ?? "timeout")
+    }
     usleep(300_000)
     press(53)  // Escape closes either panel
     usleep(700_000)

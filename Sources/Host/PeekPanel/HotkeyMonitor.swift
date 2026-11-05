@@ -146,6 +146,9 @@ final class HotkeyMonitor {
         return flags
     }
 
+    /// Makes the first Accessibility call now, which costs tens of milliseconds, so the first key press doesn't pay it.
+    static func warmUp() { _ = isTextInputFocused() }
+
     /// True while the user is typing in Finder (rename field, search field), where Space must stay a space.
     private static func isTextInputFocused() -> Bool {
         let system = AXUIElementCreateSystemWide()
