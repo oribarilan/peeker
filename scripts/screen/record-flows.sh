@@ -189,21 +189,22 @@ check "Reset on Markdown takes md back" "$(cfg "'md' in c['plugins']['markdown']
 "$DRIVE" press Peeker "Reset to Defaults" && sleep 1
 check "Reset on Plain Text gives md back to Markdown" "$(cfg "'md' in c['plugins']['markdown']['extensions'] and 'md' not in c['plugins']['text']['extensions']")" True
 
-# The Peek panel key: record Option-Space, use it, record it again while it's the key, then Off.
+# The Peek panel key: record Option-Shift-Space, use it, record it again while it's the key, then Off. Not
+# Option-Space, which other apps often take for themselves.
 "$DRIVE" row Peeker General && sleep 0.8
-"$DRIVE" press Peeker "Shortcut Space, click to record" && sleep 0.5 && "$DRIVE" keys Peeker opt+space && sleep 1
-check "Recording Option-Space writes it" "$(cfg "c['peekPanel']['key']")" opt+space
+"$DRIVE" press Peeker "Shortcut Space, click to record" && sleep 0.5 && "$DRIVE" keys Peeker opt+shift+space && sleep 1
+check "Recording Option-Shift-Space writes it" "$(cfg "c['peekPanel']['key']")" opt+shift+space
 "$DRIVE" select "$F/notes.md"
 sleep 1.2
 "$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
-"$DRIVE" keys Finder opt+space && sleep 1.5
-check "Option-Space opens Peeker's panel" "$("$DRIVE" windows | awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen) && $2 == "Peeker" { print "Peeker"; exit }' "$OUT/.before" -)" Peeker
-screencapture -x "$OUT/12a-option-space.png"
+"$DRIVE" keys Finder opt+shift+space && sleep 1.5
+check "Option-Shift-Space opens Peeker's panel" "$("$DRIVE" windows | awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen) && $2 == "Peeker" { print "Peeker"; exit }' "$OUT/.before" -)" Peeker
+screencapture -x "$OUT/12a-option-shift-space.png"
 "$DRIVE" keys Finder escape && sleep 1
 front
 "$DRIVE" windows | awk '{print $1}' > "$OUT/.before"
-"$DRIVE" press Peeker "Shortcut ⌥Space, click to record" && sleep 0.5 && "$DRIVE" keys Peeker opt+space && sleep 1.5
-check "Recording the current key records it, not the panel" "$("$DRIVE" windows | awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen) && $2 == "Peeker" { print "panel"; exit }' "$OUT/.before" -)$(cfg "c['peekPanel']['key']")" opt+space
+"$DRIVE" press Peeker "Shortcut ⌥⇧Space, click to record" && sleep 0.5 && "$DRIVE" keys Peeker opt+shift+space && sleep 1.5
+check "Recording the current key records it, not the panel" "$("$DRIVE" windows | awk 'NR == FNR { seen[$1] = 1; next } !($1 in seen) && $2 == "Peeker" { print "panel"; exit }' "$OUT/.before" -)$(cfg "c['peekPanel']['key']")" opt+shift+space
 "$DRIVE" press Peeker "Peek panel" && sleep 1
 check "Off writes off" "$(cfg "c['peekPanel']['key']")" off
 space 12b-space-key-off "$F/notes.md" "Quick Look"

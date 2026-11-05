@@ -96,10 +96,26 @@ finish() {
     exit
 }
 
+# Closes the Finder windows this run opened on its own files, leaving the user's.
+close_finder_windows() {
+    osascript - "$(cd "$OUT" 2>/dev/null && pwd -P)/" >/dev/null 2>&1 <<'APPLESCRIPT'
+on run argv
+    tell application "Finder"
+        repeat with i from (count of Finder windows) to 1 by -1
+            try
+                if POSIX path of (target of Finder window i as alias) starts with (item 1 of argv) then close Finder window i
+            end try
+        end repeat
+    end tell
+end run
+APPLESCRIPT
+}
+
 # However the run ends, nothing is left running. Unsaved edits leave Quit waiting on a Save prompt; this run's files
 # are throwaway, so answer Don't Save, and kill the build under test only if it still won't quit.
 cleanup() {
     ask_to_quit
+    close_finder_windows
     [ -n "$RECORDER" ] && kill -TERM "$RECORDER" 2>/dev/null
     RECORDER=
     for _ in 1 2 3; do
