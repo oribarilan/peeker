@@ -33,7 +33,7 @@ private enum ContextProbe: Plugin {
     nonisolated(unsafe) static var context: OpenContext?
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         self.context = context
-        return await ProbeDocument()
+        return ProbeDocument()
     }
 }
 
