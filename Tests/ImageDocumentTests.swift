@@ -354,6 +354,30 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         try await waitUntil(seconds: 3) { animation.frameIndex != paused }
     }
 
+    @Test func withReduceMotionAnAnimationStartsPausedOnItsFirstFrame() async throws {
+        AnimationPlayer.reducesMotion = { true }
+        defer { AnimationPlayer.reducesMotion = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion } }
+        let document = try await open(try gif())
+        let animation = try #require(document.animation)
+        #expect(animation.isPaused)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(animation.frameIndex == 0)
+        animation.toggle()
+        try await waitUntil(seconds: 3) { animation.frameIndex != 0 }
+    }
+
+    @Test func playAnimationIsAViewToolForAnimationsOnly() async throws {
+        let document = try await open(try gif())
+        #expect(document.tools.map(\.id).contains("play-animation"))
+        #expect(document.isOn("play-animation") == true)
+        #expect(document.perform("play-animation"))
+        #expect(document.isOn("play-animation") == false)
+        #expect(document.animation?.isPaused == true)
+        let still = try await open(try imageFile(try cornerImage(), type: .png))
+        #expect(!still.tools.map(\.id).contains("play-animation"))
+        #expect(still.isOn("play-animation") == nil)
+    }
+
     /// Through the canvas's own mouse handling, not the player directly.
     @Test func aClickOnTheImagePausesAndAnotherResumes() async throws {
         let document = try await open(try gif())

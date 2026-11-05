@@ -2,8 +2,11 @@ import AppKit
 import ImageIO
 
 /// Plays an animated image's frames into the canvas with the file's own timing and loop count. A click on the canvas
-/// pauses on the frame shown, and the next plays on from there.
+/// pauses on the frame shown, and the next plays on from there. With Reduce Motion on, it starts paused on the first
+/// frame.
 final class AnimationPlayer {
+    /// Whether the user asked macOS to reduce motion; tests replace it.
+    nonisolated(unsafe) static var reducesMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
     private let url: URL
     private weak var canvas: ImageCanvas?
     private(set) var isPaused = false
@@ -16,7 +19,7 @@ final class AnimationPlayer {
         self.url = url
         self.canvas = canvas
         canvas.onClick = { [weak self] in self?.toggle() }
-        play(from: 0)
+        if Self.reducesMotion() { isPaused = true } else { play(from: 0) }
     }
 
     func toggle() {

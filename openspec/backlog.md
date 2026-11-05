@@ -6,7 +6,6 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 - M8: menu bar icon: add Open…, maybe a setting to hide it.
 - I2: Cmd+R in images (rotate like Preview vs Rotate & Resize).
-- I4: animated images respect Reduce Motion; Play/Pause command.
 - T2: text zoom and wrap remembered per file or globally.
 - T3: Markdown task boxes readable by VoiceOver.
 - A1: keyboard-only use of PDF marks and crop.

@@ -42,7 +42,7 @@ private final class MixedDocument: PluginDocument {
 
     @Test func zoomAndPageToolsAreMenuOnly() {
         let menuOnly = { (tools: [ToolSpec]) in tools.filter { !$0.showsInToolbar }.map(\.id) }
-        #expect(menuOnly(ImagePlugin.tools) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "previous-page", "next-page"])
+        #expect(menuOnly(ImagePlugin.tools) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "previous-page", "next-page", "play-animation"])
         #expect(menuOnly(PDFPlugin.tools) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual"])
         #expect(menuOnly(TextPlugin.tools) == ["zoom-in", "zoom-out", "zoom-actual"])
         #expect(menuOnly(MarkdownPlugin.tools) == ["zoom-in", "zoom-out", "zoom-actual"])

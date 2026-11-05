@@ -141,6 +141,15 @@ check "A click pauses it" "$(frames)" 1
 "$DRIVE" click Peeker $((x + w / 2)) $((y + h / 2))
 sleep 0.3
 check "Another click plays it on" "$([ "$(frames)" -gt 1 ] && echo yes)" yes
+# View > Play Animation does the same from the menu, checked while the animation plays.
+check "Play Animation is checked while it plays" "$("$DRIVE" menuitems Peeker View | grep -c '^✓ Play Animation$')" 1
+"$DRIVE" menu Peeker View "Play Animation"
+sleep 0.3
+check "Play Animation from the View menu pauses it" "$(frames)" 1
+check "and its checkmark goes" "$("$DRIVE" menuitems Peeker View | grep -c '^✓ Play Animation$')" 0
+"$DRIVE" menu Peeker View "Play Animation"
+sleep 0.3
+check "Choosing it again plays it on" "$([ "$(frames)" -gt 1 ] && echo yes)" yes
 
 # A multi-page TIFF: Page Down and Page Up move between its pages, and the thumbnail of the page shown is selected.
 show "$TIFF"

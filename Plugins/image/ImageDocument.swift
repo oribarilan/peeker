@@ -108,7 +108,13 @@ final class ImageDocument: PluginDocument {
     var tools: [ToolSpec] {
         ImagePlugin.tools.filter { tool in
             !(tool.isEditTool && editability == .notEditable) && (showsPages || !Self.pageTools.contains(tool.id))
+                && (animation != nil || tool.id != "play-animation")
         }
+    }
+
+    /// Play Animation is checked while the animation plays.
+    func isOn(_ tool: String) -> Bool? {
+        tool == "play-animation" ? animation.map { !$0.isPaused } : nil
     }
 
     private static let pageTools: Set = ["next-page", "previous-page"]
@@ -167,6 +173,7 @@ final class ImageDocument: PluginDocument {
         case "zoom-actual":
             zoomToActualSize()
             sharpenIfNeeded(atActualSize: true)
+        case "play-animation" where animation != nil: animation?.toggle()
         case "next-page" where showsPages: showPage(page + 1)
         case "previous-page" where showsPages: showPage(page - 1)
         case "crop" where isEditing: startCrop()

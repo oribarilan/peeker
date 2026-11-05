@@ -29,7 +29,7 @@ import Testing
     }
 
     @Test func pluginsDeclareTheirTools() {
-        #expect(ImagePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "previous-page", "next-page", "crop", "transform"])
+        #expect(ImagePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "previous-page", "next-page", "play-animation", "crop", "transform"])
         #expect(PDFPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page"])
         #expect(TextPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "toggle-wrap"])
         #expect(MarkdownPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])

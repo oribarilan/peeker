@@ -25,6 +25,7 @@ public enum ImagePlugin: Plugin {
         // Offered only for a multi-page TIFF.
         ToolSpec(id: "previous-page", title: "Previous Page", symbol: "chevron.up", shortcut: "pageup", showsInToolbar: false),
         ToolSpec(id: "next-page", title: "Next Page", symbol: "chevron.down", shortcut: "pagedown", showsInToolbar: false),
+        ToolSpec(id: "play-animation", title: "Play Animation", symbol: "play", showsInToolbar: false),
         // A single key, kept for Crop alone: other letters stay free for markup tools.
         ToolSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true, tip: "Drag a rectangle, then press Return."),
         ToolSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
