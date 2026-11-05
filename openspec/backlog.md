@@ -4,7 +4,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 
 ## Design review leftovers
 
-- M8: menu bar icon: add Open…, maybe a setting to hide it.
+- M8: maybe a setting to hide the menu bar icon (Open… is in its menu now).
 - I2: Cmd+R in images (rotate like Preview vs Rotate & Resize).
 - T2: text zoom and wrap remembered per file or globally.
 - T3: Markdown task boxes readable by VoiceOver.

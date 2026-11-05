@@ -311,8 +311,9 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         let delegate = AppDelegate()  // menu items hold their target weakly
         defer { withExtendedLifetime(delegate) {} }
         let menu = MenuBarItem.menu(target: delegate, lines: [])
-        #expect(menu.items.map(\.title) == ["Settings…", "Check for Updates…", "Open at Login", "", "Quit Peeker"])
-        #expect(menu.items[1].action == #selector(AppDelegate.checkForUpdates(_:)) && menu.items[1].target === delegate)
+        #expect(menu.items.map(\.title) == ["Open…", "Settings…", "Check for Updates…", "Open at Login", "", "Quit Peeker"])
+        #expect(menu.items[0].action == #selector(AppDelegate.showOpenPanel(_:)) && menu.items[0].target === delegate)
+        #expect(menu.items[2].action == #selector(AppDelegate.checkForUpdates(_:)) && menu.items[2].target === delegate)
     }
 
     @Test func theStatusLinesComeFirstAndTheUpdateLineOpensTheUpdateWindow() {

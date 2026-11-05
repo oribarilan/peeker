@@ -2,13 +2,13 @@
 # Records the user-facing flows as evidence: no window on a launch at login, Settings on a launch by hand, the Peek
 # panel on Space in Finder for files Peeker opens, Finder's Quick Look for files it leaves alone, the panel's capped
 # first size, a move that sticks and Settings' Reset Panel Size, Open With in an Editor window (the toolbar and File
-# menu) and Revert to Saved…, a config clash in the menu bar icon, and changes made in Settings (a plugin off and on,
-# moving an extension and Reset, the Peek panel key recorder and Off, the update controls and a development build's
-# Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one recorder listening at a time, reopening on
-# the last pane, General holding Open at Login and Default app, the add-extension field's placeholder), and the
-# no-plugin alert's Open Settings. Writes
-# screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with
-# SCREEN_RECORD=1; scripts/screen-test.sh runs it with the other flows.
+# menu) and Revert to Saved…, a config clash in the menu bar icon, its Open… with no window open, and changes made in
+# Settings (a plugin off and on, moving an extension and Reset, the Peek panel key recorder and Off, the update controls
+# and a development build's Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one recorder
+# listening at a time, reopening on the last pane, General holding Open at Login and Default app, the add-extension
+# field's placeholder), and the no-plugin alert's Open Settings. Writes screenshots and results.txt (one ok/FAIL line
+# per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1; scripts/screen-test.sh runs it with
+# the other flows.
 #
 # Takes over the keyboard and Finder for about two minutes: the screen must be unlocked and left alone.
 # usage: record-flows.sh [path/to/Peeker.app]
@@ -146,6 +146,19 @@ sleep 2
 menu=$(DRIVE_HOLD=2.5 "$DRIVE" menuextra Peeker)
 wait $!
 check "Clash shows in the menu bar icon" "$(echo "$menu" | grep -o 'Config has 1 problem' | head -1)" "Config has 1 problem"
+
+# Open… in the menu bar icon's menu, with no window open: the Open panel comes up in front, and after Cancel Peeker
+# has no Dock icon again.
+sleep 1  # the clash step's menu must be closed before this click opens it again
+"$DRIVE" menuextraclick Peeker "Open…"
+"$DRIVE" wait Peeker window Open --timeout 5
+front_app() { osascript -e 'tell application "System Events" to get name of first process whose frontmost is true'; }
+for _ in 1 2 3 4; do [ "$(front_app)" = Peeker ] && break; sleep 0.5; done
+check "Open… from the menu bar icon brings the Open panel to the front" "$(front_app)" Peeker
+"$DRIVE" press Peeker Cancel
+"$DRIVE" wait Peeker window Open --gone
+sleep 0.5
+check "After Cancel Peeker has no Dock icon" "$(lsappinfo info -only ApplicationType "$(lsappinfo find bundleid=dev.peeker.Peeker)" | grep -o UIElement)" UIElement
 
 # Settings: open it from the menu bar icon, change things, and check config.json after each change.
 echo '{}' > "$CONFIG"

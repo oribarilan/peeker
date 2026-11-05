@@ -15,6 +15,8 @@
 //                                                  before checked ones, then close it (DRIVE_HOLD=<s> waits first);
 //                                                  needs <process> in front
 //        drive menuextra <process> [item]          open the process's menu bar icon menu and print it, or press <item>
+//        drive menuextraclick <process> <item>     the same with real mouse clicks, which macOS counts as the user's own
+//                                                  action (an Accessibility press doesn't let an app make itself active)
 //        drive row <process> <title>               select the sidebar row titled <title> in any window
 //        drive press <process> <label> [role]      press the control (button, switch) labeled <label> in any window,
 //                                                  or only inside the first element with that role, e.g. AXScrollArea,
@@ -132,6 +134,14 @@ func selectInFinder(_ path: String) {
 func requireFront(_ process: String) {
     let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "nothing"
     if front != process { fail("\(process) isn't in front (\(front) is): not sending input") }
+}
+
+/// The middle of an element on screen, from its Accessibility position and size.
+func center(of element: AXUIElement) -> CGPoint {
+    var origin = CGPoint.zero, size = CGSize.zero
+    if let value: AXValue = attr(element, kAXPositionAttribute) { AXValueGetValue(value, .cgPoint, &origin) }
+    if let value: AXValue = attr(element, kAXSizeAttribute) { AXValueGetValue(value, .cgSize, &size) }
+    return CGPoint(x: origin.x + size.width / 2, y: origin.y + size.height / 2)
 }
 
 func click(at point: CGPoint, count: Int, flags: CGEventFlags = []) {
@@ -408,6 +418,15 @@ case "menuitems":
 case "menuextra":
     guard let extras: AXUIElement = attr(application(arg(1)), "AXExtrasMenuBar"), let icon = children(extras).first else { fail("no menu bar icon") }
     pick(in: icon, item: args.count > 2 ? args[2] : nil)
+case "menuextraclick":
+    guard let extras: AXUIElement = attr(application(arg(1)), "AXExtrasMenuBar"), let icon = children(extras).first else { fail("no menu bar icon") }
+    click(at: center(of: icon), count: 1)
+    usleep(600_000)
+    guard let item = find(icon, where: { role($0) == kAXMenuItemRole && label($0) == arg(2) }) else {
+        press(comboKeys["escape"]!)
+        fail("no item “\(arg(2))”")
+    }
+    click(at: center(of: item), count: 1)
 case "row":
     let isRow = { (element: AXUIElement) in
         role(element) == kAXRowRole && find(element, where: { label($0) == arg(2) || (attr($0, kAXValueAttribute) as String?) == arg(2) }) != nil
@@ -610,5 +629,5 @@ case "contrast":
     }
     print(Int((total / Double(side * side) * 255).rounded()))
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|row|press|fill|enabled|frame|value|textframe|selection|click|move|type|keys|drag|wait|loginlaunch|focus|pixel|closest|stripes|contrast ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|menuextraclick|row|press|fill|enabled|frame|value|textframe|selection|click|move|type|keys|drag|wait|loginlaunch|focus|pixel|closest|stripes|contrast ...; see the top of drive.swift")
 }

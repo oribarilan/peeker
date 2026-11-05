@@ -438,6 +438,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     @objc func showOpenPanel(_ sender: Any?) {
+        // From the menu bar icon with no window open, Peeker runs without a Dock icon, and macOS won't make such an app
+        // active; while the panel shows it's a regular app, as with Settings, and afterwards whatever its windows call for.
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate()
+        defer { updatePresence() }
         let open = NSOpenPanel()
         open.allowsMultipleSelection = true
         guard open.runModal() == .OK else { return }

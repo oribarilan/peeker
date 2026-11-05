@@ -1,6 +1,6 @@
 import AppKit
 
-/// Peeker's icon in the menu bar, there whenever it runs: Settings, Check for Updates, Open at Login and Quit. A red dot
+/// Peeker's icon in the menu bar, there whenever it runs: Open, Settings, Check for Updates, Open at Login and Quit. A red dot
 /// shows while the config has problems or the Peek panel is missing Accessibility, an accent dot while an update waits,
 /// each with a menu line saying which.
 final class MenuBarItem {
@@ -77,7 +77,8 @@ final class MenuBarItem {
     static func menu(target: AppDelegate, lines: [NSMenuItem]) -> NSMenu {
         let menu = NSMenu()
         lines.forEach(menu.addItem)
-        let commands = [("Settings…", #selector(AppDelegate.showSettings(_:))), ("Check for Updates…", #selector(AppDelegate.checkForUpdates(_:))),
+        let commands = [("Open…", #selector(AppDelegate.showOpenPanel(_:))), ("Settings…", #selector(AppDelegate.showSettings(_:))),
+                        ("Check for Updates…", #selector(AppDelegate.checkForUpdates(_:))),
                         ("Open at Login", #selector(AppDelegate.toggleOpenAtLogin(_:)))]
         for (title, action) in commands {
             menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = target
