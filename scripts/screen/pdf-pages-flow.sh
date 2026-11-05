@@ -1,9 +1,9 @@
 #!/bin/bash
 # The PDF page flow on screen: in the Editor, rotate and delete pages chosen in the thumbnails, drag one to the top
-# (checking the insertion bar shows mid-drag),
-# save, undo past the save and save again, then make more page edits and close the window with Don't Save. Each save is checked by reading the
-# file's pages back (order, text and rotation). Writes screenshots and results.txt (one ok/FAIL line per check)
-# to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
+# (checking the insertion bar shows mid-drag), save, undo past the save and save again, then make more page edits and
+# close the window with Don't Save; last, insert a PDF's pages with File > Insert Pages from File… and split every page
+# with Split…. Each save is checked by reading the file's pages back (order, text and rotation). Writes screenshots and
+# results.txt (one ok/FAIL line per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
 #
 # Takes over the mouse and keyboard for about half a minute: the screen must be unlocked and left alone. Clicks and
 # keys are sent only while Peeker is in front.
@@ -121,5 +121,33 @@ pick_page 4
 "$DRIVE" press Peeker "Don't Save"
 "$DRIVE" wait Peeker window "$(basename "$FILE")" --gone
 check "Don't Save leaves the file as saved" "$(saved_pages)" "Page 1 / Page 2 (90) / Page 3 / Page 4"
+
+# The file tools: Insert Pages from File… puts a 2-page PDF's pages after page 2, chosen in the open sheet by path;
+# Split… writes every page, unsaved inserts included, next to the file. Closing then discards the insert.
+EXTRA="$OUT/extra.pdf"
+"$PDF" pages "$EXTRA" 2
+open -a "$APP" "$FILE"
+"$DRIVE" wait Peeker window "$(basename "$FILE")"
+front
+pick_page 2
+"$DRIVE" menu Peeker File "Insert Pages from File…"
+"$DRIVE" wait Peeker sheet
+"$DRIVE" keys Peeker shift+cmd+g && sleep 0.5
+"$DRIVE" type Peeker "$EXTRA"
+"$DRIVE" keys Peeker return && sleep 0.5
+"$DRIVE" keys Peeker return
+"$DRIVE" wait Peeker sheet --gone
+for _ in $(seq 30); do [ "$(thumbnails)" = 6 ] && break; sleep 0.1; done
+check "Insert Pages from File… adds the other PDF's pages" "$(thumbnails)" 6
+"$DRIVE" shot Peeker "$OUT/4-inserted.png"
+"$DRIVE" menu Peeker File "Split…"
+"$DRIVE" wait Peeker sheet
+"$DRIVE" press Peeker "Every Page"
+for _ in $(seq 30); do [ -f "$OUT/pages 6.pdf" ] && break; sleep 0.1; done
+check "Split… writes one file per page" "$(ls "$OUT" | grep -cE '^pages [0-9]+\.pdf$')" 6
+"$DRIVE" keys Peeker cmd+w
+"$DRIVE" wait Peeker sheet
+"$DRIVE" press Peeker "Don't Save"
+check "Closing without saving leaves the file without the inserted pages" "$(saved_pages)" "Page 1 / Page 2 (90) / Page 3 / Page 4"
 
 finish

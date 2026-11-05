@@ -6,9 +6,11 @@ Page tools (rotate, delete, reorder) are `PDFEdit` cases applied live to the sho
 
 ## Decisions
 
-**Insert is a page edit that carries its source.** `PDFEdit.insertPages(at: Int, source: InsertedSource, token:)`, where the source is the inserted file's bytes when they're small (under 20 MB) or its path otherwise, with the page range. Applying it opens the source (a PDF, or an image drawn on a page the image's size at 72 dpi, at most 14400 points a side) and inserts copies of its pages. Undo removes them into the stash, like delete. Recovery holds the bytes or the path; a path that's gone fails the restore with the file's name. `PDFPlugin.write` replays it like the other edits, so Save As and Cmd+S both work.
+**Insert reuses the restore edit.** Undo of a delete already puts pages back from a PDF copy: `.restorePages(pages:token:data:)`. Inserting builds that copy from the chosen files (each PDF's pages, each image as a page of its size through `PDFPage(image:)`) and applies a restore at the insertion point, so Undo (a delete into the stash), Redo, saving, Save As and recovery all work as they do for deleted pages. The recovery copy holds the inserted pages' data, up to the restore's existing 256 MB limit. Considered keeping the source file's path instead: smaller, but a moved file would lose the pages.
 
-**Where pages go.** After the last selected thumbnail, or at the end with none selected; a drop goes where the drop bar shows. Finder drops of several files insert them in the order dragged.
+**Where pages go.** After the last selected thumbnail, or after the page shown. Files dropped from Finder onto the pages go there too, in the order dragged. Drops onto the thumbnails wait: PDFKit's collection view owns their drop handling, which reordering already relies on.
+
+**Also from the thumbnails.** Their right-click menu lists the page tools, so the three file tools show there too.
 
 **Save Selected Pages As… writes a new file without moving the window.** It builds a `PDFDocument` from copies of the selected pages as shown (pending edits included), and writes it through `FileReplacement` to the path from a save sheet named "<name> pages.pdf".
 
@@ -18,5 +20,5 @@ Page tools (rotate, delete, reorder) are `PDFEdit` cases applied live to the sho
 
 ## Risks / Trade-offs
 
-- [Large inserted files in the recovery copy] → paths above 20 MB; the restore says when the file is gone.
-- [Drops on macOS 26, where internal drags can't reorder] → external file drops go through the collection view's own drop delegate, which works there; checked on screen.
+- [Large inserted files in the recovery copy] → held as data, as deleted pages are, within the 256 MB limit.
+- [The pages view may claim file drops itself] → checked on screen; if it does, drops wait with the thumbnails.

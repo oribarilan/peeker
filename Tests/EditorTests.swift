@@ -10,6 +10,7 @@ private enum EditablePlugin: Plugin {
     static let tools = [
         ToolSpec(id: "zoom", title: "Zoom", shortcut: "cmd+="),
         ToolSpec(id: "mark", title: "Mark", shortcut: "ctrl+cmd+m", isEditTool: true),
+        ToolSpec(id: "export", title: "Export Pages…", isEditTool: true, showsInToolbar: false, menu: .file),
     ]
     static var nextEditability = Editability.editable
 
@@ -142,6 +143,22 @@ private final class PlainDocument: PluginDocument {
         #expect(titles(tools) == ["Mark"])
         let mark = try #require(tools.items.last)
         #expect(mark.keyEquivalent == "m" && mark.keyEquivalentModifierMask == [.control, .command] && mark.target === editable)
+    }
+
+    @Test func fileToolsGoInFileAfterSaveAs() async throws {
+        EditablePlugin.nextEditability = .editable
+        let editable = try await documentWindow(for: EditablePlugin.self)
+        defer { editable.close() }
+        let main = MainMenu.make(target: nil)
+        let (view, tools) = try menus()
+        let file = try #require(main.item(withTitle: "File")?.submenu)
+        MainMenu.rebuildTools(view: view, tools: tools, file: file, for: editable)
+        let names = titles(file)
+        let saveAs = try #require(names.firstIndex(of: "Save As…"))
+        #expect(names[saveAs + 1] == "Export Pages…")
+        #expect(titles(tools) == ["Mark"])
+        MainMenu.rebuildTools(view: view, tools: tools, file: file, for: nil)
+        #expect(!titles(file).contains("Export Pages…"), "gone with no document in front")
     }
 
     @Test func withoutEditToolsToolsShowsAGreyedNoToolsItem() async throws {

@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// The menus the front document's tools fill.
     private var viewMenu: NSMenu?
     private var toolsMenu: NSMenu?
+    private var fileMenu: NSMenu?
     private var openWithMenu: NSMenu?
     private lazy var recentFiles = RecentFiles { [weak self] in self?.openInWindow($0) }
     static let helpURL = URL(string: "https://github.com/oribarilan/peeker")!
@@ -74,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let menu = MainMenu.make(target: self)
         viewMenu = menu.item(withTitle: "View")?.submenu
         toolsMenu = menu.item(withTitle: "Tools")?.submenu
+        fileMenu = menu.item(withTitle: "File")?.submenu
         openWithMenu = menu.item(withTitle: "File")?.submenu?.item(withTitle: "Open With")?.submenu
         menu.item(withTitle: "File")?.submenu?.item(withTitle: "Open Recent")?.submenu?.delegate = recentFiles
         NSApp.mainMenu = menu
@@ -85,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     /// with its plugins. Filled ahead of time, not as the menus open, so Accessibility sees them too.
     private func showCommands(of controller: DocumentWindowController?) {
         guard let viewMenu, let toolsMenu, let openWithMenu else { return }
-        MainMenu.rebuildTools(view: viewMenu, tools: toolsMenu, for: controller)
+        MainMenu.rebuildTools(view: viewMenu, tools: toolsMenu, file: fileMenu, for: controller)
         if let controller { controller.fillOpenWith(openWithMenu) } else { openWithMenu.removeAllItems() }
     }
 

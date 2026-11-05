@@ -10,8 +10,8 @@ enum MainMenu {
     /// Puts the document's tools into View (zoom, wrap and other view tools) and Tools (edit tools), replacing the
     /// last document's. Nil, when no Editor window is in front, leaves only the fixed items. Tools without edit tools
     /// shows No Tools, greyed out, so the menu bar stays the same.
-    static func rebuildTools(view: NSMenu, tools: NSMenu, for controller: DocumentWindowController?) {
-        for menu in [view, tools] {
+    static func rebuildTools(view: NSMenu, tools: NSMenu, file: NSMenu? = nil, for controller: DocumentWindowController?) {
+        for menu in [view, tools] + (file.map { [$0] } ?? []) {
             for item in menu.items where item.action == #selector(DocumentWindowController.runTool(_:))
                 || (item.isSeparatorItem && item.tag == toolsSeparatorTag) || item.tag == noToolsTag {
                 menu.removeItem(item)
@@ -28,7 +28,15 @@ enum MainMenu {
             item.keyEquivalentModifierMask = single == nil ? tool.shortcut?.modifiers ?? [] : []
             item.tag = index
             item.target = controller
-            let menu = tool.spec.isEditTool ? tools : view
+            if tool.spec.menu == .file {
+                // After Save As… and the file tools before it.
+                guard let file, let saveAs = file.items.firstIndex(where: { $0.action == #selector(DocumentWindowController.saveDocumentAs(_:)) })
+                else { continue }
+                let after = file.items[(saveAs + 1)...].prefix { $0.action == #selector(DocumentWindowController.runTool(_:)) }.count
+                file.insertItem(item, at: saveAs + 1 + after)
+                continue
+            }
+            let menu = tool.spec.menu == .tools ? tools : view
             if !menu.items.isEmpty, menu.items.last?.action != #selector(DocumentWindowController.runTool(_:)) {
                 let separator = NSMenuItem.separator()
                 separator.tag = toolsSeparatorTag

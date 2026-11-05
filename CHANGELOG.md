@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- PDFs gain File > Insert Pages from File… (or drop PDFs and images onto the pages), Save Selected Pages As… and Split…, also in the thumbnails' right-click menu. Combine PDFs by inserting them and choosing Save As….
 - Images can be marked up: Markup (M) shows a strip with Arrow (A), Box (B), Text (T), Pixelate (X), Steps (N), Pen (P), Marker (K) and Spotlight (S), one remembered color and size, and marks you can move, resize and delete until the window closes, saved or not. Cmd+C copies the marked image. Undo in images now reaches past saves.
 - File > Save As… (Shift+Cmd+S) writes the file, with your unsaved changes, to a new name or folder and keeps working on it there; the original stays as it was. Read-only files are copied as they are.
 - In a PDF window, a rotated page turns into place, a deleted page shrinks away, and Undo grows it back; nothing moves with Reduce Motion on.

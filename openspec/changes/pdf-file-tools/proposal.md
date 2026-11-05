@@ -6,13 +6,13 @@ Combining scans into one PDF, pulling a few pages out, or splitting a long file 
 
 ## What Changes
 
-- File > Insert Pages from File… (and dragging PDFs or images from Finder onto the thumbnails) inserts another PDF's pages, or an image as a page, after the selected page or where dropped. Inserted pages are pending edits like the other page tools: undoable, saved with Cmd+S, kept in the recovery copy.
+- File > Insert Pages from File… (and dropping PDFs or images from Finder onto the pages) inserts another PDF's pages, or an image as a page, after the selected page or the one shown. Inserted pages are pending edits like the other page tools: undoable, saved with Cmd+S, kept in the recovery copy.
 - Combining is insert, then Save As….
 - File > Save Selected Pages As… writes the pages selected in the thumbnails, with their pending edits, to a new PDF; the window stays on its file.
 - File > Split… writes one file per page, or one file per run of pages starting at each selected page, next to the original, as "name 1.pdf", "name 2.pdf"; names that exist are never overwritten.
 - All three are PDF edit tools, greyed out with the reason where page changes are (signed or locked PDFs, permissions), and absent from the Peek panel.
 - Plugins can list a tool in the File menu.
-- Dragging thumbnails out to Finder waits.
+- Dragging thumbnails out to Finder, and dropping files onto the thumbnails, wait.
 
 ## Capabilities
 

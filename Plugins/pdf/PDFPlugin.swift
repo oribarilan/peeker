@@ -25,6 +25,9 @@ public enum PDFPlugin: Plugin {
         ToolSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", isEditTool: true),
         ToolSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", isEditTool: true),
         ToolSpec(id: "delete-page", title: "Delete Page", symbol: "trash", isEditTool: true),
+        ToolSpec(id: "insert-pages", title: "Insert Pages from File…", isEditTool: true, showsInToolbar: false, menu: .file),
+        ToolSpec(id: "save-selected-pages", title: "Save Selected Pages As…", isEditTool: true, showsInToolbar: false, menu: .file),
+        ToolSpec(id: "split", title: "Split…", isEditTool: true, showsInToolbar: false, menu: .file),
     ]
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {

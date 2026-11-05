@@ -142,7 +142,7 @@ private func texts(_ document: PDFDocument) -> [String] {
         let shown = try await Shown(try TempFile.makePDF(pages: 3))
         defer { shown.window.close() }
         #expect(shown.thumbnails.allowsDragging == PageThumbnails.dragsReorderPages && shown.thumbnails.menu != nil)
-        #expect(shown.thumbnails.menu?.items.map(\.title) == ["Rotate Left", "Rotate Right", "Delete Page"])
+        #expect(shown.thumbnails.menu?.items.map(\.title) == ["Rotate Left", "Rotate Right", "Delete Page", "Insert Pages from File…", "Save Selected Pages As…", "Split…"])
         try shown.select([1])
         shown.thumbnails.deleteBackward(nil)
         #expect(shown.shown == ["Page 1", "Page 3"])

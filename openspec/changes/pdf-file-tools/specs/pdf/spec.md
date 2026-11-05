@@ -4,7 +4,7 @@
 
 ### Requirement: Inserting pages from files
 
-File > Insert Pages from File… and dropping PDFs or images from Finder onto the thumbnails SHALL insert the other PDF's pages, or each image as a page of its size, after the selected page, at the drop point, or at the end. Inserted pages SHALL be pending edits like other page tools: undoable, saved with Cmd+S or Save As…, and kept in the recovery copy.
+File > Insert Pages from File… and dropping PDFs or images from Finder onto the pages SHALL insert the other PDF's pages, or each image as a page of its size, after the last selected page, or after the page shown. Inserted pages SHALL be pending edits like other page tools: undoable, saved with Cmd+S or Save As…, and kept in the recovery copy.
 
 #### Scenario: Combining two scans
 
@@ -13,8 +13,8 @@ File > Insert Pages from File… and dropping PDFs or images from Finder onto th
 
 #### Scenario: A photo as a page
 
-- **WHEN** the user drops a JPEG between pages 1 and 2
-- **THEN** a page showing the photo appears there, and Undo takes it out
+- **WHEN** page 1 is shown and the user drops a JPEG onto the pages
+- **THEN** a page showing the photo appears after page 1, and Undo takes it out
 
 ### Requirement: Saving selected pages
 

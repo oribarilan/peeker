@@ -238,9 +238,15 @@ public struct ToolSpec: Sendable, Equatable {
     /// What to do next, shown once from the toolbar button the first time the tool runs, for tools that wait for a
     /// selection, a click or a drag. `{key}` stands for the tool's key, which the user may have changed.
     public let tip: String?
+    /// The menu that lists it: View for view tools and Tools for edit tools, unless it asks for File, for tools that
+    /// bring in or write other files.
+    public let menu: Menu
+
+    public enum Menu: Sendable, Equatable { case view, tools, file }
 
     public init(id: String, title: String, symbol: String? = nil, shortcut: String? = nil, isEditTool: Bool = false,
-                showsInToolbar: Bool = true, tip: String? = nil) {
+                showsInToolbar: Bool = true, tip: String? = nil, menu: Menu? = nil) {
+        self.menu = menu ?? (isEditTool ? .tools : .view)
         self.id = id
         self.title = title
         self.symbol = symbol

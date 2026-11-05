@@ -8,8 +8,8 @@ import PeekerKit
 final class PDFPluginDocument: PluginDocument {
     let pdfView = PeekerPDFView()
     /// The PDF shown, unsaved edits included.
-    private let document: PeekerPDFDocument
-    private var url: URL
+    let document: PeekerPDFDocument
+    private(set) var url: URL
     private let editable: Bool
     /// The file's details for the info panel, read again after a save.
     private var info: [InfoRow]
@@ -49,12 +49,16 @@ final class PDFPluginDocument: PluginDocument {
             pdfView.isEditing = true
             pdfView.editUndoManager = undoManager
             pdfView.onFirstUse = { [weak self] in self?.prepareEditing() }
+            if document.allowsDocumentAssembly {
+                container.onDropFiles = { [weak self] in self?.insertPages(from: $0) ?? false }
+                container.registerForDraggedTypes([.fileURL])
+            }
         }
     }
 
     /// The thumbnails last made for the sidebar, for the selected pages.
     private weak var thumbnails: PageThumbnails?
-    private static let pageTools: Set = ["rotate-left", "rotate-right", "delete-page"]
+    private static let pageTools: Set = ["rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split"]
 
     /// The pages, with the find bar above them from the first Cmd+F. No find in the Peek panel.
     private lazy var container = PDFFindContainer(pdfView: pdfView, allowsFind: editable)
@@ -119,6 +123,9 @@ final class PDFPluginDocument: PluginDocument {
 
     func perform(_ id: String) -> Bool {
         switch id {
+        case "insert-pages" where isEditing && unavailableReason(for: id) == nil: chooseFilesToInsert()
+        case "save-selected-pages" where isEditing && unavailableReason(for: id) == nil: chooseWhereToSavePages()
+        case "split" where isEditing && unavailableReason(for: id) == nil: askHowToSplit()
         case "zoom-in": pdfView.zoomIn(nil)
         case "zoom-out": pdfView.zoomOut(nil)
         case "zoom-fit": pdfView.autoScales = true
@@ -172,13 +179,14 @@ final class PDFPluginDocument: PluginDocument {
         guard Self.pageTools.contains(tool), editability == .editable else { return nil }
         if !allowsPageChanges { return "This PDF's permissions don't allow page changes." }
         if tool == "delete-page", targetPages.count >= document.pageCount { return "A PDF needs at least one page." }
+        if tool == "split", document.pageCount < 2 { return "There's only one page." }
         return nil
     }
 
     private var allowsPageChanges: Bool { document.allowsDocumentAssembly }
 
     /// The pages selected in the sidebar, or the current page when none are.
-    private var targetPages: [Int] {
+    var targetPages: [Int] {
         let selected = (thumbnails?.selectedPages ?? []).map(document.index(for:)).filter { $0 != NSNotFound }
         if !selected.isEmpty { return selected.sorted() }
         return pdfView.currentPage.map { [document.index(for: $0)] } ?? []
