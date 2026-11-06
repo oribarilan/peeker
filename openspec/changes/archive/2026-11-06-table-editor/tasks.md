@@ -27,7 +27,7 @@
 
 ## 5. Checks and docs
 
-- [ ] 5.1 `bench/ppbench.py` times `small.csv` and `large.csv` (TextEdit as Apple's app); run `scripts/bench-ab.sh` against main.
+- [x] 5.1 `bench/ppbench.py` times `small.csv` and `large.csv` (TextEdit as Apple's app); run `scripts/bench-ab.sh` against main.
 - [x] 5.2 Screen tests: routing cases for `csv` and `tsv` in `e2e-routing.sh`; a `table-edit` flow (open a CSV, edit a cell, save and compare the file; add and delete a row; sort and check nothing is unsaved; Header Row off; the Peek panel shows the table) wired into `screen-test.sh`; update the `run-peeker` skill.
 - [x] 5.3 `scripts/build.sh test` passes with no new warnings.
 - [x] 5.4 README's plugin list, CHANGELOG, `openspec/config.yaml`'s open question answered, `openspec/backlog.md` (the data editor next; Find and Print in tables); `openspec validate --all --strict`.
