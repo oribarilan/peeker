@@ -60,6 +60,9 @@
 //        drive contrast <png>                      print how much neighbouring pixels in a row differ on average, 0 to
 //                                                  255, in a 200-pixel square from the middle of an image: sharp
 //                                                  one-pixel stripes read near 255, enlarged or blurred ones far lower
+//        drive diff <a.png> <b.png>                print the largest difference of any color channel between two
+//                                                  captures of the same size, 0 to 255 (glass picks up what's behind a
+//                                                  window, so captures of the same view rarely match byte for byte)
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -646,6 +649,18 @@ case "contrast":
         }
     }
     print(Int((total / Double(side * side) * 255).rounded()))
+case "diff":
+    guard let first = try? Data(contentsOf: URL(filePath: arg(1))), let second = try? Data(contentsOf: URL(filePath: arg(2))),
+          let a = NSBitmapImageRep(data: first), let b = NSBitmapImageRep(data: second) else { fail("can't read \(arg(1)) or \(arg(2))") }
+    guard a.pixelsWide == b.pixelsWide, a.pixelsHigh == b.pixelsHigh else { print(255); break }
+    var largest = 0.0
+    for y in 0..<a.pixelsHigh {
+        for x in 0..<a.pixelsWide {
+            guard let p = a.colorAt(x: x, y: y), let q = b.colorAt(x: x, y: y) else { continue }
+            largest = max(largest, abs(p.redComponent - q.redComponent), abs(p.greenComponent - q.greenComponent), abs(p.blueComponent - q.blueComponent))
+        }
+    }
+    print(Int((largest * 255).rounded()))
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|menuextraclick|row|press|fill|enabled|frame|value|textframe|selection|click|move|type|keys|drag|wait|loginlaunch|focus|pixel|closest|stripes|contrast ...; see the top of drive.swift")
+    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|menuextraclick|row|press|fill|enabled|frame|value|textframe|selection|click|move|type|keys|drag|wait|loginlaunch|focus|pixel|closest|stripes|contrast|diff ...; see the top of drive.swift")
 }

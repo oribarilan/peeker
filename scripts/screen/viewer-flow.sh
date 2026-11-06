@@ -46,7 +46,8 @@ record viewer 90
 read -r wx wy ww wh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
 away() { "$DRIVE" move Peeker $((wx + ww * 2 / 3)) $((wy + wh / 2)) && sleep 0.4; }
 thumb() { read -r hx hy hw hh <<< "$("$DRIVE" frame Peeker AXStaticText "$1" || echo "0 0 0 0")"; }
-capture() { thumb "$1"; screencapture -x -R"$((hx - 50)),$((hy - 125)),$((hw + 100)),$((hh + 130))" "$OUT/$2.png"; shasum "$OUT/$2.png" | cut -c1-12; }
+# Kept inside the window: whatever is behind it (a terminal printing) would change the capture.
+capture() { thumb "$1"; local left=$((hx - 50 > wx ? hx - 50 : wx + 1)); screencapture -x -R"$left,$((hy - 125)),$((hx + hw + 50 - left)),$((hh + 130))" "$OUT/$2.png"; shasum "$OUT/$2.png" | cut -c1-12; }
 over() { thumb "$1"; "$DRIVE" move Peeker $((hx + hw / 2)) $((hy - 40)) && sleep 0.4; }
 thumb 1 && "$DRIVE" click Peeker $((hx + hw / 2)) $((hy - 40))
 away
@@ -56,7 +57,9 @@ for _ in $(seq 10); do [ "$(capture 2 0c-thumb-2-hovered)" != "$before2" ] && br
 check "A thumbnail under the pointer shows the hover tint" "$([ "$(capture 2 0c-thumb-2-hovered)" != "$before2" ] && echo yes)" yes
 check "The tint stays behind the page" "$("$DRIVE" pixel "$OUT/0c-thumb-2-hovered.png" 0.5 0.5)" FFFFFF
 over 1
-check "The selected thumbnail shows none" "$(capture 1 0d-thumb-1-hovered)" "$before1"
+capture 1 0d-thumb-1-hovered >/dev/null
+# Glass behind the thumbnails picks up what's behind the window, so it's a small difference, not none.
+check "The selected thumbnail shows none" "$([ "$("$DRIVE" diff "$OUT/0b-thumb-1.png" "$OUT/0d-thumb-1-hovered.png")" -le 12 ] && echo yes)" yes
 away
 
 # Find, with the thumbnails still focused from the click above: the bar counts matches, and Find Next steps through
