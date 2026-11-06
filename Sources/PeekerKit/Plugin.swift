@@ -241,11 +241,31 @@ public struct ToolSpec: Sendable, Equatable {
     /// The menu that lists it: View for view tools and Tools for edit tools, unless it asks for File, for tools that
     /// bring in or write other files.
     public let menu: Menu
+    /// Variants of the tool, such as highlight colors: a menu on its toolbar button and a submenu titled
+    /// `choicesTitle` after its menu item. Picking one calls `perform(choice.id)`, and the one `isOn(choice.id)`
+    /// reports is checked. They're available exactly when the tool is.
+    public let choices: [Choice]
+    public let choicesTitle: String?
 
     public enum Menu: Sendable, Equatable { case view, tools, file }
 
+    public struct Choice: Sendable, Equatable {
+        public let id: String
+        public let title: String
+        /// Shown as a dot before the title.
+        public let color: RGBA?
+
+        public init(id: String, title: String, color: RGBA? = nil) {
+            self.id = id
+            self.title = title
+            self.color = color
+        }
+    }
+
     public init(id: String, title: String, symbol: String? = nil, shortcut: String? = nil, isEditTool: Bool = false,
-                showsInToolbar: Bool = true, tip: String? = nil, menu: Menu? = nil) {
+                showsInToolbar: Bool = true, tip: String? = nil, menu: Menu? = nil, choices: [Choice] = [], choicesTitle: String? = nil) {
+        self.choices = choices
+        self.choicesTitle = choicesTitle
         self.menu = menu ?? (isEditTool ? .tools : .view)
         self.id = id
         self.title = title

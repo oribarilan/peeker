@@ -28,13 +28,20 @@ final class PDFPluginDocument: PluginDocument {
     private(set) lazy var undoManager = UndoManager()
     /// Pages deleted in this view, for their undo.
     private let stash = PageStash()
-    /// Opaque: PDFKit drops alpha when writing and draws highlights with multiply, so text stays readable and the
-    /// highlight looks the same before and after saving.
-    static let highlightColor = RGBA(red: 1, green: 0.8, blue: 0, alpha: 1)
+    /// The highlight color in use, one of `PDFPlugin.highlightColors` by id, remembered in the app's preferences.
+    private var highlightChoice = PDFPlugin.highlightColors[0].id
+    private var highlightColor = PDFPlugin.highlightColors[0].color ?? RGBA(red: 1, green: 0.8, blue: 0, alpha: 1)
+    private let preferences: PluginPreferences?
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "pdf")
 
     /// `uneditableReason` makes a file that can't be safely changed read-only.
-    init(url: URL, document: PeekerPDFDocument, info: [InfoRow], editable: Bool, uneditableReason: String? = nil) {
+    init(url: URL, document: PeekerPDFDocument, info: [InfoRow], editable: Bool, uneditableReason: String? = nil,
+         preferences: PluginPreferences? = nil) {
+        self.preferences = preferences
+        let remembered = preferences?.string("highlightColor").map { "highlight-\($0)" }
+        if let choice = PDFPlugin.highlightColors.first(where: { $0.id == remembered }), let color = choice.color {
+            (highlightChoice, highlightColor) = (choice.id, color)
+        }
         self.url = url
         self.document = document
         self.info = info
@@ -124,6 +131,11 @@ final class PDFPluginDocument: PluginDocument {
         }
     }
 
+    /// The highlight color in use is on.
+    func isOn(_ tool: String) -> Bool? {
+        tool.hasPrefix("highlight-") ? tool == highlightChoice : nil
+    }
+
     func perform(_ id: String) -> Bool {
         switch id {
         case "insert-pages" where isEditing && unavailableReason(for: id) == nil: chooseFilesToInsert()
@@ -144,6 +156,11 @@ final class PDFPluginDocument: PluginDocument {
         case "highlight" where isEditing:
             highlightSelection()
             prepareEditing()?.armHighlighter()
+        case let id where isEditing && id.hasPrefix("highlight-"):
+            guard let color = PDFPlugin.highlightColors.first(where: { $0.id == id })?.color else { return false }
+            (highlightChoice, highlightColor) = (id, color)
+            preferences?.set(String(id.dropFirst("highlight-".count)), for: "highlightColor")
+            return perform("highlight")
         case "rotate-left" where isEditing, "rotate-right" where isEditing:
             guard unavailableReason(for: id) == nil else { return false }
             change(.rotatePages(pages: targetPages, by: id == "rotate-left" ? -90 : 90))
@@ -173,7 +190,7 @@ final class PDFPluginDocument: PluginDocument {
         defer { undoManager.endUndoGrouping() }
         for line in lines {
             for page in line.pages {
-                change(.add(PDFMark(id: PDFEdit.newID(), page: document.index(for: page), rect: line.bounds(for: page), kind: .highlight(Self.highlightColor))))
+                change(.add(PDFMark(id: PDFEdit.newID(), page: document.index(for: page), rect: line.bounds(for: page), kind: .highlight(highlightColor))))
             }
         }
     }

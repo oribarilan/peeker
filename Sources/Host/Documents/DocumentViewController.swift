@@ -169,6 +169,15 @@ final class DocumentViewController: NSSplitViewController {
         if pluginDocument?.perform(spec.id) != true { NSSound.beep() }
     }
 
+    /// Runs one of `spec`'s choices, refused the way the tool itself is.
+    func run(_ choice: ToolSpec.Choice, of spec: ToolSpec) {
+        if let reason = unavailableReason(for: spec) {
+            if spec.isEditTool, case .readOnly = editability, let onEditRefused { onEditRefused(self, reason) } else { NSSound.beep() }
+            return
+        }
+        if pluginDocument?.perform(choice.id) != true { NSSound.beep() }
+    }
+
     var editability: Editability { pluginDocument?.editability ?? .notEditable }
 
     /// Why the tool can't run now, shown as its tooltip while it's greyed out: a read-only document's reason for every

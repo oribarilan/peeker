@@ -262,6 +262,18 @@ open -a "$APP" "$F/form.pdf" && "$DRIVE" wait Peeker window form.pdf && front
 "$DRIVE" keys Peeker ctrl+opt+h && sleep 1
 check "The new shortcut arms Highlight" "$("$DRIVE" menuitems Peeker Tools | grep -cx '✓ Highlight')" 1
 "$DRIVE" shot Peeker "$OUT/12c-pdf-shortcut.png" form.pdf
+# Highlight colors: the Highlight button has an arrow for them, and Tools > Highlight Color picks one, arms Highlight,
+# and is remembered for the next PDF window and in the app's preferences.
+# AppKit names the group, "Highlight" and the shortcut; the arrow is an unnamed menu button in it.
+check "The Highlight button has a color menu" "$("$DRIVE" tree Peeker 7 | grep -A3 'AXGroup “Highlight' | grep -c 'AXMenuButton')" 1
+"$DRIVE" keys Peeker escape && sleep 0.3
+"$DRIVE" menu Peeker Tools "Highlight Color>Green" && sleep 0.5
+check "Picking Green checks it" "$("$DRIVE" menuitems Peeker "Tools>Highlight Color" | grep '^✓' | paste -sd ' ' -)" "✓ Green"
+check "and arms Highlight" "$("$DRIVE" menuitems Peeker Tools | grep -cx '✓ Highlight')" 1
+"$DRIVE" menu Peeker File Close && "$DRIVE" wait Peeker window form.pdf --gone
+open -a "$APP" "$F/form.pdf" && "$DRIVE" wait Peeker window form.pdf && front
+check "Green is still checked in the next window" "$("$DRIVE" menuitems Peeker "Tools>Highlight Color" | grep '^✓' | paste -sd ' ' -)" "✓ Green"
+check "and remembered in the preferences" "$(defaults read "$PREFS" plugins.pdf.highlightColor 2>/dev/null)" green
 "$DRIVE" menu Peeker File Close && "$DRIVE" wait Peeker window form.pdf --gone
 
 # Settings reopens on the pane last shown, here PDF.

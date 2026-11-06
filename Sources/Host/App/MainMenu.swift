@@ -1,4 +1,5 @@
 import AppKit
+import PeekerKit
 
 enum MainMenu {
     /// Marks the separator put before a document's view tools, so a rebuild removes only what it added: AppKit adds
@@ -6,6 +7,8 @@ enum MainMenu {
     private static let toolsSeparatorTag = -1
     /// Marks Tools' greyed-out No Tools item.
     private static let noToolsTag = -2
+    /// The item holding a tool's choices, removed with the tools.
+    private static let choicesTag = -3
 
     /// Puts the document's tools into View (zoom, wrap and other view tools) and Tools (edit tools), replacing the
     /// last document's. Nil, when no Editor window is in front, leaves only the fixed items. Tools without edit tools
@@ -13,7 +16,7 @@ enum MainMenu {
     static func rebuildTools(view: NSMenu, tools: NSMenu, file: NSMenu? = nil, for controller: DocumentWindowController?) {
         for menu in [view, tools] + (file.map { [$0] } ?? []) {
             for item in menu.items where item.action == #selector(DocumentWindowController.runTool(_:))
-                || (item.isSeparatorItem && item.tag == toolsSeparatorTag) || item.tag == noToolsTag {
+                || (item.isSeparatorItem && item.tag == toolsSeparatorTag) || item.tag == noToolsTag || item.tag == choicesTag {
                 menu.removeItem(item)
             }
         }
@@ -37,13 +40,40 @@ enum MainMenu {
                 continue
             }
             let menu = tool.spec.menu == .tools ? tools : view
-            if !menu.items.isEmpty, menu.items.last?.action != #selector(DocumentWindowController.runTool(_:)) {
+            if !menu.items.isEmpty, menu.items.last?.action != #selector(DocumentWindowController.runTool(_:)), menu.items.last?.tag != choicesTag {
                 let separator = NSMenuItem.separator()
                 separator.tag = toolsSeparatorTag
                 menu.addItem(separator)
             }
             menu.addItem(item)
+            if !tool.spec.choices.isEmpty, let title = tool.spec.choicesTitle {
+                let choices = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+                choices.tag = choicesTag
+                choices.submenu = choiceMenu(for: tool.spec, at: index, target: controller)
+                menu.addItem(choices)
+            }
         }
+    }
+
+    /// A tool's choices, each with a dot in its color, run by `DocumentWindowController.runChoice(_:)`. Also the menu
+    /// of the tool's toolbar button, which draws no item images, hence the dot in the title.
+    static func choiceMenu(for spec: ToolSpec, at index: Int, target: AnyObject?) -> NSMenu {
+        let menu = NSMenu(title: spec.choicesTitle ?? spec.title)
+        for choice in spec.choices {
+            let item = NSMenuItem(title: choice.title, action: #selector(DocumentWindowController.runChoice(_:)), keyEquivalent: "")
+            item.target = target
+            item.tag = index
+            item.representedObject = choice.id
+            if let color = choice.color.flatMap({ NSColor(cgColor: $0.cgColor) }) {
+                let font = NSFont.menuFont(ofSize: 0)
+                let title = NSMutableAttributedString(string: "●  ", attributes: [.foregroundColor: color, .font: font])
+                title.append(NSAttributedString(string: choice.title, attributes: [.font: font]))
+                item.attributedTitle = title
+                item.setAccessibilityLabel(choice.title)
+            }
+            menu.addItem(item)
+        }
+        return menu
     }
 
     /// No action, so AppKit greys it out.

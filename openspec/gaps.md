@@ -16,7 +16,7 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Missing next to Preview
 
-- **PDF:** one highlight color. Other apps' highlights can't be removed (Peeker's own can). A password-protected PDF opens view-only.
+- **PDF:** other apps' highlights can't be removed (Peeker's own can). A password-protected PDF opens view-only.
 
 ## Future work
 

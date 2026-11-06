@@ -10,9 +10,11 @@
 //        drive choose <process> [item] [label]     pick <item> in the front window's toolbar pop-up (Open With), or in
 //                                                  the pop-up labeled <label> in any window (a Settings pop-up); without
 //                                                  <item>, print the front window's pop-up and its items
-//        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close", and wait for the menu to close
+//        drive menu <process> <menu> <item>        press a menu item, e.g. Peeker "File" "Close", and wait for the menu to close;
+//                                                  <item> may be a path into a submenu, "Highlight Color>Green"
 //        drive menuitems <process> [menu]          print the menu bar's menus, or open <menu> and print its items, "✓ "
 //                                                  before checked ones, then close it (DRIVE_HOLD=<s> waits first);
+//                                                  "Tools>Highlight Color" lists that submenu;
 //                                                  needs <process> in front
 //        drive menuextra <process> [item]          open the process's menu bar icon menu and print it, or press <item>
 //        drive menuextraclick <process> <item>     the same with real mouse clicks, which macOS counts as the user's own
@@ -243,6 +245,21 @@ func label(_ element: AXUIElement) -> String {
     [kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute].compactMap { attr(element, $0) as String? }.first { !$0.isEmpty } ?? ""
 }
 
+/// A menu item's name: its description when it has one (an item whose title starts with a color dot), else its label.
+func itemName(_ element: AXUIElement) -> String {
+    (attr(element, kAXDescriptionAttribute) as String?).flatMap { $0.isEmpty ? nil : $0 } ?? label(element)
+}
+
+/// The menu item at `path` under `menu`: names separated by ">", such as "Highlight Color>Green".
+func menuItem(in menu: AXUIElement, path: String) -> AXUIElement? {
+    var current = menu
+    for name in path.split(separator: ">").map(String.init) {
+        guard let item = find(current, where: { role($0) == kAXMenuItemRole && itemName($0) == name }) else { return nil }
+        current = item
+    }
+    return current
+}
+
 func application(_ name: String) -> AXUIElement {
     guard AXIsProcessTrusted() else { fail("not trusted: grant Accessibility to this terminal") }
     guard let running = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == name }) else { fail("\(name) isn't running") }
@@ -387,7 +404,7 @@ case "choose":
 case "menu":
     guard let bar: AXUIElement = attr(application(arg(1)), kAXMenuBarAttribute),
           let menu = children(bar).first(where: { label($0) == arg(2) }),
-          let item = find(menu, where: { role($0) == kAXMenuItemRole && label($0) == arg(3) }) else { fail("no menu item \(arg(2)) > \(arg(3))") }
+          let item = menuItem(in: menu, path: arg(3)) else { fail("no menu item \(arg(2)) > \(arg(3))") }
     press(item)
     // The menu can stay drawn for a moment after the press, and a click or key sent meanwhile would land on it.
     // Open menus are windows at the pop-up menu level (101).
@@ -403,20 +420,34 @@ case "menuitems":
         menus.map(label).forEach { print($0) }
         break
     }
-    guard let menu = menus.first(where: { label($0) == arg(2) }) else { fail("no menu \(arg(2))") }
+    let path = arg(2).split(separator: ">", maxSplits: 1).map(String.init)
+    guard let menu = menus.first(where: { label($0) == path[0] }) else { fail("no menu \(path[0])") }
     requireFront(arg(1))
     // Opening it has the app check its items, which is when their checkmarks are set. A menu tracks modally, so the
     // press reports "cannot complete" though it opened.
     AXUIElementSetMessagingTimeout(menu, 0.5)
     _ = AXUIElementPerformAction(menu, kAXPressAction as CFString)
     usleep(400_000)
-    for item in children(menu).flatMap(children) where role(item) == kAXMenuItemRole && !label(item).isEmpty {
+    // With a submenu path, open that submenu too, so its items are checked, and list it instead.
+    var listed = menu
+    if path.count > 1 {
+        guard let parent = menuItem(in: menu, path: path[1]) else { press(comboKeys["escape"]!); fail("no submenu \(arg(2))") }
+        AXUIElementSetMessagingTimeout(parent, 0.5)
+        _ = AXUIElementPerformAction(parent, kAXPressAction as CFString)
+        usleep(400_000)
+        listed = parent
+    }
+    for item in children(listed).flatMap(children) where role(item) == kAXMenuItemRole && !itemName(item).isEmpty {
         let mark: String? = attr(item, kAXMenuItemMarkCharAttribute)
-        print((mark?.isEmpty == false ? "✓ " : "") + label(item))
+        print((mark?.isEmpty == false ? "✓ " : "") + itemName(item))
     }
     // DRIVE_HOLD=<seconds> keeps the menu open, for a screenshot taken meanwhile.
     usleep(UInt32((Double(ProcessInfo.processInfo.environment["DRIVE_HOLD"] ?? "") ?? 0) * 1_000_000))
-    press(comboKeys["escape"]!)
+    // Closed through Accessibility, innermost first: an Escape can close too little, leaving the app tracking the menu,
+    // or too much, reaching the window.
+    for opened in path.count > 1 ? [listed, menu] : [menu] {
+        for child in children(opened) where role(child) == kAXMenuRole { _ = AXUIElementPerformAction(child, kAXCancelAction as CFString) }
+    }
 case "menuextra":
     guard let extras: AXUIElement = attr(application(arg(1)), "AXExtrasMenuBar"), let icon = children(extras).first else { fail("no menu bar icon") }
     pick(in: icon, item: args.count > 2 ? args[2] : nil)

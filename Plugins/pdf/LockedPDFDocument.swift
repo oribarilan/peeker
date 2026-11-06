@@ -14,9 +14,12 @@ final class LockedPDFDocument: PluginDocument {
     private let field = NSSecureTextField()
     private let messageLabel = NSTextField(wrappingLabelWithString: "")
 
-    init(url: URL, canUnlock: Bool) {
+    private let preferences: PluginPreferences?
+
+    init(url: URL, canUnlock: Bool, preferences: PluginPreferences? = nil) {
         self.url = url
         self.canUnlock = canUnlock
+        self.preferences = preferences
         let lock = NSImageView(image: NSImage(systemSymbolName: "lock.fill", accessibilityDescription: "Locked") ?? NSImage())
         lock.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 40, weight: .regular)
         lock.contentTintColor = .secondaryLabelColor
@@ -70,7 +73,8 @@ final class LockedPDFDocument: PluginDocument {
             NSSound.beep()
             return false
         }
-        onReplace?(PDFPluginDocument(url: url, document: document, info: checked.info, editable: true, uneditableReason: Self.viewOnlyReason))
+        onReplace?(PDFPluginDocument(url: url, document: document, info: checked.info, editable: true, uneditableReason: Self.viewOnlyReason,
+                                       preferences: preferences))
         return true
     }
 }

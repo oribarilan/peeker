@@ -12,6 +12,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 ## Product and release
 
 - First release, v0.1.0: Apple Developer setup in [docs/releasing.md](../docs/releasing.md), then the maintainer tags.
+- Recolor a PDF highlight already on the page (select it, pick a color); highlight colors only set the next one.
 - Optional author name on PDF marks (`openspec/changes/annotation-author-setting`, parked until it's discussed).
 - Text formats: how plain text, logs, code, JSON/YAML/XML, CSV and Markdown split into plugins (open question in config.yaml).
 

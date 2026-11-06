@@ -205,6 +205,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         showToolStates()
     }
 
+    /// A tool's choice, from its submenu or its toolbar button's menu: the item's tag is the tool, its represented
+    /// object the choice's id.
+    @objc func runChoice(_ sender: NSMenuItem) {
+        guard let document = current, document.tools.indices.contains(sender.tag), let id = sender.representedObject as? String else { return }
+        let spec = document.tools[sender.tag].spec
+        guard let choice = spec.choices.first(where: { $0.id == id }) else { return }
+        document.run(choice, of: spec)
+        showActiveTool()
+    }
+
     /// Presses the toolbar buttons of tools that are on, and releases the others.
     private func showToolStates() {
         guard let document = current?.pluginDocument else { return }
@@ -398,6 +408,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             let on = id.flatMap { current?.pluginDocument?.isOn($0) } ?? false
             menuItem.state = on || (id != nil && id == current?.pluginDocument?.activeTool) ? .on : .off
             return unavailableReason(forToolAt: menuItem.tag) == nil
+        case #selector(runChoice(_:)):
+            let id = menuItem.representedObject as? String
+            menuItem.state = id.flatMap { current?.pluginDocument?.isOn($0) } == true ? .on : .off
+            return unavailableReason(forToolAt: menuItem.tag) == nil
         case #selector(printDocument(_:)):
             return current?.pluginDocument?.printJob != nil
         case #selector(reopenWithMenu(_:)):
@@ -585,6 +599,19 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         }
         guard let document = current, let index = toolIndex(identifier), document.tools.indices.contains(index) else { return nil }
         let (spec, shortcut) = document.tools[index]
+        if !spec.choices.isEmpty {
+            // The button runs the tool; the arrow beside it opens the choices.
+            let menuItem = NSMenuToolbarItem(itemIdentifier: identifier)
+            menuItem.showsIndicator = true
+            menuItem.menu = MainMenu.choiceMenu(for: spec, at: index, target: self)
+            menuItem.label = spec.title
+            menuItem.toolTip = Shortcut.tooltip(title: spec.title, shortcut: shortcut)
+            menuItem.image = ToolbarImage.make(symbol: spec.symbol, name: spec.title, key: shortcut, showsKey: showsKeys)
+            menuItem.tag = index
+            menuItem.target = self
+            menuItem.action = #selector(runTool(_:))
+            return menuItem
+        }
         item.label = spec.title
         item.toolTip = Shortcut.tooltip(title: spec.title, shortcut: shortcut)
         let image = ToolbarImage.make(symbol: spec.symbol, name: spec.title, key: shortcut, showsKey: showsKeys)

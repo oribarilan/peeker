@@ -21,7 +21,8 @@ public enum PDFPlugin: Plugin {
         ToolSpec(id: "sign", title: "Sign", symbol: "signature", shortcut: "s", isEditTool: true,
                  tip: "Draw your signature, then click where it goes."),
         ToolSpec(id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "h", isEditTool: true,
-                 tip: "Select text and press {key}, or drag across text while Highlight is on."),
+                 tip: "Select text and press {key}, or drag across text while Highlight is on.",
+                 choices: highlightColors, choicesTitle: "Highlight Color"),
         ToolSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", isEditTool: true),
         ToolSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", isEditTool: true),
         ToolSpec(id: "delete-page", title: "Delete Page", symbol: "trash", isEditTool: true),
@@ -30,13 +31,26 @@ public enum PDFPlugin: Plugin {
         ToolSpec(id: "split", title: "Split…", isEditTool: true, showsInToolbar: false, menu: .file),
     ]
 
+    /// Preview's five, Yellow first and the default. Opaque: PDFKit drops alpha when writing and draws highlights with
+    /// multiply, so text stays readable and a highlight looks the same before and after saving.
+    static let highlightColors = [
+        ("Yellow", RGBA(red: 1, green: 0.8, blue: 0, alpha: 1)),
+        ("Green", RGBA(red: 0.4, green: 0.85, blue: 0.35, alpha: 1)),
+        ("Blue", RGBA(red: 0.35, green: 0.65, blue: 1, alpha: 1)),
+        ("Pink", RGBA(red: 1, green: 0.45, blue: 0.65, alpha: 1)),
+        ("Purple", RGBA(red: 0.72, green: 0.5, blue: 1, alpha: 1)),
+    ].map { ToolSpec.Choice(id: "highlight-\($0.0.lowercased())", title: $0.0, color: $0.1) }
+
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
-        guard let checked = try await check(url) else { return LockedPDFDocument(url: url, canUnlock: context.allowsEditing) }
+        guard let checked = try await check(url) else {
+            return LockedPDFDocument(url: url, canUnlock: context.allowsEditing, preferences: context.preferences)
+        }
         guard let document = PeekerPDFDocument(url: url) else { throw PluginError("This file isn't a readable PDF.") }
         // The edit tools add annotations and fill in fields, so it needs those two permissions, not "changes" to the pages.
         let reason = checked.uneditableReason
             ?? (document.allowsCommenting && document.allowsFormFieldEntry ? nil : "This PDF's permissions don't allow changes.")
-        return PDFPluginDocument(url: url, document: document, info: checked.info, editable: context.allowsEditing, uneditableReason: reason)
+        return PDFPluginDocument(url: url, document: document, info: checked.info, editable: context.allowsEditing, uneditableReason: reason,
+                                 preferences: context.preferences)
     }
 
     nonisolated struct Checked: Sendable {

@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- PDF highlights come in yellow, green, blue, pink and purple: pick one from the arrow on the Highlight button or Tools > Highlight Color, and Peeker highlights the selected text in it and remembers it for every PDF.
 - PDF thumbnails show rotated pages turned, including scans the file already marks as rotated, number the pages in order after one is added, deleted or moved, and keep the selected pages selected after Rotate.
 - PDFs gain File > Insert Pages from File… (or drop PDFs and images onto the pages), Save Selected Pages As… and Split…, also in the thumbnails' right-click menu. Combine PDFs by inserting them and choosing Save As….
 - Images can be marked up: Markup (M) shows a strip with Arrow (A), Box (B), Text (T), Pixelate (X), Steps (N), Pen (P), Marker (K) and Spotlight (S), one remembered color and size, and marks you can move, resize and delete until the window closes, saved or not. Cmd+C copies the marked image. Undo in images now reaches past saves.
