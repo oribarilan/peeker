@@ -215,8 +215,10 @@ func releaseModifiers(_ source: CGEventSource?) {
 func type(_ text: String) {
     let source = CGEventSource(stateID: .hidSystemState)
     for character in text.utf16 {
+        // The key a US keyboard types it with, so the app sees the key code a real press sends; 0 (A) otherwise.
+        let key = Unicode.Scalar(character).map { $0 == " " ? 49 : comboKeys[String($0).lowercased()] ?? 0 } ?? 0
         for down in [true, false] {
-            let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down)
+            let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down)
             var unit = character
             event?.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
             event?.flags = []  // text, not shortcuts, whatever modifiers the system thinks are held

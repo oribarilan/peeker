@@ -93,7 +93,7 @@ front
 "$DRIVE" keys Peeker cmd+w
 check "Closing after the save asks nothing" "$("$DRIVE" wait Peeker window wide.png --gone --timeout 3 2>/dev/null && echo closed)" closed
 
-# Markup: M shows the strip; A and a drag draw an arrow, X and a drag pixelate a rectangle, and Cmd+S writes them into
+# Markup: M shows the strip; A and a drag (with a middle point, or no drag event is sent) draw an arrow, X and a drag pixelate a rectangle, and Cmd+S writes them into
 # the file. Copy stays a unit test, so a run never touches the clipboard.
 MARKS="$OUT/marks.png"
 sips -s format png -z 300 600 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$MARKS" >/dev/null
@@ -105,9 +105,9 @@ front
 check "Markup shows its strip" "$("$DRIVE" tree Peeker 20 | grep -c 'Markup tools')" 1
 read -r wx wy ww wh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
 "$DRIVE" keys Peeker a
-"$DRIVE" drag Peeker $((wx + ww / 3)) $((wy + wh / 2)) $((wx + ww / 2)) $((wy + wh * 2 / 3))
+"$DRIVE" drag Peeker $((wx + ww / 3)) $((wy + wh / 2)) $((wx + ww * 5 / 12)) $((wy + wh * 7 / 12)) $((wx + ww / 2)) $((wy + wh * 2 / 3))
 "$DRIVE" keys Peeker x
-"$DRIVE" drag Peeker $((wx + ww * 3 / 5)) $((wy + wh * 2 / 5)) $((wx + ww * 4 / 5)) $((wy + wh * 3 / 5))
+"$DRIVE" drag Peeker $((wx + ww * 3 / 5)) $((wy + wh * 2 / 5)) $((wx + ww * 7 / 10)) $((wy + wh / 2)) $((wx + ww * 4 / 5)) $((wy + wh * 3 / 5))
 "$DRIVE" shot Peeker "$OUT/5-marked.png"
 "$DRIVE" keys Peeker cmd+s && sleep 1
 check "Saving writes the marks into the file" "$([ "$(shasum "$MARKS" | cut -c1-12)" != "$unmarked" ] && echo yes)" yes

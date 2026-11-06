@@ -197,6 +197,7 @@ quit_app || { echo "Peeker didn't quit (a Save prompt?)"; exit 2; }
 AGAIN="$OUT/again.txt"
 printf 'Plain text after a relaunch.\n' > "$AGAIN"
 launch "$AGAIN"
+front  # the View menu fills in only once Peeker is in front
 check "Wrap Lines stays off after a relaunch" "$("$DRIVE" menuitems Peeker View | grep -cx 'Wrap Lines')" 1
 read -r _ _ _ large <<< "$("$DRIVE" textframe Peeker "Plain text" || echo "0 0 0 0")"
 check "and text keeps the larger size" "$([ "$small" -gt 0 ] && [ "$large" -gt "$small" ] && echo yes)" yes
