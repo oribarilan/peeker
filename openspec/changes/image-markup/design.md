@@ -14,7 +14,7 @@
 
 **One renderer for screen and file.** `MarkRenderer.draw(_ marks:, in: CGContext, imageSize:, image:)` draws with Core Graphics; the canvas draws it over the screen-size image in a layer above the picture, and `ImageSaving` draws it over the full-resolution image. Sizes scale with the image's shorter side (strokes at 0.4, 0.8, 1.4 percent; text at 2.5, 4, 6 percent), so a mark looks the same at any zoom and on any image. Pixelate reads the pixels under it from the image it's drawn on and averages blocks of at least 1/60 of the shorter side, so the saved file can't be read back. Spotlight fills the image with 50 percent black outside the union of its boxes.
 
-**Saves draw from the file as it opened.** The document keeps the opened file's bytes (compressed, so small) and every save decodes them, applies all edits and marks, and writes. Undo then reaches past saves, a saved mark can still move, and a JPEG is re-encoded once per save from the original, not from its last save. A change on disk by someone else, reloaded, replaces the bytes. Save As keeps them.
+**Saves draw from the file as it opened.** The document reads the file's bytes at its first save (compressed, so small; following a symlink to the file itself) and every save decodes them, applies all edits and marks, and writes. Undo then reaches past saves, a saved mark can still move, and a JPEG is re-encoded once per save from the original, not from its last save. A change on disk by someone else, reloaded, replaces the bytes. Save As keeps them.
 
 **The strip is the plugin's.** A bar at the top of the image's content view (as the PDF find bar sits above its pages), below the toolbar's edge: the tool buttons with their keys, the six swatches and More…, and an S/M/L control. Markup (M, a toolbar edit tool with a first-use tip) shows and hides it; choosing a tool or pressing its key shows it too. Letters avoid C (Crop) and L, R, H, V (the Rotate & Resize popover's keys).
 
@@ -30,4 +30,4 @@
 - [Undo past saves differs from today's image behavior] → it now matches PDF and text.
 - [Many pen strokes slow the overlay] → points thinned while drawing; one path per stroke.
 - [Marks on an HDR photo] → it's saved in standard range, since marks are drawn in an ordinary bitmap; without marks, HDR stays.
-- [Recovery after a save] → the recovery copy keeps every edit and mark with the path of the private copy of the file as it opened, in the temporary folder, which outlives a crash.
+- [Recovery after a save] → the recovery copy keeps every edit and mark with the file's bytes as it opened, up to 64 MB; edits made after a save to a larger file can't come back after a crash.
