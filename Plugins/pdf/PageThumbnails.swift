@@ -17,9 +17,10 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
     /// Whether a page tool can run now.
     var canRun: ((String) -> Bool)?
     private let pageMenu = NSMenu()
-    /// The insertion bar shown while a thumbnail is dragged; nil before the thumbnails are in a window or where pages
-    /// can't be dragged.
+    /// The insertion bar shown while a thumbnail is dragged, which also sees each thumbnail come into view; nil before
+    /// the thumbnails are in a window.
     private(set) var dropBar: ThumbnailDropBar?
+    private let imageObservations = NSMapTable<NSImageView, NSKeyValueObservation>.weakToStrongObjects()
     /// The hover tint, in the background view of PDFKit's collection view, which has no hover of its own; nil before
     /// the thumbnails are in a window, or if PDFKit's insides change and there's no collection view.
     private(set) var hoverFill: HoverFill?
@@ -58,8 +59,34 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
 
     /// Again if PDFKit has since put its own delegate back.
     private func installDropBar() {
-        guard Self.dragsReorderPages, window != nil, dropBar == nil || dropBar?.collectionView?.delegate !== dropBar else { return }
+        guard window != nil, dropBar == nil || dropBar?.collectionView?.delegate !== dropBar else { return }
         dropBar = ThumbnailDropBar.install(in: self)
+        dropBar?.onWillDisplay = { [weak self] item, index in self?.correct(item, at: index) }
+    }
+
+    /// Selects `pages` again, those still in the document: PDFKit's thumbnails drop the selection of pages that turn,
+    /// and all of it when pages come or go.
+    func reselect(_ pages: [PDFPage]) {
+        guard let collection = ThumbnailDropBar.firstCollectionView(in: self), let document = pdfView?.document else { return }
+        collection.selectionIndexPaths = Set(pages.map(document.index(for:)).filter { $0 != NSNotFound }.map { IndexPath(item: $0, section: 0) })
+    }
+
+    // MARK: Images and labels
+
+    /// PDFKit draws every thumbnail upright and labels it with the page's number in the file it came from. This turns
+    /// each image to its page's rotation once PDFKit sets it, and once pages were added, removed or moved numbers them
+    /// in order, as saving will: PDFKit then writes the file without its page labels.
+    private func correct(_ item: NSCollectionViewItem, at index: Int) {
+        if (pdfView?.document as? PeekerPDFDocument)?.pagesMoved == true { item.textField?.stringValue = String(index + 1) }
+        guard let imageView = item.imageView, imageObservations.object(forKey: imageView) == nil else { return }
+        let observation = imageView.observe(\.image) { [weak self, weak item] imageView, _ in
+            MainActor.assumeIsolated {
+                guard let image = imageView.image, !(image is TurnedThumbnail), let item, let index = item.collectionView?.indexPath(for: item)?.item,
+                      let rotation = self?.pdfView?.document?.page(at: index)?.rotation, rotation % 360 != 0 else { return }
+                imageView.image = TurnedThumbnail(image, by: rotation)
+            }
+        }
+        imageObservations.setObject(observation, forKey: imageView)
     }
 
     // MARK: Hover
@@ -134,5 +161,20 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
         }
         guard let id = menuItem.representedObject as? String else { return true }
         return canRun?(id) ?? false
+    }
+}
+
+/// A thumbnail turned clockwise by a page's rotation.
+private nonisolated final class TurnedThumbnail: NSImage {
+    convenience init(_ image: NSImage, by degrees: Int) {
+        let size = degrees % 180 == 0 ? image.size : NSSize(width: image.size.height, height: image.size.width)
+        self.init(size: size, flipped: false) { rect in
+            let turn = NSAffineTransform()
+            turn.translateX(by: rect.midX, yBy: rect.midY)
+            turn.rotate(byDegrees: CGFloat(-degrees))
+            turn.concat()
+            image.draw(in: NSRect(origin: NSPoint(x: -image.size.width / 2, y: -image.size.height / 2), size: image.size))
+            return true
+        }
     }
 }

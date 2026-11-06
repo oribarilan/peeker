@@ -36,6 +36,22 @@ private func texts(_ document: PDFDocument) -> [String] {
         collection.selectionIndexPaths = Set(pages.map { IndexPath(item: $0, section: 0) })
     }
 
+    private var collection: NSCollectionView? {
+        func find(_ view: NSView) -> NSCollectionView? { (view as? NSCollectionView) ?? view.subviews.lazy.compactMap(find).first }
+        return find(thumbnails)
+    }
+
+    /// The labels under the thumbnails, in order.
+    var thumbnailLabels: [String] {
+        guard let collection else { return [] }
+        return (0..<collection.numberOfItems(inSection: 0)).compactMap { item in
+            collection.item(at: IndexPath(item: item, section: 0)).flatMap { $0.textField?.stringValue }
+        }
+    }
+
+    /// The size of the image a thumbnail shows.
+    func thumbnailImage(_ item: Int) -> NSSize? { collection?.item(at: IndexPath(item: item, section: 0))?.imageView?.image?.size }
+
     var shown: [String] { texts(document.pdfView.document!) }
     func rotation(_ page: Int) -> Int { document.pdfView.document!.page(at: page)!.rotation }
 }
@@ -61,6 +77,24 @@ private func texts(_ document: PDFDocument) -> [String] {
         #expect(shown.rotation(3) == 270)
         shown.document.undoManager.undo()
         #expect(shown.rotation(3) == 0)
+    }
+
+    /// PDFKit's thumbnails show every page upright and keep each page's number from the file, so Peeker turns them and
+    /// numbers them in order; the selection stays on the pages it was on.
+    @Test func thumbnailsShowTurnedPagesAndNumberTheRestAfterADelete() async throws {
+        let shown = try await Shown(try TempFile.makePDF(pages: 3))
+        defer { shown.window.close() }
+        try shown.select([0, 2])
+        #expect(shown.document.perform("rotate-right"))
+        #expect(shown.thumbnails.selectedPages?.count == 2, "the turned pages stay selected")
+        try await waitUntil(seconds: 5) { shown.thumbnailImage(0).map { $0.width > $0.height } == true }
+        #expect(shown.thumbnailImage(1).map { $0.width < $0.height } == true, "page 2 isn't turned")
+
+        try shown.select([1])
+        #expect(shown.document.perform("delete-page"))
+        shown.thumbnails.layoutSubtreeIfNeeded()
+        #expect(shown.thumbnailLabels == ["1", "2"])
+        try await waitUntil(seconds: 5) { shown.thumbnailImage(1).map { $0.width > $0.height } == true }
     }
 
     /// The info panel describes the file: after a save that deleted a page, it counts the pages left.

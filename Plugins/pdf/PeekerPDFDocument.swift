@@ -9,6 +9,8 @@ nonisolated final class PeekerPDFDocument: PDFDocument {
     @MainActor var onForeignChange: (([PDFPage]) -> Void)?
     @MainActor private var ownChanges = 0
     @MainActor private var before: [PDFPage]?
+    /// Whether pages were added, removed or moved since opening, by anyone.
+    @MainActor private(set) var pagesMoved = false
 
     /// Runs `body`, whose page changes are Peeker's own.
     @MainActor func own<T, E: Error>(_ body: () throws(E) -> T) throws(E) -> T {
@@ -40,6 +42,7 @@ nonisolated final class PeekerPDFDocument: PDFDocument {
     }
 
     @MainActor private func noteChange() {
+        pagesMoved = true
         guard ownChanges == 0, before == nil else { return }
         before = (0..<pageCount).compactMap(page(at:))
         Task { @MainActor [weak self] in

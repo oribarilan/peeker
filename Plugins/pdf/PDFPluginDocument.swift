@@ -290,10 +290,14 @@ final class PDFPluginDocument: PluginDocument {
     /// pages again after a page edit, animating it, and tells the form fields a value they now show.
     private func applyLive(_ edit: PDFEdit) throws(PluginError) {
         let motion = PageMotion(for: edit, in: pdfView)
+        let selected = thumbnails?.selectedPages ?? []
         try document.own { () throws(PluginError) in
             try PDFEditing.apply(edit, to: document, fileName: url.lastPathComponent, stash: stash)
         }
-        if edit.isPageEdit { pagesChanged() }
+        if edit.isPageEdit {
+            pagesChanged()
+            thumbnails?.reselect(selected)
+        }
         motion?.play()
         pdfView.sharpenAnnotations()
         if case .field(let name, let value) = edit { fields?.applied(name, value) }

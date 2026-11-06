@@ -9,6 +9,8 @@ import AppKit
     /// PDFKit's delegate. Read from the two nonisolated forwarding methods, which AppKit calls on the main thread.
     nonisolated(unsafe) private let original: any NSCollectionViewDelegate
     let bar = NSView()
+    /// Called as each thumbnail comes into view, after PDFKit has set it up.
+    var onWillDisplay: ((NSCollectionViewItem, Int) -> Void)?
     /// Hides the bar once the pointer leaves the thumbnails, which the collection view doesn't report.
     private var exitCheck: Timer?
 
@@ -41,6 +43,11 @@ import AppKit
     nonisolated override func responds(to selector: Selector!) -> Bool { super.responds(to: selector) || original.responds(to: selector) }
 
     nonisolated override func forwardingTarget(for selector: Selector!) -> Any? { original.responds(to: selector) ? original : nil }
+
+    func collectionView(_ collectionView: NSCollectionView, willDisplay item: NSCollectionViewItem, forRepresentedObjectAt indexPath: IndexPath) {
+        original.collectionView?(collectionView, willDisplay: item, forRepresentedObjectAt: indexPath)
+        onWillDisplay?(item, indexPath.item)
+    }
 
     func collectionView(_ collectionView: NSCollectionView, validateDrop draggingInfo: any NSDraggingInfo,
                         proposedIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
