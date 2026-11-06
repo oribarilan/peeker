@@ -35,7 +35,8 @@ Mockups built on 2026-11-06 showed that an `NSMenuToolbarItem` with `showsIndica
 - At open, the document reads the stored name and falls back to Yellow for anything else. `PDFPlugin` passes `context.preferences`, which is nil in tests and benchmarks, so those always start yellow.
 
 **Screen step.** Synthetic drags don't select PDF text, so the highlight itself stays a unit test, which reads the saved annotation's color.
-- `record-flows.sh` already arms Highlight in an open PDF. It adds: pick Green through `drive menu` with a submenu path, check `✓ Highlight` and `✓ Green`, quit, relaunch, and check Green is still checked.
+- `record-flows.sh` already arms Highlight in an open PDF. It adds: the Highlight button has its arrow, picking Green through `drive menu` with a submenu path arms Highlight, and the preference says green.
+- Which color is checked stays a unit test. A submenu opened through Accessibility leaves AppKit tracking an unseen menu, which blocks the app until it's cancelled.
 - `drive menu` learns a `Menu>Submenu` item path. `common.sh` adds `plugins.pdf.highlightColor` to `PREF_KEYS`, so the run leaves the user's color alone.
 
 ## Risks / Trade-offs

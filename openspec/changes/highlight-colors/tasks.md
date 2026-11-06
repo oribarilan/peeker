@@ -19,7 +19,7 @@
 ## 4. Checks and docs
 
 - [x] 4.1 `drive menu` takes a `Menu>Submenu` item path; `common.sh` adds `plugins.pdf.highlightColor` to `PREF_KEYS`.
-- [x] 4.2 Screen step in `record-flows.sh`: in the open PDF check the Highlight button's color arrow, pick Tools > Highlight Color > Green, check `✓ Highlight` and `✓ Green`, close and reopen the PDF, check Green is still checked and the preference says green (a fresh launch reading it is the unit test); update the `run-peeker` skill.
+- [x] 4.2 Screen step in `record-flows.sh`: in the open PDF check the Highlight button's color arrow, pick Tools > Highlight Color > Green, check `✓ Highlight` and that the preference says green (which color is checked stays a unit test: a submenu opened through Accessibility leaves the app tracking an unseen menu); update the `run-peeker` skill.
 - [x] 4.3 `scripts/build.sh test` passes with no new warnings.
 - [x] 4.4 CHANGELOG line; `openspec/gaps.md` drops "one highlight color"; `openspec/backlog.md` gains recoloring a highlight; `openspec validate --all --strict`.
 
