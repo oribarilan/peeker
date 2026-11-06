@@ -83,8 +83,25 @@ public enum PDFPlugin: Plugin {
     /// fit the file, and says which. Loads its own copy, so it's safe off the main thread.
     /// Applies `edits` to the PDF at `source` (by default `path`) and writes the result to `path`.
     @concurrent nonisolated static func write(_ edits: [PDFEdit], from source: String? = nil, to path: String) async throws(PluginError) {
-        let name = URL(filePath: source ?? path).lastPathComponent
-        guard let document = PDFDocument(url: URL(filePath: source ?? path)) else { throw PluginError("“\(name)” is no longer a readable PDF.") }
+        try FileReplacement.replaceContents(ofFileAt: path, with: try edited(edits, from: source ?? path))
+    }
+
+    /// Writes the pages of each run, from the PDF at `source` with `edits` applied, to its file. For Save Selected
+    /// Pages As… and Split….
+    @concurrent nonisolated static func writePages(_ runs: [(pages: [Int], path: String)], edits: [PDFEdit], from source: String) async throws(PluginError) {
+        guard let full = PDFDocument(data: try edited(edits, from: source)) else { throw PluginError("“\(URL(filePath: source).lastPathComponent)” couldn't be read.") }
+        for run in runs {
+            let part = PDFDocument()
+            for index in run.pages.sorted() { if let page = full.page(at: index)?.copy() as? PDFPage { part.insert(page, at: part.pageCount) } }
+            guard part.pageCount > 0, let data = part.dataRepresentation() else { throw PluginError("“\(URL(filePath: run.path).lastPathComponent)” couldn't be written.") }
+            try FileReplacement.replaceContents(ofFileAt: run.path, with: data)
+        }
+    }
+
+    /// The PDF at `path` with `edits` applied, as data.
+    nonisolated static func edited(_ edits: [PDFEdit], from path: String) throws(PluginError) -> Data {
+        let name = URL(filePath: path).lastPathComponent
+        guard let document = PDFDocument(url: URL(filePath: path)) else { throw PluginError("“\(name)” is no longer a readable PDF.") }
         guard !document.isLocked else { throw PluginError("This PDF is password protected.") }
         let stash = PageStash()
         for edit in edits { try PDFEditing.apply(edit, to: document, fileName: name, stash: stash) }
@@ -95,7 +112,7 @@ public enum PDFPlugin: Plugin {
             guard let repaired = MovedPageRepair.repaired(data, kept: kept) else { throw PluginError("“\(name)” couldn't be written as a PDF.") }
             data = repaired
         }
-        try FileReplacement.replaceContents(ofFileAt: path, with: data)
+        return data
     }
 
     private nonisolated static func string(_ dictionary: CGPDFDictionaryRef?, _ key: String) -> String? {

@@ -27,7 +27,7 @@ private func png(width: Int, height: Int) throws -> URL {
 @Suite(.serialized) struct PDFInsertPages {
     @Test func anotherPDFsPagesGoAfterTheShownPageAndUndoTakesThemOut() async throws {
         let document = try await open(try TempFile.makePDF(texts: ["One", "Two"]))
-        #expect(document.insertPages(from: [try TempFile.makePDF(texts: ["A", "B"])]))
+        #expect(await document.insertPages(from: [try TempFile.makePDF(texts: ["A", "B"])]))
         #expect(texts(document.pdfView.document) == ["One", "A", "B", "Two"])
         document.undoManager.undo()
         #expect(texts(document.pdfView.document) == ["One", "Two"])
@@ -37,7 +37,7 @@ private func png(width: Int, height: Int) throws -> URL {
 
     @Test func anImageBecomesAPageOfItsSize() async throws {
         let document = try await open(try TempFile.makePDF(texts: ["One"]))
-        #expect(document.insertPages(from: [try png(width: 300, height: 200)]))
+        #expect(await document.insertPages(from: [try png(width: 300, height: 200)]))
         let page = try #require(document.pdfView.document?.page(at: 1))
         #expect(page.bounds(for: .mediaBox).size == CGSize(width: 300, height: 200))
     }
@@ -45,7 +45,7 @@ private func png(width: Int, height: Int) throws -> URL {
     @Test func insertedPagesAreSavedAndComeBackFromRecovery() async throws {
         let file = try TempFile.makePDF(texts: ["One", "Two"])
         let document = try await open(file)
-        #expect(document.insertPages(from: [try TempFile.makePDF(texts: ["A"])]))
+        #expect(await document.insertPages(from: [try TempFile.makePDF(texts: ["A"])]))
         let record = try #require(document.unsavedEdits()).encoded()
         try await document.save(try #require(document.unsavedEdits()), accepting: nil)
         #expect(texts(PDFDocument(url: file)) == ["One", "A", "Two"])
@@ -57,8 +57,8 @@ private func png(width: Int, height: Int) throws -> URL {
     @Test func somethingElseIsRefusedWithItsName() async throws {
         let document = try await open(try TempFile.makePDF(texts: ["One"]))
         let notes = try TempFile.make(Data("hello".utf8), name: "notes.txt")
-        #expect(throws: PluginError.self) { try PDFPluginDocument.insertable(from: [notes]) }
-        #expect(!document.insertPages(from: [notes]))
+        await #expect(throws: PluginError.self) { try await PDFPluginDocument.insertable(from: [notes]) }
+        #expect(!(await document.insertPages(from: [notes])))
         #expect(document.pdfView.document?.pageCount == 1)
     }
 }
@@ -68,7 +68,7 @@ private func png(width: Int, height: Int) throws -> URL {
         let document = try await open(try TempFile.makePDF(texts: ["One", "Two", "Three", "Four"]))
         #expect(document.change(.rotatePages(pages: [2], by: 90)))
         let out = FileManager.default.temporaryDirectory.appending(path: "pages-\(UUID().uuidString).pdf")
-        try document.writePages([2, 3], to: out)
+        try await document.writePages([2, 3], to: out)
         let written = PDFDocument(url: out)
         #expect(texts(written) == ["Three", "Four"] && written?.page(at: 0)?.rotation == 90, "as shown, edits included")
         #expect(document.pdfView.document?.pageCount == 4)
@@ -81,7 +81,7 @@ private func png(width: Int, height: Int) throws -> URL {
         try FileManager.default.copyItem(at: try TempFile.makePDF(texts: ["1", "2", "3", "4", "5"]), to: file)
         try Data("keep".utf8).write(to: folder.appending(path: "book 1.pdf"))
         let document = try await open(file)
-        let written = try document.split(at: [0, 2, 4])
+        let written = try await document.split(at: [0, 2, 4])
         #expect(written.map(\.lastPathComponent) == ["book 2.pdf", "book 3.pdf", "book 4.pdf"])
         #expect(texts(PDFDocument(url: written[0])) == ["1", "2"] && texts(PDFDocument(url: written[2])) == ["5"])
         #expect(try String(contentsOf: folder.appending(path: "book 1.pdf"), encoding: .utf8) == "keep")
@@ -104,6 +104,6 @@ private func png(width: Int, height: Int) throws -> URL {
         let photo = try TempFile.make(Data(), name: "photo.jpg")
         pasteboard.clearContents()
         pasteboard.writeObjects([pdf as NSURL, notes as NSURL, photo as NSURL])
-        #expect(PDFFindContainer.droppedFiles(on: pasteboard) == [pdf, photo])
+        #expect(PeekerPDFView.droppedFiles(on: pasteboard) == [pdf, photo])
     }
 }

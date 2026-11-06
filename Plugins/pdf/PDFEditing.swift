@@ -8,7 +8,7 @@ nonisolated enum PDFEditing {
     private static let maxText = 10_000
     private static let maxStrokes = 500, maxPoints = 20_000
     /// The most a restore's copy of deleted pages may hold; it can come from a recovery file.
-    private static let maxRestoreBytes = 256 << 20
+    static let maxRestoreBytes = 256 << 20
 
     /// Applies `edit` to `document`, or throws without changing it when the edit doesn't fit. `fileName` is for messages.
     /// `stash` keeps deleted pages for their restore: one per document shown, and one per save.

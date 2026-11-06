@@ -6,8 +6,8 @@ import UniformTypeIdentifiers
 /// The PDF tools that bring in or write other files: Insert Pages from File…, Save Selected Pages As… and Split….
 extension PDFPluginDocument {
     /// The pages of `urls` as one PDF: each PDF's pages, and each image as a page of its size. Throws, naming the
-    /// file, for anything else or a locked PDF.
-    static func insertable(from urls: [URL]) throws(PluginError) -> (data: Data, count: Int) {
+    /// file, for anything else or a locked PDF. Off the main thread: it reads and copies whole files.
+    @concurrent static func insertable(from urls: [URL]) async throws(PluginError) -> (data: Data, count: Int) {
         let combined = PDFDocument()
         for url in urls {
             let name = url.lastPathComponent
@@ -21,29 +21,29 @@ extension PDFPluginDocument {
             }
         }
         guard combined.pageCount > 0, let data = combined.dataRepresentation() else { throw PluginError("There were no pages to insert.") }
+        guard data.count <= PDFEditing.maxRestoreBytes else { throw PluginError("These pages are too large to insert: over 256 MB.") }
         return (data, combined.pageCount)
     }
 
-    /// Inserts the pages of `urls` after the last selected page, or the one shown; one Undo step.
+    /// Inserts the pages of `urls` after the last selected page, or the one shown; one Undo step. Says what went wrong.
     @discardableResult
-    func insertPages(from urls: [URL]) -> Bool {
-        let inserted: (data: Data, count: Int)
+    func insertPages(from urls: [URL]) async -> Bool {
+        let at = targetPages.last.map { $0 + 1 } ?? document.pageCount
         do throws(PluginError) {
-            inserted = try Self.insertable(from: urls)
+            let inserted = try await Self.insertable(from: urls)
+            guard change(.restorePages(pages: Array(at..<(at + inserted.count)), token: PDFEdit.newID(), data: inserted.data)) else {
+                throw PluginError("The pages couldn't be inserted.")
+            }
+            return true
         } catch {
             showProblem(error.message)
             return false
         }
-        let at = targetPages.last.map { $0 + 1 } ?? document.pageCount
-        return change(.restorePages(pages: Array(at..<(at + inserted.count)), token: PDFEdit.newID(), data: inserted.data))
     }
 
-    /// Writes copies of the pages at `indices`, as shown, to `destination`.
-    func writePages(_ indices: [Int], to destination: URL) throws(PluginError) {
-        let copy = PDFDocument()
-        for index in indices.sorted() { if let page = document.page(at: index)?.copy() as? PDFPage { copy.insert(page, at: copy.pageCount) } }
-        guard copy.pageCount > 0, let data = copy.dataRepresentation() else { throw PluginError("“\(destination.lastPathComponent)” couldn't be written.") }
-        try FileReplacement.replaceContents(ofFileAt: destination.path, with: data)
+    /// Writes copies of the pages at `indices`, as shown with the unsaved edits, to `destination`.
+    func writePages(_ indices: [Int], to destination: URL) async throws(PluginError) {
+        try await PDFPlugin.writePages([(indices, destination.path)], edits: pendingEdits, from: url.path)
     }
 
     /// Where each part starts: every page, or page 1 and each selected page after it.
@@ -54,9 +54,9 @@ extension PDFPluginDocument {
     /// Writes one file per run of pages starting at each of `starts`, next to the file, as “name 1.pdf” and on,
     /// skipping names that exist. Returns the files written.
     @discardableResult
-    func split(at starts: [Int]) throws(PluginError) -> [URL] {
+    func split(at starts: [Int]) async throws(PluginError) -> [URL] {
         let folder = url.deletingLastPathComponent(), name = url.deletingPathExtension().lastPathComponent
-        var number = 1, written: [URL] = []
+        var number = 1, runs: [(pages: [Int], path: String)] = []
         let ends = Array(starts.dropFirst()) + [document.pageCount]
         for (start, end) in zip(starts, ends) where start < end {
             var target = folder.appending(path: "\(name) \(number).pdf")
@@ -64,11 +64,11 @@ extension PDFPluginDocument {
                 number += 1
                 target = folder.appending(path: "\(name) \(number).pdf")
             }
-            try writePages(Array(start..<end), to: target)
-            written.append(target)
+            runs.append((Array(start..<end), target.path))
             number += 1
         }
-        return written
+        try await PDFPlugin.writePages(runs, edits: pendingEdits, from: url.path)
+        return runs.map { URL(filePath: $0.path) }
     }
 
     // MARK: Sheets
@@ -90,7 +90,8 @@ extension PDFPluginDocument {
         panel.message = "The pages go after the selected page."
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK else { return }
-            self?.insertPages(from: panel.urls)
+            let urls = panel.urls
+            Task { await self?.insertPages(from: urls) }
         }
     }
 
@@ -103,7 +104,7 @@ extension PDFPluginDocument {
         panel.directoryURL = url.deletingLastPathComponent()
         panel.beginSheetModal(for: window) { [weak self] response in
             guard response == .OK, let destination = panel.url, let self else { return }
-            do throws(PluginError) { try writePages(pages, to: destination) } catch { showProblem(error.message) }
+            Task { do throws(PluginError) { try await self.writePages(pages, to: destination) } catch { self.showProblem(error.message) } }
         }
     }
 
@@ -120,7 +121,7 @@ extension PDFPluginDocument {
         alert.beginSheetModal(for: window) { [weak self] response in
             guard let self, response != .alertThirdButtonReturn else { return }
             let starts = Self.splitStarts(every: response == .alertFirstButtonReturn, selected: selected, pageCount: document.pageCount)
-            do throws(PluginError) { try split(at: starts) } catch { showProblem(error.message) }
+            Task { do throws(PluginError) { try await self.split(at: starts) } catch { self.showProblem(error.message) } }
         }
     }
 }

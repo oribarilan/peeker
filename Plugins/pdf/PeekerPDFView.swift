@@ -1,11 +1,15 @@
 import AppKit
 import PDFKit
+import UniformTypeIdentifiers
 
 /// A `PDFView` that keeps form fields read-only when it only views (the Peek panel, a read-only file), and in the
 /// Editor hands mouse and key events to the edit tools first.
 final class PeekerPDFView: PDFView, NSMenuItemValidation {
     /// True in the Editor for a PDF that can be edited.
     var isEditing = false
+    /// PDFs and images dropped from Finder, in the Editor; nil where the pages can't change. PDFKit registers for file
+    /// drags itself, so they arrive here rather than at a view behind.
+    var onDropFiles: (([URL]) -> Bool)?
     /// Gets the events in the Editor once made; returns true when it handled one.
     weak var editController: EditController?
     /// Called before a click on an annotation or form field is handled, so the document can set up its edit parts.
@@ -152,5 +156,33 @@ final class PeekerPDFView: PDFView, NSMenuItemValidation {
         case #selector(redo(_:)): isEditing && undoManager?.canRedo == true
         default: true
         }
+    }
+}
+
+// MARK: Dropped files
+
+extension PeekerPDFView {
+    /// The PDFs and images on `pasteboard`, as Finder drags them.
+    static func droppedFiles(on pasteboard: NSPasteboard) -> [URL] {
+        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        return urls.filter { url in
+            guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
+            return type.conforms(to: .pdf) || type.conforms(to: .image)
+        }
+    }
+
+    private func takes(_ sender: any NSDraggingInfo) -> Bool { onDropFiles != nil && !Self.droppedFiles(on: sender.draggingPasteboard).isEmpty }
+
+    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        takes(sender) ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+        takes(sender) ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        guard takes(sender) else { return super.performDragOperation(sender) }
+        return onDropFiles?(Self.droppedFiles(on: sender.draggingPasteboard)) == true
     }
 }

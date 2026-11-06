@@ -50,8 +50,11 @@ final class PDFPluginDocument: PluginDocument {
             pdfView.editUndoManager = undoManager
             pdfView.onFirstUse = { [weak self] in self?.prepareEditing() }
             if document.allowsDocumentAssembly {
-                container.onDropFiles = { [weak self] in self?.insertPages(from: $0) ?? false }
-                container.registerForDraggedTypes([.fileURL])
+                pdfView.onDropFiles = { [weak self] urls in
+                    Task { await self?.insertPages(from: urls) }
+                    return true
+                }
+                pdfView.registerForDraggedTypes([.fileURL])
             }
         }
     }

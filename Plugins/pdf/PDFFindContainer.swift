@@ -1,6 +1,5 @@
 import AppKit
 import PDFKit
-import UniformTypeIdentifiers
 
 enum FindAction: Equatable {
     case next, previous, close
@@ -15,8 +14,6 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
     /// False in the Peek panel, which has no find.
     private let allowsFind: Bool
     private var pagesAtTop: NSLayoutConstraint!
-    /// PDFs and images dropped from Finder, in the Editor; nil where the pages can't change.
-    var onDropFiles: (([URL]) -> Bool)?
     private var pagesBelowBar: NSLayoutConstraint?
 
     init(pdfView: PDFView, allowsFind: Bool) {
@@ -36,24 +33,6 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
-
-    /// The PDFs and images on `pasteboard`, as Finder drags them.
-    static func droppedFiles(on pasteboard: NSPasteboard) -> [URL] {
-        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
-        return urls.filter { url in
-            guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
-            return type.conforms(to: .pdf) || type.conforms(to: .image)
-        }
-    }
-
-    override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
-        onDropFiles != nil && !Self.droppedFiles(on: sender.draggingPasteboard).isEmpty ? .copy : []
-    }
-
-    override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
-        let files = Self.droppedFiles(on: sender.draggingPasteboard)
-        return !files.isEmpty && onDropFiles?(files) == true
-    }
 
     @objc func performFindPanelAction(_ sender: Any?) {
         guard allowsFind else { return }
