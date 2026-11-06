@@ -17,7 +17,7 @@ import Testing
         try type("new ", in: document)
         #expect(document.isEdited)
         let copy = copyPath(beside: file)
-        #expect(await document.saveAs(to: copy) == .saved)
+        #expect(await document.saveAs(to: copy, prompts: StubPrompts()) == .saved)
         #expect(document.url == copy && !document.isEdited)
         #expect(try String(contentsOf: copy, encoding: .utf8) == "new original\n")
         #expect(try String(contentsOf: file, encoding: .utf8) == "original\n")
@@ -33,8 +33,36 @@ import Testing
         let document = await loadedDocument(file, with: TextPlugin.self)
         try type("new ", in: document)
         let nowhere = URL(filePath: "/nonexistent-\(UUID().uuidString)/copy.txt")
-        guard case .failed = await document.saveAs(to: nowhere) else { Issue.record("saved"); return }
+        guard case .failed = await document.saveAs(to: nowhere, prompts: StubPrompts()) else { Issue.record("saved"); return }
         #expect(document.url == file && document.isEdited)
+    }
+
+    @Test func textTheEncodingCantHoldAsksToSaveAsUTF8() async throws {
+        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))   // "café" in Windows-1252
+        let document = await loadedDocument(file, with: TextPlugin.self)
+        defer { document.close() }
+        try document.type("🙂")
+        let prompts = StubPrompts()
+        let copy = copyPath(beside: file)
+        #expect(await document.saveAs(to: copy, prompts: prompts) == .saved)
+        #expect(prompts.asked == ["utf8"])
+        #expect(try Data(contentsOf: copy) == Data("🙂".utf8))
+        #expect(try Data(contentsOf: file) == Data([0x63, 0x61, 0x66, 0xE9]))
+        #expect(document.url == copy && !document.isEdited)
+    }
+
+    @Test func decliningUTF8LeavesItOnTheOriginalWithItsEdits() async throws {
+        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))
+        let document = await loadedDocument(file, with: TextPlugin.self)
+        defer { document.close() }
+        try document.type("🙂")
+        let prompts = StubPrompts()
+        prompts.utf8 = false
+        let copy = copyPath(beside: file)
+        #expect(await document.saveAs(to: copy, prompts: prompts) == .cancelled)
+        #expect(prompts.asked == ["utf8"])
+        #expect(!FileManager.default.fileExists(atPath: copy.path))
+        #expect(document.url == file && document.isEdited && document.pendingText == "🙂")
     }
 
     @Test func aDestinationOpenInAnotherWindowIsRefused() async throws {

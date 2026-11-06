@@ -17,7 +17,7 @@ func copyPath(beside file: URL) -> URL {
         let document = try await openDocument(file, with: TextPlugin.self, as: TextDocument.self)
         #expect(document.restore(encoded: try JSONEncoder().encode(TextEdits(text: "edited\n"))))
         let copy = copyPath(beside: file)
-        try await document.saveAs(document.unsavedEdits(), to: copy)
+        try await document.saveAs(document.unsavedEdits(), to: copy, accepting: nil)
         #expect(try String(contentsOf: copy, encoding: .utf8) == "edited\n")
         #expect(try String(contentsOf: file, encoding: .utf8) == "original\n", "the original stays")
         #expect(document.restore(encoded: try JSONEncoder().encode(TextEdits(text: "again\n"))))
@@ -31,7 +31,7 @@ func copyPath(beside file: URL) -> URL {
         let file = try TempFile.make(bytes)
         let document = try await openDocument(file, with: TextPlugin.self, as: TextDocument.self)
         let copy = copyPath(beside: file)
-        try await document.saveAs(nil, to: copy)
+        try await document.saveAs(nil, to: copy, accepting: nil)
         #expect(try Data(contentsOf: copy) == bytes)
     }
 
@@ -40,9 +40,24 @@ func copyPath(beside file: URL) -> URL {
         let document = try await openDocument(file, with: TextPlugin.self, as: TextDocument.self)
         #expect(document.restore(encoded: try JSONEncoder().encode(TextEdits(text: "edited\n"))))
         let nowhere = URL(filePath: "/nonexistent-\(UUID().uuidString)/copy.txt")
-        await #expect(throws: PluginError.self) { try await document.saveAs(document.unsavedEdits(), to: nowhere) }
+        await #expect(throws: PluginError.self) { try await document.saveAs(document.unsavedEdits(), to: nowhere, accepting: nil) }
         try await document.save(try #require(document.unsavedEdits()), accepting: nil)
         #expect(try String(contentsOf: file, encoding: .utf8) == "edited\n")
+    }
+
+    @Test func textTheEncodingCantHoldOffersUTF8() async throws {
+        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))   // "café" in Windows-1252
+        let document = try await openDocument(file, with: TextPlugin.self, as: TextDocument.self)
+        #expect(document.restore(encoded: try JSONEncoder().encode(TextEdits(text: "café🙂"))))
+        let edits = try #require(document.unsavedEdits()), copy = copyPath(beside: file)
+        await #expect { try await document.saveAs(edits, to: copy, accepting: nil) } throws: { ($0 as? PluginError)?.offer == TextFile.saveAsUTF8 }
+        #expect(!FileManager.default.fileExists(atPath: copy.path))
+        try await document.saveAs(edits, to: copy, accepting: TextFile.saveAsUTF8)
+        #expect(try Data(contentsOf: copy) == Data("café🙂".utf8))
+        #expect(try Data(contentsOf: file) == Data([0x63, 0x61, 0x66, 0xE9]), "the original stays")
+        #expect(document.restore(encoded: try JSONEncoder().encode(TextEdits(text: "🙂"))))
+        try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+        #expect(try Data(contentsOf: copy) == Data("🙂".utf8), "the copy stays UTF-8")
     }
 }
 
@@ -52,12 +67,24 @@ func copyPath(beside file: URL) -> URL {
         let editor = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownEditor.self)
         #expect(editor.restore(encoded: try JSONEncoder().encode(TextEdits(text: "# Edited\n"))))
         let copy = copyPath(beside: file)
-        try await editor.saveAs(editor.unsavedEdits(), to: copy)
+        try await editor.saveAs(editor.unsavedEdits(), to: copy, accepting: nil)
         #expect(try String(contentsOf: copy, encoding: .utf8) == "# Edited\n")
         #expect(try String(contentsOf: file, encoding: .utf8) == "# Original\n")
         #expect(editor.restore(encoded: try JSONEncoder().encode(TextEdits(text: "# Again\n"))))
         try await editor.save(try #require(editor.unsavedEdits()), accepting: nil)
         #expect(try String(contentsOf: copy, encoding: .utf8) == "# Again\n")
+    }
+
+    @Test func textTheEncodingCantHoldOffersUTF8() async throws {
+        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]), name: "a.md")   // "café" in Windows-1252
+        let editor = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownEditor.self)
+        #expect(editor.restore(encoded: try JSONEncoder().encode(TextEdits(text: "café🙂"))))
+        let edits = try #require(editor.unsavedEdits()), copy = copyPath(beside: file)
+        await #expect { try await editor.saveAs(edits, to: copy, accepting: nil) } throws: { ($0 as? PluginError)?.offer == TextFile.saveAsUTF8 }
+        #expect(!FileManager.default.fileExists(atPath: copy.path))
+        try await editor.saveAs(edits, to: copy, accepting: TextFile.saveAsUTF8)
+        #expect(try Data(contentsOf: copy) == Data("café🙂".utf8))
+        #expect(try Data(contentsOf: file) == Data([0x63, 0x61, 0x66, 0xE9]), "the original stays")
     }
 }
 
@@ -71,7 +98,7 @@ func copyPath(beside file: URL) -> URL {
         let document = try await open(file)
         document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
         let copy = copyPath(beside: file)
-        try await document.saveAs(document.unsavedEdits(), to: copy)
+        try await document.saveAs(document.unsavedEdits(), to: copy, accepting: nil)
         #expect(try stored(copy).image.width == 200)
         #expect(try stored(file).image.width == 400, "the original stays")
         document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
@@ -84,7 +111,7 @@ func copyPath(beside file: URL) -> URL {
         let file = try imageFile(try cornerImage(), type: .png)
         let document = try await open(file)
         let copy = copyPath(beside: file)
-        try await document.saveAs(nil, to: copy)
+        try await document.saveAs(nil, to: copy, accepting: nil)
         #expect(try Data(contentsOf: copy) == Data(contentsOf: file))
     }
 }

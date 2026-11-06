@@ -185,9 +185,11 @@ final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
         baseline = text
     }
 
-    func saveAs(_ edits: UnsavedEdits?, to destination: URL) async throws(PluginError) {
+    func saveAs(_ edits: UnsavedEdits?, to destination: URL, accepting offer: SaveOffer?) async throws(PluginError) {
         if readOnlyReason == nil, let text = (edits?.value as? TextEdits)?.text {
-            _ = try await TextFile.write(text, as: format, to: destination.path)
+            let target = offer == TextFile.saveAsUTF8 ? TextFormat(encoding: .utf8, hasBOM: false, lineEnding: format.lineEnding) : format
+            _ = try await TextFile.write(text, as: target, to: destination.path)
+            format = target
             baseline = text
         } else {
             try await FileReplacement.copy(url, to: destination)

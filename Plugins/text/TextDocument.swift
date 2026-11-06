@@ -154,10 +154,12 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         baseline = text
     }
 
-    func saveAs(_ edits: UnsavedEdits?, to destination: URL) async throws(PluginError) {
+    func saveAs(_ edits: UnsavedEdits?, to destination: URL, accepting offer: SaveOffer?) async throws(PluginError) {
         if isEditable, let text = (edits?.value as? TextEdits)?.text {
-            let byteCount = try await TextFile.write(text, as: format, to: destination.path)
-            info = TextPlugin.info(lineCount: TextCodec.lineCount(of: text), format: format, byteCount: byteCount)
+            let target = offer == TextFile.saveAsUTF8 ? TextFormat(encoding: .utf8, hasBOM: false, lineEnding: format.lineEnding) : format
+            let byteCount = try await TextFile.write(text, as: target, to: destination.path)
+            info = TextPlugin.info(lineCount: TextCodec.lineCount(of: text), format: target, byteCount: byteCount)
+            format = target
             baseline = text
         } else {
             try await FileReplacement.copy(url, to: destination)  // also keeps a file shown only in part whole

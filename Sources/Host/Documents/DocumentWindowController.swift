@@ -335,7 +335,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             await present(self, "“\(destination.lastPathComponent)” is open in another window.", "Close it there first, or choose another name.")
             return false
         }
-        let outcome = await document.saveAs(to: destination)
+        let outcome = await document.saveAs(to: destination, prompts: self)
         // A link followed meanwhile shows another file now; only the document that was saved follows the copy.
         guard current === document else { return outcome == .saved }
         switch outcome {

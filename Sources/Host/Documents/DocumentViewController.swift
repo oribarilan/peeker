@@ -258,26 +258,31 @@ final class DocumentViewController: NSSplitViewController {
 
     /// Save As: writes the file with its unsaved edits (or as it is, without any) to `destination`, then follows it:
     /// file watching, the recovery record and the modification baseline move to the new file. On failure nothing moves.
-    func saveAs(to destination: URL) async -> SaveOutcome {
+    func saveAs(to destination: URL, prompts: any SavePrompts) async -> SaveOutcome {
         while let running = runningSave {
             _ = await running.value
             if runningSave == running { runningSave = nil }
         }
         // Counted as the running save, so a Save or a close that comes meanwhile waits for it.
-        let task = Task.immediate { await performSaveAs(to: destination) }
+        let task = Task.immediate { await performSaveAs(to: destination, prompts: prompts) }
         runningSave = task
         let outcome = await task.value
         if runningSave == task { runningSave = nil }
         return outcome
     }
 
-    private func performSaveAs(to destination: URL) async -> SaveOutcome {
+    private func performSaveAs(to destination: URL, prompts: any SavePrompts) async -> SaveOutcome {
         guard let document = pluginDocument else { return .failed("The file isn't open.") }
         isSaving = true
         defer { isSaving = false }
         let edits = document.unsavedEdits(), editsAtSave = editCount
         do throws(PluginError) {
-            try await document.saveAs(edits, to: destination)
+            do {
+                try await document.saveAs(edits, to: destination, accepting: nil)
+            } catch let error where error.offer != nil {
+                guard let offer = error.offer, await prompts.confirm(offer, reason: error.message) else { return .cancelled }
+                try await document.saveAs(edits, to: destination, accepting: offer)
+            }
         } catch {
             Self.log.error("\(self.entry.id, privacy: .public): Save As of \(self.url.lastPathComponent, privacy: .private) failed: \(error.message, privacy: .private)")
             return .failed(error.message)

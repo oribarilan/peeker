@@ -242,7 +242,7 @@ final class PDFPluginDocument: PluginDocument {
         if let checked = try? await PDFPlugin.check(url) { info = checked.info }
     }
 
-    func saveAs(_ unsaved: UnsavedEdits?, to destination: URL) async throws(PluginError) {
+    func saveAs(_ unsaved: UnsavedEdits?, to destination: URL, accepting offer: SaveOffer?) async throws(PluginError) {
         if let snapshot = unsaved?.value as? PDFSnapshot {
             try await PDFPlugin.write(snapshot.edits, from: url.path, to: destination.path)
             pending.removeAll { $0.number <= snapshot.through }

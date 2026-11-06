@@ -401,7 +401,7 @@ final class ImageDocument: PluginDocument {
         info = await ImagePlugin.info(of: url)
     }
 
-    func saveAs(_ unsaved: UnsavedEdits?, to destination: URL) async throws(PluginError) {
+    func saveAs(_ unsaved: UnsavedEdits?, to destination: URL, accepting offer: SaveOffer?) async throws(PluginError) {
         if let snapshot = unsaved?.value as? ImageSnapshot {
             let source = try await keepOriginal()
             try await ImageSaving.save(snapshot.state.edits, marks: snapshot.state.marks, from: source, to: destination.path)
