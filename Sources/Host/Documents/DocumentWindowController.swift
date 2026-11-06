@@ -318,14 +318,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     @discardableResult
     func saveAs(to destination: URL) async -> Bool {
         guard let document = current else { return false }
-        let same = { (a: URL, b: URL) in a.resolvingSymlinksInPath().standardizedFileURL == b.resolvingSymlinksInPath().standardizedFileURL }
+        let same = Self.sameFile
         if same(destination, url) { return await save(document) }
         let others = NSApp.windows.compactMap { $0.windowController as? DocumentWindowController }.filter { $0 !== self }
         if others.contains(where: { same($0.url, destination) }) {
             await present(self, "“\(destination.lastPathComponent)” is open in another window.", "Close it there first, or choose another name.")
             return false
         }
-        switch await document.saveAs(to: destination) {
+        let outcome = await document.saveAs(to: destination)
+        // A link followed meanwhile shows another file now; only the document that was saved follows the copy.
+        guard current === document else { return outcome == .saved }
+        switch outcome {
         case .saved:
             url = destination
             history.moved(to: destination)
@@ -340,6 +343,15 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
             await present(self, "Couldn't save “\(destination.lastPathComponent)”", message)
             return false
         }
+    }
+
+    /// The same file: the same path once links are resolved, or, for files that exist, the same file on disk, which
+    /// also matches paths differing only in case on a disk that ignores case.
+    static func sameFile(_ a: URL, _ b: URL) -> Bool {
+        if a.resolvingSymlinksInPath().standardizedFileURL == b.resolvingSymlinksInPath().standardizedFileURL { return true }
+        let id = { (url: URL) in (try? url.resourceValues(forKeys: [.fileResourceIdentifierKey]))?.fileResourceIdentifier as? NSObject }
+        guard let first = id(a), let second = id(b) else { return false }
+        return first.isEqual(second)
     }
 
     @objc func revertDocument(_ sender: Any?) {

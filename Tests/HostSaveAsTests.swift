@@ -58,3 +58,13 @@ import Testing
         #expect(controller.history.current.url == copy)
     }
 }
+
+@Suite struct SameFile {
+    @Test func pathsDifferingOnlyInCaseNameTheSameFileOnThisDisk() throws {
+        let file = try TempFile.make(Data("x".utf8), name: "Photo.txt")
+        let lower = file.deletingLastPathComponent().appending(path: "photo.txt")
+        let caseSensitive = !FileManager.default.fileExists(atPath: lower.path)
+        #expect(DocumentWindowController.sameFile(file, lower) == !caseSensitive)
+        #expect(!DocumentWindowController.sameFile(file, copyPath(beside: file)))
+    }
+}

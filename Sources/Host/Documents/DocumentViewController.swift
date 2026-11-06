@@ -254,6 +254,15 @@ final class DocumentViewController: NSSplitViewController {
             _ = await running.value
             if runningSave == running { runningSave = nil }
         }
+        // Counted as the running save, so a Save or a close that comes meanwhile waits for it.
+        let task = Task.immediate { await performSaveAs(to: destination) }
+        runningSave = task
+        let outcome = await task.value
+        if runningSave == task { runningSave = nil }
+        return outcome
+    }
+
+    private func performSaveAs(to destination: URL) async -> SaveOutcome {
         guard let document = pluginDocument else { return .failed("The file isn't open.") }
         isSaving = true
         defer { isSaving = false }
@@ -270,7 +279,7 @@ final class DocumentViewController: NSSplitViewController {
         startWatching()
         journal?.url = destination
         knownModification = Self.modificationDate(of: destination)
-        isEdited = edits != nil && editCount != editsAtSave
+        isEdited = editCount != editsAtSave  // edits made while it wrote stay unsaved
         journal?.write()
         if !isClosed { installSidebar(document.makeSidebar()) }
         return .saved
