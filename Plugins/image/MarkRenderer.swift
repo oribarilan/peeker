@@ -33,6 +33,29 @@ nonisolated enum MarkRenderer {
         context.restoreGState()
     }
 
+    /// Draws `mark` over the image shown at `rect` in an unflipped view, as the mark being drawn or dragged: a pixelate
+    /// area as a dashed outline, since its pixels come only once it's placed.
+    static func drawDraft(_ mark: ImageMark, number: Int?, imageSize: CGSize, in rect: CGRect, context: CGContext) {
+        guard imageSize.width > 0, imageSize.height > 0 else { return }
+        context.saveGState()
+        context.translateBy(x: rect.minX, y: rect.maxY)
+        context.scaleBy(x: rect.width / imageSize.width, y: -rect.height / imageSize.height)
+        context.setLineCap(.round)
+        context.setLineJoin(.round)
+        switch mark.kind {
+        case .pixelate(let area):
+            context.setStrokeColor(CGColor(gray: 0.5, alpha: 1))
+            context.setLineWidth(max(mark.width / 2, 1))
+            context.setLineDash(phase: 0, lengths: [mark.width * 2, mark.width * 2])
+            context.stroke(area.standardized)
+        case .spotlight(let area):
+            dim(outside: [area.standardized], imageSize: imageSize, in: context)
+        default:
+            draw(mark, number: number, in: context)
+        }
+        context.restoreGState()
+    }
+
     private static func draw(_ mark: ImageMark, number: Int?, in context: CGContext) {
         let color = mark.color.cgColor, width = mark.width
         context.setStrokeColor(color)

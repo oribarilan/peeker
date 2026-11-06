@@ -101,7 +101,7 @@ extension ImageDocument {
             marks: { [weak self] in self?.marks ?? [] },
             pixelSize: { [weak self] in self?.pixelSize ?? .zero },
             style: { [weak self] in (self?.markupColor ?? markupPalette[0].color, self?.markupSize ?? .medium) },
-            preview: { [weak self] in self?.redraw(draft: $0) },
+            hide: { [weak self] in self?.redraw(hiding: $0) },
             put: { [weak self] in self?.put($0) },
             remove: { [weak self] in self?.removeMark(id: $0) },
             selected: { [weak self] _ in self?.showStyle() }))
@@ -146,9 +146,9 @@ extension ImageDocument {
             pasteboard.setData(data, forType: Self.markPasteboardType)
             return
         }
-        let path = (original ?? url).path, edits = edits, marks = marks
+        let source = source, edits = edits, marks = marks
         Task {
-            guard let image = await ImageSaving.image(edits, marks: marks, from: path) else { return NSSound.beep() }
+            guard let image = await ImageSaving.image(edits, marks: marks, from: source) else { return NSSound.beep() }
             let picture = NSImage(cgImage: image, size: .zero)
             pasteboard.clearContents()
             pasteboard.writeObjects([picture])

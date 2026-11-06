@@ -153,7 +153,8 @@ final class MarkupStrip: NSView {
 
     @objc private func colorPicked(_ sender: NSColorPanel) {
         guard let rgb = sender.color.usingColorSpace(.sRGB) else { return }
-        onColor?(RGBA(red: rgb.redComponent, green: rgb.greenComponent, blue: rgb.blueComponent, alpha: 1))
+        let clamp = { (value: CGFloat) in Double(min(max(value, 0), 1)) }  // wide colors can come back past 0 or 1
+        onColor?(RGBA(red: clamp(rgb.redComponent), green: clamp(rgb.greenComponent), blue: clamp(rgb.blueComponent), alpha: 1))
     }
 }
 

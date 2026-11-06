@@ -29,7 +29,7 @@ final class ImageDocument: PluginDocument {
     /// The full decode while it runs.
     private(set) var sharpening: Task<Void, Never>?
     /// How the full decode is made; tests hold it back.
-    var decodeFull: @concurrent @Sendable (URL, CGSize, Int) async throws(PluginError) -> CGImage = ImagePlugin.decodeFull
+    var decodeFull: @concurrent @Sendable (ImageSource, CGSize, Int) async throws(PluginError) -> CGImage = ImagePlugin.decodeFull
     /// Goes up on each save and page change, so a full decode of the file or page from before it is dropped.
     private var generation = 0
     /// The page shown, counted from 0; always 0 but for a multi-page TIFF.
@@ -49,8 +49,11 @@ final class ImageDocument: PluginDocument {
     /// What the file on disk holds, as edits and marks on the file as it opened; nil when that's unknown (recovered
     /// edits on a file saved since it opened), so everything counts as unsaved.
     private var saved: ImageState? = ImageState()
-    /// Our copy of the file as it opened, made before the first save; nil until then.
-    var original: URL?
+    /// The file's bytes as it opened, read before the first save writes over it; nil until then. Every save, the full
+    /// decode and Copy draw from it, so a mark stays movable and Undo reaches past saves.
+    var original: Data?
+    /// Where the image as it opened is read from.
+    var source: ImageSource { original.map(ImageSource.bytes) ?? .file(url) }
     /// Where the markup style is kept between launches; nil keeps it only here.
     let preferences: PluginPreferences?
     var markupColor: RGBA
@@ -114,7 +117,6 @@ final class ImageDocument: PluginDocument {
     }
 
     isolated deinit {
-        original.map { try? FileManager.default.removeItem(at: $0) }
         sharpening?.cancel()
         pageChange?.cancel()
         pinchObserver.map(NotificationCenter.default.removeObserver)
@@ -235,9 +237,9 @@ final class ImageDocument: PluginDocument {
     private func sharpenIfNeeded(atActualSize: Bool = false) {
         guard atActualSize || scrollView.magnification > 1, animation == nil, full == nil, sharpening == nil,
               max(base.width, base.height) < ImagePlugin.fullSide(for: baseSize) else { return }
-        let started = generation, url = original ?? url, size = baseSize, page = page, decode = decodeFull
+        let started = generation, source = source, size = baseSize, page = page, decode = decodeFull
         sharpening = Task { [weak self] in
-            let image = try? await decode(url, size, page)
+            let image = try? await decode(source, size, page)
             // After a save the file has changed, and a new decode has taken this one's place.
             guard let self, generation == started else { return }
             sharpening = nil
@@ -307,6 +309,7 @@ final class ImageDocument: PluginDocument {
     /// it leaves out.
     func apply(_ edit: ImageEdit) {
         guard edit.isValid else { return }
+        overlay?.endTextEditing()  // text being typed is placed before the image changes under it
         setState(ImageState(edits: edits + [edit], marks: ImageMark.mapped(marks, through: edit, from: pixelSize)))
     }
 
@@ -337,12 +340,11 @@ final class ImageDocument: PluginDocument {
         onEdit?()
     }
 
-    /// Shows the sharpest decode there is with the edits applied and the marks drawn, `draft` in place of the mark
-    /// with its id, or added: a mark being drawn or dragged.
-    func redraw(draft: ImageMark? = nil) {
+    /// Shows the sharpest decode there is with the edits applied and the marks drawn, but for the one with id
+    /// `hiding`, which the markup overlay draws while it's dragged.
+    func redraw(hiding: String? = nil) {
         let edited = ImageEditing.preview(edits, of: full ?? base, fullSize: baseSize)
-        var shown = marks
-        if let draft { if let index = shown.firstIndex(where: { $0.id == draft.id }) { shown[index] = draft } else { shown.append(draft) } }
+        let shown = hiding.map { id in marks.filter { $0.id != id } } ?? marks
         canvas.image = MarkRenderer.render(shown, on: edited, imageSize: pixelSize) ?? edited
     }
 
@@ -354,7 +356,7 @@ final class ImageDocument: PluginDocument {
         guard isEditing else { return false }
         var recovered: ImageSnapshot.Recovered
         if let plain = try? JSONDecoder().decode([ImageEdit].self, from: data) {
-            recovered = ImageSnapshot.Recovered(edits: plain, marks: [], original: nil)  // from before marks
+            recovered = ImageSnapshot.Recovered(edits: plain, marks: [])  // from before marks
         } else if let decoded = try? JSONDecoder().decode(ImageSnapshot.Recovered.self, from: data) {
             recovered = decoded
         } else {
@@ -362,14 +364,16 @@ final class ImageDocument: PluginDocument {
         }
         guard recovered.edits.count + recovered.marks.count <= Self.maxRecoveredEdits, !(recovered.edits.isEmpty && recovered.marks.isEmpty),
               recovered.edits.allSatisfy(\.isValid), recovered.marks.allSatisfy(\.isValid) else { return false }
-        if let path = recovered.original {
-            // Saved since it opened: the edits start from the file as it opened, kept in a copy of ours.
-            let copy = URL(filePath: path)
-            guard copy.deletingLastPathComponent().standardizedFileURL == Self.originalsFolder.standardizedFileURL,
-                  let decoded = try? ImagePlugin.decodeNow(copy, maxPixels: maxPixels) else { return false }
-            original = copy
+        if recovered.fromOriginal {
+            // Saved since it opened: the edits start from the file as it opened, which the record carries.
+            guard let bytes = recovered.original, let decoded = try? ImagePlugin.screenDecode(.bytes(bytes), maxPixels: maxPixels) else { return false }
+            original = bytes
             base = decoded.image
             baseSize = decoded.pixelSize
+            generation += 1
+            sharpening?.cancel()
+            sharpening = nil
+            full = nil
             saved = nil
         }
         setState(ImageState(edits: recovered.edits, marks: recovered.marks))
@@ -379,34 +383,28 @@ final class ImageDocument: PluginDocument {
     /// More than any real session makes; a recovery record comes from a file.
     private static let maxRecoveredEdits = 1000
 
-    /// Where copies of files as they opened are kept, until their window closes.
-    static let originalsFolder = FileManager.default.temporaryDirectory.appending(path: "peeker-originals")
+    /// Reads the file as it opened, before the first save writes over it, following a symlink to the file itself.
+    private func keepOriginal() async throws(PluginError) -> ImageSource {
+        if original == nil { original = try await Self.bytes(of: url) }
+        return source
+    }
 
-    /// The file as it opened, copied before its first save writes over it; every save draws from it, so a mark stays
-    /// movable and Undo reaches past saves.
-    private func keepOriginal() throws(PluginError) -> URL {
-        if let original { return original }
-        let copy = Self.originalsFolder.appending(path: "\(UUID().uuidString)-\(url.lastPathComponent)")
-        try PluginError.catching {
-            try FileManager.default.createDirectory(at: Self.originalsFolder, withIntermediateDirectories: true)
-            try FileManager.default.copyItem(at: url, to: copy)
-        }
-        original = copy
-        return copy
+    @concurrent private static func bytes(of url: URL) async throws(PluginError) -> Data {
+        try PluginError.catching { try Data(contentsOf: url) }
     }
 
     func save(_ unsaved: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError) {
         guard let snapshot = unsaved.value as? ImageSnapshot else { throw PluginError("These changes aren't image edits.") }
-        let source = try keepOriginal()
-        try await ImageSaving.save(snapshot.state.edits, marks: snapshot.state.marks, from: source.path, to: url.path)
+        let source = try await keepOriginal()
+        try await ImageSaving.save(snapshot.state.edits, marks: snapshot.state.marks, from: source, to: url.path)
         saved = snapshot.state
         info = await ImagePlugin.info(of: url)
     }
 
     func saveAs(_ unsaved: UnsavedEdits?, to destination: URL) async throws(PluginError) {
         if let snapshot = unsaved?.value as? ImageSnapshot {
-            let source = try keepOriginal()
-            try await ImageSaving.save(snapshot.state.edits, marks: snapshot.state.marks, from: source.path, to: destination.path)
+            let source = try await keepOriginal()
+            try await ImageSaving.save(snapshot.state.edits, marks: snapshot.state.marks, from: source, to: destination.path)
             saved = snapshot.state
         } else {
             try await FileReplacement.copy(url, to: destination)
@@ -421,7 +419,6 @@ final class ImageDocument: PluginDocument {
     /// opened), it's decoded again and becomes the file as it opened.
     func revertEdits() {
         if saved == nil, let decoded = try? ImagePlugin.decodeNow(url, maxPixels: maxPixels) {
-            original.map { try? FileManager.default.removeItem(at: $0) }
             original = nil
             base = decoded.image
             baseSize = decoded.pixelSize
@@ -442,19 +439,25 @@ nonisolated struct ImageState: Codable, Sendable, Equatable {
     var marks: [ImageMark] = []
 }
 
-/// What a save writes: every edit and mark since the file opened. The recovery copy keeps them with the path of our
-/// copy of the file as it opened, once a save has written over the file.
+/// What a save writes: every edit and mark since the file opened. Once a save has written over the file, the recovery
+/// copy also keeps the file's bytes as it opened, which the edits start from, unless they're too large to keep.
 nonisolated struct ImageSnapshot: Encodable, Sendable {
     let state: ImageState
-    let original: URL?
+    let original: Data?
+
+    /// Larger originals aren't kept in the recovery copy, so edits after a save to such a file can't come back.
+    static let maxRecoveredOriginal = 64 << 20
 
     struct Recovered: Codable {
         let edits: [ImageEdit]
         let marks: [ImageMark]
-        let original: String?
+        /// The edits start from `original`, not from the file on disk.
+        var fromOriginal = false
+        var original: Data?
     }
 
     func encode(to encoder: any Encoder) throws {
-        try Recovered(edits: state.edits, marks: state.marks, original: original?.path).encode(to: encoder)
+        let kept = original.flatMap { $0.count <= Self.maxRecoveredOriginal ? $0 : nil }
+        try Recovered(edits: state.edits, marks: state.marks, fromOriginal: original != nil, original: kept).encode(to: encoder)
     }
 }

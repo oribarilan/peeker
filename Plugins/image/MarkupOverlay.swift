@@ -10,8 +10,8 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         var marks: () -> [ImageMark]
         var pixelSize: () -> CGSize
         var style: () -> (color: RGBA, size: MarkSize)
-        /// Shows `mark` in place of the one with its id, or added, without an edit; nil shows the marks as they are.
-        var preview: (ImageMark?) -> Void
+        /// Shows the image without the mark with this id, while it's dragged; nil shows every mark again.
+        var hide: (String?) -> Void
         var put: (ImageMark) -> Void
         var remove: (String) -> Void
         /// The selection changed, so the strip can show its color and size.
@@ -97,6 +97,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
             drag = .moving(from: point, original: mark)
             return
         }
+        // The image is drawn again only once a drag really moves something, not on every event.
         selectedID = nil
         guard let tool else { return }
         let style = document.style(), width = style.size.width(for: document.pixelSize())
@@ -127,11 +128,12 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
             }
             draft = mark
         case .moving(let from, let original):
+            if draft == nil { document.hide(original.id) }
             draft = original.moved(by: CGPoint(x: point.x - from.x, y: point.y - from.y))
         case .reshaping(let fixed, let original, let end):
+            if draft == nil { document.hide(original.id) }
             draft = original.reshaped(fixed: fixed, moving: point, end: end)
         }
-        document.preview(draft)
         needsDisplay = true
     }
 
@@ -142,8 +144,8 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
             needsDisplay = true
         }
         guard let draft else { return }
-        guard draft.isValid, draft.isVisible(tolerance: tolerance / 2) else { return document.preview(nil) }
-        if case .moving(_, let original) = drag, original == draft { return document.preview(nil) }
+        guard draft.isValid, draft.isVisible(tolerance: tolerance / 2) else { return document.hide(nil) }
+        if case .moving(_, let original) = drag, original == draft { return document.hide(nil) }
         document.put(draft)
         if case .drawing = drag { selectedID = nil } else { selectedID = draft.id }
     }
@@ -163,7 +165,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         if drag != nil {
             drag = nil
             draft = nil
-            document.preview(nil)
+            document.hide(nil)
         } else if selectedID != nil {
             selectedID = nil
         } else {
@@ -193,7 +195,6 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         addSubview(field)
         window?.makeFirstResponder(field)
         self.field = field
-        if !new { document.preview(nil) }
     }
 
     func controlTextDidEndEditing(_ notification: Notification) { endTextEditing() }
@@ -261,8 +262,14 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
 
     // MARK: Drawing
 
-    /// The selected mark's outline and handles.
+    /// The mark being drawn or dragged, or the selected mark's outline and handles.
     override func draw(_ dirtyRect: NSRect) {
+        if let draft, let context = NSGraphicsContext.current?.cgContext {
+            var marks = document.marks()
+            if let index = marks.firstIndex(where: { $0.id == draft.id }) { marks[index] = draft } else { marks.append(draft) }
+            MarkRenderer.drawDraft(draft, number: ImageMark.stepNumbers(marks)[draft.id], imageSize: document.pixelSize(), in: imageRect, context: context)
+            return
+        }
         guard drag == nil, let mark = selected else { return }
         NSColor.controlAccentColor.setStroke()
         let outline = NSBezierPath(rect: viewRect(mark.bounds))

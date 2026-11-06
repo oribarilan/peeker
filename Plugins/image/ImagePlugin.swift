@@ -80,6 +80,17 @@ public enum ImagePlugin: Plugin {
     }
 
     /// `decode` on the calling thread, for the rare case that can't wait: recovered edits on the file as it opened.
+    /// The first image at screen size and its full size upright, on the calling thread: for edits recovered against
+    /// the file as it opened, kept in memory.
+    nonisolated static func screenDecode(_ image: ImageSource, maxPixels: Int) throws(PluginError) -> (image: CGImage, pixelSize: CGSize) {
+        let (source, properties) = try source(image, page: 0)
+        let decoded = try displayDecode(source, page: 0, maxSide: min(maxPixels, maxDimension))
+        let width = properties[kCGImagePropertyPixelWidth] as? Int ?? decoded.width
+        let height = properties[kCGImagePropertyPixelHeight] as? Int ?? decoded.height
+        let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
+        return (decoded, turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height))
+    }
+
     nonisolated static func decodeNow(_ url: URL, maxPixels: Int, page: Int = 0) throws(PluginError) -> Decoded {
         let (source, properties) = try source(url, page: page)
         let image = try displayDecode(source, page: page, maxSide: min(maxPixels, maxDimension))
@@ -99,7 +110,11 @@ public enum ImagePlugin: Plugin {
     /// The image or page `pixelSize` large upright, decoded as `decode` does but at `fullSide(for:)`, for showing it
     /// zoomed in.
     @concurrent nonisolated static func decodeFull(_ url: URL, pixelSize: CGSize, page: Int = 0) async throws(PluginError) -> CGImage {
-        try displayDecode(try source(url, page: page).source, page: page, maxSide: fullSide(for: pixelSize))
+        try await decodeFull(.file(url), pixelSize: pixelSize, page: page)
+    }
+
+    @concurrent nonisolated static func decodeFull(_ image: ImageSource, pixelSize: CGSize, page: Int = 0) async throws(PluginError) -> CGImage {
+        try displayDecode(try source(image, page: page).source, page: page, maxSide: fullSide(for: pixelSize))
     }
 
     /// A page as it prints: upright, decoded at screen size, with its size in points from its resolution.
@@ -147,8 +162,11 @@ public enum ImagePlugin: Plugin {
 
     /// The file's image source and the properties of its image at `page`.
     private nonisolated static func source(_ url: URL, page: Int) throws(PluginError) -> (source: CGImageSource, properties: [CFString: Any]) {
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
-              CGImageSourceGetCount(source) > page, page >= 0 else { throw PluginError("This file isn't a readable image.") }
+        try source(.file(url), page: page)
+    }
+
+    private nonisolated static func source(_ image: ImageSource, page: Int) throws(PluginError) -> (source: CGImageSource, properties: [CFString: Any]) {
+        guard let source = image.makeSource(), CGImageSourceGetCount(source) > page, page >= 0 else { throw PluginError("This file isn't a readable image.") }
         // Before the thumbnail: otherwise ImageIO ignores a PNG's orientation tag when the PNG has other EXIF too,
         // and the window would show it unturned while saving turns it.
         return (source, CGImageSourceCopyPropertiesAtIndex(source, page, nil) as? [CFString: Any] ?? [:])
@@ -214,5 +232,19 @@ public enum ImagePlugin: Plugin {
             rows.append(InfoRow(label: "File size", value: ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)))
         }
         return rows
+    }
+}
+
+/// Where an image's bytes come from: its file, or a copy in memory of the file as it opened.
+nonisolated enum ImageSource: Sendable {
+    case file(URL)
+    case bytes(Data)
+
+    func makeSource() -> CGImageSource? {
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
+        return switch self {
+        case .file(let url): CGImageSourceCreateWithURL(url as CFURL, options)
+        case .bytes(let data): CGImageSourceCreateWithData(data as CFData, options)
+        }
     }
 }

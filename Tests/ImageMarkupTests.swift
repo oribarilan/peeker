@@ -74,6 +74,20 @@ import UniformTypeIdentifiers
         #expect(document.marks.count == 1, "one Undo per mark")
     }
 
+    /// Drawing redraws the overlay only; the whole image is drawn again once, when the mark is placed.
+    @Test func aDragLeavesTheImageAloneUntilTheMarkIsPlaced() async throws {
+        let (document, window) = try await shown()
+        defer { window.close() }
+        #expect(document.perform("markup-pen"))
+        let overlay = try #require(document.overlay)
+        let before = document.canvas.image
+        overlay.mouseDown(with: mouse(.leftMouseDown, at: CGPoint(x: 40, y: 40), in: overlay))
+        for x in stride(from: 50.0, to: 200, by: 10) { overlay.mouseDragged(with: mouse(.leftMouseDragged, at: CGPoint(x: x, y: 60), in: overlay)) }
+        #expect(document.canvas.image === before)
+        overlay.mouseUp(with: mouse(.leftMouseUp, at: CGPoint(x: 200, y: 60), in: overlay))
+        #expect(document.canvas.image !== before && document.marks.count == 1)
+    }
+
     @Test func aClickDropsStepsThatRenumber() async throws {
         let (document, window) = try await shown()
         defer { window.close() }

@@ -229,3 +229,18 @@ private func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: 
                 "the saved, cropped file, with nothing pending")
     }
 }
+
+@Suite(.serialized) struct ImageSymlinkSaving {
+    /// Saving through a link writes the file it points to; the second save must still start from the file as it opened.
+    @Test func aLinkedImageGetsItsEditsOnce() async throws {
+        let target = try imageFile(canvas(width: 400, height: 200), type: .png)
+        let link = target.deletingLastPathComponent().appending(path: "link-\(UUID().uuidString).png")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        let document = try await openDocument(link, with: ImagePlugin.self, as: ImageDocument.self, maxPixels: 4096)
+        document.apply(.crop(CGRect(x: 0, y: 0, width: 0.5, height: 1)))
+        try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+        document.put(mark(.step(center: CGPoint(x: 50, y: 50))))
+        try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+        #expect(try stored(target).image.width == 200, "cropped once, not twice")
+    }
+}

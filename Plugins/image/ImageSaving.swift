@@ -13,10 +13,9 @@ nonisolated enum ImageSaving {
 
     /// Applies `edits` and then draws `marks` on the file at `from` (by default `path`) and writes the result to `path`,
     /// in the source's format. Writes nothing on failure.
-    @concurrent static func save(_ edits: [ImageEdit], marks: [ImageMark] = [], from original: String? = nil, to path: String) async throws(PluginError) {
-        let name = URL(filePath: original ?? path).lastPathComponent
-        guard let source = CGImageSourceCreateWithURL(URL(filePath: original ?? path) as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
-              let type = CGImageSourceGetType(source), CGImageSourceGetCount(source) > 0 else {
+    @concurrent static func save(_ edits: [ImageEdit], marks: [ImageMark] = [], from original: ImageSource? = nil, to path: String) async throws(PluginError) {
+        let name = URL(filePath: path).lastPathComponent
+        guard let source = (original ?? .file(URL(filePath: path))).makeSource(), let type = CGImageSourceGetType(source), CGImageSourceGetCount(source) > 0 else {
             throw PluginError("“\(name)” is no longer a readable image.")
         }
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
@@ -33,9 +32,8 @@ nonisolated enum ImageSaving {
     }
 
     /// The full image at `path`, upright, with `edits` applied and `marks` drawn: what a save would write, for Copy.
-    @concurrent static func image(_ edits: [ImageEdit], marks: [ImageMark], from path: String) async -> CGImage? {
-        guard let source = CGImageSourceCreateWithURL(URL(filePath: path) as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
-              CGImageSourceGetCount(source) > 0, let full = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+    @concurrent static func image(_ edits: [ImageEdit], marks: [ImageMark], from original: ImageSource) async -> CGImage? {
+        guard let source = original.makeSource(), CGImageSourceGetCount(source) > 0, let full = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
         let orientation = (properties[kCGImagePropertyOrientation] as? UInt32).flatMap(CGImagePropertyOrientation.init(rawValue:)) ?? .up
         guard let edited = ImageEditing.apply(orientation.uprightEdits + edits, to: full) else { return nil }
