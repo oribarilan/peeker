@@ -79,6 +79,7 @@ targets:
       - package: Markdown
       - { target: PeekerPDF, embed: false }
       - { target: PeekerText, embed: false }
+      - { target: PeekerTable, embed: false }
       - { target: PeekerSyntax, embed: false }
       # The updater, and the only framework Peeker embeds: Sparkle ships as a dynamic framework with helper apps,
       # which Xcode embeds and signs by itself.
@@ -147,6 +148,10 @@ targets:
     templates: [ModulePlugin]
     sources: [Plugins/image]
 
+  PeekerTable:
+    templates: [ModulePlugin]
+    sources: [Plugins/table]
+
   PeekerText:
     templates: [ModulePlugin]
     sources: [Plugins/text]
@@ -167,6 +172,7 @@ targets:
       - target: PeekerPDF
       - target: PeekerMarkdown
       - target: PeekerText
+      - target: PeekerTable
       - target: PeekerSyntax
       - package: Markdown
       - package: Sparkle
@@ -191,6 +197,7 @@ targets:
       - target: PeekerPDF
       - target: PeekerMarkdown
       - target: PeekerText
+      - target: PeekerTable
       - target: PeekerSyntax
       - package: Markdown
       - package: Sparkle

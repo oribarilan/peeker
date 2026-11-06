@@ -91,7 +91,7 @@ private enum RoutedPlugin: Plugin {
     }
 
     @Test func builtInPluginsAreInSidebarOrder() {
-        #expect(PluginCatalog.builtIn.map { $0.id } == ["image", "pdf", "markdown", "text"])
+        #expect(PluginCatalog.builtIn.map { $0.id } == ["image", "pdf", "markdown", "table", "text"])
     }
 }
 

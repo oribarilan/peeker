@@ -21,6 +21,8 @@ printf 'all:\n\tswift build\n' > "$F/Makefile"
 printf 'const x: number = 1\n' > "$F/app.ts"
 printf 'not a real movie' > "$F/movie.mp4"
 printf '%%PDF-1.4\n' > "$F/empty.pdf"
+printf 'name,price\nTea,3.50\n' > "$F/data.csv"
+printf 'name\tprice\nTea\t3.50\n' > "$F/data.tsv"
 sips -s format png -z 32 32 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$F/photo.png" >/dev/null
 ln -s "$F/notes.md" "$F/link.txt"
 
@@ -40,6 +42,8 @@ default|Makefile|text
 default|app.ts|text
 default|photo.png|image
 default|empty.pdf|pdf
+default|data.csv|table
+default|data.tsv|table
 default|link.txt|markdown
 default|movie.mp4|no plugin
 default|folder|no plugin

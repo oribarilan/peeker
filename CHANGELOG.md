@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- CSV and TSV files open as a table, with the delimiter and header row guessed and switchable in View. In a window you can edit cells, add, delete and move rows and columns, and sort by clicking a column title without changing the file; saving keeps the file's format and writes untouched rows as they were. Plain Text still opens them through Open With.
 - PDF highlights come in yellow, green, blue, pink and purple: pick one from the arrow on the Highlight button or Tools > Highlight Color, and Peeker highlights the selected text in it and remembers it for every PDF.
 - Save As… on a text or Markdown file whose new text its encoding can't hold, such as an emoji in a Windows-1252 file, offers to save the copy as UTF-8, as Save does, instead of failing.
 - PDF thumbnails show rotated pages turned, including scans the file already marks as rotated, number the pages in order after one is added, deleted or moved, and keep the selected pages selected after Rotate.

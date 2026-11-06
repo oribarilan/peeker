@@ -66,6 +66,6 @@ context: |
      every push to main.
 
   Open questions:
-  - Text-based formats. Plain text, logs, source, structured data (JSON, YAML, XML), CSV and Markdown differ a
-    lot, and how they split into plugins (and which of them can be edited in the Editor) is undecided. Needs its
-    own interview. specs/text and specs/markdown describe current behavior only and haven't been reviewed.
+  - Text-based formats: settled 2026-11-06. Plain Text keeps plain text, logs, code and config files; CSV and TSV
+    have the Table plugin (an editable table); JSON, YAML, XML, property lists and TOML get a data editor next
+    (a collapsible tree with a sidebar outline, tree editing for JSON first). Logs stay plain text for now.

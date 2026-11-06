@@ -48,7 +48,7 @@ The plugin SHALL guess whether the first row is a header: it is when every field
 
 ### Requirement: Editing cells, rows and columns
 
-In the Editor, double-clicking a cell or pressing Return SHALL edit it, Return SHALL commit and move down, Tab SHALL commit and move right, and Escape SHALL cancel. The user SHALL be able to add a row or column before or after the selection, delete the selected rows or columns, and move them by dragging their row number or column title. Each change SHALL be one undo step, mark the document edited and stay pending until Cmd+S. The Peek panel SHALL show the table without editing.
+In the Editor, double-clicking a cell or pressing Return SHALL edit it, Return SHALL commit and move down, Tab SHALL commit and move right, and Escape SHALL cancel. The user SHALL be able to add a row or column before or after the selection, delete the selected rows or the column of the cell last clicked, and move rows and columns by dragging their row number or column title. Each change SHALL be one undo step, mark the document edited and stay pending until Cmd+S. The Peek panel SHALL show the table without editing.
 
 #### Scenario: Editing a cell
 

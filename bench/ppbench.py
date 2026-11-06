@@ -44,9 +44,9 @@ FIXTURES = ROOT / "bench/fixtures"
 TOOLS = ROOT / "build/bench-tools"
 DEFAULT_APP = ROOT / "build/dd/Build/Products/Release/Peeker.app"
 REFERENCE = ROOT / "bench/results/reference.json"
-FILES = ["small.md", "large.md", "small.pdf", "large.pdf", "small.png", "photo.jpg", "photo.heic", "large.png", "small.txt", "medium.log", "large.log", "medium.swift"]
+FILES = ["small.md", "large.md", "small.pdf", "large.pdf", "small.png", "photo.jpg", "photo.heic", "large.png", "small.txt", "medium.log", "large.log", "medium.swift", "small.csv", "large.csv"]
 TEXTEDIT = ("TextEdit", "/System/Applications/TextEdit.app")
-APPLE = {"md": TEXTEDIT, "txt": TEXTEDIT, "log": TEXTEDIT, "swift": TEXTEDIT}
+APPLE = {"md": TEXTEDIT, "txt": TEXTEDIT, "log": TEXTEDIT, "swift": TEXTEDIT, "csv": TEXTEDIT}
 APPLE_DEFAULT = ("Preview", "/System/Applications/Preview.app")
 GATE_PCT = 0.15
 GATE_FLOOR = {"ms": 10.0, "MB": 5.0}
@@ -237,6 +237,7 @@ DESCRIPTIONS = {
     "small.md": "Markdown, 1 KB", "large.md": "Markdown, 844 KB", "small.pdf": "PDF, 3 pages", "large.pdf": "PDF, 2,000 pages",
     "small.png": "PNG, 512×512", "photo.jpg": "JPEG, 12 MP", "photo.heic": "HEIC, 12 MP", "large.png": "PNG, 48 MP",
     "small.txt": "Text, 10 KB", "medium.log": "Log, 11 MB", "large.log": "Log, 86 MB", "medium.swift": "Swift, 100 KB",
+    "small.csv": "CSV, 100 rows", "large.csv": "CSV, 50,000 rows",
 }
 
 
