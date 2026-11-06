@@ -387,3 +387,30 @@ Everything clickable in Peeker that has no button frame of its own SHALL show on
 
 - **WHEN** the pointer moves over Open in Peeker in the Peek panel
 - **THEN** it looks as macOS draws it, with no extra fill
+
+### Requirement: Plugins can keep small preferences
+
+The host SHALL give a plugin, each time it opens a file in a window or the Peek panel, a place to keep small preferences between launches, such as a text size, stored in the app's preferences under the plugin's id. Unit tests and benchmarks SHALL get none, so they never read or change the user's preferences. A plugin SHALL ignore a stored value it doesn't accept and use its default.
+
+#### Scenario: A test opens a file
+
+- **WHEN** a unit test opens a text file and zooms in
+- **THEN** nothing is written to the app's preferences
+
+### Requirement: Plugins write a copy for Save As
+
+A plugin document that saves SHALL also write its file to a new place for Save As: with unsaved edits, the file as a save would write it, read from its current file and written to the new place; without edits, a copy of the file as it is. Once the write succeeds, the document SHALL use the new file for later saves and reads; if it fails, the document SHALL stay on its file with its edits. A document that can't save SHALL refuse Save As.
+
+#### Scenario: A failed Save As
+
+- **WHEN** Save As can't write to the chosen folder
+- **THEN** Peeker says why, the window still shows the original file, and its edits are still unsaved
+
+### Requirement: Plugin tools in the File menu
+
+A plugin SHALL be able to list a tool in the File menu instead of View or Tools, for tools that bring in or write other files. The host SHALL list such tools after Save As…, greyed out like other edit tools when the document can't take them.
+
+#### Scenario: A PDF in front
+
+- **WHEN** a PDF window is in front
+- **THEN** the File menu lists Insert Pages from File…, Save Selected Pages As… and Split… after Save As…

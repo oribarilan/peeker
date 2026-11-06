@@ -427,3 +427,68 @@ Actual Size (Cmd+0) SHALL show the pages at 100% scale, and Zoom to Fit (Cmd+9) 
 
 - **WHEN** the user presses Cmd+= twice in a PDF and then Cmd+9
 - **THEN** the pages fit the window as they did when the PDF opened
+
+### Requirement: Page edits move into place
+
+In a window, a rotated page SHALL turn into its new position, a deleted page SHALL shrink and fade away, and a page brought back by Undo SHALL grow into place, each in about 0.2 seconds. The edit SHALL be applied at once, so nothing waits for the motion. Nothing SHALL move while Reduce Motion is on, for pages not on screen, or for edits applied while a document opens.
+
+#### Scenario: Rotating a page
+
+- **WHEN** the user rotates page 2 to the right in the Editor
+- **THEN** page 2 turns a quarter turn clockwise into its new shape, and the page is already rotated when the motion starts
+
+#### Scenario: Deleting and undoing
+
+- **WHEN** the user deletes page 3 and then chooses Undo
+- **THEN** page 3 shrinks away, and on Undo it grows back into place
+
+#### Scenario: Reduce Motion
+
+- **WHEN** Reduce Motion is on and the user rotates or deletes a page
+- **THEN** the page changes at once, with no motion
+
+### Requirement: Inserting pages from files
+
+File > Insert Pages from File… and dropping PDFs or images from Finder onto the pages SHALL insert the other PDF's pages, or each image as a page of its size, after the last selected page, or after the page shown. Inserted pages SHALL be pending edits like other page tools: undoable, saved with Cmd+S or Save As…, and kept in the recovery copy.
+
+#### Scenario: Combining two scans
+
+- **WHEN** the user opens `scan 1.pdf`, inserts `scan 2.pdf` at the end and chooses Save As… with the name `scans.pdf`
+- **THEN** `scans.pdf` has the pages of both, in that order, and `scan 1.pdf` is unchanged
+
+#### Scenario: A photo as a page
+
+- **WHEN** page 1 is shown and the user drops a JPEG onto the pages
+- **THEN** a page showing the photo appears after page 1, and Undo takes it out
+
+### Requirement: Saving selected pages
+
+File > Save Selected Pages As… SHALL write the pages selected in the thumbnails, as shown with their unsaved edits, to a new PDF chosen in a sheet, and leave the window on its file.
+
+#### Scenario: Pulling out an invoice
+
+- **WHEN** the user selects pages 3 and 4 and saves them as `invoice.pdf`
+- **THEN** `invoice.pdf` has those two pages and the window still shows the whole file
+
+### Requirement: Splitting a PDF
+
+File > Split… SHALL write one file per page, or one file per run of pages starting at each selected page, in the original's folder, named "<name> 1.pdf", "<name> 2.pdf" and on, never overwriting a file that exists. The window SHALL stay on its file.
+
+#### Scenario: Splitting at chapters
+
+- **WHEN** a 10-page `book.pdf` has pages 4 and 8 selected and the user splits at the selected pages
+- **THEN** `book 1.pdf` has pages 1-3, `book 2.pdf` pages 4-7 and `book 3.pdf` pages 8-10
+
+#### Scenario: A name that exists
+
+- **WHEN** `book 1.pdf` already exists and the user splits every page
+- **THEN** the first page goes to the next free name and `book 1.pdf` is untouched
+
+### Requirement: File tools follow page permissions
+
+Insert Pages from File…, Save Selected Pages As… and Split… SHALL be greyed out with the reason where page changes are, and absent from the Peek panel.
+
+#### Scenario: A signed PDF
+
+- **WHEN** a digitally signed PDF is in front
+- **THEN** the three items are greyed out with the reason

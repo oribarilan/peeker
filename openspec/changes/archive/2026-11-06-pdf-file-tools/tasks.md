@@ -18,7 +18,7 @@
 ## 4. Checks and docs
 
 - [x] 4.1 `scripts/build.sh test` passes with no warnings.
-- [ ] 4.2 pdf-pages screen step: insert a file, Save As, check the page count; Split every page; check the files.
+- [x] 4.2 pdf-pages screen step: insert a file and check the page count; Split every page; check the files. Save As of a PDF stays a unit test (`PDFSaveAsTests`); the viewer flow drives Save As on a text file.
 - [x] 4.3 CHANGELOG; `openspec validate --all --strict`.
 
 ## Workflow follow-up

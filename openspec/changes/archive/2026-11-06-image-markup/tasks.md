@@ -18,8 +18,8 @@
 
 ## 3. Checks and docs
 
-- [ ] 3.1 `scripts/build.sh test` passes with no warnings; benchmark open isn't slower (`scripts/bench-ab.sh`).
-- [ ] 3.2 Screen step in `image-edit-flow.sh`: Markup, an arrow and a pixelate drawn, saved, the file changed and kept its size, Preview opens it; screenshots in light and dark. Copy stays a unit test (on a pasteboard of its own), since a run never touches the clipboard.
+- [x] 3.1 `scripts/build.sh test` passes with no warnings; benchmark open isn't slower (`scripts/bench-ab.sh`).
+- [x] 3.2 Screen step in `image-edit-flow.sh`: Markup, an arrow and a pixelate drawn, saved, the file changed and kept its size, Preview opens it; screenshots in light and dark. Copy stays a unit test (on a pasteboard of its own), since a run never touches the clipboard.
 - [x] 3.3 CHANGELOG, `openspec validate --all --strict`.
 
 ## Workflow follow-up

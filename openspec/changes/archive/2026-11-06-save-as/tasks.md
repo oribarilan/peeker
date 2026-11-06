@@ -16,7 +16,7 @@
 ## 3. Checks and docs
 
 - [x] 3.1 Run `scripts/build.sh test`; no new warnings.
-- [ ] 3.2 Screen step: Save As… on a text file through the sheet, then type and Cmd+S; check both files on disk and the window title.
+- [x] 3.2 Screen step: Save As… on a text file through the sheet, then type and Cmd+S; check both files on disk and the window title.
 - [x] 3.3 CHANGELOG line; `openspec validate --all --strict`.
 
 ## Workflow follow-up

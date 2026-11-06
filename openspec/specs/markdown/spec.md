@@ -197,12 +197,12 @@ A Markdown file SHALL open in the Editor with the cursor at the start of the tex
 
 ### Requirement: Actual Size in the Markdown Editor
 
-Actual Size (Cmd+0) SHALL put the Markdown Editor's text back at the size it opens at, every style together, listed in the View menu only, with no toolbar button. The Markdown Editor SHALL NOT offer Zoom to Fit, since its text always wraps to the window's width.
+Actual Size (Cmd+0) SHALL put the Markdown Editor's text back at the default size, 14 points for body text, every style together, and that size SHALL be remembered like any other. It SHALL be listed in the View menu only, with no toolbar button. The Markdown Editor SHALL NOT offer Zoom to Fit, since its text always wraps to the window's width.
 
 #### Scenario: Back to the default size
 
 - **WHEN** the user presses Cmd+= twice in a Markdown window and then Cmd+0
-- **THEN** body text and headings are at the sizes they opened at, and View lists Zoom In, Zoom Out and Actual Size but no Zoom to Fit
+- **THEN** body text is at 14 points and headings at their sizes for it, and View lists Zoom In, Zoom Out and Actual Size but no Zoom to Fit
 
 ### Requirement: Local images show as pictures
 
@@ -364,3 +364,12 @@ In the Peek panel a heading link SHALL scroll to the heading. A link to another 
 
 - **WHEN** the user clicks `[setup](other.md#setup)` in the Peek panel
 - **THEN** the panel closes and `other.md` opens in an Editor window, scrolled to Setup
+
+### Requirement: Markdown text size is remembered
+
+The Markdown Editor SHALL remember its text size across files and launches: a zoom in any window SHALL apply to every Markdown file opened after it, in a window or the Peek panel. Files already open SHALL keep their own until changed.
+
+#### Scenario: Reading at a larger size
+
+- **WHEN** the user zooms in twice in a Markdown window, quits Peeker and later presses Space on another Markdown file
+- **THEN** the Peek panel shows it at the larger size

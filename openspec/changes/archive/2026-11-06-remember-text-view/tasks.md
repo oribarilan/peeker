@@ -14,8 +14,8 @@
 ## 3. Checks and docs
 
 - [x] 3.1 Run `scripts/build.sh test`; verify everything passes with no new warnings.
-- [ ] 3.2 Screen: zoom and unwrap a text file, quit, relaunch and open another; check it opens the same way (a step in the viewer flow).
-- [ ] 3.3 CHANGELOG line, the backlog's T2 line removed, the design review's T2 marked fixed; `openspec validate --all --strict`.
+- [x] 3.2 Screen: zoom and unwrap a text file, quit, relaunch and open another; check it opens the same way (a step in the viewer flow).
+- [x] 3.3 CHANGELOG line, the backlog's T2 line removed, the design review's T2 marked fixed; `openspec validate --all --strict`.
 
 ## Workflow follow-up
 

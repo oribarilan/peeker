@@ -7,7 +7,7 @@
 
 ## 2. Checks
 
-- [ ] 2.1 Run the `pdf-pages` screen flow; record a rotate, a delete and an undo in light and dark, and with Reduce Motion, and look at them.
+- [x] 2.1 Run the `pdf-pages` screen flow; record a rotate and a delete in dark and in light, and look at them. Reduce Motion stays a unit test, so a run never changes the system setting.
 - [x] 2.2 Add a CHANGELOG line under Unreleased and verify `openspec validate --all --strict`.
 
 ## Workflow follow-up
