@@ -16,7 +16,7 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Missing next to Preview
 
-- **PDF:** one highlight color. Other apps' highlights can't be removed (Peeker's own can). A password-protected PDF opens view-only. A turned page's thumbnail stays upright (the page and the saved file are turned): PDFKit's thumbnail view ignores page rotation, even in a file opened fresh, so showing it means replacing that view with our own, drag, multiple selection and the page menu included (found 2026-10-31 by the `pdf-pages` screen flow).
+- **PDF:** one highlight color. Other apps' highlights can't be removed (Peeker's own can). A password-protected PDF opens view-only.
 
 ## Future work
 
