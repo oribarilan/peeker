@@ -91,7 +91,7 @@ private enum RoutedPlugin: Plugin {
     }
 
     @Test func builtInPluginsAreInSidebarOrder() {
-        #expect(PluginCatalog.builtIn.map { $0.id } == ["image", "pdf", "markdown", "table", "text"])
+        #expect(PluginCatalog.builtIn.map { $0.id } == ["image", "pdf", "markdown", "table", "data", "text"])
     }
 }
 
@@ -119,8 +119,8 @@ private enum RoutedPlugin: Plugin {
     }
 
     @Test func theOwnerIsListedEvenWhenItDoesntReadTheType() {
-        let moved = #"{"plugins": {"markdown": {"extensions": ["md", "json"]}, "text": {"extensions": ["txt"]}}}"#
-        #expect(choices("/tmp/data.json", config: moved) == ["markdown", "text"])
+        let moved = #"{"plugins": {"markdown": {"extensions": ["md", "html"]}, "text": {"extensions": ["txt"]}}}"#
+        #expect(choices("/tmp/page.html", config: moved) == ["markdown", "text"])
     }
 
     /// macOS types a file with no extension by its contents, so a text one counts as text.

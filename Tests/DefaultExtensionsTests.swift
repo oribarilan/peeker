@@ -51,6 +51,7 @@ import UniformTypeIdentifiers
     @Test(arguments: [
         ("text", ["md", "json", "swift", "txt", "csv"], ["png", "pdf"]),
         ("table", ["csv", "tsv"], ["txt", "json", "md"]),
+        ("data", ["json"], ["txt", "csv", "md"]),
         ("markdown", ["md", "markdown"], ["txt", "json"]),
         ("image", ["png", "jpg", "cr2", "heic"], ["svg", "pdf"]),
         ("pdf", ["pdf"], ["png", "txt"]),

@@ -11,6 +11,7 @@ packages() {
   case $1 in
     markdown) print Markdown PeekerSyntax ;;
     text) print PeekerSyntax ;;
+    data) print PeekerSyntax ;;
   esac
 }
 

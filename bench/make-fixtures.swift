@@ -61,6 +61,12 @@ try write("large.md", "# Large\n\n" + (1...4_000).map { String(format: section, 
 try write("small.csv", "name,city,score\n" + (0..<100).map { "person \($0),city \($0 % 13),\($0 * 37 % 101)" }.joined(separator: "\n"))
 try write("large.csv", "id,name,city,score,notes\n" + (0..<50_000).map { "\($0),person \($0),city \($0 % 13),\($0 * 37 % 101),\"note, with comma \($0)\"" }.joined(separator: "\n"))
 
+func json(items: Int) -> String {
+    "{\n  \"name\": \"fixture\",\n  \"items\": [\n" + (0..<items).map { "    {\"id\": \($0), \"name\": \"item \($0)\", \"tags\": [\"a\", \"b\"], \"score\": \($0 * 37 % 101).5, \"active\": \($0 % 2 == 0)}" }.joined(separator: ",\n") + "\n  ]\n}\n"
+}
+try write("small.json", json(items: 20))     // ~2 KB
+try write("large.json", json(items: 30_000)) // ~3 MB
+
 func pdf(_ name: String, pages: Int) {
     let url = dir.appending(path: name) as CFURL
     var box = CGRect(x: 0, y: 0, width: 612, height: 792)

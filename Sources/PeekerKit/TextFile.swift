@@ -26,6 +26,8 @@ public nonisolated enum TextFile {
         public let byteCount: Int
         /// Lines in the whole file, not just the part shown.
         public let lineCount: Int
+        /// Whether `text` is only the first part of the file.
+        public let isPartial: Bool
     }
 
     /// Reads and decodes the file off the main thread, cutting it to what the view can lay out quickly.
@@ -40,7 +42,8 @@ public nonisolated enum TextFile {
         let editable = data.count <= TextLimits.editableBytes && !truncated
         let note = truncated ? "Showing the first \(limit / 1_048_576) MB of \(size(data.count)). Read-only." : editable ? nil : readOnlyNote
         let shown = truncated ? String(decoding: utf8.prefix(shownCount), as: UTF8.self) : text
-        return Loaded(text: shown, format: format, editable: editable, note: note, byteCount: data.count, lineCount: TextCodec.lineCount(of: text))
+        return Loaded(text: shown, format: format, editable: editable, note: note, byteCount: data.count, lineCount: TextCodec.lineCount(of: text),
+                      isPartial: truncated)
     }
 
     /// Writes `text` to `path` as `format`, off the main thread, and returns the bytes written. Never substitutes

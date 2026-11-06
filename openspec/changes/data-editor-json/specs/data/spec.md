@@ -70,12 +70,17 @@ A tree edit SHALL change only its own part of the text: the edited value or key,
 
 ### Requirement: Large data files
 
-A data file over 10 MB SHALL open read-only, as text files do, with the reason shown. The Peek panel SHALL show the tree without editing.
+A data file over 10 MB SHALL open read-only, as text files do, with the reason shown. A file over 16 MB, whose text shows only in part, SHALL open as text only, saying why: its tree would take about twelve times its size in memory. The Peek panel SHALL show the tree without editing.
 
 #### Scenario: A large export
 
-- **WHEN** the user opens a 40 MB JSON file in the Editor
+- **WHEN** the user opens a 12 MB JSON file in the Editor
 - **THEN** the tree shows and editing is greyed out with the reason
+
+#### Scenario: A very large export
+
+- **WHEN** the user opens a 40 MB JSON file
+- **THEN** its text shows under a bar saying files over 16 MB show as text only, and Show Text can't be turned off
 
 ### Requirement: Opening data is fast
 

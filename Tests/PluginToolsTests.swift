@@ -1,4 +1,5 @@
 import AppKit
+import PeekerData
 import PeekerImage
 import PeekerKit
 import PeekerMarkdown
@@ -22,6 +23,7 @@ import Testing
             (TextPlugin.self, try TempFile.make(Data("a\n".utf8))),
             (MarkdownPlugin.self, try TempFile.make(Data("# a\n".utf8), name: "f.md")),
             (TablePlugin.self, try TempFile.make(Data("a,b\n1,2\n".utf8), name: "f.csv")),
+            (DataPlugin.self, try TempFile.make(Data("{\"a\": 1}\n".utf8), name: "f.json")),
         ]
         for (plugin, file) in cases {
             let declared = plugin.tools.map(\.id)
@@ -37,12 +39,13 @@ import Testing
         #expect(MarkdownPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])
         #expect(TablePlugin.tools.map(\.id) == ["header-row", "delimiter-comma", "delimiter-semicolon", "delimiter-tab", "delimiter-pipe",
                                                 "add-row-above", "add-row-below", "add-column-before", "add-column-after", "delete-rows", "delete-columns"])
+        #expect(DataPlugin.tools.map(\.id) == ["show-text", "add-item", "add-child", "delete-item"])
     }
 
     @Test func eachPluginNamesItsSettingsIcon() {
-        #expect([ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, TextPlugin.symbol] == ["photo", "doc.richtext", "number", "tablecells", "doc.plaintext"])
+        #expect([ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, DataPlugin.symbol, TextPlugin.symbol] == ["photo", "doc.richtext", "number", "tablecells", "curlybraces", "doc.plaintext"])
         #expect(PluginEntry(PDFPlugin.self).symbol == "doc.richtext")
-        for symbol in [ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, TextPlugin.symbol] {
+        for symbol in [ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, DataPlugin.symbol, TextPlugin.symbol] {
             #expect(NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil, "\(symbol) is an SF Symbol")
         }
     }
