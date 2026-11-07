@@ -1,107 +1,33 @@
 import Foundation
 
-/// A key or value of a JSON file, with its place in the file's UTF-8 bytes. Built off the main thread and never changed
-/// after, so it's safe to hand to the view.
-nonisolated final class JSONNode: @unchecked Sendable {
-    enum Kind: Sendable { case object, array, string, number, bool, null }
-    let kind: Kind
-    /// The key with its quotes.
-    let keyRange: Range<Int>?
-    let valueRange: Range<Int>
-    /// The children, built when first asked for below the levels the parse builds at once.
-    var children: [JSONNode] {
-        if let built { return built }
-        let made = JSONParser.children(of: self, in: source.bytes)
-        built = made
-        return made
-    }
-    fileprivate var built: [JSONNode]?
-    fileprivate(set) weak var parent: JSONNode?
-    /// Its place among its parent's children.
-    fileprivate(set) var index = 0
-    /// The parsed bytes, shared by every node: keys and strings are decoded only when asked for, which made parsing a
-    /// 3 MB file several times faster.
-    fileprivate let source: JSONSource
-
-    fileprivate init(kind: Kind, keyRange: Range<Int>?, valueRange: Range<Int>, source: JSONSource) {
-        self.kind = kind
-        self.keyRange = keyRange
-        self.valueRange = valueRange
-        self.source = source
-        if kind != .object, kind != .array { built = [] }
-    }
-
-    fileprivate func adopt(_ children: [JSONNode]) {
-        for (index, child) in children.enumerated() {
-            child.parent = self
-            child.index = index
-        }
-        built = children
-    }
-
-    /// The member's key, decoded; nil for array items and the top.
-    var key: String? { keyRange.map { JSONParser.decodeString(source.bytes[$0]) } }
-
-    /// A string decoded, or a scalar's text as written; nil for objects and arrays.
-    var value: String? {
-        switch kind {
-        case .object, .array: nil
-        case .string: JSONParser.decodeString(source.bytes[valueRange])
-        default: String(decoding: source.bytes[valueRange], as: UTF8.self)
-        }
-    }
-
-    /// Where the member starts: its key, or its value in an array.
-    var start: Int { keyRange?.lowerBound ?? valueRange.lowerBound }
-    var isContainer: Bool { kind == .object || kind == .array }
-}
-
-/// The bytes a tree was parsed from.
-nonisolated final class JSONSource: Sendable {
-    let bytes: [UInt8]
-    init(_ bytes: [UInt8]) { self.bytes = bytes }
-}
-
-nonisolated struct JSONError: Error, Equatable, Sendable {
-    let message: String
-    let offset: Int
-    let line: Int
-    let column: Int
-}
-
 /// A lenient JSON reader: comments (`//` and `/* */`) and trailing commas are accepted, as in JSONC and many config
 /// files.
 nonisolated enum JSONParser {
-    /// Deep enough for any real file, shallow enough not to run out of stack on a hostile one.
-    static let maxDepth = 512
     /// Levels below the top built at once: the top's children and theirs, which the tree shows open.
     static let eagerLevels = 2
 
     /// A container's children, one level, read from its bytes; their own children wait until asked for.
-    static func children(of node: JSONNode, in bytes: [UInt8]) -> [JSONNode] {
+    static func children(of node: DataNode, in source: JSONSource) -> [DataNode] {
         guard node.isContainer else { return [] }
-        var reader = Reader(bytes: bytes, source: node.source, at: node.valueRange.lowerBound)
+        var reader = Reader(bytes: source.bytes, source: source, at: node.valueRange.lowerBound)
         guard let copy = try? reader.value(keyRange: nil, depth: 0, build: true, levels: 1) else { return [] }
-        let children = copy.built ?? []
+        let children = copy.builtChildren ?? []
         node.adopt(children)
         return children
     }
 
-    static func parse(_ text: String) -> Result<JSONNode, JSONError> {
+    static func parse(_ text: String) -> Result<DataNode, SyntaxError> {
         let bytes = Array(text.utf8)
         var reader = Reader(bytes: bytes, source: JSONSource(bytes))
-        do throws(Failure) {
+        do throws(ParseFailure) {
             try reader.skip()
             // The whole file is checked, but nodes are made only for the levels the tree shows at first.
-            guard let root = try reader.value(keyRange: nil, depth: 0, build: true, levels: eagerLevels) else { throw Failure("Expected a value", 0) }
+            guard let root = try reader.value(keyRange: nil, depth: 0, build: true, levels: eagerLevels) else { throw ParseFailure("Expected a value", 0) }
             try reader.skip()
-            guard reader.at == bytes.count else { throw Failure("Unexpected text after the end", reader.at) }
+            guard reader.at == bytes.count else { throw ParseFailure("Unexpected text after the end", reader.at) }
             return .success(root)
         } catch {
-            let before = bytes[..<min(error.offset, bytes.count)]
-            let line = before.filter { $0 == 0x0A }.count + 1
-            let column = before.count - (before.lastIndex(of: 0x0A).map { $0 + 1 } ?? 0) + 1
-            return .failure(JSONError(message: error.message, offset: error.offset, line: line, column: column))
+            return .failure(SyntaxError(error.message, at: error.offset, in: bytes))
         }
     }
 
@@ -164,14 +90,6 @@ nonisolated enum JSONParser {
         return at == bytes.endIndex
     }
 
-    fileprivate struct Failure: Error {
-        let message: String
-        let offset: Int
-        init(_ message: String, _ offset: Int) {
-            self.message = message
-            self.offset = offset
-        }
-    }
 
     fileprivate struct Reader {
         let bytes: [UInt8]
@@ -181,7 +99,7 @@ nonisolated enum JSONParser {
         func peek() -> UInt8? { at < bytes.count ? bytes[at] : nil }
 
         /// Spaces, line breaks and comments.
-        mutating func skip() throws(Failure) {
+        mutating func skip() throws(ParseFailure) {
             while let byte = peek() {
                 if byte == 0x20 || byte == 0x09 || byte == 0x0A || byte == 0x0D {
                     at += 1
@@ -191,7 +109,7 @@ nonisolated enum JSONParser {
                     let start = at
                     at += 2
                     while at + 1 < bytes.count, !(bytes[at] == 0x2A && bytes[at + 1] == 0x2F) { at += 1 }
-                    guard at + 1 < bytes.count else { throw Failure("This comment has no closing */", start) }
+                    guard at + 1 < bytes.count else { throw ParseFailure("This comment has no closing */", start) }
                     at += 2
                 } else {
                     return
@@ -201,10 +119,10 @@ nonisolated enum JSONParser {
 
         /// Reads a value. With `build`, makes its node, and nodes for `levels` levels of children below; without, only
         /// checks it.
-        mutating func value(keyRange: Range<Int>?, depth: Int, build: Bool, levels: Int) throws(Failure) -> JSONNode? {
-            guard depth < JSONParser.maxDepth else { throw Failure("Nested too deeply", at) }
+        mutating func value(keyRange: Range<Int>?, depth: Int, build: Bool, levels: Int) throws(ParseFailure) -> DataNode? {
+            guard depth < DataNode.maxDepth else { throw ParseFailure("Nested too deeply", at) }
             let start = at
-            let kind: JSONNode.Kind
+            let kind: DataNode.Kind
             switch peek() {
             case 0x7B: return try container(object: true, keyRange: keyRange, depth: depth, build: build, levels: levels)
             case 0x5B: return try container(object: false, keyRange: keyRange, depth: depth, build: build, levels: levels)
@@ -214,14 +132,14 @@ nonisolated enum JSONParser {
             case let byte? where byte == 0x2D || (0x30...0x39).contains(byte):
                 at += 1
                 while let next = peek(), (0x30...0x39).contains(next) || next == 0x2E || next == 0x65 || next == 0x45 || next == 0x2B || next == 0x2D { at += 1 }
-                guard JSONParser.isNumber(bytes[start..<at]) else { throw Failure("This isn't a number", start) }
+                guard JSONParser.isNumber(bytes[start..<at]) else { throw ParseFailure("This isn't a number", start) }
                 kind = .number
             case 0x74 where matches(0x74, 0x72, 0x75, 0x65): at += 4; kind = .bool                    // true
             case 0x66 where matches(0x66, 0x61, 0x6C, 0x73, 0x65): at += 5; kind = .bool              // false
             case 0x6E where matches(0x6E, 0x75, 0x6C, 0x6C): at += 4; kind = .null                    // null
-            default: throw Failure("Expected a value", start)
+            default: throw ParseFailure("Expected a value", start)
             }
-            return build ? JSONNode(kind: kind, keyRange: keyRange, valueRange: start..<at, source: source) : nil
+            return build ? DataNode(kind: kind, keyRange: keyRange, valueRange: start..<at, source: source) : nil
         }
 
         private func matches(_ word: UInt8...) -> Bool {
@@ -230,22 +148,22 @@ nonisolated enum JSONParser {
             return true
         }
 
-        private mutating func container(object: Bool, keyRange: Range<Int>?, depth: Int, build: Bool, levels: Int) throws(Failure) -> JSONNode? {
+        private mutating func container(object: Bool, keyRange: Range<Int>?, depth: Int, build: Bool, levels: Int) throws(ParseFailure) -> DataNode? {
             let start = at
             let close: UInt8 = object ? 0x7D : 0x5D
             let expected = object ? "Expected a comma or }" : "Expected a comma or ]"
             at += 1
-            var children: [JSONNode] = []
+            var children: [DataNode] = []
             let buildChildren = build && levels > 0
             try skip()
             while peek() != close {
                 if object {
-                    guard peek() == 0x22 else { throw Failure(peek() == nil ? expected : "Expected a key in quotes", at) }
+                    guard peek() == 0x22 else { throw ParseFailure(peek() == nil ? expected : "Expected a key in quotes", at) }
                     let keyStart = at
                     try string()
                     let nameRange = keyStart..<at
                     try skip()
-                    guard peek() == 0x3A else { throw Failure("Expected a colon after the key", at) }
+                    guard peek() == 0x3A else { throw ParseFailure("Expected a colon after the key", at) }
                     at += 1
                     try skip()
                     if let child = try value(keyRange: nameRange, depth: depth + 1, build: buildChildren, levels: levels - 1) { children.append(child) }
@@ -257,18 +175,18 @@ nonisolated enum JSONParser {
                     at += 1
                     try skip()
                 } else if peek() != close {
-                    throw Failure(expected, at)
+                    throw ParseFailure(expected, at)
                 }
             }
             at += 1
             guard build else { return nil }
-            let node = JSONNode(kind: object ? .object : .array, keyRange: keyRange, valueRange: start..<at, source: source)
+            let node = DataNode(kind: object ? .object : .array, keyRange: keyRange, valueRange: start..<at, source: source)
             if buildChildren { node.adopt(children) }
             return node
         }
 
         /// Moves past a quoted string, checking its escapes; `decodeString` reads it when it's shown.
-        private mutating func string() throws(Failure) {
+        private mutating func string() throws(ParseFailure) {
             let start = at
             at += 1
             while at < bytes.count {
@@ -278,12 +196,12 @@ nonisolated enum JSONParser {
                 guard byte == 0x5C, at < bytes.count else { continue }
                 if bytes[at] == 0x75 {
                     at += 1
-                    guard hex4() != nil else { throw Failure("Expected four hex digits after \\u", at) }
+                    guard hex4() != nil else { throw ParseFailure("Expected four hex digits after \\u", at) }
                 } else {
                     at += 1
                 }
             }
-            throw Failure("This string has no closing quote", start)
+            throw ParseFailure("This string has no closing quote", start)
         }
 
         private mutating func hex4() -> UInt32? {
@@ -303,19 +221,19 @@ nonisolated struct TextChange: Equatable, Sendable {
 /// Tree edits as text changes that touch only the edited part, keeping comments and formatting elsewhere.
 nonisolated enum JSONEdits {
     /// A string stays a string; anything else takes a number, true, false or null typed as one, and a string otherwise.
-    static func setValue(_ node: JSONNode, typed: String) -> TextChange {
+    static func setValue(_ node: DataNode, typed: String) -> TextChange {
         let trimmed = typed.trimmingCharacters(in: .whitespaces)
         let literal = node.kind != .string && isScalar(trimmed) ? trimmed : quoted(typed)
         return TextChange(range: node.valueRange, replacement: literal)
     }
 
-    static func rename(_ node: JSONNode, to name: String) -> TextChange {
+    static func rename(_ node: DataNode, to name: String) -> TextChange {
         TextChange(range: node.keyRange ?? node.valueRange.lowerBound..<node.valueRange.lowerBound, replacement: quoted(name))
     }
 
     /// Removes the member with its comma, and its line when it had one to itself. Two changes when the member is the
     /// last: the comma before it and the member, so a comment between them stays.
-    static func delete(_ node: JSONNode, in text: String) -> [TextChange] {
+    static func delete(_ node: DataNode, in text: String) -> [TextChange] {
         let bytes = Array(text.utf8)
         let start = node.start, end = node.valueRange.upperBound
         if let comma = comma(after: end, in: bytes) {
@@ -343,7 +261,7 @@ nonisolated enum JSONEdits {
 
     /// A new member after `sibling`: `"key": null`, or `null` in an array, on its own line at the sibling's
     /// indentation, or on the same line in a one-line object or array.
-    static func insert(after sibling: JSONNode, key: String?, in text: String) -> TextChange {
+    static func insert(after sibling: DataNode, key: String?, in text: String) -> TextChange {
         let bytes = Array(text.utf8)
         let member = key.map { "\(quoted($0)): null" } ?? "null"
         let end = sibling.valueRange.upperBound
@@ -353,7 +271,7 @@ nonisolated enum JSONEdits {
     }
 
     /// A new member at the end of `container`.
-    static func addChild(to container: JSONNode, key: String?, in text: String) -> TextChange {
+    static func addChild(to container: DataNode, key: String?, in text: String) -> TextChange {
         if let last = container.children.last { return insert(after: last, key: key, in: text) }
         let bytes = Array(text.utf8)
         let member = key.map { "\(quoted($0)): null" } ?? "null"
@@ -369,7 +287,7 @@ nonisolated enum JSONEdits {
 
     /// Moves a member to `index` among its siblings. The text between members (commas, comments, line breaks) stays
     /// where it is; only the members change places.
-    static func move(_ node: JSONNode, to index: Int, in text: String) -> TextChange {
+    static func move(_ node: DataNode, to index: Int, in text: String) -> TextChange {
         guard let parent = node.parent, let first = parent.children.first, let last = parent.children.last else {
             return TextChange(range: node.start..<node.start, replacement: "")
         }
@@ -388,7 +306,7 @@ nonisolated enum JSONEdits {
     }
 
     /// "key", or "key 2", "key 3"… when that's taken.
-    static func freshKey(in container: JSONNode) -> String {
+    static func freshKey(in container: DataNode) -> String {
         let taken = Set(container.children.compactMap(\.key))
         var name = "key", number = 1
         while taken.contains(name) {

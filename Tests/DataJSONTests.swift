@@ -2,7 +2,7 @@ import Foundation
 @testable import PeekerData
 import Testing
 
-private func parse(_ text: String) throws -> JSONNode { try JSONParser.parse(text).get() }
+private func parse(_ text: String) throws -> DataNode { try JSONParser.parse(text).get() }
 private func slice(_ text: String, _ range: Range<Int>) -> String { String(decoding: Array(text.utf8)[range], as: UTF8.self) }
 private func applyAll(_ changes: [TextChange], to text: String) -> String {
     changes.sorted { $0.range.lowerBound > $1.range.lowerBound }.reduce(text) { apply($1, to: $0) }

@@ -7,14 +7,15 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private(set) var url: URL
     private let allowsEditing: Bool
     private let preferences: PluginPreferences?
-    private var format: TextFormat
+    private var textFormat: TextFormat
+    private(set) var format: DataFormat
     /// The text as last loaded or saved.
     private var baseline: String
     private var readOnlyReason: String?
     private(set) var info: [InfoRow]
     /// The parse of the text as it is now: a tree, or why it isn't one.
-    private(set) var root: JSONNode?
-    private(set) var error: JSONError?
+    private(set) var root: DataNode?
+    private(set) var error: SyntaxError?
     /// Whether the text shows instead of the tree, remembered for every data file.
     private(set) var showsText = false
     let undoManager = UndoManager()
@@ -39,10 +40,11 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         self.url = url
         self.allowsEditing = allowsEditing
         self.preferences = preferences
-        format = loaded.file.format
-        baseline = loaded.file.text
-        readOnlyReason = loaded.file.editable ? nil : loaded.file.note ?? TextFile.readOnlyNote
-        info = Self.info(loaded.file)
+        textFormat = loaded.textFormat
+        format = loaded.format
+        baseline = loaded.text
+        readOnlyReason = loaded.readOnlyReason
+        info = loaded.info
         // TextKit 1 with non-contiguous layout, as Plain Text uses, for speed on large files.
         let layoutManager = NSLayoutManager()
         layoutManager.allowsNonContiguousLayout = true
@@ -52,15 +54,14 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         layoutManager.addTextContainer(textContainer)
         textView = ThemedFindTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 400), textContainer: textContainer)
         super.init()
-        textOnly = loaded.file.isPartial
-        if !textOnly {
-            switch loaded.parsed {
-            case .success(let node): root = node
-            case .failure(let failure): error = failure
-            }
+        textOnly = loaded.isPartial
+        switch loaded.parsed {
+        case .success(let node): root = node
+        case .failure(let failure): error = failure
+        case nil: break
         }
         showsText = preferences?.bool("showsText") ?? false
-        setUpViews(text: loaded.file.text)
+        setUpViews(text: loaded.text)
         coloring = loaded.colors.map { CodeColoring($0, in: textView) }
         NotificationCenter.default.addObserver(self, selector: #selector(applyTheme), name: TextTheme.didChange, object: nil)
         // Undo and Redo change the text; the tree follows at once, so a tree edit never acts on an old parse.
@@ -70,12 +71,6 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
     }
 
     @objc private func undoneOrRedone() { reparse() }
-
-    static func info(_ file: TextFile.Loaded) -> [InfoRow] {
-        [InfoRow(label: "Lines", value: file.lineCount.formatted()),
-         InfoRow(label: "Encoding", value: String.localizedName(of: file.format.encoding) + (file.format.hasBOM ? " with BOM" : "")),
-         InfoRow(label: "Size", value: ByteCountFormatter.string(fromByteCount: Int64(file.byteCount), countStyle: .file))]
-    }
 
     // MARK: Views
 
@@ -181,6 +176,8 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
     }
 
     var isEditable: Bool { editability == .editable }
+    /// Only JSON changes in the tree; the other formats change in their text.
+    var canEditTree: Bool { isEditable && format == .json }
     var text: String { textView.string }
 
     func isOn(_ tool: String) -> Bool? { tool == "show-text" ? showsText || root == nil : nil }
@@ -189,6 +186,7 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         if tool == "show-text", textOnly { return Self.textOnlyReason }
         if tool == "show-text", root == nil { return error.map { "Line \($0.line) has a problem; the tree shows once it's fixed." } }
         guard ["add-item", "add-child", "delete-item"].contains(tool) else { return nil }
+        if format != .json { return "Edit \(format.name) in the text: View > Show Text." }
         if showsText || root == nil { return "Switch to the tree to change items." }
         if root?.isContainer != true { return "This file holds a single value." }
         if tool == "add-child", tree.selectedNodes.first?.isContainer != true { return "Select an object or array." }
@@ -206,12 +204,12 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
             if !showsText { reparse() }
             showView()
             container.window?.makeFirstResponder(focusView)
-        case "add-item" where isEditable && unavailableReason(for: id) == nil: addItem()
-        case "add-child" where isEditable && unavailableReason(for: id) == nil:
+        case "add-item" where canEditTree && unavailableReason(for: id) == nil: addItem()
+        case "add-child" where canEditTree && unavailableReason(for: id) == nil:
             guard let container = tree.selectedNodes.first else { return false }
             let key = container.kind == .object ? JSONEdits.freshKey(in: container) : nil
             apply(name: "Add Child", select: (container, container.children.count)) { [JSONEdits.addChild(to: container, key: key, in: $0)] }
-        case "delete-item" where isEditable && unavailableReason(for: id) == nil: deleteSelection()
+        case "delete-item" where canEditTree && unavailableReason(for: id) == nil: deleteSelection()
         default: return false
         }
         return true
@@ -238,32 +236,32 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         apply(name: nodes.count == 1 ? "Delete Item" : "Delete Items", select: nil, steps: steps)
     }
 
-    func setValue(_ node: JSONNode, to typed: String) {
-        guard isEditable, !node.isContainer, isCurrent(node), typed != node.value else { return }
+    func setValue(_ node: DataNode, to typed: String) {
+        guard canEditTree, !node.isContainer, isCurrent(node), typed != node.value else { return }
         apply(name: "Change Value", select: nil) { _ in [JSONEdits.setValue(node, typed: typed)] }
     }
 
-    func rename(_ node: JSONNode, to name: String) {
-        guard isEditable, node.key != nil, node.key != name, isCurrent(node) else { return }
+    func rename(_ node: DataNode, to name: String) {
+        guard canEditTree, node.key != nil, node.key != name, isCurrent(node) else { return }
         apply(name: "Rename Key", select: nil) { _ in [JSONEdits.rename(node, to: name)] }
     }
 
-    func move(_ node: JSONNode, to index: Int) {
-        guard isEditable, let parent = node.parent, index != node.index, isCurrent(node) else { return }
+    func move(_ node: DataNode, to index: Int) {
+        guard canEditTree, let parent = node.parent, index != node.index, isCurrent(node) else { return }
         apply(name: "Move Item", select: (parent, index)) { [JSONEdits.move(node, to: index, in: $0)] }
     }
 
     /// Whether `node` belongs to the parse of the text as it is now.
-    private func isCurrent(_ node: JSONNode) -> Bool { (node.ancestors.last ?? node) === root }
+    private func isCurrent(_ node: DataNode) -> Bool { (node.ancestors.last ?? node) === root }
 
-    private func apply(name: String, select: (container: JSONNode, index: Int)?, _ step: @escaping (String) -> [TextChange]) {
+    private func apply(name: String, select: (container: DataNode, index: Int)?, _ step: @escaping (String) -> [TextChange]) {
         apply(name: name, select: select, steps: [step])
     }
 
     /// Makes text changes through the text view as one undo step, then parses the text again. Each step computes its
     /// changes from the text as the earlier steps left it. With `select`, the child at that index of that container is
     /// selected afterwards, and a new key's name starts editing.
-    private func apply(name: String, select: (container: JSONNode, index: Int)?, steps: [(String) -> [TextChange]]) {
+    private func apply(name: String, select: (container: DataNode, index: Int)?, steps: [(String) -> [TextChange]]) {
         let path = select.map { indexPath(of: $0.container) + [$0.index] }
         textView.breakUndoCoalescing()  // its own undo step, not part of the last typing
         undoManager.beginUndoGrouping()
@@ -306,7 +304,7 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         let before = root.map { _ in tree.state() }
         let topLevel = root?.children.map { $0.key ?? "" }
         let wasBroken = root == nil
-        switch JSONParser.parse(text) {
+        switch format.parse(text) {
         case .success(let node):
             root = node
             error = nil
@@ -321,7 +319,7 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         if root?.children.map({ $0.key ?? "" }) != topLevel { onSidebarChange?() }
     }
 
-    func indexPath(of node: JSONNode) -> [Int] {
+    func indexPath(of node: DataNode) -> [Int] {
         var path: [Int] = [], current = node
         while let parent = current.parent {
             path.insert(current.index, at: 0)
@@ -330,7 +328,7 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         return path
     }
 
-    func node(at path: [Int]) -> JSONNode? {
+    func node(at path: [Int]) -> DataNode? {
         var current = root
         for index in path { current = current?.children[safe: index] }
         return current
@@ -380,13 +378,18 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
             try await FileReplacement.copy(url, to: destination)
         }
         url = destination
+        // Saved under another extension, the text may now be another format.
+        if isEditable {
+            format = DataFormat(fileExtension: destination.pathExtension, text: text)
+            reparse()
+        }
     }
 
     private func write(_ text: String, to destination: URL, offer: SaveOffer?) async throws(PluginError) {
-        let target = offer == TextFile.saveAsUTF8 ? TextFormat(encoding: .utf8, hasBOM: false, lineEnding: format.lineEnding) : format
-        guard destination != url || target != format || Data(text.utf8) != Data(baseline.utf8) else { baseline = text; return }
+        let target = offer == TextFile.saveAsUTF8 ? TextFormat(encoding: .utf8, hasBOM: false, lineEnding: textFormat.lineEnding) : textFormat
+        guard destination != url || target != textFormat || Data(text.utf8) != Data(baseline.utf8) else { baseline = text; return }
         let byteCount = try await TextFile.write(text, as: target, to: destination.path)
-        format = target
+        textFormat = target
         baseline = text
         info = [InfoRow(label: "Lines", value: TextCodec.lineCount(of: text).formatted())] + info.dropFirst().dropLast()
             + [InfoRow(label: "Size", value: ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))]
@@ -404,11 +407,12 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
     func reload() async throws(PluginError) -> Bool {
         let loaded = try await DataPlugin.load(url)
         guard unsavedEdits() == nil else { return true }  // edits made meanwhile win
-        format = loaded.file.format
-        baseline = loaded.file.text
-        readOnlyReason = loaded.file.editable ? nil : loaded.file.note ?? TextFile.readOnlyNote
-        textOnly = loaded.file.isPartial
-        info = Self.info(loaded.file)
+        textFormat = loaded.textFormat
+        format = loaded.format
+        baseline = loaded.text
+        readOnlyReason = loaded.readOnlyReason
+        textOnly = loaded.isPartial
+        info = loaded.info
         textView.isEditable = isEditable
         revertEdits()
         onSidebarChange?()
@@ -416,10 +420,10 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
     }
 }
 
-extension JSONNode {
+extension DataNode {
     /// Its parent, its parent's parent, up to the top.
-    var ancestors: [JSONNode] {
-        var nodes: [JSONNode] = [], current = parent
+    var ancestors: [DataNode] {
+        var nodes: [DataNode] = [], current = parent
         while let node = current {
             nodes.append(node)
             current = node.parent

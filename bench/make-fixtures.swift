@@ -67,6 +67,12 @@ func json(items: Int) -> String {
 try write("small.json", json(items: 20))     // ~2 KB
 try write("large.json", json(items: 30_000)) // ~3 MB
 
+func yaml(items: Int) -> String {
+    "name: fixture\nitems:\n" + (0..<items).map { "  - id: \($0)\n    name: item \($0)\n    tags: [a, b]\n    score: \($0 * 37 % 101).5\n    active: \($0 % 2 == 0)\n" }.joined()
+}
+try write("small.yaml", yaml(items: 20))     // ~2 KB
+try write("large.yaml", yaml(items: 30_000)) // ~2.5 MB
+
 func pdf(_ name: String, pages: Int) {
     let url = dir.appending(path: name) as CFURL
     var box = CGRect(x: 0, y: 0, width: 612, height: 792)

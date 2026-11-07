@@ -6,7 +6,7 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     private weak var document: DataDocument?
     let outlineView = TreeOutlineView()
     private let scrollView = NSScrollView()
-    private var editing: (node: JSONNode, key: Bool)?
+    private var editing: (node: DataNode, key: Bool)?
     private static let pasteboardType = NSPasteboard.PasteboardType("dev.peeker.data-item")
     private(set) lazy var editor: NSTextField = {
         let field = NSTextField(string: "")
@@ -52,12 +52,12 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     required init?(coder: NSCoder) { fatalError("not used") }
 
     /// The items shown at the top: the top value's children, or the value itself when it isn't an object or array.
-    private var topItems: [JSONNode] {
+    private var topItems: [DataNode] {
         guard let root = document?.root else { return [] }
         return root.isContainer ? root.children : [root]
     }
 
-    var selectedNodes: [JSONNode] { outlineView.selectedRowIndexes.compactMap { outlineView.item(atRow: $0) as? JSONNode } }
+    var selectedNodes: [DataNode] { outlineView.selectedRowIndexes.compactMap { outlineView.item(atRow: $0) as? DataNode } }
 
     /// The tree again, first level open.
     func reload() {
@@ -77,7 +77,7 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     func state() -> State {
         guard let document else { return State(expanded: [], selected: []) }
         let rows = 0..<outlineView.numberOfRows
-        let nodes = rows.compactMap { outlineView.item(atRow: $0) as? JSONNode }
+        let nodes = rows.compactMap { outlineView.item(atRow: $0) as? DataNode }
         return State(expanded: nodes.filter { outlineView.isItemExpanded($0) }.map(document.indexPath),
                      selected: selectedNodes.map(document.indexPath))
     }
@@ -94,8 +94,8 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     }
 
     /// Selects `node`, opening its parents, and scrolls it into view.
-    func select(_ node: JSONNode) {
-        var parents: [JSONNode] = [], current = node.parent
+    func select(_ node: DataNode) {
+        var parents: [DataNode] = [], current = node.parent
         while let parent = current, parent !== document?.root {
             parents.insert(parent, at: 0)
             current = parent.parent
@@ -111,19 +111,19 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     // MARK: Data
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-        (item as? JSONNode)?.children.count ?? topItems.count
+        (item as? DataNode)?.children.count ?? topItems.count
     }
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-        (item as? JSONNode)?.children[index] ?? topItems[index]
+        (item as? DataNode)?.children[index] ?? topItems[index]
     }
 
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-        (item as? JSONNode)?.children.isEmpty == false
+        (item as? DataNode)?.children.isEmpty == false
     }
 
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
-        guard let node = item as? JSONNode, let id = tableColumn?.identifier.rawValue else { return nil }
+        guard let node = item as? DataNode, let id = tableColumn?.identifier.rawValue else { return nil }
         let cell = outlineView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(id), owner: self) as? TreeCell ?? TreeCell(identifier: id)
         if id == "key" {
             cell.set(node.key ?? "\(node.index)", dim: node.key == nil)
@@ -134,10 +134,11 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     }
 
     /// A value as the tree shows it: a string's text, a scalar as written, an object or array by its size.
-    static func shown(_ node: JSONNode) -> String {
+    static func shown(_ node: DataNode) -> String {
         switch node.kind {
         case .object: node.children.count == 1 ? "1 key" : "\(node.children.count) keys"
         case .array: node.children.count == 1 ? "1 item" : "\(node.children.count) items"
+        case .element: node.children.count == 1 ? "1 child" : "\(node.children.count) children"
         default: (node.value ?? "").replacingOccurrences(of: "\n", with: " ")
         }
     }
@@ -154,7 +155,7 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     // MARK: Editing
 
     @objc private func doubleClicked() {
-        guard let node = outlineView.item(atRow: outlineView.clickedRow) as? JSONNode else { return }
+        guard let node = outlineView.item(atRow: outlineView.clickedRow) as? DataNode else { return }
         edit(node, key: outlineView.clickedColumn == 0)
     }
 
@@ -164,8 +165,8 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
         edit(node, key: node.isContainer)
     }
 
-    func edit(_ node: JSONNode, key: Bool) {
-        guard document?.isEditable == true, key ? node.key != nil : !node.isContainer else { return }
+    func edit(_ node: DataNode, key: Bool) {
+        guard document?.canEditTree == true, key ? node.key != nil : !node.isContainer else { return }
         let row = outlineView.row(forItem: node)
         guard row >= 0 else { return }
         outlineView.scrollRowToVisible(row)
@@ -209,7 +210,7 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
         window?.makeFirstResponder(outlineView)
     }
 
-    private func finish(_ editing: (node: JSONNode, key: Bool)) {
+    private func finish(_ editing: (node: DataNode, key: Bool)) {
         self.editing = nil
         let value = editor.stringValue
         editor.removeFromSuperview()
@@ -219,20 +220,20 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     // MARK: Moving within a parent
 
     func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> (any NSPasteboardWriting)? {
-        guard document?.isEditable == true, let node = item as? JSONNode, let document, node.parent != nil else { return nil }
+        guard document?.canEditTree == true, let node = item as? DataNode, let document, node.parent != nil else { return nil }
         let pasteboardItem = NSPasteboardItem()
         pasteboardItem.setString(document.indexPath(of: node).map(String.init).joined(separator: "."), forType: Self.pasteboardType)
         return pasteboardItem
     }
 
-    private func dragged(_ info: any NSDraggingInfo) -> JSONNode? {
+    private func dragged(_ info: any NSDraggingInfo) -> DataNode? {
         guard let string = info.draggingPasteboard.pasteboardItems?.first?.string(forType: Self.pasteboardType) else { return nil }
         return document?.node(at: string.split(separator: ".").compactMap { Int($0) })
     }
 
     func outlineView(_ outlineView: NSOutlineView, validateDrop info: any NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
         guard info.draggingSource as? NSOutlineView === outlineView, let node = dragged(info), index >= 0 else { return [] }
-        let target = (item as? JSONNode) ?? document?.root
+        let target = (item as? DataNode) ?? document?.root
         return target === node.parent ? .move : []
     }
 

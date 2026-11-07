@@ -67,5 +67,6 @@ context: |
 
   Open questions:
   - Text-based formats: settled 2026-11-06. Plain Text keeps plain text, logs, code and config files; CSV and TSV
-    have the Table plugin (an editable table); JSON, YAML, XML, property lists and TOML get a data editor next
-    (a collapsible tree with a sidebar outline, tree editing for JSON first). Logs stay plain text for now.
+    have the Table plugin (an editable table); JSON, YAML, XML, property lists and TOML have the Data plugin
+    (a collapsible tree with a sidebar outline; JSON edits in the tree, the others in their text). Logs stay plain
+    text for now.

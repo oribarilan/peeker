@@ -18,6 +18,10 @@ printf '{\n  "name": "app",\n  "version": 1,\n  "deps": {\n    "a": 1\n  }\n}\n'
 printf '{\n  "name": "app",\n  "version": 2,\n  "deps": {\n    "a": 1\n  }\n}\n' > "$OUT/expected-edited.json"
 BAD="$OUT/bad.json"
 printf '{\n  "a": 1\n  "b": 2\n}\n' > "$BAD"
+YAML="$OUT/deploy.yaml"
+printf 'service: web\nports:\n  - 8080\n  - 8443\n' > "$YAML"
+PLIST="$OUT/Info.plist"
+printf '{"CFBundleName": "Sample", "CFBundleVersion": "7"}' | plutil -convert binary1 -o "$PLIST" -
 front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.5; }
 # The screen frame of the first element with that role and label or value: x y width height. A failed lookup gives
 # 0 0 0 0, and the click it was for is skipped rather than sent to the screen's corner.
@@ -112,5 +116,37 @@ check "The error bar stays after choosing Show Text" "$("$DRIVE" tree Peeker 30 
 "$DRIVE" keys Peeker cmd+w
 check "Closing the broken file asks nothing" "$("$DRIVE" wait Peeker window bad.json --gone --timeout 3 2>/dev/null && echo closed)" closed
 check "The broken file is left as it was" "$(printf '{\n  "a": 1\n  "b": 2\n}\n' | cmp -s - "$BAD" && echo same || echo different)" same
+
+# YAML in the Peek panel: a tree with its keys and the list's items.
+"$DRIVE" select "$YAML"
+sleep 2.5
+"$DRIVE" keys Finder space
+check "Space on deploy.yaml opens the Peek panel" "$("$DRIVE" wait Peeker window deploy.yaml 2>/dev/null && echo Peeker)" Peeker
+for _ in $(seq 30); do [ -n "$(has_text 8443)" ] && break; sleep 0.1; done
+"$DRIVE" tree Peeker 30 > "$OUT/yaml-tree.txt" 2>&1
+check "The YAML tree shows service with web" "$(grep -q 'AXStaticText.* = service$' "$OUT/yaml-tree.txt" && grep -q 'AXStaticText.* = web$' "$OUT/yaml-tree.txt" && echo yes)" yes
+check "The YAML tree shows ports' items" "$(grep -q 'AXStaticText.* = 8443$' "$OUT/yaml-tree.txt" && echo yes)" yes
+"$DRIVE" shot Peeker "$OUT/6-yaml-panel.png"
+"$DRIVE" keys Finder escape
+"$DRIVE" wait Peeker window deploy.yaml --gone
+
+# A binary property list: its keys in the tree, and its XML form, read-only, in Show Text.
+open -a "$APP" "$PLIST"
+"$DRIVE" wait Peeker window Info.plist --timeout 10
+front
+for _ in $(seq 30); do [ -n "$(has_text CFBundleName)" ] && break; sleep 0.1; done
+check "The property list's tree shows CFBundleName with Sample" "$(has_text CFBundleName)$(has_text Sample)" yesyes
+"$DRIVE" shot Peeker "$OUT/7-plist-tree.png" Info.plist
+"$DRIVE" menu Peeker View "Show Text"
+sleep 0.3
+check "Show Text shows the XML form" "$("$DRIVE" value Peeker | grep -c '<key>CFBundleName</key>')" 1
+"$DRIVE" keys Peeker cmd+down  # the end of the text
+"$DRIVE" type Peeker x
+sleep 0.3
+check "The XML form can't be edited" "$("$DRIVE" value Peeker | grep -c '</plist>x')" 0
+"$DRIVE" shot Peeker "$OUT/8-plist-text.png" Info.plist
+"$DRIVE" menu Peeker View "Show Text"
+"$DRIVE" keys Peeker cmd+w
+check "Closing the property list asks nothing" "$("$DRIVE" wait Peeker window Info.plist --gone --timeout 3 2>/dev/null && echo closed)" closed
 
 finish

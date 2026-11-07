@@ -6,9 +6,9 @@ public enum TextPlugin: Plugin {
     public static let id = "text"
     public static let name = "Plain Text"
     public static let symbol = "doc.plaintext"
-    /// Text, data and config formats, common source code, and files with no extension (dotfiles, `Makefile`).
+    /// Text, logs and config formats, common source code, and files with no extension (dotfiles, `Makefile`).
     public static let defaultExtensions = [
-        "txt", "text", "log", "xml", "yaml", "yml", "toml",
+        "txt", "text", "log",
         "ini", "conf", "cfg", "env", "properties",
         "sh", "bash", "zsh", "fish", "py", "rb", "pl", "js", "mjs", "cjs", "ts", "tsx", "jsx", "swift",
         "c", "h", "m", "mm", "cc", "cpp", "hpp", "go", "rs", "java", "kt", "sql", "css", "scss", "diff", "patch",

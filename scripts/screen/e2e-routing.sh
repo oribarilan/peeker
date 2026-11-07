@@ -25,6 +25,11 @@ printf 'name,price\nTea,3.50\n' > "$F/data.csv"
 printf 'name\tprice\nTea\t3.50\n' > "$F/data.tsv"
 printf '{"name": "app"}\n' > "$F/data.json"
 printf '// settings\n{"name": "app",}\n' > "$F/data.jsonc"
+printf 'name: app\nports:\n  - 80\n' > "$F/data.yaml"
+printf 'name: app\n' > "$F/data.yml"
+printf '[package]\nname = "app"\n' > "$F/Cargo.toml"
+printf '<project><version>1.0</version></project>\n' > "$F/pom.xml"
+printf '{"CFBundleName": "Peeker"}' | plutil -convert binary1 -o "$F/Info.plist" -
 sips -s format png -z 32 32 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$F/photo.png" >/dev/null
 ln -s "$F/notes.md" "$F/link.txt"
 
@@ -48,6 +53,11 @@ default|data.csv|table
 default|data.tsv|table
 default|data.json|data
 default|data.jsonc|data
+default|data.yaml|data
+default|data.yml|data
+default|Cargo.toml|data
+default|pom.xml|data
+default|Info.plist|data
 default|link.txt|markdown
 default|movie.mp4|no plugin
 default|folder|no plugin

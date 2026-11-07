@@ -117,7 +117,7 @@ targets:
           - CFBundleTypeName: Text
             CFBundleTypeRole: Editor
             LSHandlerRank: Alternate
-            LSItemContentTypes: [public.plain-text, public.json, public.xml, public.yaml, public.toml, com.microsoft.ini, public.css]
+            LSItemContentTypes: [public.plain-text, public.json, public.xml, public.yaml, public.toml, com.apple.property-list, com.microsoft.ini, public.css]
           - CFBundleTypeName: PDF
             CFBundleTypeRole: Editor
             LSHandlerRank: Alternate
