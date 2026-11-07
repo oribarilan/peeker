@@ -8,7 +8,7 @@ The Plain Text plugin: view and quickly edit text files such as notes, logs, con
 
 ### Requirement: Opens the text files on its list
 
-By default the plugin SHALL open plain text and logs (`txt`, `text`, `log`), structured data (`json`, `xml`, `yaml`, `yml`, `toml`), config files (`ini`, `conf`, `cfg`, `env`, `properties`), common source code and scripts, and files with no extension (`noExtension`). CSV and TSV files belong to the Table plugin. A file that isn't text (it holds NUL bytes and isn't UTF-16, or decodes in no supported encoding) SHALL show "This doesn't look like a text file." in its tab.
+By default the plugin SHALL open plain text and logs (`txt`, `text`, `log`), structured data (`xml`, `yaml`, `yml`, `toml`), config files (`ini`, `conf`, `cfg`, `env`, `properties`), common source code and scripts, and files with no extension (`noExtension`). CSV and TSV files belong to the Table plugin, and JSON files to the Data plugin. A file that isn't text (it holds NUL bytes and isn't UTF-16, or decodes in no supported encoding) SHALL show "This doesn't look like a text file." in its tab.
 
 #### Scenario: Extensionless binary file
 
