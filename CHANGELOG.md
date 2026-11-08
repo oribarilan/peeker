@@ -6,6 +6,8 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Open in Peeker in the Peek panel brings the Editor to the front; it used to open behind Finder.
+- A click on an image with Spotlight armed no longer flashes the image darker, and a spotlight being drawn lights its area as you drag.
 - Image marks stay sharp at any zoom, also on small images; before, they were drawn in the image's own pixels and looked blocky when enlarged. The saved file still holds them at full resolution.
 - The markup strip shows each tool's key beside its icon. Pixelate has a Strength slider, from fine to coarse blocks, and Spotlight lights a rectangle or an oval; both are remembered like the color and size, and change the selected mark.
 - Rotate & Resize in images no longer opens with Cmd+R by default, since rotating is rare: use its toolbar button or Tools > Rotate & Resize, or set a key in Settings. L, R, H and V still work while it's open.

@@ -51,6 +51,8 @@ check "A click into a field in the Peek panel gives it no cursor" "$(grep -cE 'A
 
 "$DRIVE" press Peeker "Open in Peeker"
 "$DRIVE" wait Peeker window form.pdf --timeout 10
+sleep 0.5
+check "The Editor opens in front of Finder" "$("$DRIVE" focus Peeker | sed -n 's/^front: //p')" Peeker
 # macOS doesn't always bring an app opened from a terminal to the front, and its View and Tools menus fill in only then.
 osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
 sleep 0.5

@@ -18,7 +18,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var windows: [DocumentWindowController] = []
     private lazy var panel: PeekPanel = {
         let panel = PeekPanel()
-        panel.onOpenInWindow = { [weak self] url, place in self?.openInWindow(url, place: place) }
+        panel.onOpenInWindow = { [weak self] url, place in
+            // The panel never activates Peeker, so without this the Editor opens behind Finder.
+            self?.openInWindow(url, place: place)?.window?.orderFrontRegardless()
+            NSApp.activate()
+        }
         panel.owner = { [weak self] in self?.catalog.owner(for: $0)?.id }
         panel.onDismiss = { [weak self] in self?.updater.installIfIdle() }
         panelIsMade = true
@@ -367,11 +371,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     /// With a record, opens it with the record's plugin if that's still enabled and applies its edits. With a place,
     /// such as a heading a link named, goes there once the file shows.
-    private func openInWindow(_ url: URL, restoring record: RecoveryRecord? = nil, place: String?) {
+    @discardableResult
+    private func openInWindow(_ url: URL, restoring record: RecoveryRecord? = nil, place: String?) -> DocumentWindowController? {
         if let existing = Self.window(showing: url, in: windows) {
             existing.window?.makeKeyAndOrderFront(nil)
             if let place { Task { await existing.jump(to: place) } }
-            return
+            return existing
         }
         guard let entry = plugin(for: url, restoring: record) else {
             NSApp.activate()  // with no windows open, Peeker isn't the frontmost app
@@ -381,7 +386,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             alert.addButton(withTitle: "Open Settings")
             alert.addButton(withTitle: "OK")
             if alert.runModal() == .alertFirstButtonReturn { showSettings(pane: Self.settingsPane(forUnopenable: url, in: catalog)) }
-            return
+            return nil
         }
         let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: .shared, recoveryClipboard: recoveryClipboard,
                                                   preferences: .standard)
@@ -408,6 +413,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         controller.show(with: entry, restoring: record)
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         showWhatsNewForFirstWindow()
+        return controller
     }
 
     /// Where Open Settings goes for a file no enabled plugin opens: the turned-off plugin whose list has its extension,

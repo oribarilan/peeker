@@ -81,7 +81,7 @@ Open at Login, in the menu bar icon's menu and in Settings' General pane, SHALL 
 
 ### Requirement: The Peek panel views; Open in Peeker moves the file to the Editor
 
-The Peek panel SHALL only view, never edit. Its button SHALL read Open in Peeker, so the panel can be told apart from Quick Look, and SHALL close the panel and open the file in the Editor, ready to edit.
+The Peek panel SHALL only view, never edit. Its button SHALL read Open in Peeker, so the panel can be told apart from Quick Look, and SHALL close the panel and open the file in the Editor, in front of Finder, ready to edit.
 
 #### Scenario: Editing from the Peek panel
 
