@@ -91,7 +91,7 @@ In the Editor, Crop (C) SHALL let the user drag a rectangle on the image, adjust
 
 ### Requirement: Rotate & Resize panel
 
-Rotate & Resize SHALL have no default key; it opens from its toolbar button or the Tools menu, and a key can be set in Settings or the config. It SHALL open a panel just below the toolbar, with buttons to rotate left, rotate right, flip horizontally and flip vertically (also L, R, H and V while it's open), width and height fields in pixels or percent, and an aspect lock, on by default. Applying a new size SHALL resize the image as one edit; enlarging SHALL be allowed. Escape SHALL close the panel.
+Rotate & Resize SHALL open a panel just below the toolbar, with buttons to rotate left, rotate right, flip horizontally and flip vertically (also L, R, H and V while it's open), width and height fields in pixels or percent, and an aspect lock, on by default. Applying a new size SHALL resize the image as one edit; enlarging SHALL be allowed. Escape SHALL close the panel.
 
 #### Scenario: Turning twice
 - **WHEN** the user clicks Rotate & Resize, then presses R twice
@@ -104,6 +104,11 @@ Rotate & Resize SHALL have no default key; it opens from its toolbar button or t
 #### Scenario: Toolbar stays clear
 - **WHEN** the user opens Rotate & Resize from the toolbar button or the Tools menu
 - **THEN** the panel's top edge is below the toolbar, and every toolbar item stays visible and clickable
+
+
+### Requirement: Rotate & Resize has no default key
+
+Rotate & Resize SHALL have no default key, since rotating is rare; it opens from its toolbar button or the Tools menu, and a key can be set in Settings or the config.
 
 #### Scenario: No default key
 - **WHEN** the user presses Cmd+R in an image window with the default config
