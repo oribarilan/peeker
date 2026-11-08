@@ -104,6 +104,7 @@ open -a "$APP" "$MARKS"
 front
 "$DRIVE" keys Peeker m && sleep 0.5
 check "Markup shows its strip" "$("$DRIVE" tree Peeker 20 | grep -c 'Markup tools')" 1
+check "The strip has Line, as PDFs do" "$("$DRIVE" tree Peeker 20 | grep -c 'AXRadioButton “Line”')" 1
 read -r wx wy ww wh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
 "$DRIVE" keys Peeker a
 "$DRIVE" drag Peeker $((wx + ww / 3)) $((wy + wh / 2)) $((wx + ww * 5 / 12)) $((wy + wh * 7 / 12)) $((wx + ww / 2)) $((wy + wh * 2 / 3))
@@ -111,6 +112,11 @@ read -r wx wy ww wh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
 "$DRIVE" drag Peeker $((wx + ww * 3 / 5)) $((wy + wh * 2 / 5)) $((wx + ww * 7 / 10)) $((wy + wh / 2)) $((wx + ww * 4 / 5)) $((wy + wh * 3 / 5))
 check "Pixelate shows its Strength slider" "$("$DRIVE" tree Peeker 20 | grep -c 'AXSlider.*Strength')" 1
 "$DRIVE" shot Peeker "$OUT/5-marked.png"
+"$DRIVE" keys Peeker l && sleep 0.3
+check "L arms Line, which has sizes, not a strength" "$("$DRIVE" tree Peeker 20 | grep -c 'AXSlider.*Strength')" 0
+"$DRIVE" keys Peeker x && sleep 0.3
+"$DRIVE" keys Peeker h && sleep 0.3
+check "and H arms Marker" "$("$DRIVE" tree Peeker 20 | grep -c 'AXSlider.*Strength')" 0
 "$DRIVE" keys Peeker s && sleep 0.3
 check "Spotlight shows its shape picker" "$("$DRIVE" tree Peeker 20 | grep -c 'Spotlight shape')" 1
 "$DRIVE" keys Peeker t && sleep 0.3

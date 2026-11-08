@@ -65,6 +65,10 @@ import UniformTypeIdentifiers
         drag(overlay, from: CGPoint(x: 40, y: 40), to: CGPoint(x: 200, y: 120))
         guard case .arrow(let from, let to) = document.marks.first?.kind else { Issue.record("\(document.marks)"); return }
         #expect(abs(from.x - 40) < 1 && abs(to.y - 120) < 1)
+        #expect(document.perform("markup-line"))
+        drag(overlay, from: CGPoint(x: 40, y: 150), to: CGPoint(x: 200, y: 150))
+        #expect(document.marks.last.map { if case .line = $0.kind { true } else { false } } == true, "Line draws by a drag too")
+        document.undoManager.undo()
         #expect(document.perform("markup-box"))
         drag(overlay, from: CGPoint(x: 250, y: 20), to: CGPoint(x: 350, y: 80), option: true)
         #expect(document.marks.last.map { if case .box(_, true) = $0.kind { true } else { false } } == true, "an ellipse with Option")

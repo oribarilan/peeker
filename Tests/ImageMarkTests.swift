@@ -12,7 +12,7 @@ private func mark(_ kind: ImageMark.Kind, width: Double = 4) -> ImageMark {
 
 @Suite struct ImageMarkModel {
     @Test func marksRoundTripThroughRecovery() throws {
-        let marks = [mark(.arrow(from: .zero, to: CGPoint(x: 10, y: 20))), mark(.box(CGRect(x: 1, y: 2, width: 3, height: 4), ellipse: true)),
+        let marks = [mark(.arrow(from: .zero, to: CGPoint(x: 10, y: 20))), mark(.line(from: .zero, to: CGPoint(x: 5, y: 9))), mark(.box(CGRect(x: 1, y: 2, width: 3, height: 4), ellipse: true)),
                      mark(.text(origin: CGPoint(x: 5, y: 5), string: "Hi", style: TextStyle(font: .system, bold: true, italic: false, effect: .label))), mark(.pixelate(CGRect(x: 0, y: 0, width: 9, height: 9), strength: MarkStyle.defaultStrength)),
                      mark(.step(center: CGPoint(x: 3, y: 3))), mark(.pen([.zero, CGPoint(x: 1, y: 1)])), mark(.marker([.zero])),
                      mark(.spotlight(CGRect(x: 2, y: 2, width: 5, height: 5), ellipse: false))]
@@ -53,6 +53,8 @@ private func mark(_ kind: ImageMark.Kind, width: Double = 4) -> ImageMark {
         #expect(arrow.mapped(through: .flip(horizontal: true), from: size)?.kind == .arrow(from: CGPoint(x: 390, y: 20), to: CGPoint(x: 370, y: 40)))
         let resized = arrow.mapped(through: .resize(width: 200, height: 100), from: size)
         #expect(resized?.kind == .arrow(from: CGPoint(x: 5, y: 10), to: CGPoint(x: 15, y: 20)) && resized?.width == 2)
+        let line = mark(.line(from: CGPoint(x: 10, y: 20), to: CGPoint(x: 30, y: 40)))
+        #expect(line.mapped(through: .rotate(by: 90), from: size)?.kind == .line(from: CGPoint(x: 180, y: 10), to: CGPoint(x: 160, y: 30)))
         let box = mark(.box(CGRect(x: 10, y: 20, width: 30, height: 40), ellipse: false))
         #expect(box.mapped(through: .rotate(by: 90), from: size)?.kind == .box(CGRect(x: 140, y: 10, width: 40, height: 30), ellipse: false))
     }

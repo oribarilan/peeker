@@ -90,9 +90,14 @@ private func mark(_ kind: ImageMark.Kind) -> ImageMark {
         #expect(next.markupStyle.strength == 0.9 && next.markupStyle.ovalSpotlight)
     }
 
+    /// The key is drawn into each segment's icon, so Accessibility reads the tool's name, not its letter.
     @Test func theStripShowsEachToolsKey() {
         let strip = MarkupStrip()
-        #expect((0..<MarkupTool.allCases.count).map { strip.tools.label(forSegment: $0) } == ["A", "B", "T", "X", "N", "P", "K", "S"])
+        let segments = 0..<MarkupTool.allCases.count
+        #expect(segments.map { strip.tools.toolTip(forSegment: $0) ?? "" } == MarkupTool.allCases.map { "\($0.title) (\($0.key.uppercased()))" })
+        #expect(segments.map { strip.tools.image(forSegment: $0)?.accessibilityDescription ?? "" } == MarkupTool.allCases.map(\.title))
+        #expect(segments.allSatisfy { (strip.tools.label(forSegment: $0) ?? "").isEmpty })
+        #expect(segments.allSatisfy { strip.tools.image(forSegment: $0)?.isTemplate == true })
     }
 
     /// A new window is 960 points wide; the info sidebar takes about 200 of them.

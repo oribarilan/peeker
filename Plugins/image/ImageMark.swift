@@ -7,6 +7,7 @@ import PeekerKit
 nonisolated struct ImageMark: Codable, Sendable, Equatable {
     enum Kind: Codable, Sendable, Equatable {
         case arrow(from: CGPoint, to: CGPoint)
+        case line(from: CGPoint, to: CGPoint)
         case box(CGRect, ellipse: Bool)
         /// `origin` is the top left of the text.
         case text(origin: CGPoint, string: String, style: TextStyle)
@@ -36,7 +37,7 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
         guard !id.isEmpty, id.count <= 64, color.isValid, width.isFinite, (0.5...4000).contains(width) else { return false }
         let ok = { (p: CGPoint) in p.x.isFinite && p.y.isFinite && abs(p.x) <= 1_000_000 && abs(p.y) <= 1_000_000 }
         switch kind {
-        case .arrow(let from, let to): return ok(from) && ok(to)
+        case .arrow(let from, let to), .line(let from, let to): return ok(from) && ok(to)
         case .box(let rect, _), .pixelate(let rect, _), .spotlight(let rect, _):
             if case .pixelate(_, let strength) = kind, !(0...1).contains(strength) { return false }
             return ok(rect.origin) && ok(CGPoint(x: rect.maxX, y: rect.maxY)) && rect.width >= 0 && rect.height >= 0
@@ -50,7 +51,8 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
     var bounds: CGRect {
         let pad = width * 4
         switch kind {
-        case .arrow(let from, let to): return CGRect(from: from, to: to).insetBy(dx: -pad, dy: -pad)
+        case .arrow(let from, let to): return CGRect(from: from, to: to).insetBy(dx: -pad, dy: -pad)  // room for the head
+        case .line(let from, let to): return CGRect(from: from, to: to).insetBy(dx: -width, dy: -width)
         case .box(let rect, _), .pixelate(let rect, _), .spotlight(let rect, _): return rect.standardized.insetBy(dx: -width, dy: -width)
         case .text(let origin, let string, _):
             let lines = string.split(separator: "\n", omittingEmptySubsequences: false)
@@ -89,7 +91,7 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
         }
         let rect = { (r: CGRect) in CGRect(from: point(r.origin), to: point(CGPoint(x: r.maxX, y: r.maxY))) }
         switch kind {
-        case .arrow(let from, let to): mark.kind = .arrow(from: point(from), to: point(to))
+        case .arrow(let from, let to), .line(let from, let to): mark.kind = kind.withEnds(point(from), point(to))
         case .box(let r, let ellipse): mark.kind = .box(rect(r), ellipse: ellipse)
         case .pixelate(let r, let strength): mark.kind = .pixelate(rect(r), strength: strength)
         case .spotlight(let r, let ellipse): mark.kind = .spotlight(rect(r), ellipse: ellipse)
@@ -170,5 +172,12 @@ extension CGRect {
     /// The rectangle with corners `a` and `b`, in any order.
     nonisolated init(from a: CGPoint, to b: CGPoint) {
         self.init(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y))
+    }
+}
+
+nonisolated extension ImageMark.Kind {
+    /// An arrow or line with these ends, the same kind as this one.
+    func withEnds(_ from: CGPoint, _ to: CGPoint) -> Self {
+        if case .arrow = self { .arrow(from: from, to: to) } else { .line(from: from, to: to) }
     }
 }

@@ -105,6 +105,8 @@ nonisolated enum MarkRenderer {
         context.setFillColor(color)
         context.setLineWidth(width)
         switch mark.kind {
+        case .line(let from, let to):
+            context.strokeLineSegments(between: [from, to])
         case .arrow(let from, let to):
             let angle = atan2(to.y - from.y, to.x - from.x), head = width * 4
             let base = CGPoint(x: to.x - cos(angle) * head * 0.8, y: to.y - sin(angle) * head * 0.8)
