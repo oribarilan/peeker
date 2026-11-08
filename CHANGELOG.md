@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Rotate & Resize in images no longer opens with Cmd+R by default, since rotating is rare: use its toolbar button or Tools > Rotate & Resize, or set a key in Settings. L, R, H and V still work while it's open.
 - YAML, TOML, XML and property list files open as a collapsible tree too, with the outline and Show Text that JSON has. Their tree is read-only for now: edit them in the text, and the tree follows. A binary property list shows as a tree, and Show Text shows its XML form, read-only. Plain Text still opens them through Open With.
 - JSON files open as a collapsible tree, with the top-level keys in the sidebar and View > Show Text for the text. In a window you can edit values and keys, add, delete and move items, and only the edited part of the file changes, comments and formatting included. A file with a syntax error opens in the text, with the line and the problem shown. Plain Text still opens JSON through Open With.
 - CSV and TSV files open as a table, with the delimiter and header row guessed and switchable in View. In a window you can edit cells, add, delete and move rows and columns, and sort by clicking a column title without changing the file; saving keeps the file's format and writes untouched rows as they were. Plain Text still opens them through Open With.

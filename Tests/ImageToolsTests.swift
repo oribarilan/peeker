@@ -30,10 +30,10 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
                          characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
     }
 
-    @Test func theToolsAreCropOnCAndRotateAndResizeOnCmdR() {
+    @Test func cropIsOnCAndRotateAndResizeHasNoKey() {
         let byID = Dictionary(uniqueKeysWithValues: ImagePlugin.tools.map { ($0.id, $0) })
         #expect(byID["crop"]?.shortcut == "c" && byID["crop"]?.isEditTool == true)
-        #expect(byID["transform"]?.shortcut == "cmd+r" && byID["transform"]?.isEditTool == true)
+        #expect(byID["transform"]?.shortcut == nil && byID["transform"]?.isEditTool == true, "rotating is uncommon, so it has no default key")
     }
 
     @Test func viewRectsAndFractionsMapBothWays() {

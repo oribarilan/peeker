@@ -28,7 +28,7 @@ public enum ImagePlugin: Plugin {
         ToolSpec(id: "play-animation", title: "Play Animation", symbol: "play", showsInToolbar: false),
         // A single key, kept for Crop alone: other letters stay free for markup tools.
         ToolSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true, tip: "Drag a rectangle, then press Return."),
-        ToolSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", shortcut: "cmd+r", isEditTool: true),
+        ToolSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", isEditTool: true),
         ToolSpec(id: "markup", title: "Markup", symbol: "pencil.tip.crop.circle", shortcut: "m", isEditTool: true,
                  tip: "Pick a tool, or press its key, then drag on the image. Hold Option for an ellipse or a text label."),
     ] + MarkupTool.allCases.map(\.spec)

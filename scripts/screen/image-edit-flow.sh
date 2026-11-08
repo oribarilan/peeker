@@ -52,7 +52,7 @@ sleep 0.3
 sleep 0.5
 
 # Rotate & Resize: the fields show the cropped size, then the turned size after R.
-"$DRIVE" keys Peeker cmd+r
+"$DRIVE" press Peeker "Rotate & Resize"  # the toolbar button; it has no default key
 "$DRIVE" wait Peeker control "Apply"
 read -r _ ty _ th <<< "$("$DRIVE" frame Peeker AXToolbar || echo "0 0 0 0")"
 read -r _ py _ _ <<< "$("$DRIVE" frame Peeker AXPopover || echo "0 -1 0 0")"
