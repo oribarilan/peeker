@@ -35,6 +35,14 @@ nonisolated enum PDFEditing {
             }
             annotation.bounds = rect
             PDFMarks.setText(text, fontSize: fontSize, style: style ?? .standard, of: annotation)
+        case .setLook(let id, let index, let color, let width):
+            let page = try page(index, of: document, for: .drawing, fileName: fileName)
+            let annotation = try find(id, .drawing, verb: "change", on: page, index, fileName: fileName)
+            let invalid = PluginError("Can't save the drawing on page \(index + 1): its color or line width is invalid.")
+            guard var drawing = PDFMarks.drawing(of: annotation) else { throw invalid }
+            (drawing.color, drawing.width) = (color, width)
+            guard drawing.isValid else { throw invalid }
+            PDFMarks.setLook(color: color, width: width, of: annotation)
         case .delete(let id, let type, let index):
             let page = try page(index, of: document, for: type, fileName: fileName)
             page.removeAnnotation(try find(id, type, verb: "remove", on: page, index, fileName: fileName))
@@ -124,6 +132,8 @@ nonisolated enum PDFEditing {
         case .signature(let strokes):
             strokes.count <= maxStrokes && strokes.reduce(0) { $0 + $1.count } <= maxPoints
                 && strokes.allSatisfy { $0.allSatisfy { (-0.01...1.01).contains($0.x) && (-0.01...1.01).contains($0.y) } }
+        case .drawing(let drawing):
+            drawing.isValid
         }
     }
 
@@ -144,6 +154,8 @@ nonisolated enum PDFEditing {
                 .setText(id: id, page: page, text: $0.contents ?? "", fontSize: PDFMarks.fontSize(of: $0) ?? 12, rect: $0.bounds,
                          style: PDFMarks.style(of: $0).nilIfStandard)
             }
+        case .setLook(let id, let page, _, _):
+            return annotation(id, page).flatMap(PDFMarks.drawing(of:)).map { .setLook(id: id, page: page, color: $0.color, width: $0.width) }
         case .delete(let id, _, let page):
             return annotation(id, page).flatMap { PDFMarks.mark(of: $0, page: page) }.map { .add($0) }
         case .field(let name, _):

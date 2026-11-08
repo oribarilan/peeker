@@ -5,7 +5,7 @@ enum FindAction: Equatable {
     case next, previous, close
 }
 
-/// Holds the PDF view and, under the toolbar, from the first Cmd+F the find bar above it, and the text box strip while
+/// Holds the PDF view and, under the toolbar, from the first Cmd+F the find bar above it, and the markup strip while
 /// it shows. The strip floats over the pages rather than pushing them down, which would move them under the pointer
 /// between the two clicks of a double-click. It answers the Find menu items for the view and the find bar, being in
 /// the responder chain of each.
@@ -17,8 +17,8 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
     private let allowsFind: Bool
     private var pagesAtTop: NSLayoutConstraint!
     private var pagesBelowBar: NSLayoutConstraint?
-    /// The text box strip, made when first shown, under the toolbar or under the find bar while that shows.
-    private(set) var strip: TextBoxStrip?
+    /// The markup strip, made when first shown, under the toolbar or under the find bar while that shows.
+    private(set) var strip: PDFMarkupStrip?
     private var stripAtTop: NSLayoutConstraint?
     private var stripBelowBar: NSLayoutConstraint?
 
@@ -103,12 +103,12 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
         return bar
     }
 
-    /// Shows or hides the text box strip, making it the first time; nil when hidden.
+    /// Shows or hides the markup strip, making it the first time; nil when hidden.
     @discardableResult
-    func showStrip(_ shown: Bool) -> TextBoxStrip? {
+    func showStrip(_ shown: Bool) -> PDFMarkupStrip? {
         guard shown || strip != nil else { return nil }
         let strip = strip ?? {
-            let made = TextBoxStrip()
+            let made = PDFMarkupStrip()
             made.translatesAutoresizingMaskIntoConstraints = false
             addSubview(made)
             NSLayoutConstraint.activate([

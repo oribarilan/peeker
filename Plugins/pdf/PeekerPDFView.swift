@@ -16,6 +16,11 @@ final class PeekerPDFView: PDFView, NSMenuItemValidation {
     var onFirstUse: (() -> Void)?
     /// A click in the Editor ended, with the form field it hit, if any.
     var onInteraction: ((PDFAnnotation?) -> Void)?
+    /// Cmd+C and Cmd+V of Peeker's marks, in the Editor: true when a mark was copied or pasted. A copy that isn't
+    /// one falls to PDFKit, which copies the selected text.
+    var onCopy: (() -> Bool)?
+    var onPaste: (() -> Bool)?
+    var canPaste: (() -> Bool)?
     /// The document's undo history, set in the Editor.
     weak var editUndoManager: UndoManager?
 
@@ -150,8 +155,17 @@ final class PeekerPDFView: PDFView, NSMenuItemValidation {
         if isEditing { undoManager?.redo() }
     }
 
+    override func copy(_ sender: Any?) {
+        if onCopy?() != true { super.copy(sender) }
+    }
+
+    @objc func paste(_ sender: Any?) {
+        if onPaste?() != true { NSSound.beep() }
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
+        case #selector(paste(_:)): canPaste?() == true
         case #selector(undo(_:)): isEditing && undoManager?.canUndo == true
         case #selector(redo(_:)): isEditing && undoManager?.canRedo == true
         default: true

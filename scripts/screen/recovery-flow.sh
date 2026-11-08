@@ -17,7 +17,7 @@ FORM="$OUT/form.pdf"
 printf 'First line\n' > "$NOTES"
 "$PDF" form "$FORM"
 records() { find "$OUT/recovery" -name '*.json' 2>/dev/null | wc -l | tr -d ' '; }
-tools_shown() { "$DRIVE" tree Peeker 12 | grep -c '“Text Box”'; }
+tools_shown() { "$DRIVE" tree Peeker 12 | grep -c '“Markup”'; }
 shown() { "$DRIVE" tree Peeker 30 | grep -c "$1"; }
 front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.5; }
 
@@ -30,7 +30,7 @@ record recovery 60
 open -a "$APP" "$FORM"
 "$DRIVE" wait Peeker window form.pdf
 front
-"$DRIVE" wait Peeker control "Text Box"
+"$DRIVE" wait Peeker control "Markup"
 read -r fx fy fw fh <<< "$("$DRIVE" frame Peeker AXTextField || echo "0 0 0 0")"
 "$DRIVE" click Peeker $((fx + 20)) $((fy + fh / 2))
 "$DRIVE" type Peeker "Jane Doe"

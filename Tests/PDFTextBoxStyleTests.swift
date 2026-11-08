@@ -10,7 +10,7 @@ private func open(_ file: URL, preferences: PluginPreferences? = nil) async thro
     return document
 }
 
-private let red = TextBoxStrip.palette[1].color
+private let red = PDFMarkupStrip.palette[1].color
 private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, color: red, boxed: false)
 
 @Suite struct PDFTextBoxStyleWriting {
@@ -65,18 +65,20 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
 }
 
 @Suite(.serialized) struct PDFTextBoxStrip {
-    @Test func theStripShowsWhileTextBoxWaitsTypingOrSelected() async throws {
+    @Test func theStripShowsWhileMarkupIsOnOrABoxIsSelected() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
         let window = offscreenWindow(holding: document.contentView)
         defer { window.close() }
         let tools = try #require(document.prepareEditing())
-        #expect(document.textBoxStrip == nil)
+        #expect(document.markupStrip == nil)
         #expect(document.perform("text-box"))
-        #expect(document.textBoxStrip != nil, "while Text Box waits for its click")
+        #expect(document.markupStrip != nil, "while Text Box waits for its click")
         tools.commitTextBox(id: nil, page: 0, topLeft: CGPoint(x: 100, y: 500), text: "Hi", fontSize: 12)
-        #expect(document.textBoxStrip != nil, "the new box is selected")
+        #expect(document.markupStrip != nil, "the new box is selected")
         tools.end()
-        #expect(document.textBoxStrip == nil)
+        #expect(document.markupStrip != nil, "Markup stays on")
+        #expect(document.perform("markup"))
+        #expect(document.markupStrip == nil, "until it's turned off")
     }
 
     @Test func restylingASelectedBoxIsOneUndoableEdit() async throws {
@@ -112,7 +114,7 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
         #expect(tools.mouseDown(with: click, at: document.pdfView.convert(point, from: page)))
         let textView = try #require(window.firstResponder as? NSTextView)
         textView.string = "Typed"
-        let strip = try #require(document.textBoxStrip)
+        let strip = try #require(document.markupStrip)
         strip.swatches[1].performClick(nil)
         let menu = try #require(strip.textMenu.menu)
         menu.performActionForItem(at: try #require(menu.items.firstIndex { $0.title == "Serif" }))
@@ -164,7 +166,7 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
     }
 
     @Test func boxTextIsWhicheverOfBlackAndWhiteReadsBetter() {
-        let text = { (name: String) in TextBoxStyle(font: .sans, bold: false, italic: false, color: TextBoxStrip.palette.first { $0.name == name }!.color, boxed: true).textColor }
+        let text = { (name: String) in TextBoxStyle(font: .sans, bold: false, italic: false, color: PDFMarkupStrip.palette.first { $0.name == name }!.color, boxed: true).textColor }
         let black = RGBA(red: 0, green: 0, blue: 0, alpha: 1), white = RGBA(red: 1, green: 1, blue: 1, alpha: 1)
         #expect(text("Orange") == black && text("Green") == black && text("Yellow") == black)
         #expect(text("Red") == white && text("Blue") == white && text("Black") == white)

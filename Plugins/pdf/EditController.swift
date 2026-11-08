@@ -1,11 +1,14 @@
 import AppKit
 import PDFKit
+import PeekerKit
 
 /// The edit tools on the view: choosing, moving, resizing and removing Peeker's own marks, placing text boxes and
-/// signatures. Created when a tool or an annotation is first used, so opening a PDF costs nothing extra.
+/// signatures, drawing and stamping. Created when a tool or an annotation is first used, so opening a PDF costs nothing extra.
 final class EditController {
     enum Corner { case topLeft, topRight, bottomLeft, bottomRight }
-    enum Tool { case none, textBox, signature(Signature), highlighter }
+    enum Tool { case none, textBox, signature(Signature), highlighter, draw(PDFDrawing.Shape) }
+    /// What the markup strip shows: a text style and size, or a drawing's color and size.
+    enum StripState: Equatable { case text(TextBoxStyle, Double), drawing(RGBA, MarkupSize) }
 
     static let minimumSize: CGFloat = 8
     /// About the width of a signature on a signature line.
@@ -17,7 +20,7 @@ final class EditController {
     private(set) var tool = Tool.none {
         didSet {
             onToolChange?()
-            onTextBoxStateChange?()
+            onStripChange?()
         }
     }
     /// Called whenever the tool changes, for the window's selected toolbar button.
@@ -26,12 +29,14 @@ final class EditController {
     private var selectedPage = 0
     /// A move or resize in progress: what's dragged, from where, and its bounds when the drag began.
     private var drag: (corner: Corner?, start: CGPoint, original: CGRect, annotation: PDFAnnotation)?
+    /// A drawing in progress: on which page, from where, through which points (page space).
+    private var draft: (shape: PDFDrawing.Shape, page: PDFPage, index: Int, points: [CGPoint])?
     private let overlay = EditOverlay()
     private var textBox: TextBoxEditor? {
-        didSet { onTextBoxStateChange?() }
+        didSet { onStripChange?() }
     }
-    /// Called when what the text box strip shows may have changed: the tool, the selection, typing, an edit.
-    var onTextBoxStateChange: (() -> Void)?
+    /// Called when what the markup strip shows may have changed: the tool, the selection, typing, an edit.
+    var onStripChange: (() -> Void)?
 
     init(document: PDFPluginDocument) {
         self.document = document
@@ -75,6 +80,17 @@ final class EditController {
         NSCursor.crosshair.set()
     }
 
+    /// Arms a drawing or stamp tool, which stays armed for the next mark until Escape or another tool.
+    func arm(_ shape: PDFDrawing.Shape) {
+        endTextBox()
+        tool = .draw(shape)
+        select(nil, page: 0)
+        NSCursor.crosshair.set()
+    }
+
+    /// The drawing or stamp tool armed, if any.
+    var armedShape: PDFDrawing.Shape? { if case .draw(let shape) = tool { shape } else { nil } }
+
     func startPlacing(_ signature: Signature) {
         endTextBox()
         tool = .signature(signature)
@@ -104,6 +120,8 @@ final class EditController {
             PDFMarks.setBounds(drag.original, of: drag.annotation)
             self.drag = nil
         }
+        draft = nil
+        overlay.draft = nil
         endTextBox()
         tool = .none
         overlay.ghost = nil
@@ -116,20 +134,44 @@ final class EditController {
         selectedID = id
         selectedPage = page
         overlay.refresh()
-        onTextBoxStateChange?()
+        onStripChange?()
     }
 
-    // MARK: Text box style
+    // MARK: Strip
 
-    /// What the text box strip shows: the box being typed, the selected box, or while Text Box waits the style the
-    /// next box gets; nil hides the strip.
-    var stripState: (style: TextBoxStyle, size: Double)? {
-        if let textBox { return (textBox.style, textBox.fontSize) }
-        if let annotation = selectedAnnotation, annotation.type == "FreeText" {
-            return (PDFMarks.style(of: annotation), PDFMarks.fontSize(of: annotation) ?? TextBoxStyle.standardSize)
+    /// What the markup strip shows: the box being typed, the selected text box or drawing, or the style the armed tool's
+    /// next mark gets; nil when there's nothing of that, and the strip shows only while Markup is on.
+    var stripState: StripState? {
+        if let textBox { return .text(textBox.style, textBox.fontSize) }
+        if let annotation = selectedAnnotation {
+            if annotation.type == "FreeText" {
+                return .text(PDFMarks.style(of: annotation), PDFMarks.fontSize(of: annotation) ?? TextBoxStyle.standardSize)
+            }
+            if let drawing = PDFMarks.drawing(of: annotation) { return .drawing(drawing.color, MarkupSize(of: drawing, in: annotation.bounds)) }
         }
-        if case .textBox = tool { return (document.textBoxStyle, document.textBoxSize) }
-        return nil
+        switch tool {
+        case .textBox: return .text(document.textBoxStyle, document.textBoxSize)
+        case .draw: return .drawing(document.markupColor, document.markupSize)
+        default: return nil
+        }
+    }
+
+    /// From the strip: recolors or resizes the selected drawing as one edit, and keeps the look for the next mark. A
+    /// dot's size is its side, so a new size makes it that size around its center.
+    func applyDrawingLook(color: RGBA, size: MarkupSize) {
+        document.rememberMarkup(color: color, size: size)
+        if let annotation = selectedAnnotation, let id = selectedID, let drawing = PDFMarks.drawing(of: annotation) {
+            let bounds = annotation.bounds
+            if drawing.shape == .dot, size != MarkupSize(of: drawing, in: bounds) {
+                let side = size.stampSide
+                document.change(.setBounds(id: id, type: .drawing, page: selectedPage,
+                                           rect: CGRect(x: bounds.midX - side / 2, y: bounds.midY - side / 2, width: side, height: side)))
+            } else if color != drawing.color || (drawing.shape != .dot && size.width != drawing.width) {
+                document.change(.setLook(id: id, page: selectedPage, color: color, width: drawing.shape == .dot ? drawing.width : size.width))
+            }
+            select(id, page: selectedPage)
+        }
+        onStripChange?()
     }
 
     /// From the strip: restyles the box being typed at once, or the selected box as one edit, and keeps the style
@@ -148,7 +190,7 @@ final class EditController {
             document.change(.setText(id: id, page: selectedPage, text: annotation.contents ?? "", fontSize: size, rect: rect, style: style.nilIfStandard))
             select(id, page: selectedPage)
         }
-        onTextBoxStateChange?()
+        onStripChange?()
     }
 
     /// The selected mark's annotation, if it's still there (an undo may have removed it).
@@ -172,9 +214,18 @@ final class EditController {
         document.record(.setBounds(id: id, type: type, page: page, rect: new), inverse: .setBounds(id: id, type: type, page: page, rect: old))
     }
 
-    /// The topmost of Peeker's own highlights, text boxes and signatures at `point`; others are never selected.
-    static func hit(_ annotations: [PDFAnnotation], at point: CGPoint) -> PDFAnnotation? {
-        annotations.last { PDFMarks.id(of: $0) != nil && PDFMarks.type(of: $0) != nil && $0.bounds.insetBy(dx: -2, dy: -2).contains(point) }
+    /// The topmost of Peeker's own marks at `point`, a pen stroke, line or arrow only near its line; others are never
+    /// selected.
+    /// `tolerance` is in page points: a few screen points at the view's scale.
+    static func hit(_ annotations: [PDFAnnotation], at point: CGPoint, tolerance: CGFloat = 3) -> PDFAnnotation? {
+        annotations.last { annotation in
+            guard PDFMarks.id(of: annotation) != nil, PDFMarks.type(of: annotation) != nil, annotation.bounds.insetBy(dx: -2, dy: -2).contains(point) else {
+                return false
+            }
+            guard let drawing = PDFMarks.drawing(of: annotation), drawing.shape.isHitAlongStrokes else { return true }
+            let origin = annotation.bounds.origin
+            return drawing.isNear(CGPoint(x: point.x - origin.x, y: point.y - origin.y), in: annotation.bounds.size, tolerance: tolerance)
+        }
     }
 
     static func corner(at point: CGPoint, of rect: CGRect, tolerance: CGFloat) -> Corner? {
@@ -266,7 +317,7 @@ final class EditController {
         case .highlighter:
             select(nil, page: 0)
             return false  // PDFKit selects the text; selectionEnded highlights it
-        case .none:
+        case .none, .draw:
             break
         }
         let tolerance = Self.handleSize / max(view.scaleFactor, 0.01)
@@ -274,8 +325,13 @@ final class EditController {
             drag = (corner, pagePoint, selected.bounds, selected)
             return true
         }
-        guard let annotation = Self.hit(page.annotations, at: pagePoint), let id = PDFMarks.id(of: annotation) else {
+        guard let annotation = Self.hit(page.annotations, at: pagePoint, tolerance: 3 / max(view.scaleFactor, 0.01)),
+              let id = PDFMarks.id(of: annotation) else {
             select(nil, page: 0)
+            if case .draw(let shape) = tool {
+                draft = (shape, page, index, [pagePoint])
+                return true
+            }
             return false
         }
         if event.clickCount == 2, annotation.type == "FreeText" {
@@ -288,6 +344,12 @@ final class EditController {
     }
 
     func mouseDragged(with event: NSEvent) -> Bool {
+        if var draft {
+            draft.points.append(Self.clamped(view.convert(view.convert(event.locationInWindow, from: nil), to: draft.page), to: draft.page))
+            self.draft = draft
+            overlay.draft = drawn(draft, option: event.modifierFlags.contains(.option)).map { (draft.page, $0.rect, $0.drawing) }
+            return true
+        }
         guard let drag, let page = drag.annotation.page else { return false }
         let point = view.convert(view.convert(event.locationInWindow, from: nil), to: page)
         let delta = CGSize(width: point.x - drag.start.x, height: point.y - drag.start.y)
@@ -298,6 +360,14 @@ final class EditController {
     }
 
     func mouseUp(with event: NSEvent) -> Bool {
+        if let draft {
+            self.draft = nil
+            overlay.draft = nil
+            if let made = drawn(draft, option: event.modifierFlags.contains(.option)) {
+                document.change(.add(PDFMark(id: PDFEdit.newID(), page: draft.index, rect: made.rect, kind: .drawing(made.drawing))))
+            }
+            return true
+        }
         guard let drag else { return false }
         self.drag = nil
         if let id = PDFMarks.id(of: drag.annotation), let type = PDFMarks.type(of: drag.annotation), let page = drag.annotation.page,
@@ -307,13 +377,36 @@ final class EditController {
         return true
     }
 
-    /// Shows the waiting tool over the page: a crosshair for Text Box, a highlighter for Highlight, the signature itself
+    /// The mark a draft makes with the strip's color and size: a stamp at the strip's size for a click, nothing for
+    /// any other tool's click (under 3 points of movement), and with Option an ellipse for Box.
+    private func drawn(_ draft: (shape: PDFDrawing.Shape, page: PDFPage, index: Int, points: [CGPoint]), option: Bool) -> (rect: CGRect, drawing: PDFDrawing)? {
+        guard let start = draft.points.first, let end = draft.points.last else { return nil }
+        var shape = draft.shape
+        if shape == .box, option { shape = .ellipse }
+        let size = document.markupSize
+        // A click is a press that never went 3 points from where it started; a pen loop can end where it began.
+        if !draft.points.contains(where: { hypot($0.x - start.x, $0.y - start.y) >= 3 }) {
+            guard shape.isStamp else { return nil }
+            let side = size.stampSide
+            let square = Self.kept(CGRect(x: start.x - side / 2, y: start.y - side / 2, width: side, height: side), on: draft.page.bounds(for: .mediaBox))
+            return PDFDrawing.make(shape, from: square.origin, to: CGPoint(x: square.maxX, y: square.maxY), points: [], color: document.markupColor, width: size.width)
+        }
+        return PDFDrawing.make(shape, from: start, to: end, points: draft.points, color: document.markupColor, width: size.width)
+    }
+
+    /// `point` kept within the page, so a drawing can't run off it.
+    private static func clamped(_ point: CGPoint, to page: PDFPage) -> CGPoint {
+        let box = page.bounds(for: .mediaBox)
+        return CGPoint(x: min(max(point.x, box.minX), box.maxX), y: min(max(point.y, box.minY), box.maxY))
+    }
+
+    /// Shows the waiting tool over the page: a crosshair for Text Box and the drawing tools, a highlighter for Highlight, the signature itself
     /// following the pointer for Sign.
     func mouseMoved(with event: NSEvent) {
         let point = view.convert(event.locationInWindow, from: nil)
         let page = view.page(for: point, nearest: false)
         switch tool {
-        case .textBox:
+        case .textBox, .draw:
             if page != nil { NSCursor.crosshair.set() }
         case .highlighter:
             if page != nil { Self.highlighterCursor.set() }
@@ -345,42 +438,6 @@ final class EditController {
             return busy
         default:
             return false
-        }
-    }
-}
-
-/// Draws the selection with its corner handles, and the signature following the pointer. Never takes clicks.
-final class EditOverlay: NSView {
-    weak var controller: EditController?
-    var ghost: (signature: Signature, rect: CGRect)? { didSet { needsDisplay = true } }
-
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-    @objc func refresh() { needsDisplay = true }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let view = superview as? PDFView else { return }
-        if let annotation = controller?.selectedAnnotation, let page = annotation.page {
-            let rect = convert(view.convert(annotation.bounds, from: page), from: view).insetBy(dx: -2, dy: -2)
-            NSColor.controlAccentColor.setStroke()
-            let outline = NSBezierPath(rect: rect)
-            outline.lineWidth = 1
-            outline.stroke()
-            for corner in [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.minX, y: rect.maxY), CGPoint(x: rect.maxX, y: rect.maxY)] {
-                let size = EditController.handleSize
-                let handle = NSBezierPath(rect: CGRect(x: corner.x - size / 2, y: corner.y - size / 2, width: size, height: size))
-                NSColor.white.setFill()
-                handle.fill()
-                handle.stroke()
-            }
-        }
-        if let ghost {
-            let rect = convert(ghost.rect, from: view)
-            NSColor.black.withAlphaComponent(0.5).setStroke()
-            for path in PDFMarks.paths(ghost.signature.strokes, size: rect.size) {
-                path.transform(using: AffineTransform(translationByX: rect.minX, byY: rect.minY))
-                path.stroke()
-            }
         }
     }
 }

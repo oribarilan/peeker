@@ -2,11 +2,11 @@ import Foundation
 import PDFKit
 
 /// PDFKit writes the annotations of a page that moved (by a reorder, or a page removed or inserted before it) from
-/// scratch, dropping their names (`/NM`, `/PeekerID`) and style (`/DS`); without a name Peeker no longer knows its own
-/// marks.
+/// scratch, dropping their names (`/NM`, `/PeekerID`), style (`/DS`) and a drawing's shape (`/PeekerShape`); without a
+/// name Peeker no longer knows its own marks, and without a shape a drawing reads as a signature.
 /// A page that didn't move keeps every key, so writing once more after putting them back keeps them.
 nonisolated enum MovedPageRepair {
-    private static let keys = [PDFAnnotationKey.name, PDFMarks.idKey, PDFAnnotationKey(rawValue: "/DS")]
+    private static let keys = [PDFAnnotationKey.name, PDFMarks.idKey, PDFAnnotationKey(rawValue: "/DS"), PDFMarks.shapeKey]
 
     struct Kept {
         let type: String

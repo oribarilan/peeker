@@ -4,13 +4,14 @@ import PeekerKit
 
 /// What a mark is, for messages and for finding the annotation again.
 nonisolated enum MarkType: String, Codable, Sendable {
-    case highlight, textBox, signature
+    case highlight, textBox, signature, drawing
 
     var name: String {
         switch self {
         case .highlight: "highlight"
         case .textBox: "text box"
         case .signature: "signature"
+        case .drawing: "drawing"
         }
     }
 }
@@ -77,6 +78,8 @@ nonisolated struct PDFMark: Codable, Sendable, Equatable {
         case textBox(text: String, fontSize: Double, style: TextBoxStyle? = nil)
         /// Strokes as points within 0...1 of the mark's rect, origin at the bottom left, so resizing only changes the rect.
         case signature(strokes: [[CGPoint]])
+        /// A drawing or stamp from the markup strip.
+        case drawing(PDFDrawing)
     }
 
     let id: String
@@ -89,6 +92,7 @@ nonisolated struct PDFMark: Codable, Sendable, Equatable {
         case .highlight: .highlight
         case .textBox: .textBox
         case .signature: .signature
+        case .drawing: .drawing
         }
     }
 }
@@ -102,6 +106,8 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
     /// New text, size or style for a text box, with the bounds that fit it.
     case setText(id: String, page: Int, text: String, fontSize: Double, rect: CGRect, style: TextBoxStyle? = nil)
     case delete(id: String, type: MarkType, page: Int)
+    /// A new color or line width for a drawing.
+    case setLook(id: String, page: Int, color: RGBA, width: Double)
     /// A form field's value as PDFKit reports it: the text, a choice, or a button's on-state name ("Off" when off).
     case field(name: String, value: String)
     /// Turns pages a quarter turn: `by` is 90 (clockwise) or -90.
@@ -123,7 +129,7 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
     var markID: String? {
         switch self {
         case .add(let mark): mark.id
-        case .setBounds(let id, _, _, _), .setText(let id, _, _, _, _, _), .delete(let id, _, _): id
+        case .setBounds(let id, _, _, _), .setText(let id, _, _, _, _, _), .delete(let id, _, _), .setLook(let id, _, _, _): id
         case .field, .rotatePages, .reorderPages, .deletePages, .restorePages: nil
         }
     }
@@ -154,6 +160,7 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
                 out.append(edit)
             case .setBounds(let id, _, _, let rect):
                 if let index = addIndex(of: id, in: out), case .add(var mark) = out[index] {
+                    if case .drawing(let drawing) = mark.kind { mark.kind = .drawing(drawing.rebuilt(in: rect.size)) }
                     mark.rect = rect
                     out[index] = .add(mark)
                 } else {
@@ -168,6 +175,15 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
                 } else {
                     // The text's bounds replace an earlier move too.
                     out.removeAll { $0.markID == id && $0.isChange }
+                    out.append(edit)
+                }
+            case .setLook(let id, _, let color, let width):
+                if let index = addIndex(of: id, in: out), case .add(var mark) = out[index], case .drawing(var drawing) = mark.kind {
+                    (drawing.color, drawing.width) = (color, width)
+                    mark.kind = .drawing(drawing.rebuilt(in: mark.rect.size))
+                    out[index] = .add(mark)
+                } else {
+                    out.removeAll { if case .setLook(id, _, _, _) = $0 { true } else { false } }
                     out.append(edit)
                 }
             case .delete(let id, _, _):
@@ -188,7 +204,7 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
 
     private var isChange: Bool {
         switch self {
-        case .setBounds, .setText: true
+        case .setBounds, .setText, .setLook: true
         default: false
         }
     }

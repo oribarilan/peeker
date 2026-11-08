@@ -21,7 +21,7 @@ import Testing
         let pdf = try #require((plugins["properties"] as? [String: Any])?["pdf"] as? [String: Any])
         let tools = try #require(properties(pdf, "tools")?["properties"] as? [String: Any])
         #expect(properties(pdf, "commands") == nil)
-        #expect(Set(tools.keys) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split"])
+        #expect(Set(tools.keys) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "markup", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split", "text-box", "markup-pen", "markup-line", "markup-arrow", "markup-box", "markup-x", "markup-check", "markup-circle", "markup-dot"])
         #expect(Set((plugins["properties"] as? [String: Any])?.keys ?? [:].keys) == ["pdf", "text"])
     }
 

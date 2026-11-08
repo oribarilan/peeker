@@ -135,7 +135,7 @@ quit_app || { echo "Peeker from $APP won't quit (a Save prompt?): close it first
 # wrapping. Each run starts without them (sidebar shown, Settings on General, the panel at its default frame, text at
 # its default size and wrapped) and puts the user's back at the end.
 PREFS=dev.peeker.Peeker
-PREF_KEYS="sidebarHidden sidebarWidth settingsPane peekPanelFrame seenTips plugins.text.fontSize plugins.text.wraps plugins.markdown.textSize plugins.pdf.highlightColor plugins.pdf.textBoxStyle plugins.pdf.textBoxSize plugins.image.markupColor plugins.image.markupSize plugins.image.markupStrength plugins.image.spotlightShape plugins.image.textStyle plugins.table.files plugins.data.showsText"
+PREF_KEYS="sidebarHidden sidebarWidth settingsPane peekPanelFrame seenTips plugins.text.fontSize plugins.text.wraps plugins.markdown.textSize plugins.pdf.highlightColor plugins.pdf.textBoxStyle plugins.pdf.textBoxSize plugins.pdf.markupColor plugins.pdf.markupSize plugins.image.markupColor plugins.image.markupSize plugins.image.markupStrength plugins.image.spotlightShape plugins.image.textStyle plugins.table.files plugins.data.showsText"
 SAVED_PREFS=()
 for key in $PREF_KEYS; do
     if value=$(defaults read "$PREFS" "$key" 2>/dev/null); then

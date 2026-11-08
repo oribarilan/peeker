@@ -14,7 +14,7 @@ final class PDFPluginDocument: PluginDocument {
     /// The file's details for the info panel, read again after a save.
     private var info: [InfoRow]
     let editability: Editability
-    private var isEditing: Bool { editability == .editable }
+    var isEditing: Bool { editability == .editable }
     var onEdit: (() -> Void)?
     var onActiveToolChange: (() -> Void)?
     /// The edit tools' parts, made when a tool or a form field is first used, so opening doesn't pay for them.
@@ -31,7 +31,13 @@ final class PDFPluginDocument: PluginDocument {
     /// The highlight color in use, one of `PDFPlugin.highlightColors` by id, remembered in the app's preferences.
     private var highlightChoice = PDFPlugin.highlightColors[0].id
     private var highlightColor = PDFPlugin.highlightColors[0].color ?? RGBA(red: 1, green: 0.8, blue: 0, alpha: 1)
-    private let preferences: PluginPreferences?
+    let preferences: PluginPreferences?
+    /// Markup's strip is on, whether or not a tool is armed.
+    var isMarkingUp = false
+    /// The drawing color and size without preferences (tests).
+    var unrememberedMarkup = (color: PDFMarkupStrip.palette[0].color, size: MarkupSize.medium)
+    /// Where marks are copied and pasted; tests use one of their own.
+    lazy var pasteboard = NSPasteboard.general
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "pdf")
 
     /// `uneditableReason` makes a file that can't be safely changed read-only.
@@ -56,6 +62,9 @@ final class PDFPluginDocument: PluginDocument {
             pdfView.isEditing = true
             pdfView.editUndoManager = undoManager
             pdfView.onFirstUse = { [weak self] in self?.prepareEditing() }
+            pdfView.onCopy = { [weak self] in self?.copyMark() == true }
+            pdfView.onPaste = { [weak self] in self?.pasteMark() == true }
+            pdfView.canPaste = { [weak self] in self?.canPasteMark == true }
             if document.allowsDocumentAssembly {
                 pdfView.onDropFiles = { [weak self] urls in
                     Task { await self?.insertPages(from: urls) }
@@ -109,7 +118,7 @@ final class PDFPluginDocument: PluginDocument {
         if let editController { return editController }
         let controller = EditController(document: self)
         controller.onToolChange = { [weak self] in self?.onActiveToolChange?() }
-        controller.onTextBoxStateChange = { [weak self] in self?.showTextBoxStrip() }
+        controller.onStripChange = { [weak self] in self?.showMarkupStrip() }
         editController = controller
         pdfView.editController = controller
         let fields = FormFields(view: pdfView)
@@ -122,19 +131,20 @@ final class PDFPluginDocument: PluginDocument {
         return controller
     }
 
-    /// The tool waiting for its click or drag, by id.
+    /// The tool waiting for its click or drag, by id; Markup while its strip is on.
     var activeTool: String? {
         switch editController?.tool ?? .none {
-        case .textBox: "text-box"
+        case .textBox, .draw: "markup"
         case .signature: "sign"
         case .highlighter: "highlight"
-        case .none: nil
+        case .none: isMarkingUp ? "markup" : nil
         }
     }
 
-    /// The highlight color in use is on.
+    /// The highlight color in use, and the armed markup tool, are on.
     func isOn(_ tool: String) -> Bool? {
-        tool.hasPrefix("highlight-") ? tool == highlightChoice : nil
+        if tool.hasPrefix("highlight-") { return tool == highlightChoice }
+        return PDFPlugin.markupTools.contains { $0.id == tool } ? tool == armedToolID : nil
     }
 
     func perform(_ id: String) -> Bool {
@@ -148,8 +158,10 @@ final class PDFPluginDocument: PluginDocument {
         case "zoom-actual":
             pdfView.autoScales = false
             pdfView.scaleFactor = 1
-        case "text-box" where isEditing:
-            prepareEditing()?.chooseTextBox()
+        case "markup" where isEditing:
+            toggleMarkup()
+        case let id where isEditing && PDFPlugin.markupTools.contains { $0.id == id }:
+            armMarkupTool(id)
         case "sign" where isEditing:
             guard let window = pdfView.window else { return true }
             prepareEditing()
@@ -354,27 +366,10 @@ final class PDFPluginDocument: PluginDocument {
         undoManager.registerUndo(withTarget: self) { [weak self] _ in self?.change(inverse) }
         undoManager.endUndoGrouping()
         onEdit?()
-        editController?.onTextBoxStateChange?()  // an undone restyle changes what the strip shows
+        editController?.onStripChange?()  // an undone restyle changes what the strip shows
     }
 
     // MARK: Text box style
-
-    /// The strip under the toolbar while a text box is waited for, typed or selected, showing its style.
-    private func showTextBoxStrip() {
-        // Only where the pages sit in their container: making it here would take the view from wherever it's shown.
-        guard let container = pdfView.superview as? PDFFindContainer else { return }
-        let state = editController?.stripState
-        let made = container.strip == nil
-        guard let strip = container.showStrip(state != nil), let state else { return }
-        if made {
-            strip.onChange = { [weak self] style, size in self?.editController?.applyTextBoxStyle(style, size: size) }
-            strip.pages = pdfView
-        }
-        strip.show(state.style, size: state.size)
-    }
-
-    /// The strip, for tests; nil while hidden.
-    var textBoxStrip: TextBoxStrip? { (pdfView.superview as? PDFFindContainer)?.strip.flatMap { $0.isHidden ? nil : $0 } }
 
     /// The style and size the next text box gets, read from the app's preferences each time, so a change in another
     /// window counts here too; without preferences (tests), kept here.

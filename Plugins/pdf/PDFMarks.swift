@@ -9,6 +9,8 @@ nonisolated enum PDFMarks {
     private static let styleKey = PDFAnnotationKey(rawValue: "/DS")
     /// A second home for a mark's id: PDFKit on macOS 26 leaves `/NM` out when it writes a file, and keeps this key.
     static let idKey = PDFAnnotationKey(rawValue: "/PeekerID")
+    /// A drawing's shape, which tells it from a signature, the other ink Peeker makes.
+    static let shapeKey = PDFAnnotationKey(rawValue: "/PeekerShape")
 
     /// The annotation's id when Peeker made it, from `/NM` or else `/PeekerID`; nil for other apps' annotations,
     /// which are never selected or changed.
@@ -47,6 +49,10 @@ nonisolated enum PDFMarks {
             border.lineWidth = signatureLineWidth
             annotation.border = border
             for path in paths(strokes, size: mark.rect.size) { annotation.add(path) }
+        case .drawing(let drawing):
+            annotation = PDFAnnotation(bounds: mark.rect, forType: .ink, withProperties: nil)
+            annotation.setValue(drawing.shape.rawValue, forAnnotationKey: shapeKey)
+            draw(drawing, on: annotation)
         }
         setID(mark.id, on: annotation)
         annotation.userName = nil  // PDFKit fills in the Mac account's full name, which would go out with the file
@@ -64,7 +70,8 @@ nonisolated enum PDFMarks {
         switch annotation.type {
         case "Highlight": .highlight
         case "FreeText": .textBox
-        case "Ink": .signature
+        // A shape Peeker can't read is left alone like another app's annotation.
+        case "Ink": annotation.value(forAnnotationKey: shapeKey) == nil ? .signature : drawing(of: annotation) == nil ? nil : .drawing
         default: nil
         }
     }
@@ -82,14 +89,22 @@ nonisolated enum PDFMarks {
         case .signature:
             let size = annotation.bounds.size
             guard size.width > 0, size.height > 0 else { return nil }
-            kind = .signature(strokes: (annotation.paths ?? []).map { points(of: $0).map { CGPoint(x: $0.x / size.width, y: $0.y / size.height) } })
+            kind = .signature(strokes: relativeStrokes(of: annotation))
+        case .drawing:
+            guard let drawing = drawing(of: annotation) else { return nil }
+            kind = .drawing(drawing)
         }
         return PDFMark(id: id, page: page, rect: annotation.bounds, kind: kind)
     }
 
-    /// Moves or resizes; a signature's strokes scale with it, and a text box keeps its size.
+    /// Moves or resizes; a signature's strokes scale with it, a drawing is rebuilt to fit, and a text box keeps its size.
     static func setBounds(_ rect: CGRect, of annotation: PDFAnnotation) {
         let old = annotation.bounds
+        if let drawing = drawing(of: annotation) {
+            annotation.bounds = rect
+            if rect.size != old.size { draw(drawing.rebuilt(in: rect.size), on: annotation) }
+            return
+        }
         if annotation.type == "Ink", old.width > 0, old.height > 0, old.size != rect.size {
             let scale = CGAffineTransform(scaleX: rect.width / old.width, y: rect.height / old.height)
             for path in annotation.paths ?? [] {
@@ -104,6 +119,43 @@ nonisolated enum PDFMarks {
             applyLook(style(of: annotation), fontSize: size, to: annotation)
         }
         annotation.bounds = rect
+    }
+
+    /// A drawing's new color and width; an arrow's head follows the width.
+    static func setLook(color: RGBA, width: Double, of annotation: PDFAnnotation) {
+        guard var drawing = drawing(of: annotation) else { return }
+        (drawing.color, drawing.width) = (color, width)
+        draw(drawing.rebuilt(in: annotation.bounds.size), on: annotation)
+    }
+
+    /// The drawing an ink annotation of Peeker's shows; nil for a signature or a shape Peeker doesn't know.
+    static func drawing(of annotation: PDFAnnotation) -> PDFDrawing? {
+        guard annotation.type == "Ink", let name = annotation.value(forAnnotationKey: shapeKey) as? String,
+              let shape = PDFDrawing.Shape(rawValue: name.hasPrefix("/") ? String(name.dropFirst()) : name),
+              annotation.bounds.width > 0, annotation.bounds.height > 0,
+              let color = annotation.color.usingColorSpace(.sRGB) else { return nil }
+        // In whole 8-bit steps, as the file keeps them, so a swatch's color reads back as the swatch's.
+        let step = { (value: CGFloat) in (Double(value) * 255).rounded() / 255 }
+        let drawing = PDFDrawing(shape: shape, strokes: relativeStrokes(of: annotation),
+                                 color: RGBA(red: step(color.redComponent), green: step(color.greenComponent), blue: step(color.blueComponent), alpha: color.alphaComponent),
+                                 width: Double(annotation.border?.lineWidth ?? 1))
+        return drawing.isValid ? drawing : nil
+    }
+
+    /// Puts `drawing`'s strokes, color and width on the annotation, replacing what it had.
+    private static func draw(_ drawing: PDFDrawing, on annotation: PDFAnnotation) {
+        for path in annotation.paths ?? [] { annotation.remove(path) }
+        annotation.color = nsColor(drawing.color)
+        let border = PDFBorder()
+        border.lineWidth = drawing.width
+        annotation.border = border
+        for path in paths(drawing.strokes, size: annotation.bounds.size, lineWidth: drawing.width) { annotation.add(path) }
+    }
+
+    /// An ink annotation's strokes as points within 0...1 of its bounds.
+    private static func relativeStrokes(of annotation: PDFAnnotation) -> [[CGPoint]] {
+        let size = annotation.bounds.size
+        return (annotation.paths ?? []).map { points(of: $0).map { CGPoint(x: $0.x / size.width, y: $0.y / size.height) } }
     }
 
     static func setText(_ text: String, fontSize: Double, style: TextBoxStyle, of annotation: PDFAnnotation) {
@@ -150,11 +202,11 @@ nonisolated enum PDFMarks {
     }
 
     /// Strokes of 0...1 points as paths in annotation space, scaled to `size`.
-    static func paths(_ strokes: [[CGPoint]], size: CGSize) -> [NSBezierPath] {
+    static func paths(_ strokes: [[CGPoint]], size: CGSize, lineWidth: Double = signatureLineWidth) -> [NSBezierPath] {
         strokes.compactMap { stroke in
             guard let first = stroke.first else { return nil }
             let path = NSBezierPath()
-            path.lineWidth = signatureLineWidth
+            path.lineWidth = lineWidth
             path.lineCapStyle = .round
             path.lineJoinStyle = .round
             path.move(to: CGPoint(x: first.x * size.width, y: first.y * size.height))

@@ -27,7 +27,7 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
     @Test func offersZoomAndTheEditTools() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
         #expect(document.tools.map(\.id) == PDFPlugin.tools.map(\.id))
-        #expect(document.tools.filter(\.isEditTool).map(\.id) == ["text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split"])
+        #expect(document.tools.filter(\.isEditTool).map(\.id) == ["markup", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split", "text-box", "markup-pen", "markup-line", "markup-arrow", "markup-box", "markup-x", "markup-check", "markup-circle", "markup-dot"])
     }
 
     @Test func notAPDFSaysSo() async throws {
@@ -330,7 +330,7 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         #expect(document.perform("highlight"))
         #expect(document.activeTool == "highlight")
         tools.chooseTextBox()
-        #expect(document.activeTool == "text-box")
+        #expect(document.activeTool == "markup" && document.isOn("text-box") == true, "Markup in the toolbar, Text Box in the menu")
         tools.startPlacing(try #require(Signature(strokes: [[CGPoint(x: 0, y: 0), CGPoint(x: 100, y: 40)]])))
         #expect(document.activeTool == "sign")
         tools.end()

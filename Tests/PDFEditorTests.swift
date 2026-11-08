@@ -37,7 +37,7 @@ import Testing
         #expect(editor.document.editController != nil, "a click on a field")
         let other = try await Editor(try TempFile.makePDF(pages: 1))
         #expect(other.document.perform("text-box"))
-        #expect(other.document.editController != nil && other.document.activeTool == "text-box")
+        #expect(other.document.editController != nil && other.document.activeTool == "markup")
     }
 
     @Test func toolsWorkRightAfterOpening() async throws {

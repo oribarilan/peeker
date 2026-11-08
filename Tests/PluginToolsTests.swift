@@ -34,7 +34,7 @@ import Testing
 
     @Test func pluginsDeclareTheirTools() {
         #expect(ImagePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "previous-page", "next-page", "play-animation", "crop", "transform", "markup", "markup-arrow", "markup-line", "markup-box", "markup-text", "markup-pixelate", "markup-step", "markup-pen", "markup-marker", "markup-spotlight"])
-        #expect(PDFPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "text-box", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split"])
+        #expect(PDFPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "markup", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split", "text-box", "markup-pen", "markup-line", "markup-arrow", "markup-box", "markup-x", "markup-check", "markup-circle", "markup-dot"])
         #expect(TextPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "toggle-wrap"])
         #expect(MarkdownPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])
         #expect(TablePlugin.tools.map(\.id) == ["header-row", "delimiter-comma", "delimiter-semicolon", "delimiter-tab", "delimiter-pipe",
@@ -63,10 +63,15 @@ import Testing
 
     @Test func signLeavesControlCommandSToTheSidebar() {
         let keys = Dictionary(uniqueKeysWithValues: PDFPlugin.tools.map { ($0.id, $0.shortcut) })
-        #expect(keys["text-box"] == "t" && keys["sign"] == "s" && keys["highlight"] == "h", "single letters, as Crop's C")
+        #expect(keys["markup"] == "m" && keys["text-box"] == "t" && keys["sign"] == "s" && keys["highlight"] == "h", "single letters, as Crop's C")
+        let all = PDFPlugin.tools.compactMap(\.shortcut)
+        #expect(Set(all).count == all.count, "no two PDF tools share a key")
+        let shared = ["text-box": "markup-text", "markup-pen": "markup-pen", "markup-line": "markup-line", "markup-arrow": "markup-arrow", "markup-box": "markup-box"]
+        let imageKeys = Dictionary(uniqueKeysWithValues: ImagePlugin.tools.map { ($0.id, $0.shortcut) })
+        #expect(shared.allSatisfy { keys[$0.key] == imageKeys[$0.value] }, "a tool both plugins have uses the same key in each")
         #expect(keys["delete-page"] == .some(nil), "nothing destructive on a bare key")
         let tipped = PDFPlugin.tools.filter { $0.tip != nil }.map(\.id)
-        #expect(tipped == ["text-box", "sign", "highlight"], "the tools that wait for a next step")
+        #expect(tipped == ["markup", "sign", "highlight"], "the tools that wait for a next step")
         #expect(PDFPlugin.tools.first { $0.id == "highlight" }?.tip?.contains("{key}") == true, "the key as the user set it")
         #expect(ImagePlugin.tools.filter { $0.tip != nil }.map(\.id) == ["crop", "markup"])
     }

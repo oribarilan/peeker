@@ -1,7 +1,7 @@
 #!/bin/bash
 # The PDF editing flow on screen: Space on a form in Finder shows it in the Peek panel, which reads Open in Peeker and
 # ignores a click into a field; Open in Peeker opens it in the Editor, which fills a text field and a checkbox, adds a
-# text box and a drawn signature placed twice, and saves; the saved file is checked; then a digitally signed form opens
+# text box from Markup's strip, an arrow and a check mark, and a drawn signature placed twice, and saves; the saved file is checked; then a digitally signed form opens
 # read-only, with greyed tools and the note under the toolbar. Writes screenshots and results.txt (one ok/FAIL line per
 # check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
 #
@@ -13,7 +13,7 @@ source "$(dirname "$0")/common.sh" "$@"
 
 FORM="$OUT/form.pdf"
 "$PDF" form "$FORM"
-tools_shown() { "$DRIVE" tree Peeker 12 | grep -c '“Text Box”'; }
+tools_shown() { "$DRIVE" tree Peeker 12 | grep -c '“Markup”'; }
 saved() { "$PDF" inspect "$FORM" | grep -c "^$1\$"; }
 # The screen frame of an element: x y width height.
 frame() { "$DRIVE" frame Peeker "$@" || echo "0 0 0 0"; }
@@ -57,7 +57,7 @@ check "The Editor opens in front of Finder" "$("$DRIVE" focus Peeker | sed -n 's
 osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
 sleep 0.5
 "$DRIVE" type Peeker "" || { echo "Peeker didn't come to the front; nothing was sent"; exit 2; }
-"$DRIVE" wait Peeker control "Text Box"
+"$DRIVE" wait Peeker control "Markup"
 check "The Editor shows the tools at once" "$([ "$(tools_shown)" -gt 0 ] && echo yes)" yes
 "$DRIVE" tree Peeker 30 > "$OUT/tree-editor.txt"
 read -r fx fy fw fh <<< "$(frame AXTextField)"
@@ -72,15 +72,19 @@ sleep 0.3
 "$DRIVE" click Peeker $(at 8 52)  # the checkbox, which also ends typing in the field
 sleep 0.5
 
-# The toolbar names Text Box's key in its tooltip, and the first Text Box shows its tip once.
-check "Text Box's tooltip names its key" "$(osascript -e 'tell application "System Events" to tell process "Peeker" to get help of (first button of toolbar 1 of window 1 whose description is "Text Box")' 2>/dev/null)" "Text Box (T)"
-"$DRIVE" menu Peeker Tools "Text Box (T)"
+# The toolbar names Markup's key in its tooltip, and the first Markup shows its tip once and the strip.
+check "Markup's tooltip names its key" "$(osascript -e 'tell application "System Events" to tell process "Peeker" to get help of (first button of toolbar 1 of window 1 whose description is "Markup")' 2>/dev/null)" "Markup (M)"
+"$DRIVE" menu Peeker Tools "Markup (M)"
 sleep 0.6
-check "The first Text Box shows its tip" "$("$DRIVE" tree Peeker 12 | grep -c 'Click where the text goes.')" 1
-"$DRIVE" shot Peeker "$OUT/2b-text-box-tip.png"
-# The strip under the toolbar shows while Text Box waits: red, and Serif from its Aa menu (opened, then two items down,
+check "The first Markup shows its tip" "$("$DRIVE" tree Peeker 12 | grep -c 'Pick a tool, or press its key')" 1
+check "Markup shows the strip" "$("$DRIVE" tree Peeker 20 | grep -c 'Markup tools')" 1
+check "with X and Check, as PDF stamps" "$("$DRIVE" tree Peeker 20 | grep -c 'AXRadioButton “Check”')" 1
+"$DRIVE" shot Peeker "$OUT/2b-markup-tip.png"
+# Text Box from the Tools menu shows the text controls: red, and Serif from its Aa menu (opened, then two items down,
 # since drive can't press a menu's items).
-check "Text Box shows the style strip" "$("$DRIVE" tree Peeker 16 | grep -c 'AXMenuButton “Text style”')" 1
+"$DRIVE" menu Peeker Tools "Text Box (T)"
+sleep 0.3
+check "Text Box shows the style menu" "$("$DRIVE" tree Peeker 20 | grep -c 'AXMenuButton “Text style”')" 1
 "$DRIVE" press Peeker Red
 "$DRIVE" press Peeker "Text style" && sleep 0.5
 "$DRIVE" keys Peeker down && "$DRIVE" keys Peeker down && "$DRIVE" keys Peeker return
@@ -97,6 +101,15 @@ check "+ makes the text larger" "$(frame AXStaticText "14 pt" | grep -vc '^0 0 0
 check "+ stays put when clicked" "$(frame AXButton "+")" "$lx $ly $lw $lh"
 "$DRIVE" keys Peeker escape
 sleep 0.5
+# An arrow dragged out with A, and a check mark dropped with V by a click, in the free space right of the fields.
+"$DRIVE" keys Peeker a
+"$DRIVE" drag Peeker $(at 330 100) $(at 370 130) $(at 420 160)  # below the strip, which floats over the page's top
+sleep 0.3
+"$DRIVE" keys Peeker v
+"$DRIVE" click Peeker $(at 330 180)
+sleep 0.3
+"$DRIVE" keys Peeker escape
+sleep 0.3
 "$DRIVE" shot Peeker "$OUT/3-filled.png"
 
 "$DRIVE" menu Peeker Tools "Sign (S)"
@@ -124,17 +137,19 @@ check "The Name field is saved" "$(saved 'field Name = Jane Doe')" 1
 check "The checkbox is saved" "$(saved 'field Agree = Yes')" 1
 check "The text box is a free-text annotation" "$(saved 'annotation FreeText peeker = 31 Oct 2026')" 1
 check "in red Times at 14 pt" "$(saved '  style font: Times-Roman 14pt; color: #DB2626')" 1
-check "Both signatures are ink annotations" "$(saved 'annotation Ink peeker')" 2
+check "Both signatures, the arrow and the check are ink" "$(saved 'annotation Ink peeker')" 4
+check "the arrow kept its shape" "$(saved '  shape arrow')" 1
+check "and the check its" "$(saved '  shape check')" 1
 
 # A digitally signed form opens read-only: the tools greyed out and the reason under the toolbar.
 "$DRIVE" keys Peeker cmd+w
 "$DRIVE" wait Peeker window form.pdf --gone
 launch "$SIGNED"
 osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1
-"$DRIVE" wait Peeker control "Text Box"
+"$DRIVE" wait Peeker control "Markup"
 # AppKit greys toolbar items in a later validation pass, so give it a moment.
-for _ in $(seq 30); do [ "$("$DRIVE" enabled Peeker "Text Box")" = false ] && break; sleep 0.1; done
-check "A signed PDF greys out Text Box" "$("$DRIVE" enabled Peeker "Text Box")" false
+for _ in $(seq 30); do [ "$("$DRIVE" enabled Peeker "Markup")" = false ] && break; sleep 0.1; done
+check "A signed PDF greys out Markup" "$("$DRIVE" enabled Peeker "Markup")" false
 check "A signed PDF says why under the toolbar" "$([ "$("$DRIVE" tree Peeker 20 | grep -c 'digitally signed')" -gt 0 ] && echo yes)" yes
 "$DRIVE" shot Peeker "$OUT/6-signed-read-only.png"
 

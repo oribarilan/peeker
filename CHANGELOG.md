@@ -6,6 +6,8 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- PDFs get Markup (M), which replaces Text Box in the toolbar and shows the strip image markup has: Text Box (T), Pen (P), Line (L), Arrow (A) and Box (B, an ellipse with Option) draw by dragging, and the stamps X (X), Check (V), Circle (O) and Dot (D) drop on a click or fit a dragged rectangle. Drawings and stamps save as ink, which every PDF app shows, and can be selected, moved, resized, recolored and deleted later. Their color and size are remembered. Text Box keeps its T and its style, now in the same strip.
+- Cmd+C and Cmd+V copy a selected text box, drawing or stamp in a PDF, also into another PDF; the copy lands a little below and right. Signatures and highlights aren't copied.
 - PDF text boxes have a style: a strip under the toolbar, shown while Text Box waits and while a box is typed or selected, picks Sans, Serif or Mono (Helvetica, Times and Courier, which every PDF app shows the same), Bold, Italic, six colors and Box, which fills the box with the color. The box's size moved into the strip. The style is remembered for new boxes, and a saved box keeps it.
 - Image markup text has a style: an Aa menu in the strip, beside the size, picks System, Serif, Rounded or Mono, Bold and Italic, and Plain, Outline, Shadow or Label. It's remembered and restyles the selected text.
 - Open in Peeker in the Peek panel brings the Editor to the front; it used to open behind Finder.

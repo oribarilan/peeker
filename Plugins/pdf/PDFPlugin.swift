@@ -16,8 +16,8 @@ public enum PDFPlugin: Plugin {
         ToolSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", showsInToolbar: false),
         ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
         // Single letters, as Crop's C: they run only while nothing that takes typing has the keyboard.
-        ToolSpec(id: "text-box", title: "Text Box", symbol: "character.textbox", shortcut: "t", isEditTool: true,
-                 tip: "Click where the text goes."),
+        ToolSpec(id: "markup", title: "Markup", symbol: "pencil.tip.crop.circle", shortcut: "m", isEditTool: true,
+                 tip: "Pick a tool, or press its key, then click or drag on the page. Hold Option for an ellipse."),
         ToolSpec(id: "sign", title: "Sign", symbol: "signature", shortcut: "s", isEditTool: true,
                  tip: "Draw your signature, then click where it goes."),
         ToolSpec(id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "h", isEditTool: true,
@@ -29,6 +29,15 @@ public enum PDFPlugin: Plugin {
         ToolSpec(id: "insert-pages", title: "Insert Pages from File…", isEditTool: true, showsInToolbar: false, menu: .file),
         ToolSpec(id: "save-selected-pages", title: "Save Selected Pages As…", isEditTool: true, showsInToolbar: false, menu: .file),
         ToolSpec(id: "split", title: "Split…", isEditTool: true, showsInToolbar: false, menu: .file),
+    ] + markupTools.map { ToolSpec(id: $0.id, title: $0.title, symbol: $0.symbol, shortcut: $0.key, isEditTool: true, showsInToolbar: false) }
+
+    /// The markup strip's tools in its order, each in the Tools menu with its key. Keys image markup has too (T, P, L,
+    /// A, B) are the same there. Text Box keeps the id it had as a toolbar tool, so shortcuts set for it still work.
+    nonisolated static let markupTools: [(id: String, title: String, symbol: String, key: String, shape: PDFDrawing.Shape?)] = [
+        ("text-box", "Text Box", "character.textbox", "t", nil), ("markup-pen", "Pen", "scribble", "p", .pen),
+        ("markup-line", "Line", "line.diagonal", "l", .line), ("markup-arrow", "Arrow", "arrow.up.right", "a", .arrow),
+        ("markup-box", "Box", "rectangle", "b", .box), ("markup-x", "X", "xmark", "x", .x), ("markup-check", "Check", "checkmark", "v", .check),
+        ("markup-circle", "Circle", "circle", "o", .circle), ("markup-dot", "Dot", "circle.fill", "d", .dot),
     ]
 
     /// Preview's five, Yellow first and the default. Opaque: PDFKit drops alpha when writing and draws highlights with
