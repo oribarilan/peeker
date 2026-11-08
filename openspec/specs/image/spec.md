@@ -105,7 +105,6 @@ Rotate & Resize SHALL open a panel just below the toolbar, with buttons to rotat
 - **WHEN** the user opens Rotate & Resize from the toolbar button or the Tools menu
 - **THEN** the panel's top edge is below the toolbar, and every toolbar item stays visible and clickable
 
-
 ### Requirement: Rotate & Resize has no default key
 
 Rotate & Resize SHALL have no default key, since rotating is rare; it opens from its toolbar button or the Tools menu, and a key can be set in Settings or the config.
@@ -304,16 +303,21 @@ Next Page and Previous Page (Page Down and Page Up), view tools listed only for 
 
 ### Requirement: Markup tools
 
-An image window's toolbar SHALL have Markup (M), which shows a strip under the toolbar with Arrow (A), Box (B, an ellipse with Option held), Text (T), Pixelate (X), Steps (N), Pen (P), Marker (K) and Spotlight (S), each also reachable by its key. Markup SHALL be greyed out with the reason wherever editing is, and absent from the Peek panel.
+An image window's toolbar SHALL have Markup (M), which shows a strip under the toolbar with Arrow (A), Box (B, an ellipse with Option held), Text (T), Pixelate (X), Steps (N), Pen (P), Marker (K) and Spotlight (S), each also reachable by its key, which the strip shows beside the tool's icon. Markup SHALL be greyed out with the reason wherever editing is, and absent from the Peek panel.
 
 #### Scenario: Pointing at a button
 
 - **WHEN** the user presses M, then A, and drags from an empty spot to a button in a screenshot
 - **THEN** an arrow in the current color points at the button
 
+#### Scenario: Keys on the strip
+
+- **WHEN** the strip shows
+- **THEN** each tool's key letter shows beside its icon
+
 ### Requirement: What each markup tool draws
 
-Text SHALL be plain with a thin outline or a label on a filled rounded box. Steps SHALL number themselves in order and renumber when one is deleted. Pixelate SHALL hide its rectangle in blocks too coarse to read back. Spotlight SHALL dim the image outside its boxes, of which there can be several.
+Text SHALL be drawn in its style: plain, with a thin outline, with a shadow, or as a label on a filled rounded box. Steps SHALL number themselves in order and renumber when one is deleted. Pixelate SHALL hide its rectangle in blocks, their size set by a Strength slider from fine to coarse, coarse enough by default not to read back. Spotlight SHALL dim the image outside its rectangles or ovals, of which there can be several.
 
 #### Scenario: Steps renumber
 
@@ -325,14 +329,29 @@ Text SHALL be plain with a thin outline or a label on a filled rounded box. Step
 - **WHEN** the user pixelates a password and saves
 - **THEN** the saved file shows coarse blocks where the password was
 
+#### Scenario: A stronger pixelate
+
+- **WHEN** the user selects a pixelate mark and drags Strength to the right
+- **THEN** its blocks grow larger
+
+#### Scenario: An oval spotlight
+
+- **WHEN** the user chooses Oval for Spotlight and drags over a face
+- **THEN** everything outside an oval around the face dims
+
 ### Requirement: One remembered markup style
 
-Every markup tool SHALL use one color, picked from six swatches or the system color picker, and one size, S, M or L, scaled to the image. Both SHALL be remembered across launches. Picking a color or size with a mark selected SHALL change that mark.
+Every markup tool SHALL use one color, picked from six swatches or the system color picker, and one size, S, M or L, scaled to the image. Pixelate's strength and Spotlight's shape, shown in place of the size while that tool is armed or its mark selected, SHALL be kept too. All SHALL be remembered across launches. Changing any of them with a mark selected SHALL change that mark.
 
 #### Scenario: Recoloring a mark
 
 - **WHEN** the user selects an arrow and clicks the blue swatch
 - **THEN** the arrow turns blue, and the next mark drawn is blue too, also after a relaunch
+
+#### Scenario: Oval stays chosen
+
+- **WHEN** the user picks Oval for Spotlight and relaunches Peeker
+- **THEN** the next spotlight is an oval
 
 ### Requirement: Marks stay editable until the window closes
 
@@ -356,3 +375,26 @@ With no mark selected, Cmd+C SHALL copy the whole image with its edits and marks
 
 - **WHEN** the user marks up a screenshot, presses Cmd+C and pastes into another app
 - **THEN** the pasted image shows the marks
+
+### Requirement: Marks are sharp on screen
+
+Marks SHALL draw over the image at the screen's resolution, so their lines and text stay smooth at any zoom, also on a small image. Pixelate SHALL show the image's own blocks. Saving and copying SHALL paint the marks into the image at its full resolution.
+
+#### Scenario: Zooming in on an arrow
+
+- **WHEN** the user draws an arrow on a 300 × 200 screenshot and zooms to 400%
+- **THEN** the arrow's edges are smooth, not stepped in image pixels
+
+### Requirement: Markup text style
+
+Markup text SHALL have a font (System, Serif, Rounded or Mono), bold, italic and an effect: Plain, Outline (the default, a thin contrasting outline), Shadow or Label (a filled rounded box, also chosen by holding Option when placing the text). The strip SHALL offer these in one menu beside the size while Text is armed or a text mark is selected. The style SHALL be remembered like the color and size, and changing it with a text mark selected SHALL change that mark.
+
+#### Scenario: Italic serif
+
+- **WHEN** the user arms Text, picks Serif and Italic, and types a caption
+- **THEN** the caption is in an italic serif font, and the next text is too, also after a relaunch
+
+#### Scenario: Restyling a label
+
+- **WHEN** the user selects a text mark and picks Shadow
+- **THEN** the text loses its outline and casts a shadow

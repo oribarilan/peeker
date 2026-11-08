@@ -17,8 +17,8 @@
 
 ## 4. Checks and docs
 
-- [ ] 4.1 `bench/make-fixtures.swift` writes `small.yaml` and `large.yaml`; `bench/ppbench.py` times them; run `scripts/bench-ab.sh` and `ppbench.py space`.
-- [ ] 4.2 Screen tests: routing cases for the new extensions; the `data-edit` flow adds Space on a YAML file and a binary property list's tree and read-only text; `run-peeker` skill updated.
+- [x] 4.1 `bench/make-fixtures.swift` writes `small.yaml` and `large.yaml`; `bench/ppbench.py` times them; run `scripts/bench-ab.sh` and `ppbench.py space`.
+- [x] 4.2 Screen tests: routing cases for the new extensions; the `data-edit` flow adds Space on a YAML file and a binary property list's tree and read-only text; `run-peeker` skill updated.
 - [x] 4.3 `scripts/build.sh test` passes with no new warnings; review by the oracle before committing.
 - [x] 4.4 README, CHANGELOG, backlog (tree editing for these formats); `openspec validate --all --strict`.
 
