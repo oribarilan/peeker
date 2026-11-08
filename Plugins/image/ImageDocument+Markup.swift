@@ -43,14 +43,21 @@ extension ImageDocument {
 
     var isMarkingUp: Bool { strip.map { !$0.isHidden } ?? false }
 
-    /// The remembered color and size, or red and medium when there's none or it doesn't read.
-    static func markupStyle(in preferences: PluginPreferences?) -> (RGBA, MarkSize) {
-        let size = preferences?.string("markupSize").flatMap(MarkSize.init(rawValue:)) ?? .medium
-        guard let hex = preferences?.string("markupColor"), hex.count == 6, let value = UInt32(hex, radix: 16) else { return (markupPalette[0].color, size) }
+    /// The remembered style; what's missing or doesn't read is the standard one (red, medium).
+    static func markupStyle(in preferences: PluginPreferences?) -> MarkStyle {
+        var style = MarkStyle.standard
+        if let size = preferences?.string("markupSize").flatMap(MarkSize.init(rawValue:)) { style.size = size }
+        if let strength = preferences?.double("markupStrength"), (0...1).contains(strength) { style.strength = strength }
+        style.ovalSpotlight = preferences?.string("spotlightShape") == "oval"
+        guard let hex = preferences?.string("markupColor"), hex.count == 6, let value = UInt32(hex, radix: 16) else { return style }
         // A swatch comes back as itself, so it shows as chosen.
-        if let swatch = markupPalette.first(where: { Self.hex($0.color) == hex.uppercased() }) { return (swatch.color, size) }
-        let channel = { (shift: UInt32) in Double((value >> shift) & 0xFF) / 255 }
-        return (RGBA(red: channel(16), green: channel(8), blue: channel(0), alpha: 1), size)
+        if let swatch = markupPalette.first(where: { Self.hex($0.color) == hex.uppercased() }) {
+            style.color = swatch.color
+        } else {
+            let channel = { (shift: UInt32) in Double((value >> shift) & 0xFF) / 255 }
+            style.color = RGBA(red: channel(16), green: channel(8), blue: channel(0), alpha: 1)
+        }
+        return style
     }
 
     static func hex(_ color: RGBA) -> String {
@@ -91,6 +98,8 @@ extension ImageDocument {
         strip.onTool = { [weak self] in self?.arm($0) }
         strip.onColor = { [weak self] in self?.setMarkupColor($0) }
         strip.onSize = { [weak self] in self?.setMarkupSize($0) }
+        strip.onStrength = { [weak self] in self?.setMarkupStrength($0) }
+        strip.onOval = { [weak self] in self?.setSpotlightOval($0) }
         container.strip = strip
         self.strip = strip
         return strip
@@ -100,7 +109,7 @@ extension ImageDocument {
         let overlay = MarkupOverlay(canvas: canvas, document: MarkupOverlay.Document(
             marks: { [weak self] in self?.marks ?? [] },
             pixelSize: { [weak self] in self?.pixelSize ?? .zero },
-            style: { [weak self] in (self?.markupColor ?? markupPalette[0].color, self?.markupSize ?? .medium) },
+            style: { [weak self] in self?.markupStyle ?? .standard },
             hide: { [weak self] in self?.redraw(hiding: $0) },
             put: { [weak self] in self?.put($0) },
             remove: { [weak self] in self?.removeMark(id: $0) },
@@ -109,14 +118,52 @@ extension ImageDocument {
         return overlay
     }
 
-    /// The strip shows the armed tool and the selected mark's color and size, or the style in use.
-    private func showStyle() {
+    /// The strip shows the armed tool and the selected mark's style, or the style in use. Pixelate's strength or
+    /// Spotlight's shape takes the size's place while that tool is armed or its mark selected.
+    func showStyle() {
         let mark = overlay?.selected
-        strip?.show(tool: overlay?.tool, color: mark?.color ?? markupColor, size: mark?.size ?? markupSize)
+        var style = markupStyle
+        if let mark {
+            style.color = mark.color
+            style.size = mark.size
+        }
+        var detail = MarkupStrip.Detail.size
+        switch mark?.kind {
+        case .pixelate(_, let strength)?:
+            style.strength = strength
+            detail = .strength
+        case .spotlight(_, let ellipse)?:
+            style.ovalSpotlight = ellipse
+            detail = .shape
+        case nil where overlay?.tool == .pixelate: detail = .strength
+        case nil where overlay?.tool == .spotlight: detail = .shape
+        default: break
+        }
+        strip?.show(tool: overlay?.tool, style: style, detail: detail)
+    }
+
+    func setMarkupStrength(_ strength: Double) {
+        markupStyle.strength = min(max(strength, 0), 1)
+        preferences?.set(markupStyle.strength, for: "markupStrength")
+        if var mark = overlay?.selected, case .pixelate(let rect, _) = mark.kind {
+            mark.kind = .pixelate(rect, strength: markupStyle.strength)
+            put(mark)
+        }
+        showStyle()
+    }
+
+    func setSpotlightOval(_ oval: Bool) {
+        markupStyle.ovalSpotlight = oval
+        preferences?.set(oval ? "oval" : "rectangle", for: "spotlightShape")
+        if var mark = overlay?.selected, case .spotlight(let rect, _) = mark.kind {
+            mark.kind = .spotlight(rect, ellipse: oval)
+            put(mark)
+        }
+        showStyle()
     }
 
     func setMarkupColor(_ color: RGBA) {
-        markupColor = color
+        markupStyle.color = color
         preferences?.set(Self.hex(color), for: "markupColor")
         if var mark = overlay?.selected {
             mark.color = color
@@ -126,7 +173,7 @@ extension ImageDocument {
     }
 
     func setMarkupSize(_ size: MarkSize) {
-        markupSize = size
+        markupStyle.size = size
         preferences?.set(size.rawValue, for: "markupSize")
         if var mark = overlay?.selected {
             mark.size = size

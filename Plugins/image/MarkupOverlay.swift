@@ -9,7 +9,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
     struct Document {
         var marks: () -> [ImageMark]
         var pixelSize: () -> CGSize
-        var style: () -> (color: RGBA, size: MarkSize)
+        var style: () -> MarkStyle
         /// Shows the image without the mark with this id, while it's dragged; nil shows every mark again.
         var hide: (String?) -> Void
         var put: (ImageMark) -> Void
@@ -109,7 +109,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
             beginTextEditing(ImageMark(id: ImageMark.newID(), kind: .text(origin: point, string: " ", label: option), color: style.color,
                                        size: style.size, width: width), new: true)
         default:
-            draft = ImageMark(id: ImageMark.newID(), kind: Self.kind(tool, from: point, to: point, ellipse: option), color: style.color,
+            draft = ImageMark(id: ImageMark.newID(), kind: Self.kind(tool, from: point, to: point, ellipse: option, style: style), color: style.color,
                               size: style.size, width: width)
             drag = .drawing(start: point)
         }
@@ -124,7 +124,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
             switch (tool, mark.kind) {
             case (.pen, .pen(let points)): mark.kind = .pen(Self.extended(points, with: point, minimum: tolerance / 3))
             case (.marker, .marker(let points)): mark.kind = .marker(Self.extended(points, with: point, minimum: tolerance / 3))
-            default: mark.kind = Self.kind(tool, from: start, to: point, ellipse: event.modifierFlags.contains(.option))
+            default: mark.kind = Self.kind(tool, from: start, to: point, ellipse: event.modifierFlags.contains(.option), style: document.style())
             }
             draft = mark
         case .moving(let from, let original):
@@ -230,7 +230,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         case .arrow(let from, let to):
             if near(to) { return (from, true) }
             if near(from) { return (to, false) }
-        case .box(let rect, _), .pixelate(let rect), .spotlight(let rect):
+        case .box(let rect, _), .pixelate(let rect, _), .spotlight(let rect, _):
             let r = rect.standardized
             let corners = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)]
             for (index, corner) in corners.enumerated() where near(corner) { return (corners[(index + 2) % 4], true) }
@@ -239,13 +239,13 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         return nil
     }
 
-    private static func kind(_ tool: MarkupTool, from start: CGPoint, to point: CGPoint, ellipse: Bool) -> ImageMark.Kind {
+    private static func kind(_ tool: MarkupTool, from start: CGPoint, to point: CGPoint, ellipse: Bool, style: MarkStyle) -> ImageMark.Kind {
         let rect = CGRect(from: start, to: point)
         switch tool {
         case .arrow: return .arrow(from: start, to: point)
         case .box: return .box(rect, ellipse: ellipse)
-        case .pixelate: return .pixelate(rect)
-        case .spotlight: return .spotlight(rect)
+        case .pixelate: return .pixelate(rect, strength: style.strength)
+        case .spotlight: return .spotlight(rect, ellipse: style.ovalSpotlight)
         case .pen: return .pen([start])
         case .marker: return .marker([start])
         case .step: return .step(center: point)
@@ -279,7 +279,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         var handles: [CGPoint] = []
         switch mark.kind {
         case .arrow(let from, let to): handles = [from, to]
-        case .box(let rect, _), .pixelate(let rect), .spotlight(let rect):
+        case .box(let rect, _), .pixelate(let rect, _), .spotlight(let rect, _):
             let r = rect.standardized
             handles = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)]
         default: break
@@ -311,7 +311,7 @@ nonisolated extension ImageMark {
     func isVisible(tolerance: CGFloat) -> Bool {
         switch kind {
         case .arrow(let from, let to): hypot(to.x - from.x, to.y - from.y) >= tolerance
-        case .box(let rect, _), .pixelate(let rect), .spotlight(let rect): rect.width >= tolerance && rect.height >= tolerance
+        case .box(let rect, _), .pixelate(let rect, _), .spotlight(let rect, _): rect.width >= tolerance && rect.height >= tolerance
         default: true
         }
     }
@@ -322,8 +322,8 @@ nonisolated extension ImageMark {
         switch kind {
         case .arrow(let from, let to): mark.kind = .arrow(from: move(from), to: move(to))
         case .box(let r, let ellipse): mark.kind = .box(r.offsetBy(dx: delta.x, dy: delta.y), ellipse: ellipse)
-        case .pixelate(let r): mark.kind = .pixelate(r.offsetBy(dx: delta.x, dy: delta.y))
-        case .spotlight(let r): mark.kind = .spotlight(r.offsetBy(dx: delta.x, dy: delta.y))
+        case .pixelate(let r, let strength): mark.kind = .pixelate(r.offsetBy(dx: delta.x, dy: delta.y), strength: strength)
+        case .spotlight(let r, let ellipse): mark.kind = .spotlight(r.offsetBy(dx: delta.x, dy: delta.y), ellipse: ellipse)
         case .text(let origin, let string, let label): mark.kind = .text(origin: move(origin), string: string, label: label)
         case .step(let center): mark.kind = .step(center: move(center))
         case .pen(let points): mark.kind = .pen(points.map(move))
@@ -338,8 +338,8 @@ nonisolated extension ImageMark {
         switch kind {
         case .arrow: mark.kind = end ? .arrow(from: fixed, to: point) : .arrow(from: point, to: fixed)
         case .box(_, let ellipse): mark.kind = .box(CGRect(from: fixed, to: point), ellipse: ellipse)
-        case .pixelate: mark.kind = .pixelate(CGRect(from: fixed, to: point))
-        case .spotlight: mark.kind = .spotlight(CGRect(from: fixed, to: point))
+        case .pixelate(_, let strength): mark.kind = .pixelate(CGRect(from: fixed, to: point), strength: strength)
+        case .spotlight(_, let ellipse): mark.kind = .spotlight(CGRect(from: fixed, to: point), ellipse: ellipse)
         default: break
         }
         return mark

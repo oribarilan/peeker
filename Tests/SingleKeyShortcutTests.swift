@@ -91,6 +91,18 @@ private final class LetterDocument: PluginDocument {
         #expect(document.cropOverlay != nil)
     }
 
+    @Test func markupKeysArmTheirTools() async throws {
+        let png = try imageFile(try cornerImage(width: 400, height: 200), type: .png)
+        let controller = try await documentWindow(for: ImagePlugin.self, file: png)
+        defer { controller.close() }
+        let window = try #require(controller.window)
+        let document = try #require(controller.current?.pluginDocument as? ImageDocument)
+        #expect(controller.handleToolKey(key("b", code: 11, in: window)))
+        #expect(document.isOn("markup-box") == true)
+        #expect(controller.handleToolKey(key("s", code: 1, in: window)))
+        #expect(document.isOn("markup-spotlight") == true)
+    }
+
     @Test func pageDownAndPageUpMoveBetweenTIFFPages() async throws {
         let controller = try await documentWindow(for: ImagePlugin.self, file: try multiPageTIFF([(40, 20), (20, 40)]))
         defer { controller.close() }

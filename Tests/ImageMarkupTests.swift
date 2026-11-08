@@ -74,7 +74,7 @@ import UniformTypeIdentifiers
         #expect(document.marks.count == 1, "one Undo per mark")
     }
 
-    /// Drawing redraws the overlay only; the whole image is drawn again once, when the mark is placed.
+    /// Drawing redraws the overlay only; the image itself is never drawn again for a pen mark.
     @Test func aDragLeavesTheImageAloneUntilTheMarkIsPlaced() async throws {
         let (document, window) = try await shown()
         defer { window.close() }
@@ -85,7 +85,7 @@ import UniformTypeIdentifiers
         for x in stride(from: 50.0, to: 200, by: 10) { overlay.mouseDragged(with: mouse(.leftMouseDragged, at: CGPoint(x: x, y: 60), in: overlay)) }
         #expect(document.canvas.image === before)
         overlay.mouseUp(with: mouse(.leftMouseUp, at: CGPoint(x: 200, y: 60), in: overlay))
-        #expect(document.canvas.image !== before && document.marks.count == 1)
+        #expect(document.marks.count == 1 && document.marksView.shownMarks.count == 1, "placed, it's drawn over the image")
     }
 
     @Test func aClickDropsStepsThatRenumber() async throws {
@@ -148,7 +148,7 @@ import UniformTypeIdentifiers
         #expect(document.marks.first?.color == markupPalette[3].color, "the selected mark takes the new color")
         let (next, other) = try await shown(preferences: scratch.preferences("image"))
         defer { other.close() }
-        #expect(next.markupColor == markupPalette[3].color && next.markupSize == .large)
+        #expect(next.markupStyle.color == markupPalette[3].color && next.markupStyle.size == .large)
     }
 
     @Test func aBadStoredStyleIsIgnored() {
@@ -156,8 +156,8 @@ import UniformTypeIdentifiers
         defer { scratch.close() }
         scratch.preferences("image").set("zz", for: "markupColor")
         scratch.preferences("image").set("huge", for: "markupSize")
-        let (color, size) = ImageDocument.markupStyle(in: scratch.preferences("image"))
-        #expect(color == markupPalette[0].color && size == .medium)
+        scratch.preferences("image").set(7.0, for: "markupStrength")
+        #expect(ImageDocument.markupStyle(in: scratch.preferences("image")) == .standard)
     }
 
     @Test func copyAndPasteAMark() async throws {

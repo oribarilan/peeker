@@ -23,13 +23,55 @@ nonisolated enum MarkRenderer {
         // From here on, image pixels from the top left.
         context.translateBy(x: 0, y: CGFloat(image.height))
         context.scaleBy(x: scale, y: -scale)
+        for mark in marks {
+            if case .pixelate(let rect, let strength) = mark.kind { pixelate(rect, strength: strength, of: image, scale: scale, imageSize: imageSize, in: context) }
+        }
+        drawStrokes(marks, imageSize: imageSize, in: context)
+        context.restoreGState()
+    }
+
+    /// Draws every mark but Pixelate over `image`, shown at `rect` in an unflipped view, at the view's resolution, so
+    /// lines and text stay sharp at any zoom. Pixelate needs the image's pixels, so it's in the shown image instead.
+    /// Steps are numbered among `numbering`, every mark, so a step being dragged keeps its number.
+    static func drawOnScreen(_ marks: [ImageMark], numbering: [ImageMark], over image: CGImage, imageSize: CGSize, in rect: CGRect, context: CGContext) {
+        guard imageSize.width > 0, imageSize.height > 0, !marks.isEmpty else { return }
+        context.saveGState()
+        context.translateBy(x: rect.minX, y: rect.maxY)
+        context.scaleBy(x: rect.width / imageSize.width, y: -rect.height / imageSize.height)
+        drawStrokes(marks, numbers: ImageMark.stepNumbers(numbering), imageSize: imageSize, underlay: image, in: context)
+        context.restoreGState()
+    }
+
+    /// Markers, Spotlight's dimming, then the other marks, in image pixels from the top left. A marker multiplies with
+    /// what's under it; with `underlay`, that's drawn under the marker's stroke first, since an empty view has nothing
+    /// to multiply with.
+    private static func drawStrokes(_ marks: [ImageMark], numbers: [String: Int]? = nil, imageSize: CGSize, underlay: CGImage? = nil, in context: CGContext) {
         context.setLineCap(.round)
         context.setLineJoin(.round)
-        for mark in marks { if case .pixelate(let rect) = mark.kind { pixelate(rect, of: image, scale: scale, imageSize: imageSize, in: context) } }
-        let lit = marks.compactMap { mark -> CGRect? in if case .spotlight(let rect) = mark.kind { rect.standardized } else { nil } }
+        for mark in marks where mark.kind.isMarker {
+            if let underlay { drawUnderlay(underlay, under: mark, imageSize: imageSize, in: context) }
+            draw(mark, number: nil, in: context)
+        }
+        let lit = marks.compactMap { mark -> (CGRect, Bool)? in if case .spotlight(let rect, let ellipse) = mark.kind { (rect.standardized, ellipse) } else { nil } }
         if !lit.isEmpty { dim(outside: lit, imageSize: imageSize, in: context) }
-        let numbers = ImageMark.stepNumbers(marks)
-        for mark in marks { draw(mark, number: numbers[mark.id], in: context) }
+        let numbers = numbers ?? ImageMark.stepNumbers(marks)
+        for mark in marks where !mark.kind.isMarker { draw(mark, number: numbers[mark.id], in: context) }
+    }
+
+    private static func drawUnderlay(_ image: CGImage, under mark: ImageMark, imageSize: CGSize, in context: CGContext) {
+        guard case .marker(let points) = mark.kind, let first = points.first else { return }
+        context.saveGState()
+        context.setLineWidth(mark.width * 4)
+        context.setLineCap(.butt)
+        context.move(to: first)
+        for point in points.dropFirst() { context.addLine(to: point) }
+        context.replacePathWithStrokedPath()
+        if !context.isPathEmpty {
+            context.clip()
+            context.translateBy(x: 0, y: imageSize.height)
+            context.scaleBy(x: 1, y: -1)
+            context.draw(image, in: CGRect(origin: .zero, size: imageSize))
+        }
         context.restoreGState()
     }
 
@@ -43,13 +85,13 @@ nonisolated enum MarkRenderer {
         context.setLineCap(.round)
         context.setLineJoin(.round)
         switch mark.kind {
-        case .pixelate(let area):
+        case .pixelate(let area, _):
             context.setStrokeColor(CGColor(gray: 0.5, alpha: 1))
             context.setLineWidth(max(mark.width / 2, 1))
             context.setLineDash(phase: 0, lengths: [mark.width * 2, mark.width * 2])
             context.stroke(area.standardized)
-        case .spotlight(let area):
-            dim(outside: [area.standardized], imageSize: imageSize, in: context)
+        case .spotlight(let area, let ellipse):
+            dim(outside: [(area.standardized, ellipse)], imageSize: imageSize, in: context)
         default:
             draw(mark, number: number, in: context)
         }
@@ -104,11 +146,11 @@ nonisolated enum MarkRenderer {
         context.strokePath()
     }
 
-    /// Averages `rect` into blocks of at least 1/60 of the image's shorter side, too coarse to read back.
-    private static func pixelate(_ rect: CGRect, of image: CGImage, scale: CGFloat, imageSize: CGSize, in context: CGContext) {
+    /// Averages `rect` into blocks sized by `strength`.
+    private static func pixelate(_ rect: CGRect, strength: Double, of image: CGImage, scale: CGFloat, imageSize: CGSize, in context: CGContext) {
         let area = rect.standardized.intersection(CGRect(origin: .zero, size: imageSize))
         guard !area.isEmpty else { return }
-        let block = max(min(imageSize.width, imageSize.height) / 60, 8)
+        let block = MarkStyle.block(strength: strength, imageSize: imageSize)
         let pixels = CGRect(x: area.minX * scale, y: area.minY * scale, width: area.width * scale, height: area.height * scale).integral
         guard let part = image.cropping(to: pixels) else { return }
         let columns = max(Int((area.width / block).rounded(.up)), 1), rows = max(Int((area.height / block).rounded(.up)), 1)
@@ -124,10 +166,10 @@ nonisolated enum MarkRenderer {
         context.restoreGState()
     }
 
-    private static func dim(outside lit: [CGRect], imageSize: CGSize, in context: CGContext) {
+    private static func dim(outside lit: [(rect: CGRect, ellipse: Bool)], imageSize: CGSize, in context: CGContext) {
         context.saveGState()
         context.addRect(CGRect(origin: .zero, size: imageSize))
-        for rect in lit { context.addRect(rect) }
+        for (rect, ellipse) in lit { ellipse ? context.addEllipse(in: rect) : context.addRect(rect) }
         context.setFillColor(CGColor(gray: 0, alpha: 0.5))
         context.fillPath(using: .evenOdd)
         context.restoreGState()

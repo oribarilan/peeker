@@ -31,6 +31,13 @@ final class ImageCanvas: NSView, NSMenuItemValidation {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
+    /// A zoom raises the views' scale but keeps their old drawing, stretched; the marks, selection handles and crop
+    /// rectangle over the image are drawn again, sharp.
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        for view in subviews { view.needsDisplay = true }
+    }
+
     override func viewDidMoveToSuperview() {
         super.viewDidMoveToSuperview()
         if let clip = superview { frame = clip.bounds }

@@ -63,14 +63,29 @@ nonisolated let markupPalette: [(name: String, color: RGBA)] = [
     ("Black", RGBA(red: 0, green: 0, blue: 0, alpha: 1)),
 ]
 
-/// The bar under the toolbar: tools, colors and sizes.
+/// The bar under the toolbar: tools, colors, and the size, or Pixelate's strength or Spotlight's shape.
 final class MarkupStrip: NSView {
+    /// What the strip's last control sets.
+    enum Detail { case size, strength, shape }
+
     var onTool: ((MarkupTool?) -> Void)?
     var onColor: ((RGBA) -> Void)?
     var onSize: ((MarkSize) -> Void)?
-    private let tools: NSSegmentedControl
+    var onStrength: ((Double) -> Void)?
+    var onOval: ((Bool) -> Void)?
+    let tools: NSSegmentedControl
     private var swatches: [SwatchButton] = []
     private let sizes = NSSegmentedControl(labels: ["S", "M", "L"], trackingMode: .selectOne, target: nil, action: nil)
+    let strength = NSSlider(value: MarkStyle.defaultStrength, minValue: 0, maxValue: 1, target: nil, action: nil)
+    private lazy var strengthRow: NSStackView = {
+        let icon = NSImageView(image: NSImage(systemSymbolName: "checkerboard.rectangle", accessibilityDescription: nil)!)
+        icon.contentTintColor = .secondaryLabelColor
+        let row = NSStackView(views: [icon, strength])
+        row.spacing = 6
+        return row
+    }()
+    let shapes = NSSegmentedControl(images: ["rectangle", "oval"].map { NSImage(systemSymbolName: $0, accessibilityDescription: nil)! },
+                                    trackingMode: .selectOne, target: nil, action: nil)
 
     init() {
         tools = NSSegmentedControl(images: MarkupTool.allCases.map { NSImage(systemSymbolName: $0.symbol, accessibilityDescription: $0.title)! },
@@ -78,7 +93,12 @@ final class MarkupStrip: NSView {
         super.init(frame: .zero)
         tools.target = self
         tools.action = #selector(toolChosen(_:))
-        for (index, tool) in MarkupTool.allCases.enumerated() { tools.setToolTip("\(tool.title) (\(tool.key.uppercased()))", forSegment: index) }
+        // Each tool's key beside its icon, as toolbar buttons show theirs.
+        for (index, tool) in MarkupTool.allCases.enumerated() {
+            tools.setToolTip("\(tool.title) (\(tool.key.uppercased()))", forSegment: index)
+            tools.setLabel(tool.key.uppercased(), forSegment: index)
+        }
+        tools.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         tools.setAccessibilityLabel("Markup tools")
         swatches = markupPalette.map { entry in
             let button = SwatchButton(color: entry.color)
@@ -94,9 +114,23 @@ final class MarkupStrip: NSView {
         sizes.action = #selector(sizeChosen(_:))
         for (index, name) in ["Small", "Medium", "Large"].enumerated() { sizes.setToolTip(name, forSegment: index) }
         sizes.setAccessibilityLabel("Size")
+        strength.target = self
+        strength.action = #selector(strengthChosen(_:))
+        strength.isContinuous = false  // one edit when the slider is let go
+        strength.controlSize = .small
+        strength.setAccessibilityLabel("Strength")
+        strength.toolTip = "Pixelate strength"
+        strength.widthAnchor.constraint(equalToConstant: 80).isActive = true
+        shapes.target = self
+        shapes.action = #selector(shapeChosen(_:))
+        for (index, name) in ["Rectangle", "Oval"].enumerated() {
+            shapes.setToolTip(name, forSegment: index)
+            shapes.image(forSegment: index)?.accessibilityDescription = name
+        }
+        shapes.setAccessibilityLabel("Spotlight shape")
         let colors = NSStackView(views: swatches + [more])
         colors.spacing = 6
-        let row = NSStackView(views: [tools, separator(), colors, separator(), sizes])
+        let row = NSStackView(views: [tools, separator(), colors, separator(), sizes, strengthRow, shapes])
         row.spacing = 12
         row.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
         let line = NSBox()
@@ -118,12 +152,20 @@ final class MarkupStrip: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// Shows the armed tool, the color and the size.
-    func show(tool: MarkupTool?, color: RGBA, size: MarkSize) {
+    /// Shows the armed tool, the color, and the size, strength or shape as `detail` says.
+    func show(tool: MarkupTool?, style: MarkStyle, detail: Detail) {
         tools.selectedSegment = tool.flatMap { MarkupTool.allCases.firstIndex(of: $0) } ?? -1
-        for swatch in swatches { swatch.isChosen = swatch.color == color }
-        sizes.selectedSegment = MarkSize.allCases.firstIndex(of: size) ?? 1
+        for swatch in swatches { swatch.isChosen = swatch.color == style.color }
+        sizes.selectedSegment = MarkSize.allCases.firstIndex(of: style.size) ?? 1
+        strength.doubleValue = style.strength
+        shapes.selectedSegment = style.ovalSpotlight ? 1 : 0
+        sizes.isHidden = detail != .size
+        strengthRow.isHidden = detail != .strength
+        shapes.isHidden = detail != .shape
     }
+
+    /// Which of size, strength and shape shows, for tests.
+    var detail: Detail { !strengthRow.isHidden ? .strength : !shapes.isHidden ? .shape : .size }
 
     private func separator() -> NSView {
         let line = NSBox()
@@ -142,6 +184,10 @@ final class MarkupStrip: NSView {
     @objc private func sizeChosen(_ sender: NSSegmentedControl) {
         if MarkSize.allCases.indices.contains(sender.selectedSegment) { onSize?(MarkSize.allCases[sender.selectedSegment]) }
     }
+
+    @objc private func strengthChosen(_ sender: NSSlider) { onStrength?(sender.doubleValue) }
+
+    @objc private func shapeChosen(_ sender: NSSegmentedControl) { onOval?(sender.selectedSegment == 1) }
 
     @objc private func showColors(_ sender: Any?) {
         let panel = NSColorPanel.shared

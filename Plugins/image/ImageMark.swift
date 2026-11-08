@@ -10,12 +10,13 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
         case box(CGRect, ellipse: Bool)
         /// `origin` is the top left of the text; a label sits on a filled rounded box.
         case text(origin: CGPoint, string: String, label: Bool)
-        case pixelate(CGRect)
+        /// `strength` from 0 (fine blocks) to 1 (coarse ones).
+        case pixelate(CGRect, strength: Double)
         /// A numbered badge; its number is its place among the steps.
         case step(center: CGPoint)
         case pen([CGPoint])
         case marker([CGPoint])
-        case spotlight(CGRect)
+        case spotlight(CGRect, ellipse: Bool)
     }
 
     let id: String
@@ -36,7 +37,8 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
         let ok = { (p: CGPoint) in p.x.isFinite && p.y.isFinite && abs(p.x) <= 1_000_000 && abs(p.y) <= 1_000_000 }
         switch kind {
         case .arrow(let from, let to): return ok(from) && ok(to)
-        case .box(let rect, _), .pixelate(let rect), .spotlight(let rect):
+        case .box(let rect, _), .pixelate(let rect, _), .spotlight(let rect, _):
+            if case .pixelate(_, let strength) = kind, !(0...1).contains(strength) { return false }
             return ok(rect.origin) && ok(CGPoint(x: rect.maxX, y: rect.maxY)) && rect.width >= 0 && rect.height >= 0
         case .text(let origin, let string, _): return ok(origin) && !string.isEmpty && string.count <= Self.maxText
         case .step(let center): return ok(center)
@@ -49,7 +51,7 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
         let pad = width * 4
         switch kind {
         case .arrow(let from, let to): return CGRect(from: from, to: to).insetBy(dx: -pad, dy: -pad)
-        case .box(let rect, _), .pixelate(let rect), .spotlight(let rect): return rect.standardized.insetBy(dx: -width, dy: -width)
+        case .box(let rect, _), .pixelate(let rect, _), .spotlight(let rect, _): return rect.standardized.insetBy(dx: -width, dy: -width)
         case .text(let origin, let string, _):
             let lines = string.split(separator: "\n", omittingEmptySubsequences: false)
             let font = width * Self.textScale
@@ -61,6 +63,8 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
             return CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!).insetBy(dx: -pad, dy: -pad)
         }
     }
+
+    var isPixelate: Bool { if case .pixelate = kind { true } else { false } }
 
     /// Font size and badge radius as multiples of the stroke width.
     static let textScale = 5.0
@@ -87,8 +91,8 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
         switch kind {
         case .arrow(let from, let to): mark.kind = .arrow(from: point(from), to: point(to))
         case .box(let r, let ellipse): mark.kind = .box(rect(r), ellipse: ellipse)
-        case .pixelate(let r): mark.kind = .pixelate(rect(r))
-        case .spotlight(let r): mark.kind = .spotlight(rect(r))
+        case .pixelate(let r, let strength): mark.kind = .pixelate(rect(r), strength: strength)
+        case .spotlight(let r, let ellipse): mark.kind = .spotlight(rect(r), ellipse: ellipse)
         case .text(let origin, let string, let label):
             // Text stays upright: its top left follows the corner of its box that lands top left.
             let box = rect(CGRect(origin: origin, size: bounds.size))
@@ -110,6 +114,24 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
         var numbers: [String: Int] = [:]
         for mark in marks { if case .step = mark.kind { numbers[mark.id] = numbers.count + 1 } }
         return numbers
+    }
+}
+
+/// What the next mark is drawn with: the color and size, Pixelate's strength and Spotlight's shape.
+nonisolated struct MarkStyle: Equatable, Sendable {
+    var color: RGBA
+    var size: MarkSize
+    var strength: Double
+    var ovalSpotlight: Bool
+
+    /// Blocks of 1/60 of the image's shorter side, too coarse to read back.
+    static let defaultStrength = log10(100.0 / 60)
+    static let standard = MarkStyle(color: markupPalette[0].color, size: .medium, strength: defaultStrength, ovalSpotlight: false)
+
+    /// Pixelate's block size in pixels: from 1/100 of the image's shorter side at strength 0 (still too coarse for
+    /// small text) to 1/10 at 1, and never under 6 pixels.
+    static func block(strength: Double, imageSize: CGSize) -> CGFloat {
+        max(min(imageSize.width, imageSize.height) * pow(10, strength) / 100, 6 + 6 * strength)
     }
 }
 

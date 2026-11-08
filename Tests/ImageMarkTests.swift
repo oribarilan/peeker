@@ -13,9 +13,9 @@ private func mark(_ kind: ImageMark.Kind, width: Double = 4) -> ImageMark {
 @Suite struct ImageMarkModel {
     @Test func marksRoundTripThroughRecovery() throws {
         let marks = [mark(.arrow(from: .zero, to: CGPoint(x: 10, y: 20))), mark(.box(CGRect(x: 1, y: 2, width: 3, height: 4), ellipse: true)),
-                     mark(.text(origin: CGPoint(x: 5, y: 5), string: "Hi", label: true)), mark(.pixelate(CGRect(x: 0, y: 0, width: 9, height: 9))),
+                     mark(.text(origin: CGPoint(x: 5, y: 5), string: "Hi", label: true)), mark(.pixelate(CGRect(x: 0, y: 0, width: 9, height: 9), strength: MarkStyle.defaultStrength)),
                      mark(.step(center: CGPoint(x: 3, y: 3))), mark(.pen([.zero, CGPoint(x: 1, y: 1)])), mark(.marker([.zero])),
-                     mark(.spotlight(CGRect(x: 2, y: 2, width: 5, height: 5)))]
+                     mark(.spotlight(CGRect(x: 2, y: 2, width: 5, height: 5), ellipse: false))]
         let decoded = try JSONDecoder().decode([ImageMark].self, from: try JSONEncoder().encode(marks))
         #expect(decoded == marks && decoded.allSatisfy(\.isValid))
     }
@@ -107,7 +107,7 @@ private func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: 
     }
 
     @Test func pixelateLeavesUniformBlocks() throws {
-        let image = try #require(MarkRenderer.render([mark(.pixelate(CGRect(x: 0, y: 0, width: 64, height: 64)))], on: canvas(checker: 2), imageSize: size))
+        let image = try #require(MarkRenderer.render([mark(.pixelate(CGRect(x: 0, y: 0, width: 64, height: 64), strength: MarkStyle.defaultStrength))], on: canvas(checker: 2), imageSize: size))
         // Blocks are at least 8 pixels, so a 2-pixel checkerboard averages to one gray in each.
         let a = pixel(image, 1, 1), b = pixel(image, 2, 1), c = pixel(image, 6, 6)
         #expect(a == b && b == c && a.r > 60 && a.r < 200)
@@ -115,8 +115,8 @@ private func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: 
     }
 
     @Test func spotlightDimsOutsideItsBoxes() throws {
-        let image = try #require(MarkRenderer.render([mark(.spotlight(CGRect(x: 10, y: 10, width: 30, height: 30))),
-                                                      mark(.spotlight(CGRect(x: 100, y: 10, width: 30, height: 30)))], on: canvas(), imageSize: size))
+        let image = try #require(MarkRenderer.render([mark(.spotlight(CGRect(x: 10, y: 10, width: 30, height: 30), ellipse: false)),
+                                                      mark(.spotlight(CGRect(x: 100, y: 10, width: 30, height: 30), ellipse: false))], on: canvas(), imageSize: size))
         #expect(pixel(image, 20, 20) == (255, 255, 255) && pixel(image, 110, 20) == (255, 255, 255), "inside both")
         #expect(pixel(image, 70, 80).r < 140, "dimmed outside")
     }

@@ -56,8 +56,9 @@ final class ImageDocument: PluginDocument {
     var source: ImageSource { original.map(ImageSource.bytes) ?? .file(url) }
     /// Where the markup style is kept between launches; nil keeps it only here.
     let preferences: PluginPreferences?
-    var markupColor: RGBA
-    var markupSize: MarkSize
+    var markupStyle: MarkStyle
+    /// Draws the marks over the image at the screen's resolution; the canvas's image holds only Pixelate's blocks.
+    let marksView: MarksView
     /// The image and, above it while marking up, the strip.
     let container = MarkupContainer()
     var strip: MarkupStrip?
@@ -82,7 +83,7 @@ final class ImageDocument: PluginDocument {
     init(url: URL, decoded: ImagePlugin.Decoded, editable: Bool, maxPixels: Int, preferences: PluginPreferences? = nil) {
         self.url = url
         self.preferences = preferences
-        (markupColor, markupSize) = Self.markupStyle(in: preferences)
+        markupStyle = Self.markupStyle(in: preferences)
         self.maxPixels = maxPixels
         pageCount = decoded.pageCount
         showsPages = editable && decoded.pageCount > 1
@@ -92,6 +93,7 @@ final class ImageDocument: PluginDocument {
         editability = !editable ? .notEditable : decoded.uneditableReason.map(Editability.readOnly) ?? .editable
         info = decoded.info
         canvas = ImageCanvas(image: decoded.image)
+        marksView = MarksView(canvas: canvas)
         scrollView.contentView = CenteringClipView()
         scrollView.documentView = canvas
         scrollView.allowsMagnification = true
@@ -105,6 +107,9 @@ final class ImageDocument: PluginDocument {
         container.image = scrollView
         animation = decoded.isAnimated ? AnimationPlayer(url: url, canvas: canvas) : nil
         if isEditing {
+            marksView.frame = canvas.bounds
+            marksView.autoresizingMask = [.width, .height]
+            canvas.addSubview(marksView)
             canvas.editUndoManager = undoManager
             canvas.onCopy = { [weak self] in self?.copy() }
             canvas.onPaste = { [weak self] in self?.paste() }
@@ -170,7 +175,8 @@ final class ImageDocument: PluginDocument {
     /// prints every page instead.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
         if pageCount > 1 { return printPages }
-        let image = canvas.image
+        // The shown image holds only Pixelate's blocks; the other marks are drawn over it.
+        let image = MarkRenderer.render(marks.filter { !$0.isPixelate }, on: canvas.image, imageSize: pixelSize) ?? canvas.image
         let size = CGSize(width: pixelSize.width * pointsPerPixel, height: pixelSize.height * pointsPerPixel)
         return { info in
             info.horizontalPagination = .fit
@@ -337,6 +343,7 @@ final class ImageDocument: PluginDocument {
         undoManager.registerUndo(withTarget: self) { $0.setState(old) }
         undoManager.endUndoGrouping()
         redraw()
+        if isMarkingUp { showStyle() }  // after Undo, the strip shows the selected mark as it now is
         onEdit?()
     }
 
@@ -345,7 +352,8 @@ final class ImageDocument: PluginDocument {
     func redraw(hiding: String? = nil) {
         let edited = ImageEditing.preview(edits, of: full ?? base, fullSize: baseSize)
         let shown = hiding.map { id in marks.filter { $0.id != id } } ?? marks
-        canvas.image = MarkRenderer.render(shown, on: edited, imageSize: pixelSize) ?? edited
+        canvas.image = MarkRenderer.render(shown.filter(\.isPixelate), on: edited, imageSize: pixelSize) ?? edited
+        marksView.show(shown, numbering: marks, imageSize: pixelSize)
     }
 
     func unsavedEdits() -> UnsavedEdits? {
