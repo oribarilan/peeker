@@ -98,8 +98,8 @@ private func mark(_ kind: ImageMark.Kind) -> ImageMark {
     /// A new window is 960 points wide; the info sidebar takes about 200 of them.
     @Test func theStripFitsBesideTheSidebar() {
         let strip = MarkupStrip()
-        for detail in [MarkupStrip.Detail.size, .strength, .shape] {
-            strip.show(tool: nil, style: MarkStyle(color: markupPalette[0].color, size: .medium, strength: 0.4, ovalSpotlight: false), detail: detail)
+        for detail in [MarkupStrip.Detail.size, .strength, .shape, .text] {
+            strip.show(tool: nil, style: MarkStyle.standard, detail: detail)
             #expect(strip.fittingSize.width <= 760, "\(detail): \(strip.fittingSize.width) points")
         }
     }

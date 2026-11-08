@@ -14,6 +14,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 - First release, v0.1.0: Apple Developer setup in [docs/releasing.md](../docs/releasing.md), then the maintainer tags.
 - Recolor a PDF highlight already on the page (select it, pick a color); highlight colors only set the next one.
 - Optional author name on PDF marks (`openspec/changes/annotation-author-setting`, parked until it's discussed).
+- More PDF annotations in the PDF strip (planned with the text box styles): drawing, and stamps such as an X and a check mark; fewer than images have (maintainer, 2026-11-08).
 - Editing YAML, TOML, XML and property lists in the tree, as JSON edits (their trees are read-only since 2026-11-07).
 - Editable password-protected PDFs (decided 2026-11-06; after the data editor).
 - Find and Print in CSV/TSV tables.

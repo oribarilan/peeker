@@ -108,7 +108,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         case .step:
             document.put(ImageMark(id: ImageMark.newID(), kind: .step(center: point), color: style.color, size: style.size, width: width))
         case .text:
-            beginTextEditing(ImageMark(id: ImageMark.newID(), kind: .text(origin: point, string: " ", label: option), color: style.color,
+            beginTextEditing(ImageMark(id: ImageMark.newID(), kind: .text(origin: point, string: " ", style: Self.textStyle(style.text, label: option)), color: style.color,
                                        size: style.size, width: width), new: true)
         default:
             draft = ImageMark(id: ImageMark.newID(), kind: Self.kind(tool, from: point, to: point, ellipse: option, style: style), color: style.color,
@@ -184,10 +184,8 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         guard case .text(let origin, let string, _) = mark.kind else { return }
         editing = mark
         selectedID = new ? nil : mark.id
-        let scale = imageRect.width / max(document.pixelSize().width, 1)
         let field = NSTextField(string: new ? "" : string)
-        field.font = .boldSystemFont(ofSize: max(mark.width * ImageMark.textScale * scale, 9))
-        field.textColor = NSColor(cgColor: mark.color.cgColor)
+        style(field, as: mark)
         field.drawsBackground = false
         field.isBordered = false
         field.focusRingType = .none
@@ -200,11 +198,32 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         self.field = field
     }
 
+    /// The field in the text's font, size and color, as it will be drawn.
+    private func style(_ field: NSTextField, as mark: ImageMark) {
+        guard case .text(_, _, let style) = mark.kind else { return }
+        let scale = imageRect.width / max(document.pixelSize().width, 1)
+        field.font = MarkRenderer.font(style, size: max(mark.width * ImageMark.textScale * scale, 9))
+        field.textColor = NSColor(cgColor: mark.color.cgColor)
+    }
+
+    /// The text being typed, new or a mark being changed; nil when none is.
+    var editingMark: ImageMark? { editing }
+
+    /// Changes the text being typed, so a color, size or style picked meanwhile lands with it instead of being undone
+    /// when typing ends. False when no text is being typed.
+    func restyleEditing(_ change: (inout ImageMark) -> Void) -> Bool {
+        guard var mark = editing, let field else { return false }
+        change(&mark)
+        editing = mark
+        style(field, as: mark)
+        return true
+    }
+
     func controlTextDidEndEditing(_ notification: Notification) { endTextEditing() }
 
     /// Puts the typed text in place, or nothing when it's empty; empty on an existing mark deletes it.
     func endTextEditing() {
-        guard let field, var mark = editing, case .text(let origin, _, let label) = mark.kind else { return }
+        guard let field, var mark = editing, case .text(let origin, _, let style) = mark.kind else { return }
         self.field = nil
         editing = nil
         let text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -214,7 +233,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
             if exists { document.remove(mark.id) }
             return
         }
-        mark.kind = .text(origin: origin, string: String(text.prefix(ImageMark.maxText)), label: label)
+        mark.kind = .text(origin: origin, string: String(text.prefix(ImageMark.maxText)), style: style)
         document.put(mark)
         window?.makeFirstResponder(self)
     }
@@ -252,8 +271,16 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         case .pen: return .pen([start])
         case .marker: return .marker([start])
         case .step: return .step(center: point)
-        case .text: return .text(origin: start, string: " ", label: false)
+        case .text: return .text(origin: start, string: " ", style: style.text)
         }
+    }
+
+    /// The style for new text: Option held makes it a label.
+    private static func textStyle(_ style: TextStyle, label: Bool) -> TextStyle {
+        guard label else { return style }
+        var labeled = style
+        labeled.effect = .label
+        return labeled
     }
 
     /// `points` with `point` added when it's far enough from the last, up to the limit.
@@ -327,7 +354,7 @@ nonisolated extension ImageMark {
         case .box(let r, let ellipse): mark.kind = .box(r.offsetBy(dx: delta.x, dy: delta.y), ellipse: ellipse)
         case .pixelate(let r, let strength): mark.kind = .pixelate(r.offsetBy(dx: delta.x, dy: delta.y), strength: strength)
         case .spotlight(let r, let ellipse): mark.kind = .spotlight(r.offsetBy(dx: delta.x, dy: delta.y), ellipse: ellipse)
-        case .text(let origin, let string, let label): mark.kind = .text(origin: move(origin), string: string, label: label)
+        case .text(let origin, let string, let style): mark.kind = .text(origin: move(origin), string: string, style: style)
         case .step(let center): mark.kind = .step(center: move(center))
         case .pen(let points): mark.kind = .pen(points.map(move))
         case .marker(let points): mark.kind = .marker(points.map(move))

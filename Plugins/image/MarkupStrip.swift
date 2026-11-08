@@ -63,16 +63,18 @@ nonisolated let markupPalette: [(name: String, color: RGBA)] = [
     ("Black", RGBA(red: 0, green: 0, blue: 0, alpha: 1)),
 ]
 
-/// The bar under the toolbar: tools, colors, and the size, or Pixelate's strength or Spotlight's shape.
+/// The bar under the toolbar: tools, colors, and the size, or Pixelate's strength, Spotlight's shape, or the size and
+/// the text menu.
 final class MarkupStrip: NSView {
     /// What the strip's last control sets.
-    enum Detail { case size, strength, shape }
+    enum Detail { case size, strength, shape, text }
 
     var onTool: ((MarkupTool?) -> Void)?
     var onColor: ((RGBA) -> Void)?
     var onSize: ((MarkSize) -> Void)?
     var onStrength: ((Double) -> Void)?
     var onOval: ((Bool) -> Void)?
+    var onText: ((TextStyle) -> Void)?
     let tools: NSSegmentedControl
     private var swatches: [SwatchButton] = []
     private let sizes = NSSegmentedControl(labels: ["S", "M", "L"], trackingMode: .selectOne, target: nil, action: nil)
@@ -84,6 +86,9 @@ final class MarkupStrip: NSView {
         row.spacing = 6
         return row
     }()
+    /// Text's font, bold, italic and effect, in one menu so the strip stays narrow.
+    let textMenu = NSPopUpButton(frame: .zero, pullsDown: true)
+    private var textStyle = TextStyle.standard
     let shapes = NSSegmentedControl(images: ["rectangle", "oval"].map { NSImage(systemSymbolName: $0, accessibilityDescription: nil)! },
                                     trackingMode: .selectOne, target: nil, action: nil)
 
@@ -108,10 +113,13 @@ final class MarkupStrip: NSView {
             button.setAccessibilityLabel(entry.name)
             return button
         }
-        let more = NSButton(title: "More…", target: self, action: #selector(showColors(_:)))
+        let more = NSButton(image: NSImage(systemSymbolName: "paintpalette", accessibilityDescription: "More colors")!, target: self,
+                            action: #selector(showColors(_:)))
         more.bezelStyle = .accessoryBarAction
+        more.toolTip = "More colors"
         sizes.target = self
         sizes.action = #selector(sizeChosen(_:))
+        sizes.controlSize = .small
         for (index, name) in ["Small", "Medium", "Large"].enumerated() { sizes.setToolTip(name, forSegment: index) }
         sizes.setAccessibilityLabel("Size")
         strength.target = self
@@ -128,10 +136,26 @@ final class MarkupStrip: NSView {
             shapes.image(forSegment: index)?.accessibilityDescription = name
         }
         shapes.setAccessibilityLabel("Spotlight shape")
+        textMenu.addItem(withTitle: "Aa")  // a pull-down's title is its first item
+        // Each item carries what it picks: a font, an effect, or the name of a trait to toggle.
+        let groups: [[(String, Any)]] = [TextStyle.Font.allCases.map { ($0.rawValue.capitalized, $0) }, [("Bold", "bold"), ("Italic", "italic")],
+                                         TextStyle.Effect.allCases.map { ($0.rawValue.capitalized, $0) }]
+        for (index, group) in groups.enumerated() {
+            if index > 0 { textMenu.menu?.addItem(.separator()) }
+            for (title, value) in group {
+                let item = NSMenuItem(title: title, action: #selector(textItemChosen(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = value
+                textMenu.menu?.addItem(item)
+            }
+        }
+        textMenu.controlSize = .small
+        textMenu.toolTip = "Text style"
+        textMenu.setAccessibilityLabel("Text style")
         let colors = NSStackView(views: swatches + [more])
-        colors.spacing = 6
-        let row = NSStackView(views: [tools, separator(), colors, separator(), sizes, strengthRow, shapes])
-        row.spacing = 12
+        colors.spacing = 4
+        let row = NSStackView(views: [tools, separator(), colors, separator(), sizes, strengthRow, shapes, textMenu])
+        row.spacing = 8
         row.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
         let line = NSBox()
         line.boxType = .separator
@@ -152,20 +176,31 @@ final class MarkupStrip: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// Shows the armed tool, the color, and the size, strength or shape as `detail` says.
+    /// Shows the armed tool, the color, and the size, strength, shape or text style as `detail` says.
     func show(tool: MarkupTool?, style: MarkStyle, detail: Detail) {
         tools.selectedSegment = tool.flatMap { MarkupTool.allCases.firstIndex(of: $0) } ?? -1
         for swatch in swatches { swatch.isChosen = swatch.color == style.color }
         sizes.selectedSegment = MarkSize.allCases.firstIndex(of: style.size) ?? 1
         strength.doubleValue = style.strength
         shapes.selectedSegment = style.ovalSpotlight ? 1 : 0
-        sizes.isHidden = detail != .size
+        textStyle = style.text
+        for item in textMenu.itemArray.dropFirst() {
+            let on = switch item.representedObject {
+            case let font as TextStyle.Font: font == style.text.font
+            case let effect as TextStyle.Effect: effect == style.text.effect
+            case let trait as String: trait == "bold" ? style.text.bold : style.text.italic
+            default: false
+            }
+            item.state = on ? .on : .off
+        }
+        sizes.isHidden = detail != .size && detail != .text  // text has a size too
         strengthRow.isHidden = detail != .strength
         shapes.isHidden = detail != .shape
+        textMenu.isHidden = detail != .text
     }
 
-    /// Which of size, strength and shape shows, for tests.
-    var detail: Detail { !strengthRow.isHidden ? .strength : !shapes.isHidden ? .shape : .size }
+    /// Which of size, strength, shape and text shows, for tests.
+    var detail: Detail { !strengthRow.isHidden ? .strength : !shapes.isHidden ? .shape : !textMenu.isHidden ? .text : .size }
 
     private func separator() -> NSView {
         let line = NSBox()
@@ -188,6 +223,19 @@ final class MarkupStrip: NSView {
     @objc private func strengthChosen(_ sender: NSSlider) { onStrength?(sender.doubleValue) }
 
     @objc private func shapeChosen(_ sender: NSSegmentedControl) { onOval?(sender.selectedSegment == 1) }
+
+    /// What a menu item of the text menu picks or toggles.
+    @objc private func textItemChosen(_ sender: NSMenuItem) {
+        var style = textStyle
+        switch sender.representedObject {
+        case let font as TextStyle.Font: style.font = font
+        case let effect as TextStyle.Effect: style.effect = effect
+        case let trait as String where trait == "bold": style.bold.toggle()
+        case let trait as String where trait == "italic": style.italic.toggle()
+        default: return
+        }
+        onText?(style)
+    }
 
     @objc private func showColors(_ sender: Any?) {
         let panel = NSColorPanel.shared

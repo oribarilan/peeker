@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import CoreText
 import Foundation
@@ -131,8 +132,8 @@ nonisolated enum MarkRenderer {
             let line = textLine("\(number ?? 1)", size: radius * 1.2, bold: true, color: contrast(to: mark.color))
             let bounds = CTLineGetBoundsWithOptions(line, .useOpticalBounds)
             drawLine(line, at: CGPoint(x: center.x - bounds.width / 2 - bounds.minX, y: center.y + bounds.height / 2 + bounds.minY), in: context)
-        case .text(let origin, let string, let label):
-            drawText(string, at: origin, size: width * ImageMark.textScale, color: mark.color, label: label, in: context)
+        case .text(let origin, let string, let style):
+            drawText(string, at: origin, size: width * ImageMark.textScale, color: mark.color, style: style, in: context)
         case .pixelate, .spotlight:
             break  // drawn first, under everything
         }
@@ -175,40 +176,73 @@ nonisolated enum MarkRenderer {
         context.restoreGState()
     }
 
-    /// Text from its top left: plain with a thin outline in a contrasting color, or white or black on a rounded box.
-    private static func drawText(_ string: String, at origin: CGPoint, size: CGFloat, color: RGBA, label: Bool, in context: CGContext) {
+    /// Text from its top left in its style: plain, with a thin outline or a drop shadow, or white or black on a box
+    /// of its color.
+    private static func drawText(_ string: String, at origin: CGPoint, size: CGFloat, color: RGBA, style: TextStyle, in context: CGContext) {
         let lines = string.components(separatedBy: "\n")
+        let font = font(style, size: size) as CTFont
+        let label = style.effect == .label
         let lineHeight = size * 1.25, pad = size * 0.35
         if label {
-            let widest = lines.map { CTLineGetTypographicBounds(textLine($0, size: size, bold: true, color: color.cgColor), nil, nil, nil) }.max() ?? 0
+            let widest = lines.map { CTLineGetTypographicBounds(textLine($0, font: font, color: color.cgColor), nil, nil, nil) }.max() ?? 0
             let box = CGRect(x: origin.x, y: origin.y, width: widest + pad * 2, height: lineHeight * CGFloat(lines.count) + pad)
             context.setFillColor(color.cgColor)
             context.addPath(CGPath(roundedRect: box, cornerWidth: pad, cornerHeight: pad, transform: nil))
             context.fillPath()
         }
         let ink = label ? contrast(to: color) : color.cgColor
+        // A design with no italic, such as Rounded, leans instead.
+        let slanted = style.italic && !CTFontGetSymbolicTraits(font).contains(.traitItalic)
+        context.saveGState()
+        if style.effect == .shadow {
+            // Shadow offsets ignore the transform, so they're scaled by it to look the same at any zoom and when saved.
+            let scale = hypot(context.ctm.a, context.ctm.b)
+            context.setShadow(offset: CGSize(width: size * 0.05 * scale, height: -size * 0.07 * scale), blur: size * 0.15 * scale,
+                              color: CGColor(gray: 0, alpha: 0.6))
+        }
         for (index, text) in lines.enumerated() {
             let baseline = CGPoint(x: origin.x + (label ? pad : 0), y: origin.y + (label ? pad / 2 : 0) + size + lineHeight * CGFloat(index))
-            if !label { drawLine(textLine(text, size: size, bold: true, color: contrast(to: color), stroke: size * 0.12), at: baseline, in: context) }
-            drawLine(textLine(text, size: size, bold: true, color: ink), at: baseline, in: context)
+            if style.effect == .outline {
+                drawLine(textLine(text, font: font, color: contrast(to: color), stroke: size * 0.12), at: baseline, slanted: slanted, in: context)
+            }
+            drawLine(textLine(text, font: font, color: ink), at: baseline, slanted: slanted, in: context)
         }
+        context.restoreGState()
     }
 
-    private static func textLine(_ text: String, size: CGFloat, bold: Bool, color: CGColor, stroke: CGFloat = 0) -> CTLine {
+    /// The font for markup text of `style` at `size`; a design with no italic, such as Rounded, comes back upright.
+    static func font(_ style: TextStyle, size: CGFloat) -> NSFont {
+        let design: NSFontDescriptor.SystemDesign? = switch style.font {
+        case .system: nil
+        case .serif: .serif
+        case .rounded: .rounded
+        case .mono: .monospaced
+        }
+        var descriptor = NSFont.systemFont(ofSize: size, weight: style.bold ? .bold : .regular).fontDescriptor
+        if let design, let designed = descriptor.withDesign(design) { descriptor = designed }
+        if style.italic { descriptor = descriptor.withSymbolicTraits(descriptor.symbolicTraits.union(.italic)) }
+        return NSFont(descriptor: descriptor, size: size) ?? .systemFont(ofSize: size)
+    }
+
+    private static func textLine(_ text: String, size: CGFloat, bold: Bool, color: CGColor) -> CTLine {
         let font = CTFontCreateUIFontForLanguage(bold ? .emphasizedSystem : .system, size, nil)
             ?? CTFontCreateWithName("Helvetica-Bold" as CFString, size, nil)
+        return textLine(text, font: font, color: color)
+    }
+
+    private static func textLine(_ text: String, font: CTFont, color: CGColor, stroke: CGFloat = 0) -> CTLine {
         var attributes: [NSAttributedString.Key: Any] = [.init(kCTFontAttributeName as String): font, .init(kCTForegroundColorAttributeName as String): color]
         if stroke > 0 {
             attributes[.init(kCTStrokeColorAttributeName as String)] = color
-            attributes[.init(kCTStrokeWidthAttributeName as String)] = stroke / size * 100  // percent of the font size, stroked only
+            attributes[.init(kCTStrokeWidthAttributeName as String)] = stroke / CTFontGetSize(font) * 100  // percent of the font size, stroked only
         }
         return CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: attributes))
     }
 
-    /// Draws a line with its baseline at `point`, upright in the flipped context.
-    private static func drawLine(_ line: CTLine, at point: CGPoint, in context: CGContext) {
+    /// Draws a line with its baseline at `point`, upright in the flipped context, or leaning right when `slanted`.
+    private static func drawLine(_ line: CTLine, at point: CGPoint, slanted: Bool = false, in context: CGContext) {
         context.saveGState()
-        context.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+        context.textMatrix = CGAffineTransform(a: 1, b: 0, c: slanted ? 0.2 : 0, d: -1, tx: 0, ty: 0)
         context.textPosition = point
         CTLineDraw(line, context)
         context.restoreGState()

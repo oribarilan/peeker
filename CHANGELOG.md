@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Image markup text has a style: an Aa menu in the strip, beside the size, picks System, Serif, Rounded or Mono, Bold and Italic, and Plain, Outline, Shadow or Label. It's remembered and restyles the selected text.
 - Open in Peeker in the Peek panel brings the Editor to the front; it used to open behind Finder.
 - A click on an image with Spotlight armed no longer flashes the image darker, and a spotlight being drawn lights its area as you drag.
 - Image marks stay sharp at any zoom, also on small images; before, they were drawn in the image's own pixels and looked blocky when enlarged. The saved file still holds them at full resolution.

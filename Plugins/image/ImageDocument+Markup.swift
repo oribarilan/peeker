@@ -49,6 +49,7 @@ extension ImageDocument {
         if let size = preferences?.string("markupSize").flatMap(MarkSize.init(rawValue:)) { style.size = size }
         if let strength = preferences?.double("markupStrength"), (0...1).contains(strength) { style.strength = strength }
         style.ovalSpotlight = preferences?.string("spotlightShape") == "oval"
+        if let json = preferences?.string("textStyle"), let text = try? JSONDecoder().decode(TextStyle.self, from: Data(json.utf8)) { style.text = text }
         guard let hex = preferences?.string("markupColor"), hex.count == 6, let value = UInt32(hex, radix: 16) else { return style }
         // A swatch comes back as itself, so it shows as chosen.
         if let swatch = markupPalette.first(where: { Self.hex($0.color) == hex.uppercased() }) {
@@ -100,6 +101,7 @@ extension ImageDocument {
         strip.onSize = { [weak self] in self?.setMarkupSize($0) }
         strip.onStrength = { [weak self] in self?.setMarkupStrength($0) }
         strip.onOval = { [weak self] in self?.setSpotlightOval($0) }
+        strip.onText = { [weak self] in self?.setTextStyle($0) }
         container.strip = strip
         self.strip = strip
         return strip
@@ -119,10 +121,11 @@ extension ImageDocument {
         return overlay
     }
 
-    /// The strip shows the armed tool and the selected mark's style, or the style in use. Pixelate's strength or
-    /// Spotlight's shape takes the size's place while that tool is armed or its mark selected.
+    /// The strip shows the armed tool and the style of the text being typed or the selected mark, or the style in use.
+    /// Pixelate's strength or Spotlight's shape takes the size's place, and the text menu joins it, while that tool is
+    /// armed or its mark selected.
     func showStyle() {
-        let mark = overlay?.selected
+        let mark = overlay?.editingMark ?? overlay?.selected
         var style = markupStyle
         if let mark {
             style.color = mark.color
@@ -136,8 +139,12 @@ extension ImageDocument {
         case .spotlight(_, let ellipse)?:
             style.ovalSpotlight = ellipse
             detail = .shape
+        case .text(_, _, let text)?:
+            style.text = text
+            detail = .text
         case nil where overlay?.tool == .pixelate: detail = .strength
         case nil where overlay?.tool == .spotlight: detail = .shape
+        case nil where overlay?.tool == .text: detail = .text
         default: break
         }
         strip?.show(tool: overlay?.tool, style: style, detail: detail)
@@ -148,6 +155,21 @@ extension ImageDocument {
         preferences?.set(markupStyle.strength, for: "markupStrength")
         if var mark = overlay?.selected, case .pixelate(let rect, _) = mark.kind {
             mark.kind = .pixelate(rect, strength: markupStyle.strength)
+            put(mark)
+        }
+        showStyle()
+    }
+
+    func setTextStyle(_ text: TextStyle) {
+        markupStyle.text = text
+        if let json = try? JSONEncoder().encode(text) { preferences?.set(String(decoding: json, as: UTF8.self), for: "textStyle") }
+        let restyle = { (mark: inout ImageMark) in
+            if case .text(let origin, let string, _) = mark.kind { mark.kind = .text(origin: origin, string: string, style: text) }
+        }
+        if overlay?.restyleEditing(restyle) == true {
+            // put when typing ends
+        } else if var mark = overlay?.selected, case .text = mark.kind {
+            restyle(&mark)
             put(mark)
         }
         showStyle()
@@ -166,7 +188,9 @@ extension ImageDocument {
     func setMarkupColor(_ color: RGBA) {
         markupStyle.color = color
         preferences?.set(Self.hex(color), for: "markupColor")
-        if var mark = overlay?.selected {
+        if overlay?.restyleEditing({ $0.color = color }) == true {
+            // put when typing ends
+        } else if var mark = overlay?.selected {
             mark.color = color
             put(mark)
         }
@@ -176,9 +200,12 @@ extension ImageDocument {
     func setMarkupSize(_ size: MarkSize) {
         markupStyle.size = size
         preferences?.set(size.rawValue, for: "markupSize")
-        if var mark = overlay?.selected {
+        let width = size.width(for: pixelSize)
+        if overlay?.restyleEditing({ $0.size = size; $0.width = width }) == true {
+            // put when typing ends
+        } else if var mark = overlay?.selected {
             mark.size = size
-            mark.width = size.width(for: pixelSize)
+            mark.width = width
             put(mark)
         }
         showStyle()

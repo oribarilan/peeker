@@ -94,7 +94,7 @@ front
 check "Closing after the save asks nothing" "$("$DRIVE" wait Peeker window wide.png --gone --timeout 3 2>/dev/null && echo closed)" closed
 
 # Markup: M shows the strip; A and a drag (with a middle point, or no drag event is sent) draw an arrow, X and a drag pixelate a rectangle
-# and show the Strength slider, S shows Spotlight's shape picker, and Cmd+S writes the marks into
+# and show the Strength slider, S shows Spotlight's shape picker and T the text style menu, and Cmd+S writes the marks into
 # the file. Copy stays a unit test, so a run never touches the clipboard.
 MARKS="$OUT/marks.png"
 sips -s format png -z 300 600 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$MARKS" >/dev/null
@@ -113,6 +113,8 @@ check "Pixelate shows its Strength slider" "$("$DRIVE" tree Peeker 20 | grep -c 
 "$DRIVE" shot Peeker "$OUT/5-marked.png"
 "$DRIVE" keys Peeker s && sleep 0.3
 check "Spotlight shows its shape picker" "$("$DRIVE" tree Peeker 20 | grep -c 'Spotlight shape')" 1
+"$DRIVE" keys Peeker t && sleep 0.3
+check "Text shows its style menu" "$("$DRIVE" tree Peeker 20 | grep -c 'Text style')" 1
 "$DRIVE" keys Peeker cmd+s && sleep 1
 check "Saving writes the marks into the file" "$([ "$(shasum "$MARKS" | cut -c1-12)" != "$unmarked" ] && echo yes)" yes
 check "and keeps its size" "$(sips -g pixelWidth -g pixelHeight "$MARKS" | awk '/pixelWidth/ { w = $2 } /pixelHeight/ { h = $2 } END { print w " × " h }')" "600 × 300"

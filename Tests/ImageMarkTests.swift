@@ -13,7 +13,7 @@ private func mark(_ kind: ImageMark.Kind, width: Double = 4) -> ImageMark {
 @Suite struct ImageMarkModel {
     @Test func marksRoundTripThroughRecovery() throws {
         let marks = [mark(.arrow(from: .zero, to: CGPoint(x: 10, y: 20))), mark(.box(CGRect(x: 1, y: 2, width: 3, height: 4), ellipse: true)),
-                     mark(.text(origin: CGPoint(x: 5, y: 5), string: "Hi", label: true)), mark(.pixelate(CGRect(x: 0, y: 0, width: 9, height: 9), strength: MarkStyle.defaultStrength)),
+                     mark(.text(origin: CGPoint(x: 5, y: 5), string: "Hi", style: TextStyle(font: .system, bold: true, italic: false, effect: .label))), mark(.pixelate(CGRect(x: 0, y: 0, width: 9, height: 9), strength: MarkStyle.defaultStrength)),
                      mark(.step(center: CGPoint(x: 3, y: 3))), mark(.pen([.zero, CGPoint(x: 1, y: 1)])), mark(.marker([.zero])),
                      mark(.spotlight(CGRect(x: 2, y: 2, width: 5, height: 5), ellipse: false))]
         let decoded = try JSONDecoder().decode([ImageMark].self, from: try JSONEncoder().encode(marks))
@@ -22,7 +22,7 @@ private func mark(_ kind: ImageMark.Kind, width: Double = 4) -> ImageMark {
 
     @Test func badMarksAreRefused() {
         #expect(!mark(.pen([])).isValid, "no points")
-        #expect(!mark(.text(origin: .zero, string: "", label: false)).isValid)
+        #expect(!mark(.text(origin: .zero, string: "", style: .standard)).isValid)
         #expect(!mark(.arrow(from: CGPoint(x: CGFloat.nan, y: 0), to: .zero)).isValid)
         #expect(!mark(.step(center: .zero), width: 0).isValid)
         #expect(!ImageMark(id: "x", kind: .step(center: .zero), color: RGBA(red: 2, green: 0, blue: 0, alpha: 1), size: .small, width: 4).isValid)
@@ -122,9 +122,9 @@ private func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: 
     }
 
     @Test func aLabelFillsItsBoxAndPlainTextDoesNot() throws {
-        let labeled = try #require(MarkRenderer.render([mark(.text(origin: CGPoint(x: 10, y: 10), string: "Hi", label: true))], on: canvas(), imageSize: size))
+        let labeled = try #require(MarkRenderer.render([mark(.text(origin: CGPoint(x: 10, y: 10), string: "Hi", style: TextStyle(font: .system, bold: true, italic: false, effect: .label)))], on: canvas(), imageSize: size))
         #expect(pixel(labeled, 12, 26) == (255, 0, 0), "the label's fill left of its text")
-        let plain = try #require(MarkRenderer.render([mark(.text(origin: CGPoint(x: 10, y: 10), string: "Hi", label: false))], on: canvas(), imageSize: size))
+        let plain = try #require(MarkRenderer.render([mark(.text(origin: CGPoint(x: 10, y: 10), string: "Hi", style: .standard))], on: canvas(), imageSize: size))
         #expect(pixel(plain, 12, 12) == (255, 255, 255), "no box behind plain text")
     }
 

@@ -8,8 +8,8 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
     enum Kind: Codable, Sendable, Equatable {
         case arrow(from: CGPoint, to: CGPoint)
         case box(CGRect, ellipse: Bool)
-        /// `origin` is the top left of the text; a label sits on a filled rounded box.
-        case text(origin: CGPoint, string: String, label: Bool)
+        /// `origin` is the top left of the text.
+        case text(origin: CGPoint, string: String, style: TextStyle)
         /// `strength` from 0 (fine blocks) to 1 (coarse ones).
         case pixelate(CGRect, strength: Double)
         /// A numbered badge; its number is its place among the steps.
@@ -93,10 +93,10 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
         case .box(let r, let ellipse): mark.kind = .box(rect(r), ellipse: ellipse)
         case .pixelate(let r, let strength): mark.kind = .pixelate(rect(r), strength: strength)
         case .spotlight(let r, let ellipse): mark.kind = .spotlight(rect(r), ellipse: ellipse)
-        case .text(let origin, let string, let label):
+        case .text(let origin, let string, let style):
             // Text stays upright: its top left follows the corner of its box that lands top left.
             let box = rect(CGRect(origin: origin, size: bounds.size))
-            mark.kind = .text(origin: edit.isOrientationOnly ? box.origin : point(origin), string: string, label: label)
+            mark.kind = .text(origin: edit.isOrientationOnly ? box.origin : point(origin), string: string, style: style)
         case .step(let center): mark.kind = .step(center: point(center))
         case .pen(let points): mark.kind = .pen(points.map(point))
         case .marker(let points): mark.kind = .marker(points.map(point))
@@ -117,16 +117,31 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
     }
 }
 
-/// What the next mark is drawn with: the color and size, Pixelate's strength and Spotlight's shape.
+/// How markup text looks: its font, weight, slant, and how it stands out from the image.
+nonisolated struct TextStyle: Codable, Sendable, Equatable {
+    enum Font: String, Codable, Sendable, CaseIterable { case system, serif, rounded, mono }
+    /// Plain; a thin contrasting outline; a drop shadow; or a filled rounded box behind it.
+    enum Effect: String, Codable, Sendable, CaseIterable { case plain, outline, shadow, label }
+    var font: Font
+    var bold: Bool
+    var italic: Bool
+    var effect: Effect
+
+    /// Bold system text with an outline, as markup text always was.
+    static let standard = TextStyle(font: .system, bold: true, italic: false, effect: .outline)
+}
+
+/// What the next mark is drawn with: the color and size, Pixelate's strength, Spotlight's shape and the text style.
 nonisolated struct MarkStyle: Equatable, Sendable {
     var color: RGBA
     var size: MarkSize
     var strength: Double
     var ovalSpotlight: Bool
+    var text: TextStyle
 
     /// Blocks of 1/60 of the image's shorter side, too coarse to read back.
     static let defaultStrength = log10(100.0 / 60)
-    static let standard = MarkStyle(color: markupPalette[0].color, size: .medium, strength: defaultStrength, ovalSpotlight: false)
+    static let standard = MarkStyle(color: markupPalette[0].color, size: .medium, strength: defaultStrength, ovalSpotlight: false, text: .standard)
 
     /// Pixelate's block size in pixels: from 1/100 of the image's shorter side at strength 0 (still too coarse for
     /// small text) to 1/10 at 1, and never under 6 pixels.
