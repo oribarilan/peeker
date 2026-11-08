@@ -151,6 +151,7 @@ final class MarkupStrip: NSView {
         }
         textMenu.controlSize = .small
         textMenu.toolTip = "Text style"
+        textMenu.setAccessibilityTitle("Text style")  // it shows "Aa", which says nothing read aloud
         textMenu.setAccessibilityLabel("Text style")
         let colors = NSStackView(views: swatches + [more])
         colors.spacing = 4

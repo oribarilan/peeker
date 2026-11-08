@@ -209,6 +209,7 @@ check "and text keeps the larger size" "$([ "$small" -gt 0 ] && [ "$large" -gt "
 # with Cmd+S changes only the copy.
 "$DRIVE" keys Peeker shift+cmd+s
 "$DRIVE" wait Peeker sheet --timeout 5
+sleep 0.7  # the sheet shows before its name field takes keys; a Return sent sooner was lost
 "$DRIVE" keys Peeker return
 "$DRIVE" wait Peeker window "again copy.txt" --timeout 5
 check "Save As writes the copy" "$([ -f "$OUT/again copy.txt" ] && echo yes)" yes
