@@ -78,12 +78,19 @@ check "Text Box's tooltip names its key" "$(osascript -e 'tell application "Syst
 sleep 0.6
 check "The first Text Box shows its tip" "$("$DRIVE" tree Peeker 12 | grep -c 'Click where the text goes.')" 1
 "$DRIVE" shot Peeker "$OUT/2b-text-box-tip.png"
+# The strip under the toolbar shows while Text Box waits: red, and Serif from its Aa menu (opened, then two items down,
+# since drive can't press a menu's items).
+check "Text Box shows the style strip" "$("$DRIVE" tree Peeker 16 | grep -c 'AXMenuButton “Text style”')" 1
+"$DRIVE" press Peeker Red
+"$DRIVE" press Peeker "Text style" && sleep 0.5
+"$DRIVE" keys Peeker down && "$DRIVE" keys Peeker down && "$DRIVE" keys Peeker return
+sleep 0.3
 "$DRIVE" click Peeker $(at 0 200)  # the Date: line; the click also closes the tip
 sleep 0.5
 "$DRIVE" type Peeker "31 Oct 2026"
 # + stays under the pointer as the box grows, so it can be clicked again and again.
 read -r lx ly lw lh <<< "$(frame AXButton "+")"  # its title; drive reads a title before a description
-check "The text box shows its size buttons" "$([ "$lw" -gt 0 ] && echo yes)" yes
+check "The strip shows the size buttons" "$([ "$lw" -gt 0 ] && echo yes)" yes
 "$DRIVE" click Peeker $((lx + lw / 2)) $((ly + lh / 2))
 sleep 0.3
 check "+ makes the text larger" "$(frame AXStaticText "14 pt" | grep -vc '^0 0 0 0$')" 1
@@ -116,6 +123,7 @@ sleep 2
 check "The Name field is saved" "$(saved 'field Name = Jane Doe')" 1
 check "The checkbox is saved" "$(saved 'field Agree = Yes')" 1
 check "The text box is a free-text annotation" "$(saved 'annotation FreeText peeker = 31 Oct 2026')" 1
+check "in red Times at 14 pt" "$(saved '  style font: Times-Roman 14pt; color: #DB2626')" 1
 check "Both signatures are ink annotations" "$(saved 'annotation Ink peeker')" 2
 
 # A digitally signed form opens read-only: the tools greyed out and the reason under the toolbar.

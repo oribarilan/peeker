@@ -15,7 +15,10 @@ final class EditController {
     private unowned let document: PDFPluginDocument
     private var view: PeekerPDFView { document.pdfView }
     private(set) var tool = Tool.none {
-        didSet { onToolChange?() }
+        didSet {
+            onToolChange?()
+            onTextBoxStateChange?()
+        }
     }
     /// Called whenever the tool changes, for the window's selected toolbar button.
     var onToolChange: (() -> Void)?
@@ -24,7 +27,11 @@ final class EditController {
     /// A move or resize in progress: what's dragged, from where, and its bounds when the drag began.
     private var drag: (corner: Corner?, start: CGPoint, original: CGRect, annotation: PDFAnnotation)?
     private let overlay = EditOverlay()
-    private var textBox: TextBoxEditor?
+    private var textBox: TextBoxEditor? {
+        didSet { onTextBoxStateChange?() }
+    }
+    /// Called when what the text box strip shows may have changed: the tool, the selection, typing, an edit.
+    var onTextBoxStateChange: (() -> Void)?
 
     init(document: PDFPluginDocument) {
         self.document = document
@@ -109,6 +116,39 @@ final class EditController {
         selectedID = id
         selectedPage = page
         overlay.refresh()
+        onTextBoxStateChange?()
+    }
+
+    // MARK: Text box style
+
+    /// What the text box strip shows: the box being typed, the selected box, or while Text Box waits the style the
+    /// next box gets; nil hides the strip.
+    var stripState: (style: TextBoxStyle, size: Double)? {
+        if let textBox { return (textBox.style, textBox.fontSize) }
+        if let annotation = selectedAnnotation, annotation.type == "FreeText" {
+            return (PDFMarks.style(of: annotation), PDFMarks.fontSize(of: annotation) ?? TextBoxStyle.standardSize)
+        }
+        if case .textBox = tool { return (document.textBoxStyle, document.textBoxSize) }
+        return nil
+    }
+
+    /// From the strip: restyles the box being typed at once, or the selected box as one edit, and keeps the style
+    /// for the next box.
+    func applyTextBoxStyle(_ style: TextBoxStyle, size: Double) {
+        let size = min(max(size, PDFMarks.fontSizes.lowerBound), PDFMarks.fontSizes.upperBound)
+        document.rememberTextBox(style, size: size)
+        if let textBox {
+            textBox.style = style
+            textBox.fontSize = size
+        } else if let annotation = selectedAnnotation, annotation.type == "FreeText", let id = selectedID {
+            // The look it already has changes nothing, so it's no edit and no undo step.
+            guard style != PDFMarks.style(of: annotation) || size != PDFMarks.fontSize(of: annotation) ?? TextBoxStyle.standardSize else { return }
+            let topLeft = CGPoint(x: annotation.bounds.minX, y: annotation.bounds.maxY)
+            let rect = TextBoxEditor.fittedRect(text: annotation.contents ?? "", fontSize: size, style: style, topLeft: topLeft)
+            document.change(.setText(id: id, page: selectedPage, text: annotation.contents ?? "", fontSize: size, rect: rect, style: style.nilIfStandard))
+            select(id, page: selectedPage)
+        }
+        onTextBoxStateChange?()
     }
 
     /// The selected mark's annotation, if it's still there (an undo may have removed it).
@@ -165,20 +205,20 @@ final class EditController {
     // MARK: Text boxes
 
     /// Ends typing into a text box: an empty one is removed, a new one added, a changed one updated.
-    func commitTextBox(id: String?, page: Int, topLeft: CGPoint, text: String, fontSize: Double) {
+    func commitTextBox(id: String?, page: Int, topLeft: CGPoint, text: String, fontSize: Double, style: TextBoxStyle = .standard) {
         let isEmpty = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let rect = TextBoxEditor.fittedRect(text: text, fontSize: fontSize, topLeft: topLeft)
+        let rect = TextBoxEditor.fittedRect(text: text, fontSize: fontSize, style: style, topLeft: topLeft)
         switch (id, isEmpty) {
         case (nil, true):
             break
         case (nil, false):
-            let mark = PDFMark(id: PDFEdit.newID(), page: page, rect: rect, kind: .textBox(text: text, fontSize: fontSize))
+            let mark = PDFMark(id: PDFEdit.newID(), page: page, rect: rect, kind: .textBox(text: text, fontSize: fontSize, style: style.nilIfStandard))
             if document.change(.add(mark)) { select(mark.id, page: page) }
         case (let id?, true):
             document.change(.delete(id: id, type: .textBox, page: page))
             select(nil, page: 0)
         case (let id?, false):
-            document.change(.setText(id: id, page: page, text: text, fontSize: fontSize, rect: rect))
+            document.change(.setText(id: id, page: page, text: text, fontSize: fontSize, rect: rect, style: style.nilIfStandard))
             select(id, page: page)
         }
     }
@@ -188,10 +228,13 @@ final class EditController {
         let id = annotation.flatMap(PDFMarks.id(of:))
         let start = annotation.map { CGPoint(x: $0.bounds.minX, y: $0.bounds.maxY) } ?? topLeft
         select(nil, page: 0)
-        textBox = TextBoxEditor(view: view, page: page, topLeft: start, text: annotation?.contents ?? "",
-                                fontSize: annotation.flatMap(PDFMarks.fontSize(of:)) ?? 12, hiding: annotation) { [weak self] text, size in
+        // An existing box keeps its own style; a new one takes the remembered style.
+        let size = annotation.map { PDFMarks.fontSize(of: $0) ?? TextBoxStyle.standardSize } ?? document.textBoxSize
+        let style = annotation.map(PDFMarks.style(of:)) ?? document.textBoxStyle
+        textBox = TextBoxEditor(view: view, page: page, topLeft: start, text: annotation?.contents ?? "", fontSize: size, style: style,
+                                hiding: annotation) { [weak self] text, size, style in
             self?.textBox = nil
-            self?.commitTextBox(id: id, page: index, topLeft: start, text: text, fontSize: size)
+            self?.commitTextBox(id: id, page: index, topLeft: start, text: text, fontSize: size, style: style)
         }
     }
 

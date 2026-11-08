@@ -109,6 +109,7 @@ final class PDFPluginDocument: PluginDocument {
         if let editController { return editController }
         let controller = EditController(document: self)
         controller.onToolChange = { [weak self] in self?.onActiveToolChange?() }
+        controller.onTextBoxStateChange = { [weak self] in self?.showTextBoxStrip() }
         editController = controller
         pdfView.editController = controller
         let fields = FormFields(view: pdfView)
@@ -353,6 +354,45 @@ final class PDFPluginDocument: PluginDocument {
         undoManager.registerUndo(withTarget: self) { [weak self] _ in self?.change(inverse) }
         undoManager.endUndoGrouping()
         onEdit?()
+        editController?.onTextBoxStateChange?()  // an undone restyle changes what the strip shows
+    }
+
+    // MARK: Text box style
+
+    /// The strip under the toolbar while a text box is waited for, typed or selected, showing its style.
+    private func showTextBoxStrip() {
+        // Only where the pages sit in their container: making it here would take the view from wherever it's shown.
+        guard let container = pdfView.superview as? PDFFindContainer else { return }
+        let state = editController?.stripState
+        let made = container.strip == nil
+        guard let strip = container.showStrip(state != nil), let state else { return }
+        if made {
+            strip.onChange = { [weak self] style, size in self?.editController?.applyTextBoxStyle(style, size: size) }
+            strip.pages = pdfView
+        }
+        strip.show(state.style, size: state.size)
+    }
+
+    /// The strip, for tests; nil while hidden.
+    var textBoxStrip: TextBoxStrip? { (pdfView.superview as? PDFFindContainer)?.strip.flatMap { $0.isHidden ? nil : $0 } }
+
+    /// The style and size the next text box gets, read from the app's preferences each time, so a change in another
+    /// window counts here too; without preferences (tests), kept here.
+    var textBoxStyle: TextBoxStyle {
+        guard let preferences else { return unrememberedStyle.style }
+        return preferences.string("textBoxStyle").flatMap { try? JSONDecoder().decode(TextBoxStyle.self, from: Data($0.utf8)) }
+            .flatMap { $0.isValid ? $0 : nil } ?? .standard
+    }
+    var textBoxSize: Double {
+        guard let preferences else { return unrememberedStyle.size }
+        return preferences.double("textBoxSize").flatMap { PDFMarks.fontSizes.contains($0) ? $0 : nil } ?? TextBoxStyle.standardSize
+    }
+    private var unrememberedStyle = (style: TextBoxStyle.standard, size: TextBoxStyle.standardSize)
+
+    func rememberTextBox(_ style: TextBoxStyle, size: Double) {
+        unrememberedStyle = (style, size)
+        if let json = try? JSONEncoder().encode(style) { preferences?.set(String(decoding: json, as: UTF8.self), for: "textBoxStyle") }
+        preferences?.set(size, for: "textBoxSize")
     }
 }
 

@@ -4,8 +4,6 @@ import PeekerKit
 
 /// Peeker's marks as PDF annotations: builds them, reads them back, and changes their bounds and text.
 nonisolated enum PDFMarks {
-    /// Text boxes use Helvetica: every PDF app has it, while the system font's name means nothing outside macOS.
-    static let fontName = "Helvetica"
     static let fontSizes = 8.0...36.0
     static let signatureLineWidth = 1.5
     private static let styleKey = PDFAnnotationKey(rawValue: "/DS")
@@ -27,7 +25,7 @@ nonisolated enum PDFMarks {
     static func fontSize(of annotation: PDFAnnotation) -> Double? {
         guard let style = annotation.value(forAnnotationKey: styleKey) as? String,
               let match = style.firstMatch(of: /font:[^;]*?([0-9.]+)pt/), let size = Double(match.1) else { return nil }
-        return size
+        return min(max(size, fontSizes.lowerBound), fontSizes.upperBound)  // a file can say anything
     }
 
     static func annotation(for mark: PDFMark) -> PDFAnnotation {
@@ -36,14 +34,12 @@ nonisolated enum PDFMarks {
         case .highlight(let color):
             annotation = PDFAnnotation(bounds: mark.rect, forType: .highlight, withProperties: nil)
             annotation.color = NSColor(srgbRed: color.red, green: color.green, blue: color.blue, alpha: color.alpha)
-        case .textBox(let text, let fontSize):
+        case .textBox(let text, let fontSize, let style):
             annotation = PDFAnnotation(bounds: mark.rect, forType: .freeText, withProperties: nil)
-            annotation.color = .clear
-            annotation.fontColor = .black
             let border = PDFBorder()
             border.lineWidth = 0
             annotation.border = border
-            setText(text, fontSize: fontSize, of: annotation)
+            setText(text, fontSize: fontSize, style: style ?? .standard, of: annotation)
         case .signature(let strokes):
             annotation = PDFAnnotation(bounds: mark.rect, forType: .ink, withProperties: nil)
             annotation.color = .black
@@ -82,7 +78,7 @@ nonisolated enum PDFMarks {
             guard let color = annotation.color.usingColorSpace(.sRGB) else { return nil }
             kind = .highlight(RGBA(red: color.redComponent, green: color.greenComponent, blue: color.blueComponent, alpha: color.alphaComponent))
         case .textBox:
-            kind = .textBox(text: annotation.contents ?? "", fontSize: fontSize(of: annotation) ?? 12)
+            kind = .textBox(text: annotation.contents ?? "", fontSize: fontSize(of: annotation) ?? 12, style: style(of: annotation).nilIfStandard)
         case .signature:
             let size = annotation.bounds.size
             guard size.width > 0, size.height > 0 else { return nil }
@@ -104,15 +100,53 @@ nonisolated enum PDFMarks {
             }
         }
         if annotation.type == "FreeText", let size = fontSize(of: annotation) {
-            annotation.font = NSFont(name: fontName, size: size)  // PDFKit redraws a loaded box at its default size otherwise
+            // PDFKit redraws a moved box from its own font and colors, which it doesn't read back from a saved file.
+            applyLook(style(of: annotation), fontSize: size, to: annotation)
         }
         annotation.bounds = rect
     }
 
-    static func setText(_ text: String, fontSize: Double, of annotation: PDFAnnotation) {
+    static func setText(_ text: String, fontSize: Double, style: TextBoxStyle, of annotation: PDFAnnotation) {
         annotation.contents = text
-        annotation.font = NSFont(name: fontName, size: fontSize)
-        annotation.setValue("font: \(fontName) \(fontSize.formatted(.number.grouping(.never)))pt; color: #000000", forAnnotationKey: styleKey)
+        applyLook(style, fontSize: fontSize, to: annotation)
+        // Digits other apps read, whatever the Mac's language.
+        let size = fontSize.formatted(.number.grouping(.never).locale(Locale(identifier: "en_US_POSIX")))
+        let box = style.boxed ? "; background-color: #\(hex(style.color))" : ""
+        annotation.setValue("font: \(style.fontName) \(size)pt; color: #\(hex(style.textColor))\(box)", forAnnotationKey: styleKey)
+    }
+
+    private static func applyLook(_ style: TextBoxStyle, fontSize: Double, to annotation: PDFAnnotation) {
+        annotation.font = NSFont(name: style.fontName, size: fontSize)
+        annotation.fontColor = nsColor(style.textColor)
+        annotation.color = style.boxed ? nsColor(style.color) : .clear
+    }
+
+    /// A text box's style, read from `/DS`, which survives saving where PDFKit's font and colors may not.
+    static func style(of annotation: PDFAnnotation) -> TextBoxStyle {
+        var style = TextBoxStyle.standard
+        guard let string = annotation.value(forAnnotationKey: styleKey) as? String else { return style }
+        if let name = string.firstMatch(of: /font:\s*([^\s;]+)\s/), let face = TextBoxStyle.face(of: String(name.1)) {
+            (style.font, style.bold, style.italic) = (face.font, face.bold, face.italic)
+        }
+        if let fill = string.firstMatch(of: /background-color:\s*#([0-9A-Fa-f]{6})/), let color = rgba(String(fill.1)) {
+            style.boxed = true
+            style.color = color
+        } else if let ink = string.firstMatch(of: /(?:^|;)\s*color:\s*#([0-9A-Fa-f]{6})/), let color = rgba(String(ink.1)) {
+            style.color = color
+        }
+        return style
+    }
+
+    private static func rgba(_ hex: String) -> RGBA? {
+        guard let value = UInt32(hex, radix: 16) else { return nil }
+        let channel = { (shift: UInt32) in Double((value >> shift) & 0xFF) / 255 }
+        return RGBA(red: channel(16), green: channel(8), blue: channel(0), alpha: 1)
+    }
+
+    private static func nsColor(_ color: RGBA) -> NSColor { NSColor(srgbRed: color.red, green: color.green, blue: color.blue, alpha: color.alpha) }
+
+    private static func hex(_ color: RGBA) -> String {
+        [color.red, color.green, color.blue].map { String(format: "%02X", Int((min(max($0, 0), 1) * 255).rounded())) }.joined()
     }
 
     /// Strokes of 0...1 points as paths in annotation space, scaled to `size`.

@@ -27,14 +27,14 @@ nonisolated enum PDFEditing {
                 throw PluginError("Can't save the \(type.name) on page \(index + 1): its new position or size is invalid.")
             }
             PDFMarks.setBounds(rect, of: annotation)
-        case .setText(let id, let index, let text, let fontSize, let rect):
+        case .setText(let id, let index, let text, let fontSize, let rect, let style):
             let page = try page(index, of: document, for: .textBox, fileName: fileName)
             let annotation = try find(id, .textBox, verb: "change", on: page, index, fileName: fileName)
-            guard isValid(rect, on: page), isValid(.textBox(text: text, fontSize: fontSize)) else {
+            guard isValid(rect, on: page), isValid(.textBox(text: text, fontSize: fontSize, style: style)) else {
                 throw PluginError("Can't save the text box on page \(index + 1): its text, size or position is invalid.")
             }
             annotation.bounds = rect
-            PDFMarks.setText(text, fontSize: fontSize, of: annotation)
+            PDFMarks.setText(text, fontSize: fontSize, style: style ?? .standard, of: annotation)
         case .delete(let id, let type, let index):
             let page = try page(index, of: document, for: type, fileName: fileName)
             page.removeAnnotation(try find(id, type, verb: "remove", on: page, index, fileName: fileName))
@@ -119,8 +119,8 @@ nonisolated enum PDFEditing {
         switch kind {
         case .highlight(let color):
             color.isValid
-        case .textBox(let text, let fontSize):
-            text.count <= maxText && PDFMarks.fontSizes.contains(fontSize)
+        case .textBox(let text, let fontSize, let style):
+            text.count <= maxText && PDFMarks.fontSizes.contains(fontSize) && (style?.isValid ?? true)
         case .signature(let strokes):
             strokes.count <= maxStrokes && strokes.reduce(0) { $0 + $1.count } <= maxPoints
                 && strokes.allSatisfy { $0.allSatisfy { (-0.01...1.01).contains($0.x) && (-0.01...1.01).contains($0.y) } }
@@ -139,9 +139,10 @@ nonisolated enum PDFEditing {
             return .delete(id: mark.id, type: mark.type, page: mark.page)
         case .setBounds(let id, let type, let page, _):
             return annotation(id, page).map { .setBounds(id: id, type: type, page: page, rect: $0.bounds) }
-        case .setText(let id, let page, _, _, _):
+        case .setText(let id, let page, _, _, _, _):
             return annotation(id, page).map {
-                .setText(id: id, page: page, text: $0.contents ?? "", fontSize: PDFMarks.fontSize(of: $0) ?? 12, rect: $0.bounds)
+                .setText(id: id, page: page, text: $0.contents ?? "", fontSize: PDFMarks.fontSize(of: $0) ?? 12, rect: $0.bounds,
+                         style: PDFMarks.style(of: $0).nilIfStandard)
             }
         case .delete(let id, _, let page):
             return annotation(id, page).flatMap { PDFMarks.mark(of: $0, page: page) }.map { .add($0) }

@@ -86,7 +86,7 @@ import Testing
     @Test func typingInATextBoxIsNotAFieldChange() async throws {
         let form = try await OpenForm()
         form.clickEnded(on: form.widget("Name"))
-        let editor = TextBoxEditor(view: form.document.pdfView, page: form.page, topLeft: CGPoint(x: 300, y: 400), text: "", fontSize: 12, hiding: nil) { _, _ in }
+        let editor = TextBoxEditor(view: form.document.pdfView, page: form.page, topLeft: CGPoint(x: 300, y: 400), text: "", fontSize: 12, style: .standard, hiding: nil) { _, _, _ in }
         let box = try #require(form.window.firstResponder as? NSTextView)
         box.string = "31 Oct"
         NotificationCenter.default.post(name: NSText.didChangeNotification, object: box)

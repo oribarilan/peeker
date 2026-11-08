@@ -15,12 +15,66 @@ nonisolated enum MarkType: String, Codable, Sendable {
     }
 }
 
+/// A text box's font, weight, slant, color and fill. The fonts are PDF base fonts, which every PDF app has.
+nonisolated struct TextBoxStyle: Codable, Sendable, Equatable {
+    /// Nil for the standard style, which marks store as nil.
+    var nilIfStandard: TextBoxStyle? { self == .standard ? nil : self }
+
+    enum Font: String, Codable, Sendable, CaseIterable { case sans, serif, mono }
+    var font: Font
+    var bold: Bool
+    var italic: Bool
+    var color: RGBA
+    /// Filled with `color`, the text white or black on it.
+    var boxed: Bool
+
+    static let standard = TextBoxStyle(font: .sans, bold: false, italic: false, color: RGBA(red: 0, green: 0, blue: 0, alpha: 1), boxed: false)
+    static let standardSize = 12.0
+
+    /// The base font's PostScript name, such as Times-BoldItalic.
+    var fontName: String { Self.faces(of: font)[(bold ? 1 : 0) + (italic ? 2 : 0)] }
+
+    /// Regular, bold, italic, bold italic.
+    private static func faces(of font: Font) -> [String] {
+        switch font {
+        case .sans: ["Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"]
+        case .serif: ["Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic"]
+        case .mono: ["Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique"]
+        }
+    }
+
+    /// The font, weight and slant of a base font's name; nil for any other font.
+    static func face(of name: String) -> (font: Font, bold: Bool, italic: Bool)? {
+        for font in Font.allCases { if let index = faces(of: font).firstIndex(of: name) { return (font, index & 1 == 1, index & 2 == 2) } }
+        return nil
+    }
+
+    /// Opaque and in range: the file keeps no transparency, so a style from a recovery record or the preferences that
+    /// asks for it is refused.
+    var isValid: Bool { color.isValid && color.alpha == 1 }
+
+    /// The color text is written in: the style's, or on a box of it white or black, whichever contrasts more.
+    var textColor: RGBA {
+        guard boxed else { return color }
+        return color.relativeLuminance > 0.179 ? RGBA(red: 0, green: 0, blue: 0, alpha: 1) : RGBA(red: 1, green: 1, blue: 1, alpha: 1)
+    }
+}
+
+extension RGBA {
+    /// WCAG's relative luminance: above about 0.179, black text contrasts more than white.
+    nonisolated var relativeLuminance: Double {
+        let linear = { (c: Double) in c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+        return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+    }
+}
+
 /// Something Peeker puts on a page, saved as a standard annotation named `id` (in `/NM` and `/PeekerID`). `page` is
 /// 0-based and `rect` is in page space.
 nonisolated struct PDFMark: Codable, Sendable, Equatable {
     nonisolated enum Kind: Codable, Sendable, Equatable {
         case highlight(RGBA)
-        case textBox(text: String, fontSize: Double)
+        /// A nil style is the standard one, so records written before styles read the same.
+        case textBox(text: String, fontSize: Double, style: TextBoxStyle? = nil)
         /// Strokes as points within 0...1 of the mark's rect, origin at the bottom left, so resizing only changes the rect.
         case signature(strokes: [[CGPoint]])
     }
@@ -45,8 +99,8 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
     case add(PDFMark)
     /// A move or resize of one of Peeker's marks.
     case setBounds(id: String, type: MarkType, page: Int, rect: CGRect)
-    /// New text or size for a text box, with the bounds that fit it.
-    case setText(id: String, page: Int, text: String, fontSize: Double, rect: CGRect)
+    /// New text, size or style for a text box, with the bounds that fit it.
+    case setText(id: String, page: Int, text: String, fontSize: Double, rect: CGRect, style: TextBoxStyle? = nil)
     case delete(id: String, type: MarkType, page: Int)
     /// A form field's value as PDFKit reports it: the text, a choice, or a button's on-state name ("Off" when off).
     case field(name: String, value: String)
@@ -69,7 +123,7 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
     var markID: String? {
         switch self {
         case .add(let mark): mark.id
-        case .setBounds(let id, _, _, _), .setText(let id, _, _, _, _), .delete(let id, _, _): id
+        case .setBounds(let id, _, _, _), .setText(let id, _, _, _, _, _), .delete(let id, _, _): id
         case .field, .rotatePages, .reorderPages, .deletePages, .restorePages: nil
         }
     }
@@ -106,9 +160,9 @@ nonisolated enum PDFEdit: Codable, Sendable, Equatable {
                     out.removeAll { if case .setBounds(id, _, _, _) = $0 { true } else { false } }
                     out.append(edit)
                 }
-            case .setText(let id, _, let text, let fontSize, let rect):
+            case .setText(let id, _, let text, let fontSize, let rect, let style):
                 if let index = addIndex(of: id, in: out), case .add(var mark) = out[index] {
-                    mark.kind = .textBox(text: text, fontSize: fontSize)
+                    mark.kind = .textBox(text: text, fontSize: fontSize, style: style)
                     mark.rect = rect
                     out[index] = .add(mark)
                 } else {

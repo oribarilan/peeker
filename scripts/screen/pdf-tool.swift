@@ -9,6 +9,7 @@
 //        pdf-tool inspect <in.pdf>    print each page's first line of text and rotation, each form field's value and
 //                                     each annotation, one per line: "page 1: Page 3, rotation 90",
 //                                     "field Name = Jane Doe", "annotation FreeText peeker = 31 Oct", "annotation Ink peeker"
+//                                     and under a text box its style string: "  style font: Times-Roman 12pt; color: #DB2626"
 import Foundation
 import PDFKit
 
@@ -93,6 +94,8 @@ case "inspect":
             } else {
                 let ours = (annotation.value(forAnnotationKey: .name) as? String)?.hasPrefix("peeker-") == true
                 print("annotation \(annotation.type ?? "?")\(ours ? " peeker" : "")\(annotation.contents.map { " = \($0)" } ?? "")")
+                // A text box's font and colors, as the standard style string other apps read.
+                if let style = annotation.value(forAnnotationKey: PDFAnnotationKey(rawValue: "/DS")) as? String { print("  style \(style)") }
             }
         }
     }
