@@ -111,6 +111,7 @@ extension ImageDocument {
             pixelSize: { [weak self] in self?.pixelSize ?? .zero },
             style: { [weak self] in self?.markupStyle ?? .standard },
             hide: { [weak self] in self?.redraw(hiding: $0) },
+            preview: { [weak self] in self?.preview($0) },
             put: { [weak self] in self?.put($0) },
             remove: { [weak self] in self?.removeMark(id: $0) },
             selected: { [weak self] _ in self?.showStyle() }))

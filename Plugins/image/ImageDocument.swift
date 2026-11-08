@@ -59,6 +59,8 @@ final class ImageDocument: PluginDocument {
     var markupStyle: MarkStyle
     /// Draws the marks over the image at the screen's resolution; the canvas's image holds only Pixelate's blocks.
     let marksView: MarksView
+    /// The mark the overlay is dragging, which the shown image and marks view leave out.
+    private var hiddenMark: String?
     /// The image and, above it while marking up, the strip.
     let container = MarkupContainer()
     var strip: MarkupStrip?
@@ -350,9 +352,17 @@ final class ImageDocument: PluginDocument {
     /// Shows the sharpest decode there is with the edits applied and the marks drawn, but for the one with id
     /// `hiding`, which the markup overlay draws while it's dragged.
     func redraw(hiding: String? = nil) {
+        hiddenMark = hiding
         let edited = ImageEditing.preview(edits, of: full ?? base, fullSize: baseSize)
         let shown = hiding.map { id in marks.filter { $0.id != id } } ?? marks
         canvas.image = MarkRenderer.render(shown.filter(\.isPixelate), on: edited, imageSize: pixelSize) ?? edited
+        marksView.show(shown, numbering: marks, imageSize: pixelSize)
+    }
+
+    /// A spotlight being drawn or dragged dims together with the others, in the marks view; nil shows the marks
+    /// without it. Drawn apart, it dimmed the image a second time.
+    func preview(_ draft: ImageMark?) {
+        let shown = marks.filter { $0.id != hiddenMark && $0.id != draft?.id } + (draft.map { [$0] } ?? [])
         marksView.show(shown, numbering: marks, imageSize: pixelSize)
     }
 

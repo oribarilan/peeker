@@ -12,6 +12,8 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         var style: () -> MarkStyle
         /// Shows the image without the mark with this id, while it's dragged; nil shows every mark again.
         var hide: (String?) -> Void
+        /// Shows a spotlight being drawn or dragged with the other marks; nil stops.
+        var preview: (ImageMark?) -> Void
         var put: (ImageMark) -> Void
         var remove: (String) -> Void
         /// The selection changed, so the strip can show its color and size.
@@ -134,6 +136,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
             if draft == nil { document.hide(original.id) }
             draft = original.reshaped(fixed: fixed, moving: point, end: end)
         }
+        if let draft, case .spotlight = draft.kind { document.preview(draft.isVisible(tolerance: tolerance / 2) ? draft : nil) }
         needsDisplay = true
     }
 

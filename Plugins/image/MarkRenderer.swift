@@ -76,7 +76,7 @@ nonisolated enum MarkRenderer {
     }
 
     /// Draws `mark` over the image shown at `rect` in an unflipped view, as the mark being drawn or dragged: a pixelate
-    /// area as a dashed outline, since its pixels come only once it's placed.
+    /// area as a dashed outline, since its pixels come only once it's placed, and a spotlight not at all.
     static func drawDraft(_ mark: ImageMark, number: Int?, imageSize: CGSize, in rect: CGRect, context: CGContext) {
         guard imageSize.width > 0, imageSize.height > 0 else { return }
         context.saveGState()
@@ -90,8 +90,8 @@ nonisolated enum MarkRenderer {
             context.setLineWidth(max(mark.width / 2, 1))
             context.setLineDash(phase: 0, lengths: [mark.width * 2, mark.width * 2])
             context.stroke(area.standardized)
-        case .spotlight(let area, let ellipse):
-            dim(outside: [(area.standardized, ellipse)], imageSize: imageSize, in: context)
+        case .spotlight:
+            break  // the marks view dims around it with the other spotlights
         default:
             draw(mark, number: number, in: context)
         }

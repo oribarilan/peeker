@@ -88,6 +88,27 @@ import UniformTypeIdentifiers
         #expect(document.marks.count == 1 && document.marksView.shownMarks.count == 1, "placed, it's drawn over the image")
     }
 
+    /// Found in use: a click with Spotlight armed flashed the whole image darker, and a new spotlight dimmed twice.
+    @Test func aSpotlightBeingDrawnDimsOnceAndAClickDimsNothing() async throws {
+        let (document, window) = try await shown()
+        defer { window.close() }
+        #expect(document.perform("markup-spotlight"))
+        let overlay = try #require(document.overlay)
+        overlay.mouseDown(with: mouse(.leftMouseDown, at: CGPoint(x: 100, y: 100), in: overlay))
+        overlay.mouseUp(with: mouse(.leftMouseUp, at: CGPoint(x: 100, y: 100), in: overlay))
+        #expect(document.marks.isEmpty && document.marksView.shownMarks.isEmpty)
+        overlay.mouseDown(with: mouse(.leftMouseDown, at: CGPoint(x: 40, y: 40), in: overlay))
+        overlay.mouseDragged(with: mouse(.leftMouseDragged, at: CGPoint(x: 120, y: 90), in: overlay))
+        #expect(document.marksView.shownMarks.count == 1, "the marks view dims around the spotlight being drawn")
+        let context = CGContext(data: nil, width: 40, height: 40, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        let draft = ImageMark(id: "d", kind: .spotlight(CGRect(x: 0, y: 0, width: 1, height: 1), ellipse: false), color: markupPalette[0].color, size: .medium, width: 2)
+        MarkRenderer.drawDraft(draft, number: nil, imageSize: CGSize(width: 40, height: 40), in: CGRect(x: 0, y: 0, width: 40, height: 40), context: context)
+        #expect(context.makeImage().flatMap { $0.dataProvider?.data as Data? }?.allSatisfy { $0 == 0 } == true, "and the overlay draws nothing for it")
+        overlay.mouseUp(with: mouse(.leftMouseUp, at: CGPoint(x: 120, y: 90), in: overlay))
+        #expect(document.marks.count == 1 && document.marksView.shownMarks.count == 1)
+    }
+
     @Test func aClickDropsStepsThatRenumber() async throws {
         let (document, window) = try await shown()
         defer { window.close() }
