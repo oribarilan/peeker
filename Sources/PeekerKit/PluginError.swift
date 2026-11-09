@@ -1,7 +1,7 @@
 import Foundation
 
 /// A failure a plugin reports to the user: the host shows `message` as is and offers `offer`. `code` names known
-/// cases for the plugin's own checks, such as turning `.cannotEncode` into an offer; the host doesn't read it.
+/// cases for the plugin's own checks, such as turning `.cannotEncode` into an offer; the host reads only `.cancelled`.
 public nonisolated struct PluginError: Error, Sendable, Equatable {
     public enum Code: String, Sendable {
         case general, notText, notWritable, cannotEncode, cancelled
@@ -18,7 +18,8 @@ public nonisolated struct PluginError: Error, Sendable, Equatable {
         self.offer = offer
     }
 
-    /// For a plugin to stop early once the host has cancelled the open; the host never shows it.
+    /// For a plugin to stop early once the host has cancelled the open, or to end a save the user cancelled (a password
+    /// it asked for, say); the host never shows it, and counts such a save as cancelled, not failed.
     public static let cancelled = PluginError("Cancelled.", code: .cancelled)
 
     /// Runs `body`, turning any other error into a `PluginError` with its description.

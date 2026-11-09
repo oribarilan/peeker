@@ -30,9 +30,12 @@ nonisolated enum MovedPageRepair {
     }
 
     /// `data` written again with the kept keys back on the annotations that lost them, matched by page, type and
-    /// bounds. Nil when it no longer reads as a PDF with the same pages.
-    static func repaired(_ data: Data, kept: [[Kept]]) -> Data? {
-        guard let document = PDFDocument(data: data), document.pageCount == kept.count else { return nil }
+    /// bounds. Nil when it no longer reads as a PDF with the same pages. `password` unlocks an encrypted `data`, whose
+    /// lock writing it again keeps.
+    static func repaired(_ data: Data, kept: [[Kept]], password: String = "") -> Data? {
+        guard let document = PDFDocument(data: data) else { return nil }
+        if document.isLocked, !document.unlock(withPassword: password) { return nil }
+        guard document.pageCount == kept.count else { return nil }
         for (index, page) in kept.enumerated() {
             var unmatched = page
             for annotation in document.page(at: index)?.annotations ?? [] {

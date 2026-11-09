@@ -245,6 +245,8 @@ final class DocumentViewController: NSSplitViewController {
                 guard let offer = error.offer, await prompts.confirm(offer, reason: error.message) else { return .cancelled }
                 try await document.save(edits, accepting: offer)
             }
+        } catch where error.code == .cancelled {
+            return .cancelled
         } catch {
             Self.log.error("\(self.entry.id, privacy: .public): saving \(self.url.lastPathComponent, privacy: .private) failed: \(error.message, privacy: .private)")
             return .failed(error.message)
@@ -283,6 +285,8 @@ final class DocumentViewController: NSSplitViewController {
                 guard let offer = error.offer, await prompts.confirm(offer, reason: error.message) else { return .cancelled }
                 try await document.saveAs(edits, to: destination, accepting: offer)
             }
+        } catch where error.code == .cancelled {
+            return .cancelled
         } catch {
             Self.log.error("\(self.entry.id, privacy: .public): Save As of \(self.url.lastPathComponent, privacy: .private) failed: \(error.message, privacy: .private)")
             return .failed(error.message)

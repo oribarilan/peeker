@@ -170,7 +170,7 @@ targets:
     platform: macOS
     sources:
       - path: Tests
-        excludes: ["PDF*.swift", ThumbnailDropBarTests.swift, FormPDF.swift]
+        excludes: ["PDF*.swift", ThumbnailDropBarTests.swift, FormPDF.swift, Fixtures]
       - path: Sources/Host
         excludes: [App/main.swift, "Resources/**"]
     dependencies:

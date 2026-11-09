@@ -16,7 +16,7 @@ Found while writing the baseline specs on 2026-10-30. Each is either a spec requ
 
 ## Missing next to Preview
 
-- **PDF:** other apps' highlights can't be removed (Peeker's own can). A password-protected PDF opens view-only.
+- **PDF:** other apps' highlights can't be removed (Peeker's own can). A password-protected PDF's password can't be added, changed or removed yet, and its pages can't be saved as new files (Save Selected Pages As…, Split…).
 
 ## Future work
 

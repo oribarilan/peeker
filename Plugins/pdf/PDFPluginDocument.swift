@@ -38,12 +38,22 @@ final class PDFPluginDocument: PluginDocument {
     var unrememberedMarkup = (color: PDFMarkupStrip.palette[0].color, size: MarkupSize.medium)
     /// Where marks are copied and pasted; tests use one of their own.
     lazy var pasteboard = NSPasteboard.general
+    /// The passwords of a password-protected PDF, for saving it locked; nil for any other PDF.
+    private(set) var lock: PDFLock?
+    /// Encrypts the crash-recovery copy of a password-protected PDF's edits.
+    private let recoveryKey: RecoveryKey?
+    /// Asks for one of the PDF's passwords when a save needs it; tests answer for the user.
+    lazy var askForPassword: (_ kind: PDFPasswordKind) async -> String? = { [weak self] kind in await self?.passwordSheet(kind) }
+    /// Notes about a save already shown in this window, each said once.
+    private(set) var shownNotes: [String] = []
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "pdf")
 
     /// `uneditableReason` makes a file that can't be safely changed read-only.
     init(url: URL, document: PeekerPDFDocument, info: [InfoRow], editable: Bool, uneditableReason: String? = nil,
-         preferences: PluginPreferences? = nil) {
+         preferences: PluginPreferences? = nil, lock: PDFLock? = nil, recoveryKey: RecoveryKey? = nil) {
         self.preferences = preferences
+        self.lock = lock
+        self.recoveryKey = recoveryKey ?? lock.map { RecoveryKey(password: $0.password) }
         let remembered = preferences?.string("highlightColor").map { "highlight-\($0)" }
         if let choice = PDFPlugin.highlightColors.first(where: { $0.id == remembered }), let color = choice.color {
             (highlightChoice, highlightColor) = (choice.id, color)
@@ -211,6 +221,7 @@ final class PDFPluginDocument: PluginDocument {
     func unavailableReason(for tool: String) -> String? {
         guard Self.pageTools.contains(tool), editability == .editable else { return nil }
         if !allowsPageChanges { return "This PDF's permissions don't allow page changes." }
+        if let lock, !lock.password.isEmpty, tool == "save-selected-pages" || tool == "split" { return "Peeker can't yet save a password-protected PDF's pages as new files." }
         if tool == "delete-page", targetPages.count >= document.pageCount { return "A PDF needs at least one page." }
         if tool == "split", document.pageCount < 2 { return "There's only one page." }
         return nil
@@ -231,11 +242,12 @@ final class PDFPluginDocument: PluginDocument {
     func unsavedEdits() -> UnsavedEdits? {
         let edits = pendingEdits
         guard !edits.isEmpty, let last = pending.last else { return nil }
-        return UnsavedEdits(PDFSnapshot(edits: edits, through: last.number))
+        return UnsavedEdits(PDFSnapshot(edits: edits, through: last.number, key: recoveryKey))
     }
 
     func restore(encoded edits: Data) -> Bool {
         // A file signed or locked since the record was written must not take its edits.
+        // A sealed record goes to the lock screen, which opens it before handing this document over.
         guard editability == .editable, let decoded = try? JSONDecoder().decode([PDFEdit].self, from: edits) else { return false }
         var applied = false
         for edit in decoded {
@@ -251,15 +263,17 @@ final class PDFPluginDocument: PluginDocument {
 
     func save(_ edits: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError) {
         guard let snapshot = edits.value as? PDFSnapshot else { throw PluginError("These changes aren't PDF edits.") }
-        try await PDFPlugin.write(snapshot.edits, to: url.path)
+        let note = try await writeLocked(snapshot.edits, from: url.path, to: url.path)
         pending.removeAll { $0.number <= snapshot.through }  // edits made during the save stay pending
+        await show(note)
         if let checked = try? await PDFPlugin.check(url) { info = checked.info }
     }
 
     func saveAs(_ unsaved: UnsavedEdits?, to destination: URL, accepting offer: SaveOffer?) async throws(PluginError) {
         if let snapshot = unsaved?.value as? PDFSnapshot {
-            try await PDFPlugin.write(snapshot.edits, from: url.path, to: destination.path)
+            let note = try await writeLocked(snapshot.edits, from: url.path, to: destination.path)
             pending.removeAll { $0.number <= snapshot.through }
+            await show(note)
         } else {
             try await FileReplacement.copy(url, to: destination)
         }
@@ -393,13 +407,19 @@ final class PDFPluginDocument: PluginDocument {
 }
 
 /// What `unsavedEdits()` hands out: the folded edits, and the number of the last one, so saving knows which pending
-/// edits it wrote. Encodes, for the crash-recovery copy, as the edits a recovery may hold.
+/// edits it wrote. Encodes, for the crash-recovery copy, as the edits a recovery may hold, sealed with `key` for a
+/// password-protected PDF.
 nonisolated struct PDFSnapshot: Encodable, Sendable {
     let edits: [PDFEdit]
     let through: Int
+    var key: RecoveryKey?
 
     func encode(to encoder: any Encoder) throws {
-        try Self.recoverable(edits).encode(to: encoder)
+        if let key {
+            try key.seal(try JSONEncoder().encode(Self.recoverable(edits))).encode(to: encoder)
+        } else {
+            try Self.recoverable(edits).encode(to: encoder)
+        }
     }
 
     /// `edits` with no signature strokes in them, since a signature goes only into the PDF it's placed in: one placed
@@ -445,3 +465,74 @@ nonisolated struct PDFSnapshot: Encodable, Sendable {
         return removed ? copy.dataRepresentation() ?? Data() : data
     }
 }
+
+// MARK: Saving a password-protected PDF
+
+extension PDFPluginDocument {
+    static let notOpenPassword = "That isn't this PDF's open password. The permissions password can't stand in for it."
+
+    /// Writes `edits` keeping the PDF's lock, asking for a password the save needs and trying again.
+    fileprivate func writeLocked(_ edits: [PDFEdit], from source: String, to path: String) async throws(PluginError) -> String? {
+        while true {
+            do {
+                return try await PDFPlugin.write(edits, from: source, to: path, lock: lock)
+            } catch let error where error.offer == PDFPlugin.openPasswordOffer {
+                try await takePassword(.open)
+            } catch let error where error.offer == PDFPlugin.permissionsPasswordOffer {
+                try await takePassword(.permissions)
+            }
+        }
+    }
+
+    /// Asks for one of the passwords, checks it on the file and keeps it for later saves. The open password must open
+    /// the file as its reader, so the permissions password can't stand in for it.
+    fileprivate func takePassword(_ kind: PDFPasswordKind) async throws(PluginError) {
+        guard let typed = await askForPassword(kind) else { throw PluginError.cancelled }
+        let check = PDFDocument(url: url)
+        var lock = lock ?? PDFLock(password: "", isPermissionsPassword: false)  // a PDF that opens without a password
+        switch kind {
+        case .open:
+            guard let check, check.isLocked, check.unlock(withPassword: typed), check.permissionsStatus == .user else {
+                throw PluginError(Self.notOpenPassword)
+            }
+            lock.openPassword = typed
+        case .permissions:
+            // A file whose permissions password is empty opens with its rights already; any string would pass.
+            guard let check, check.permissionsStatus != .owner, check.unlock(withPassword: typed), check.permissionsStatus == .owner else {
+                throw PluginError("That isn't this PDF's permissions password.")
+            }
+            lock.permissionsPassword = typed
+        }
+        self.lock = lock
+    }
+
+    /// A note about how the file was saved, once per window, waiting for it to be read so a save that closes the
+    /// window doesn't take it away unseen.
+    fileprivate func show(_ note: String?) async {
+        guard let note, !shownNotes.contains(note) else { return }
+        shownNotes.append(note)
+        guard let window = pdfView.window else { return }
+        let alert = NSAlert()
+        alert.messageText = "“\(url.lastPathComponent)” was saved."
+        alert.informativeText = note
+        await alert.beginSheetModal(for: window)
+    }
+
+    fileprivate func passwordSheet(_ kind: PDFPasswordKind) async -> String? {
+        guard let window = pdfView.window else { return nil }
+        let alert = NSAlert()
+        alert.messageText = kind == .open ? "Enter the open password for “\(url.lastPathComponent)”" : "Enter the permissions password for “\(url.lastPathComponent)”"
+        alert.informativeText = kind == .open ? PDFPlugin.needsOpenPassword : PDFPlugin.needsPermissionsPassword
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 22))
+        field.placeholderString = kind == .open ? "Open password" : "Permissions password"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        let response = await alert.beginSheetModal(for: window)
+        return response == .alertFirstButtonReturn ? field.stringValue : nil
+    }
+}
+
+/// Which of a PDF's two passwords a save asks for.
+enum PDFPasswordKind { case open, permissions }

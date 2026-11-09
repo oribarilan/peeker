@@ -1,7 +1,7 @@
 #!/bin/bash
 # The viewer flow on screen: the hover tint on a PDF's thumbnails, find in a PDF (its bar below the toolbar), the print
 # panel for each format, hiding the sidebar from the View menu (still hidden after a save) and showing it from the
-# toolbar, Wrap Lines' checkmark, unlocking a password-protected PDF, Actual Size and Zoom to Fit on that PDF, Actual
+# toolbar, Wrap Lines' checkmark, unlocking a password-protected PDF, turning a page in it and saving it still locked, Actual Size and Zoom to Fit on that PDF, Actual
 # Size and zooming out on an image, an animated GIF playing, pausing on a click and playing on, text zoom and wrapping
 # kept across a relaunch, Save As writing a copy the window follows, and Actual Size on a photo larger than the screen
 # showing its own pixels. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a
@@ -16,7 +16,7 @@ source "$(dirname "$0")/common.sh" "$@"
 PAGES="$OUT/pages.pdf" LOCKED="$OUT/locked.pdf" NOTES="$OUT/notes.txt" MD="$OUT/notes.md" PHOTO="$OUT/photo.png" GIF="$OUT/blink.gif"
 STRIPES="$OUT/stripes.png" TIFF="$OUT/scan.tiff"
 "$PDF" pages "$PAGES" 4
-"$PDF" locked "$LOCKED" secret 3
+"$PDF" locked "$LOCKED" secret 3 owner
 printf 'Plain text to print.\n' > "$NOTES"
 printf '# Notes\n\nMarkdown to print.\n' > "$MD"
 sips -s format png -z 900 1600 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$PHOTO" >/dev/null
@@ -139,6 +139,14 @@ check "Actual Size changes a PDF's view" "$([ "$fit" != "$actual" ] && echo yes)
 # Not compared with the first look: Zoom to Fit keeps the reading position, which may differ from how it opened.
 check "Zoom to Fit changes it back from Actual Size" "$([ "$(looks locked.pdf)" != "$actual" ] && echo yes)" yes
 "$DRIVE" shot Peeker "$OUT/9-pdf-zoom-to-fit.png" locked.pdf
+
+# Unlocked, it can be edited, and it saves still locked: turn page 1, save, and read it back with the password.
+"$DRIVE" wait Peeker control "Rotate Right"
+"$DRIVE" press Peeker "Rotate Right" && sleep 0.3
+"$DRIVE" menu Peeker File Save && sleep 1.5
+check "The saved PDF is still locked" "$("$PDF" inspect "$LOCKED" | head -1)" locked
+"$PDF" inspect "$LOCKED" secret > "$OUT/locked-saved.txt"
+check "and opens with its password, page 1 turned" "$(grep -c '^page 1: .*rotation 90' "$OUT/locked-saved.txt")" 1
 
 # An image: fitted, at Actual Size, then zoomed out below fit; each shows the image differently.
 show "$PHOTO"

@@ -24,7 +24,7 @@ for dir in $root/Plugins/*(/N); do
     while IFS= read -r hit; do
       module=$(print -r -- ${hit#*:} | sed -E 's/^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?([A-Za-z_]+).*/\4/')
       (( ${allowed[(Ie)$module]} )) && continue
-      [[ -d $sdk/System/Library/Frameworks/$module.framework || -e $sdk/usr/lib/swift/$module.swiftmodule ]] && continue
+      [[ -d $sdk/System/Library/Frameworks/$module.framework || -e $sdk/usr/lib/swift/$module.swiftmodule || -e $sdk/usr/include/$module/module.modulemap ]] && continue
       print -r -- "${file#$root/}:${hit%%:*}: plugin '$plugin' may not import $module"
       failed=1
     done

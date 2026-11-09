@@ -55,11 +55,14 @@ public enum PDFPlugin: Plugin {
             return LockedPDFDocument(url: url, canUnlock: context.allowsEditing, preferences: context.preferences)
         }
         guard let document = PeekerPDFDocument(url: url) else { throw PluginError("This file isn't a readable PDF.") }
-        // The edit tools add annotations and fill in fields, so it needs those two permissions, not "changes" to the pages.
-        let reason = checked.uneditableReason
-            ?? (document.allowsCommenting && document.allowsFormFieldEntry ? nil : "This PDF's permissions don't allow changes.")
-        return PDFPluginDocument(url: url, document: document, info: checked.info, editable: context.allowsEditing, uneditableReason: reason,
-                                 preferences: context.preferences)
+        return PDFPluginDocument(url: url, document: document, info: checked.info, editable: context.allowsEditing,
+                                 uneditableReason: uneditableReason(checked, document), preferences: context.preferences)
+    }
+
+    /// Why `document` can't be edited, if it can't. The edit tools add annotations and fill in fields, so it needs those
+    /// two permissions, not "changes" to the pages.
+    static func uneditableReason(_ checked: Checked, _ document: PDFDocument) -> String? {
+        checked.uneditableReason ?? (document.allowsCommenting && document.allowsFormFieldEntry ? nil : "This PDF's permissions don't allow changes.")
     }
 
     nonisolated struct Checked: Sendable {
@@ -105,8 +108,13 @@ public enum PDFPlugin: Plugin {
     /// Applies `edits` in order to a fresh copy of the file at `path` and writes it. Writes nothing if any edit doesn't
     /// fit the file, and says which. Loads its own copy, so it's safe off the main thread.
     /// Applies `edits` to the PDF at `source` (by default `path`) and writes the result to `path`.
-    @concurrent nonisolated static func write(_ edits: [PDFEdit], from source: String? = nil, to path: String) async throws(PluginError) {
-        try FileReplacement.replaceContents(ofFileAt: path, with: try edited(edits, from: source ?? path))
+    /// Unlocks a password-protected source with `lock`, keeping its lock in what it writes. Returns a note to show the
+    /// user once, when the lock had to change.
+    @discardableResult
+    @concurrent nonisolated static func write(_ edits: [PDFEdit], from source: String? = nil, to path: String, lock: PDFLock? = nil) async throws(PluginError) -> String? {
+        let saved = try saved(edits, from: source ?? path, lock: lock)
+        try FileReplacement.replaceContents(ofFileAt: path, with: saved.data)
+        return saved.note
     }
 
     /// Writes the pages of each run, from the PDF at `source` with `edits` applied, to its file. For Save Selected
@@ -122,20 +130,82 @@ public enum PDFPlugin: Plugin {
     }
 
     /// The PDF at `path` with `edits` applied, as data.
+    /// Doesn't keep an encrypted file's lock: for new files made from its pages (Split…, Save Selected Pages As…).
     nonisolated static func edited(_ edits: [PDFEdit], from path: String) throws(PluginError) -> Data {
+        try saved(edits, from: path, lock: nil, keepingLock: false).data
+    }
+
+    // What a locked save can need. The offers mark the error so the document asks for the password itself and retries;
+    // they never reach the host.
+    nonisolated static let openPasswordOffer = SaveOffer(id: "open-password", button: "Enter Password…", detail: "")
+    nonisolated static let permissionsPasswordOffer = SaveOffer(id: "permissions-password", button: "Enter Password…", detail: "")
+    nonisolated static let needsOpenPassword = "Saving this PDF needs its open password too, since it was unlocked with its permissions password."
+    nonisolated static let needsPermissionsPassword = "Saving this PDF needs its permissions password, since it limits printing, copying or changes."
+    nonisolated static let olderEncryptionNote = "This PDF is now saved with 128-bit RC4 encryption, older than the AES-256 it had."
+    nonisolated static let openPasswordGuardsNote = "Its open password now also guards its permissions, since Peeker didn't have its permissions password; it limits nothing, so nothing changes for anyone opening it."
+    nonisolated static let permissionsPasswordReplacedNote = "Its permissions password was replaced, since Peeker didn't have it; it limits nothing, so nothing changes for anyone opening it."
+
+    /// The PDF at `path` with `edits` applied, as data, locked as the file was, and a note when its lock had to change.
+    /// An encrypted file is written as PDFKit does by default, which keeps AES-128 and 128-bit RC4 locks as they were;
+    /// when that doesn't keep it (RC4-40), it's written with 128-bit RC4 and both passwords. AES-256 always is: its
+    /// default write can look right through the permissions password yet no longer open with the open one.
+    nonisolated static func saved(_ edits: [PDFEdit], from path: String, lock: PDFLock?, keepingLock: Bool = true) throws(PluginError) -> (data: Data, note: String?) {
         let name = URL(filePath: path).lastPathComponent
-        guard let document = PDFDocument(url: URL(filePath: path)) else { throw PluginError("“\(name)” is no longer a readable PDF.") }
-        guard !document.isLocked else { throw PluginError("This PDF is password protected.") }
+        guard let bytes = try? Data(contentsOf: URL(filePath: path), options: .mappedIfSafe), let document = PDFDocument(data: bytes) else {
+            throw PluginError("“\(name)” is no longer a readable PDF.")
+        }
+        let needsPassword = document.isLocked
+        if needsPassword {
+            guard let lock, document.unlock(withPassword: lock.password) else { throw PluginError("This PDF is password protected.") }
+        }
+        let source = LockState(document, needsPassword: needsPassword)
         let stash = PageStash()
         for edit in edits { try PDFEditing.apply(edit, to: document, fileName: name, stash: stash) }
         let movesPages = edits.contains(where: \.movesPages)
         let kept = movesPages ? MovedPageRepair.kept(in: document) : []
-        guard var data = document.dataRepresentation() else { throw PluginError("“\(name)” couldn't be written as a PDF.") }
-        if movesPages {
-            guard let repaired = MovedPageRepair.repaired(data, kept: kept) else { throw PluginError("“\(name)” couldn't be written as a PDF.") }
-            data = repaired
+        func written(_ options: [PDFDocumentWriteOption: Any], password: String) throws(PluginError) -> Data {
+            guard var data = options.isEmpty ? document.dataRepresentation() : document.dataRepresentation(options: options) else {
+                throw PluginError("“\(name)” couldn't be written as a PDF.")
+            }
+            if movesPages {
+                guard let repaired = MovedPageRepair.repaired(data, kept: kept, password: password) else { throw PluginError("“\(name)” couldn't be written as a PDF.") }
+                data = repaired
+            }
+            return data
         }
-        return data
+        let plain = try written([:], password: lock?.password ?? "")
+        guard let source, keepingLock else { return (plain, nil) }
+        let encryption = PDFEncryption(bytes)
+        if encryption?.isAES256 != true, source.isKept(by: plain, password: lock?.password ?? "", encryption: encryption) { return (plain, nil) }
+
+        // The file's own lock wasn't kept: write 128-bit RC4 with both passwords and the file's own permission bits.
+        guard let encryption else { throw PluginError("“\(name)” couldn't be saved with its password.") }
+        let open: String
+        if !needsPassword {
+            open = ""
+        } else if let known = lock?.openPassword {
+            open = known
+        } else {
+            throw PluginError(needsOpenPassword, offer: openPasswordOffer)
+        }
+        var notes = encryption.isAES256 ? [olderEncryptionNote] : []
+        let owner: String
+        if let known = lock?.permissionsPassword {
+            owner = known
+        } else if encryption.limitsNothing {
+            owner = needsPassword ? open : UUID().uuidString
+            notes.append(needsPassword ? openPasswordGuardsNote : permissionsPasswordReplacedNote)
+        } else {
+            throw PluginError(needsPermissionsPassword, offer: permissionsPasswordOffer)
+        }
+        let data = try written([.userPasswordOption: open, .ownerPasswordOption: owner, .accessPermissionsOption: encryption.pdfKitPermissions], password: owner)
+        guard let written = PDFEncryption(data), written.hasSamePermissions(as: encryption),
+              let asOpen = PDFDocument(data: data), asOpen.isLocked == needsPassword, !needsPassword || asOpen.unlock(withPassword: open),
+              owner == open || asOpen.permissionsStatus == .user,  // the open password mustn't get the permissions password's rights
+              let asOwner = PDFDocument(data: data), asOwner.unlock(withPassword: owner), asOwner.permissionsStatus == .owner else {
+            throw PluginError("“\(name)” couldn't be saved with its password.")
+        }
+        return (data, notes.isEmpty ? nil : notes.joined(separator: " "))
     }
 
     private nonisolated static func string(_ dictionary: CGPDFDictionaryRef?, _ key: String) -> String? {

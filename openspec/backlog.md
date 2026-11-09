@@ -16,7 +16,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 - Optional author name on PDF marks (`openspec/changes/annotation-author-setting`, parked until it's discussed).
 - More PDF annotations in the PDF strip (planned with the text box styles): drawing, and stamps such as an X and a check mark; fewer than images have (maintainer, 2026-11-08).
 - Editing YAML, TOML, XML and property lists in the tree, as JSON edits (their trees are read-only since 2026-11-07).
-- Editable password-protected PDFs (decided 2026-11-06; after the data editor).
+- Add, change or remove a PDF's password with File > Password… (decided 2026-11-09; after editable password-protected PDFs).
 - Find and Print in CSV/TSV tables.
 - Open With from the Peek panel: next to Open in Peeker, a drop-down of the other installed apps that open the file. The panel's main button opens the default app for that extension or type, which you set in the config (Peeker unless you change it). Picking a different app from the drop-down asks "Make it the default for .ext files?" with Yes, No, and "Don't ask again" for this type or for all types. Open question: whether this default stays inside Peeker's panel only, or also sets the macOS default app.
 

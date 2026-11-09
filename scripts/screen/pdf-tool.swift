@@ -4,9 +4,12 @@
 //                                     combo box "Color" (Red, Green); written by hand because PDFKit can't write radio groups
 //        pdf-tool signed <out.pdf>    the same form marked as digitally signed (/SigFlags 3), which Peeker opens read-only
 //        pdf-tool pages <out.pdf> <n> write n Letter pages that say "Page 1", "Page 2"...
-//        pdf-tool locked <out.pdf> <password> <n>
-//                                     the same n pages, opening only with the password
-//        pdf-tool inspect <in.pdf>    print each page's first line of text and rotation, each form field's value and
+//        pdf-tool locked <out.pdf> <password> <n> [permissions password]
+//                                     the same n pages, opening only with the password (the permissions password
+//                                     is the same unless given)
+//        pdf-tool inspect <in.pdf> [password]
+//                                     a locked PDF prints "locked" first, and the rest only once the password opens it;
+//                                     print each page's first line of text and rotation, each form field's value and
 //                                     each annotation, one per line: "page 1: Page 3, rotation 90",
 //                                     "field Name = Jane Doe", "annotation FreeText peeker = 31 Oct", "annotation Ink peeker"
 //                                     and under a text box its style string: "  style font: Times-Roman 12pt; color: #DB2626",
@@ -68,7 +71,7 @@ func pdf(_ objects: [String]) -> String {
 }
 
 let args = CommandLine.arguments
-let usage = "usage: pdf-tool form <out.pdf> | signed <out.pdf> | pages <out.pdf> <n> | locked <out.pdf> <password> <n> | inspect <in.pdf>"
+let usage = "usage: pdf-tool form <out.pdf> | signed <out.pdf> | pages <out.pdf> <n> | locked <out.pdf> <password> <n> [permissions password] | inspect <in.pdf> [password]"
 guard args.count >= 3 else { print(usage); exit(2) }
 switch args[1] {
 case "form":
@@ -79,11 +82,16 @@ case "pages":
     guard args.count == 4, let count = Int(args[3]), count > 0 else { print(usage); exit(2) }
     try Data(pages(count).utf8).write(to: URL(filePath: args[2]))
 case "locked":
-    guard args.count == 5, let count = Int(args[4]), count > 0, let document = PDFDocument(data: Data(pages(count).utf8)) else { print(usage); exit(2) }
-    let options: [PDFDocumentWriteOption: Any] = [.userPasswordOption: args[3], .ownerPasswordOption: args[3]]
+    guard (5...6).contains(args.count), let count = Int(args[4]), count > 0, let document = PDFDocument(data: Data(pages(count).utf8)) else { print(usage); exit(2) }
+    let options: [PDFDocumentWriteOption: Any] = [.userPasswordOption: args[3], .ownerPasswordOption: args.count == 6 ? args[5] : args[3]]
     guard document.write(to: URL(filePath: args[2]), withOptions: options) else { print("couldn't write \(args[2])"); exit(1) }
 case "inspect":
     guard let document = PDFDocument(url: URL(filePath: args[2])) else { print("unreadable"); exit(1) }
+    if document.isLocked {
+        print("locked")
+        guard args.count > 3 else { exit(0) }
+        guard document.unlock(withPassword: args[3]) else { print("wrong password"); exit(1) }
+    }
     var fields: [String: String] = [:]
     for index in 0..<document.pageCount {
         guard let page = document.page(at: index) else { continue }
