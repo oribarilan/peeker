@@ -10,6 +10,7 @@
 # usage: pdf-pages-flow.sh [path/to/Peeker.app]
 FLOW=pdf-pages
 source "$(dirname "$0")/common.sh" "$@"
+front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.5; }
 
 FILE="$OUT/pages.pdf"
 "$PDF" pages "$FILE" 4
@@ -78,8 +79,10 @@ sleep 0.5
 "$DRIVE" type Peeker "" || { echo "Peeker didn't come to the front; nothing was sent"; exit 2; }
 record pdf-pages 90
 "$DRIVE" wait Peeker control "Rotate Right"
-# Zoom is in the View menu only, which leaves room for every edit tool at this window size.
-check "The toolbar has no zoom buttons" "$("$DRIVE" tree Peeker 12 | grep -c 'AXButton “Zoom In”')" 0
+# Zoom is in the View menu and the zoom control over the pages, not the toolbar, which leaves room for every edit
+# tool at this window size: no Zoom In outside the control's group (which is hidden unless the pointer is over the pages).
+zoom_ins=$("$DRIVE" tree Peeker 12 | grep -c 'AXButton “Zoom In”') in_control=$("$DRIVE" tree Peeker 12 | grep -A3 'AXGroup “Zoom”' | grep -c 'AXButton “Zoom In”')
+check "The toolbar has no zoom buttons" "$((zoom_ins - in_control))" 0
 check "Four thumbnails" "$(thumbnails)" 4
 
 pick_page 2

@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- Every format zooms, now including CSV tables and JSON, YAML, TOML, XML and property-list files, with Cmd+=, Cmd+- and Cmd+0. Cmd+scroll and pinch zoom too, in windows and the Peek panel. In Editor windows, while the pointer is over a document, a small control at its bottom right shows the zoom, steps it with − and +, and offers Actual Size, Zoom to Fit and a few fixed sizes.
 - Password-protected PDFs can be edited once unlocked, within what the file allows: fill fields, mark up, sign, highlight and change pages. Saving keeps them locked, with the same passwords and limits. A file locked with AES-256 (Acrobat's default) is saved with older 128-bit encryption, which Peeker says once, and may ask for its other password at the first save. If Peeker quits unexpectedly, the unsaved changes are kept encrypted with the password and come back once the PDF is unlocked again.
 - A signature placed in a PDF but not yet saved no longer goes into the crash-recovery copy of your edits, nor does one on a deleted page you put back. After a crash, the other edits come back and the signature has to be placed again.
 - A box or ellipse on an image is selected by clicking its outline, as in PDFs, so an arrow, number or text can start inside it, and a mark under a box can still be selected; a click inside used to grab the box. Pixelate and Spotlight are still selected anywhere in their area.

@@ -6,7 +6,7 @@ import PeekerKit
 /// TextKit 1 with non-contiguous layout, not TextKit 2: TextKit 2 gives every line fragment its own view and
 /// registers the scroll view with the titlebar's edge effect, which kept a warm Space on a 10 KB file near 30 ms
 /// (TextKit 1: under 20). It also placed find results screens away from the match in a 90 MB log.
-final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
+final class TextDocument: NSObject, Zooming, NSTextViewDelegate {
     private var url: URL
     private let allowsEditing: Bool
     private let root = NSView()
@@ -20,6 +20,8 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private var scrollBelowNote: NSLayoutConstraint!
     private var scrollAtTop: NSLayoutConstraint!
     private var fontSize = TextDocument.defaultFontSize
+    private var targetFontSize: CGFloat?
+    private let zoomPacer = ZoomPacer()
     private var wraps = true
     /// Cached for unwrapped text; nil until wrap is first turned off, and after the text changes.
     private var longestLineUnits: Int?
@@ -31,6 +33,7 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
     private var readOnlyReason: String?
     private(set) var info: [InfoRow]
     var onEdit: (() -> Void)?
+    var onZoomChange: (() -> Void)?
     /// Where the font size and wrapping are kept for the next file; nil keeps them only here.
     private let preferences: PluginPreferences?
 
@@ -203,10 +206,10 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
 
     func perform(_ id: String) -> Bool {
         switch id {
-        case "zoom-in": setFontSize(fontSize + 1)
-        case "zoom-out": setFontSize(fontSize - 1)
+        case "zoom-in": setFontSize(shownFontSize + 1)
+        case "zoom-out": setFontSize(shownFontSize - 1)
         // No beep at the default size, unlike Zoom In at its limit: there's no limit being hit.
-        case "zoom-actual": if fontSize != Self.defaultFontSize { setFontSize(Self.defaultFontSize) }
+        case "zoom-actual": if shownFontSize != Self.defaultFontSize { setFontSize(Self.defaultFontSize) }
         case "toggle-wrap":
             wraps.toggle()
             preferences?.set(wraps, for: "wraps")
@@ -216,13 +219,39 @@ final class TextDocument: NSObject, PluginDocument, NSTextViewDelegate {
         return true
     }
 
-    private func setFontSize(_ size: CGFloat) {
+    var zoomPercent: Double { shownFontSize / Self.defaultFontSize * 100 }
+    var zoomRange: ClosedRange<Double> { Self.fontSizes.lowerBound / Self.defaultFontSize * 100...Self.fontSizes.upperBound / Self.defaultFontSize * 100 }
+
+    /// Any size to a hundredth of a point, for Cmd+scroll and pinch, drawn at a pace a large file keeps up with. The
+    /// text reflows, so `point` isn't kept.
+    func setZoom(_ percent: Double, around point: NSPoint?) {
+        guard percent.isFinite else { return }
+        let size = min(max((Self.defaultFontSize * percent).rounded() / 100, Self.fontSizes.lowerBound), Self.fontSizes.upperBound)
+        guard size != shownFontSize else { return }
+        targetFontSize = size
+        onZoomChange?()
+        zoomPacer.draw { [weak self] in
+            guard let self, let size = targetFontSize else { return }
+            setFontSize(size, beepsAtLimit: false, notifies: false)  // the control already shows it
+        }
+    }
+
+    /// The size a gesture is heading to, or the one drawn.
+    private var shownFontSize: CGFloat { targetFontSize ?? fontSize }
+
+    private func setFontSize(_ size: CGFloat, beepsAtLimit: Bool = true, notifies: Bool = true) {
+        zoomPacer.cancel()
+        targetFontSize = nil
         let clamped = min(max(size, Self.fontSizes.lowerBound), Self.fontSizes.upperBound)
-        guard clamped != fontSize else { return NSSound.beep() }
+        guard clamped != fontSize else {
+            if beepsAtLimit { NSSound.beep() }
+            return
+        }
         fontSize = clamped
         preferences?.set(Double(clamped), for: "fontSize")
         applyFont()
         if !wraps { applyWrap() }
+        if notifies { onZoomChange?() }
     }
 
     /// The theme's colors, in the text appearance. A plain-text view has one text color, so this doesn't touch the

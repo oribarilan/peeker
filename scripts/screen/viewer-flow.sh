@@ -1,8 +1,8 @@
 #!/bin/bash
 # The viewer flow on screen: the hover tint on a PDF's thumbnails, find in a PDF (its bar below the toolbar), the print
 # panel for each format, hiding the sidebar from the View menu (still hidden after a save) and showing it from the
-# toolbar, Wrap Lines' checkmark, unlocking a password-protected PDF, turning a page in it and saving it still locked, Actual Size and Zoom to Fit on that PDF, Actual
-# Size and zooming out on an image, an animated GIF playing, pausing on a click and playing on, text zoom and wrapping
+# toolbar, Wrap Lines' checkmark, unlocking a password-protected PDF, turning a page in it and saving it still locked, Actual Size and Zoom to Fit on that PDF, Cmd+scroll zooming it with the zoom control following, Actual
+# Size and zooming out on an image, an animated GIF playing, pausing on a click and playing on, text zoom (through the zoom control and Cmd+=) and wrapping
 # kept across a relaunch, Save As writing a copy the window follows, and Actual Size on a photo larger than the screen
 # showing its own pixels. Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence folder, plus a
 # screen recording with SCREEN_RECORD=1.
@@ -148,6 +148,17 @@ check "The saved PDF is still locked" "$("$PDF" inspect "$LOCKED" | head -1)" lo
 "$PDF" inspect "$LOCKED" secret > "$OUT/locked-saved.txt"
 check "and opens with its password, page 1 turned" "$(grep -c '^page 1: .*rotation 90' "$OUT/locked-saved.txt")" 1
 
+# Cmd+scroll over the pages zooms them; the zoom control at the bottom right says by how much.
+# The control's percentage, which Accessibility reports as its button's title.
+level() { "$DRIVE" tree Peeker 20 | grep -oE 'AXButton “[0-9]+%”' | grep -oE '[0-9]+%' | head -1; }
+read -r lx ly lw lh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
+"$DRIVE" move Peeker $((lx + lw * 6 / 10)) $((ly + lh / 2)) && sleep 0.4  # the control shows while the pointer is over the pages
+before=$(looks locked.pdf) zoomed_from=$(level)
+"$DRIVE" scroll Peeker $((lx + lw * 6 / 10)) $((ly + lh / 2)) 4 cmd && sleep 0.5
+check "Cmd+scroll zooms a PDF" "$([ "$(looks locked.pdf)" != "$before" ] && echo yes)" yes
+check "and the zoom control follows" "$([ -n "$zoomed_from" ] && [ "$(level)" != "$zoomed_from" ] && echo yes)" yes
+"$DRIVE" shot Peeker "$OUT/9-pdf-cmd-scroll.png" locked.pdf
+
 # An image: fitted, at Actual Size, then zoomed out below fit; each shows the image differently.
 show "$PHOTO"
 fit=$(looks photo.png)
@@ -199,11 +210,19 @@ show "$STRIPES"
 contrast=$("$DRIVE" contrast "$OUT/14-sharp-actual-size.png" || echo 0)
 check "Actual Size on a large photo shows its own pixels" "$([ "$contrast" -gt 160 ] && echo yes)" yes
 
-# Text zoom and wrapping are remembered: notes.txt's Wrap Lines went off above; zoomed in twice and Peeker quit, a
-# text file opened after a relaunch is unwrapped, with its text taller than notes.txt's before the zoom.
+# Text zoom and wrapping are remembered: notes.txt's Wrap Lines went off above; zoomed in twice (once with the zoom
+# control, which shows while the pointer is over the text, once with Cmd+=) and Peeker quit, a text file opened after
+# a relaunch is unwrapped, with its text taller than notes.txt's before the zoom.
 show "$NOTES"
 read -r _ _ _ small <<< "$("$DRIVE" textframe Peeker "Plain text" || echo "0 0 0 0")"
-"$DRIVE" keys Peeker cmd+= && "$DRIVE" keys Peeker cmd+= && sleep 0.3
+read -r tx ty tw th <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
+"$DRIVE" move Peeker $((tx + tw * 6 / 10)) $((ty + th / 2)) && sleep 0.4
+check "The zoom control reads 100% on a text file" "$(level)" "100%"
+"$DRIVE" shot Peeker "$OUT/12-zoom-control.png" notes.txt
+"$DRIVE" press Peeker "Zoom In" "AXGroup=Zoom" && sleep 0.3
+read -r _ _ _ bigger <<< "$("$DRIVE" textframe Peeker "Plain text" || echo "0 0 0 0")"
+check "and its Zoom In makes the text larger" "$([ "$small" -gt 0 ] && [ "$bigger" -gt "$small" ] && echo yes)" yes
+"$DRIVE" keys Peeker cmd+= && sleep 0.3
 quit_app || { echo "Peeker didn't quit (a Save prompt?)"; exit 2; }
 AGAIN="$OUT/again.txt"
 printf 'Plain text after a relaunch.\n' > "$AGAIN"

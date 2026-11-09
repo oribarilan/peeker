@@ -5,7 +5,7 @@ import PeekerKit
 
 /// A PDF in a continuous native view with thumbnails and info. In the Editor it has find and edit tools: highlights,
 /// form fields, text boxes, signatures, and rotating, deleting and reordering pages, saved on Cmd+S.
-final class PDFPluginDocument: PluginDocument {
+final class PDFPluginDocument: PluginDocument, Zooming {
     let pdfView = PeekerPDFView()
     /// The PDF shown, unsaved edits included.
     let document: PeekerPDFDocument
@@ -17,6 +17,9 @@ final class PDFPluginDocument: PluginDocument {
     var isEditing: Bool { editability == .editable }
     var onEdit: (() -> Void)?
     var onActiveToolChange: (() -> Void)?
+    var onZoomChange: (() -> Void)?
+    /// Reports every scale change to `onZoomChange`, whether the menu, `setZoom` or a resize made it.
+    private var scaleObserver: NSObjectProtocol?
     /// The edit tools' parts, made when a tool or a form field is first used, so opening doesn't pay for them.
     private(set) var editController: EditController?
     private var fields: FormFields?
@@ -83,6 +86,13 @@ final class PDFPluginDocument: PluginDocument {
                 pdfView.registerForDraggedTypes([.fileURL])
             }
         }
+        scaleObserver = NotificationCenter.default.addObserver(forName: .PDFViewScaleChanged, object: pdfView, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.onZoomChange?() }
+        }
+    }
+
+    isolated deinit {
+        scaleObserver.map(NotificationCenter.default.removeObserver)
     }
 
     /// The thumbnails last made for the sidebar, for the selected pages.

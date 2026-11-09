@@ -4,8 +4,12 @@ import PeekerKit
 /// A Markdown file rendered with native text, with an outline: the Peek panel's view, which only views.
 final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
     private let url: URL
-    /// The fonts' scale for the remembered text size.
-    private let scale: CGFloat
+    /// The fonts' scale for the remembered text size, and the one a zoom gesture is heading to.
+    private var scale: CGFloat
+    private var targetScale: CGFloat
+    private var zoomApply: Task<Void, Never>?
+    private let preferences: PluginPreferences?
+    var onZoomChange: (() -> Void)?
     private let scrollView = ThemedFindTextView.scrollableTextView()
     private let textView: NSTextView
     private(set) var anchors: [Int: Int] = [:]
@@ -21,6 +25,8 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
     init(url: URL, parsed: MarkdownPlugin.Parsed, preferences: PluginPreferences? = nil) {
         self.url = url
         scale = MarkdownEditor.size(in: preferences) / MarkdownEditor.defaultSize
+        targetScale = scale
+        self.preferences = preferences
         textView = scrollView.documentView as! NSTextView  // what scrollableTextView() always holds
         scrollView.autohidesScrollers = true  // no empty track beside a short file when scroll bars always show
         pictures = MarkdownPictures(textView: textView)
@@ -57,6 +63,8 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
 
     var contentView: NSView { scrollView }
     var focusView: NSView? { textView }
+    /// The body size the text is drawn at now, for tests.
+    var renderedSize: CGFloat { MarkdownEditor.defaultSize * scale }
     var renderedText: String { textView.string }
 
     /// The document rendered in the system colors, printed in the light appearance, whatever the theme.
@@ -158,5 +166,28 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
         for _ in 0..<30 where anchors[line] == nil { try? await Task.sleep(for: .milliseconds(16)) }
         scroll(toLine: line)
         return outline[index].title
+    }
+}
+
+/// Zoom in the Peek panel, by Cmd+scroll and pinch. Drawing a new size re-renders the whole file, so a gesture's steps
+/// apply once it has stopped for a moment; `zoomPercent` follows them at once.
+extension MarkdownDocument: Zooming {
+    var zoomPercent: Double { targetScale * 100 }
+    var zoomRange: ClosedRange<Double> { MarkdownEditor.zoomPercents }
+
+    func setZoom(_ percent: Double, around point: NSPoint?) {
+        guard percent.isFinite else { return }
+        let clamped = min(max(percent, zoomRange.lowerBound), zoomRange.upperBound)
+        guard clamped / 100 != targetScale else { return }
+        targetScale = clamped / 100
+        onZoomChange?()
+        zoomApply?.cancel()
+        zoomApply = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard let self, !Task.isCancelled, targetScale != scale else { return }
+            scale = targetScale
+            MarkdownEditor.remember(MarkdownEditor.defaultSize * scale, in: preferences)
+            update(blocks: blocks)
+        }
     }
 }

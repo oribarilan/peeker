@@ -10,6 +10,9 @@ public enum DataPlugin: Plugin {
     public static let defaultExtensions = ["json", "jsonc", "yaml", "yml", "toml", "xml", "plist"]
     public static let readableTypes = [UTType.json, .yaml, .xml, .propertyList] + [UTType(filenameExtension: "toml")].compactMap(\.self)
     public static let tools = [
+        ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
+        ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
+        ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
         ToolSpec(id: "show-text", title: "Show Text", showsInToolbar: false),
         ToolSpec(id: "add-item", title: "Add Item", symbol: "plus", isEditTool: true),
         ToolSpec(id: "add-child", title: "Add Child", isEditTool: true, showsInToolbar: false),

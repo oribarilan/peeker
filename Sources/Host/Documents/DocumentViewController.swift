@@ -31,6 +31,9 @@ final class DocumentViewController: NSSplitViewController {
     private var openTask: Task<Void, Never>?
     /// What the plugin opened; nil while opening and after a failure.
     private(set) var pluginDocument: (any PluginDocument)?
+    /// The zoom control over a zooming document's content, in Editor windows only.
+    private(set) var zoomControl: ZoomControl?
+    private var zoomGestures: ZoomGestures?
     private(set) var isEdited = false {
         didSet {
             guard isEdited != oldValue else { return }
@@ -195,6 +198,7 @@ final class DocumentViewController: NSSplitViewController {
     /// Without edits the recovery record goes; with edits (closed without the prompt) or recovered edits still waiting
     /// to be applied, it's kept so nothing is lost.
     func close() {
+        zoomGestures?.stop()
         if unappliedRecord == nil { journal?.write() }
         isClosed = true
         watcher?.stop()
@@ -397,6 +401,23 @@ final class DocumentViewController: NSSplitViewController {
         return Date(timeIntervalSince1970: TimeInterval(time.tv_sec) + TimeInterval(time.tv_nsec) / 1_000_000_000)
     }
 
+    /// Cmd+scroll and pinch for a zooming document, and in an Editor window its zoom control.
+    private func showZoom(for document: any PluginDocument) {
+        zoomGestures?.stop()
+        zoomGestures = nil
+        zoomControl = nil
+        guard let zooming = document as? any Zooming else { return }
+        zoomGestures = ZoomGestures(document: zooming, over: content.view)
+        guard allowsEditing else { return }
+        let control = ZoomControl(document: zooming) { [weak self] id in
+            guard let self, let spec = pluginDocument?.tools.first(where: { $0.id == id }) else { return }
+            run(spec)
+        }
+        control.install(in: content.view)
+        zooming.onZoomChange = { [weak control] in control?.update() }
+        zoomControl = control
+    }
+
     private func show(_ document: any PluginDocument) {
         pluginDocument = document
         document.onEdit = { [weak self] in self?.didEdit() }
@@ -413,6 +434,7 @@ final class DocumentViewController: NSSplitViewController {
         } else {
             content.show(document.contentView)
         }
+        showZoom(for: document)
         if let focus = document.focusView { view.window?.makeFirstResponder(focus) }
         let hadSidebar = hasSidebar
         firstOpenPending = false
@@ -536,6 +558,9 @@ final class DocumentViewController: NSSplitViewController {
         sidebarPending = false
         removeSidebar()
         if !setTools([]), hadSidebar { onToolsChanged?(self) }  // the failure view has nothing to run, and no sidebar
+        zoomGestures?.stop()
+        zoomGestures = nil
+        zoomControl = nil
         content.show(FailureView(message: message) { [weak self] in
             guard let self else { return }
             Task.immediate { await self.load() }

@@ -27,6 +27,11 @@ final class TableDocument: PluginDocument {
     }()
     var onEdit: (() -> Void)?
     var onSidebarChange: (() -> Void)?
+    var onZoomChange: (() -> Void)?
+    /// The cells' text size, remembered for every table opened after it changes.
+    private(set) var fontSize = TableDocument.defaultFontSize
+    static let defaultFontSize = NSFont.systemFontSize
+    private static let fontSizes: ClosedRange<CGFloat> = 6...72
 
     init(url: URL, loaded: TablePlugin.Loaded, allowsEditing: Bool, preferences: PluginPreferences?) {
         self.url = url
@@ -41,6 +46,7 @@ final class TableDocument: PluginDocument {
         byteCount = loaded.byteCount
         info = Self.info(loaded.table, format: loaded.format, byteCount: loaded.byteCount)
         undoManager.groupsByEvent = false
+        if let size = preferences?.double("fontSize"), Self.fontSizes.contains(size) { fontSize = size }
     }
 
     var contentView: NSView { view }
@@ -82,6 +88,9 @@ final class TableDocument: PluginDocument {
     func perform(_ id: String) -> Bool {
         view.commitEditing()  // text being typed lands before the rows and columns change under it
         switch id {
+        case "zoom-in": setFontSize(fontSize + 1, beepsAtLimit: true)
+        case "zoom-out": setFontSize(fontSize - 1, beepsAtLimit: true)
+        case "zoom-actual": setFontSize(Self.defaultFontSize, beepsAtLimit: false)
         case "header-row":
             hasHeader.toggle()
             remember()
@@ -111,6 +120,18 @@ final class TableDocument: PluginDocument {
         case "delete-columns" where view.currentColumn == nil: "Click a cell in the column to delete."
         default: nil
         }
+    }
+
+    private func setFontSize(_ size: CGFloat, beepsAtLimit: Bool) {
+        let clamped = min(max(size, Self.fontSizes.lowerBound), Self.fontSizes.upperBound)
+        guard clamped != fontSize else {
+            if beepsAtLimit { NSSound.beep() }
+            return
+        }
+        fontSize = clamped
+        preferences?.set(Double(clamped), for: "fontSize")
+        view.fontSize = clamped
+        onZoomChange?()
     }
 
     private func insertRows(above: Bool) {
@@ -311,5 +332,15 @@ final class TableDocument: PluginDocument {
         view.reloadAll()
         refreshInfo(byteCount: loaded.byteCount)
         return true
+    }
+}
+
+extension TableDocument: Zooming {
+    var zoomPercent: Double { fontSize / Self.defaultFontSize * 100 }
+    var zoomRange: ClosedRange<Double> { Self.fontSizes.lowerBound / Self.defaultFontSize * 100...Self.fontSizes.upperBound / Self.defaultFontSize * 100 }
+
+    func setZoom(_ percent: Double, around point: NSPoint?) {
+        guard percent.isFinite else { return }
+        setFontSize(Self.defaultFontSize * percent / 100, beepsAtLimit: false)
     }
 }

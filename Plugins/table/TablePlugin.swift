@@ -10,6 +10,9 @@ public enum TablePlugin: Plugin {
     public static let defaultExtensions = ["csv", "tsv"]
     public static let readableTypes = [UTType.commaSeparatedText, .tabSeparatedText]
     public static let tools = [
+        ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
+        ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
+        ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
         ToolSpec(id: "header-row", title: "Header Row", showsInToolbar: false),
         ToolSpec(id: "delimiter-comma", title: "Commas", showsInToolbar: false),
         ToolSpec(id: "delimiter-semicolon", title: "Semicolons", showsInToolbar: false),

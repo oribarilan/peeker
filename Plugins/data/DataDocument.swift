@@ -21,6 +21,11 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
     let undoManager = UndoManager()
     var onEdit: (() -> Void)?
     var onSidebarChange: (() -> Void)?
+    var onZoomChange: (() -> Void)?
+    /// The text's size, remembered for every data file opened after it changes; the tree scales with it.
+    private(set) var fontSize = DataDocument.defaultFontSize
+    static let defaultFontSize: CGFloat = 12
+    private static let fontSizes: ClosedRange<CGFloat> = 6...72
 
     private let container = NSView()
     private let errorBar = NSTextField(labelWithString: "")
@@ -61,6 +66,7 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         case nil: break
         }
         showsText = preferences?.bool("showsText") ?? false
+        if let size = preferences?.double("fontSize"), Self.fontSizes.contains(size) { fontSize = size }
         setUpViews(text: loaded.text)
         coloring = loaded.colors.map { CodeColoring($0, in: textView) }
         NotificationCenter.default.addObserver(self, selector: #selector(applyTheme), name: TextTheme.didChange, object: nil)
@@ -89,7 +95,7 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         textView.isContinuousSpellCheckingEnabled = false
         textView.smartInsertDeleteEnabled = false
         textView.textContainerInset = NSSize(width: 6, height: 8)
-        textView.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        textView.font = .monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.isEditable = isEditable
         textView.string = text
         textView.setSelectedRange(NSRange(location: 0, length: 0))
@@ -197,6 +203,9 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
     func perform(_ id: String) -> Bool {
         tree.commitEditing()  // what's being typed in a cell lands before anything else changes
         switch id {
+        case "zoom-in": setFontSize(fontSize + 1, beepsAtLimit: true)
+        case "zoom-out": setFontSize(fontSize - 1, beepsAtLimit: true)
+        case "zoom-actual": setFontSize(Self.defaultFontSize, beepsAtLimit: false)
         case "show-text":
             guard showsText || root != nil else { return false }
             showsText.toggle()
@@ -213,6 +222,19 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         default: return false
         }
         return true
+    }
+
+    private func setFontSize(_ size: CGFloat, beepsAtLimit: Bool) {
+        let clamped = min(max(size, Self.fontSizes.lowerBound), Self.fontSizes.upperBound)
+        guard clamped != fontSize else {
+            if beepsAtLimit { NSSound.beep() }
+            return
+        }
+        fontSize = clamped
+        preferences?.set(Double(clamped), for: "fontSize")
+        textView.font = .monospacedSystemFont(ofSize: clamped, weight: .regular)
+        tree.scale = clamped / Self.defaultFontSize
+        onZoomChange?()
     }
 
     private func addItem() {
@@ -417,6 +439,16 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         revertEdits()
         onSidebarChange?()
         return true
+    }
+}
+
+extension DataDocument: Zooming {
+    var zoomPercent: Double { fontSize / Self.defaultFontSize * 100 }
+    var zoomRange: ClosedRange<Double> { Self.fontSizes.lowerBound / Self.defaultFontSize * 100...Self.fontSizes.upperBound / Self.defaultFontSize * 100 }
+
+    func setZoom(_ percent: Double, around point: NSPoint?) {
+        guard percent.isFinite else { return }
+        setFontSize(Self.defaultFontSize * percent / 100, beepsAtLimit: false)
     }
 }
 

@@ -3,7 +3,7 @@ import PeekerKit
 
 /// A Markdown file in the Editor: its source, editable, styled as it's typed. TextKit 1 with non-contiguous layout,
 /// like Plain Text's view, for the same speed reasons (see `TextDocument`).
-final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
+final class MarkdownEditor: NSObject, LinkFollowing, Zooming, NSTextViewDelegate {
     private var url: URL
     private let scrollView = NSScrollView()
     /// Owns the layout manager and text container; a TextKit 1 text view doesn't retain its storage.
@@ -22,10 +22,15 @@ final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
     private weak var outlineList: OutlineList?
     private var styled: Bool
     private var baseSize = MarkdownEditor.defaultSize
+    private var targetSize: CGFloat?
+    private let zoomPacer = ZoomPacer()
+    /// The size a gesture is heading to, or the one drawn.
+    private var shownSize: CGFloat { targetSize ?? baseSize }
     /// Counts edits, so a restyle parsed from older text is dropped.
     private(set) var generation = 0
     private var pendingRestyle: DispatchWorkItem?
     var onEdit: (() -> Void)?
+    var onZoomChange: (() -> Void)?
     var onSidebarChange: (() -> Void)?
     /// Opens a Cmd-clicked link that has a scheme, such as a web page; replaced in tests.
     var openLink: (String) -> Void
@@ -388,23 +393,50 @@ final class MarkdownEditor: NSObject, LinkFollowing, NSTextViewDelegate {
 
     func perform(_ id: String) -> Bool {
         switch id {
-        case "zoom-in": setSize(baseSize + 1)
-        case "zoom-out": setSize(baseSize - 1)
+        case "zoom-in": setSize(shownSize + 1)
+        case "zoom-out": setSize(shownSize - 1)
         // No beep at the default size, unlike Zoom In at its limit: there's no limit being hit.
-        case "zoom-actual": if baseSize != Self.defaultSize { setSize(Self.defaultSize) }
+        case "zoom-actual": if shownSize != Self.defaultSize { setSize(Self.defaultSize) }
         default: return false
         }
         return true
     }
 
-    private func setSize(_ size: CGFloat) {
+    var zoomPercent: Double { shownSize / Self.defaultSize * 100 }
+    var zoomRange: ClosedRange<Double> { Self.zoomPercents }
+    static let zoomPercents = Double(sizes.lowerBound / defaultSize * 100)...Double(sizes.upperBound / defaultSize * 100)
+
+    /// Remembers `size` as the body size for Markdown opened from now on.
+    static func remember(_ size: CGFloat, in preferences: PluginPreferences?) { preferences?.set(Double(size), for: sizeKey) }
+
+    /// Any body size to a hundredth of a point, for Cmd+scroll and pinch, drawn at a pace a long file keeps up with
+    /// (restyling touches every style run). The text reflows, so `point` isn't kept.
+    func setZoom(_ percent: Double, around point: NSPoint?) {
+        guard percent.isFinite else { return }
+        let size = min(max((Self.defaultSize * percent).rounded() / 100, Self.sizes.lowerBound), Self.sizes.upperBound)
+        guard size != shownSize else { return }
+        targetSize = size
+        onZoomChange?()
+        zoomPacer.draw { [weak self] in
+            guard let self, let size = targetSize else { return }
+            setSize(size, beepsAtLimit: false, notifies: false)  // the control already shows it
+        }
+    }
+
+    private func setSize(_ size: CGFloat, beepsAtLimit: Bool = true, notifies: Bool = true) {
+        zoomPacer.cancel()
+        targetSize = nil
         let clamped = min(max(size, Self.sizes.lowerBound), Self.sizes.upperBound)
-        guard clamped != baseSize else { return NSSound.beep() }
+        guard clamped != baseSize else {
+            if beepsAtLimit { NSSound.beep() }
+            return
+        }
         baseSize = clamped
-        preferences?.set(Double(clamped), for: Self.sizeKey)
+        Self.remember(clamped, in: preferences)
         applyStyle()
         let cursor = textView.selectedRange().location
         if storage.length > 0 { textView.typingAttributes = storage.attributes(at: min(max(cursor - 1, 0), storage.length - 1), effectiveRange: nil) }
+        if notifies { onZoomChange?() }
     }
 
     // MARK: Styling

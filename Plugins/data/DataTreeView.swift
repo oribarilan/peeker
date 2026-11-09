@@ -8,6 +8,18 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     private let scrollView = NSScrollView()
     private var editing: (node: DataNode, key: Bool)?
     private static let pasteboardType = NSPasteboard.PasteboardType("dev.peeker.data-item")
+    /// The text size as a multiple of the default, from the document's zoom. Rows, the header and the key column follow it.
+    var scale: CGFloat = 1 {
+        didSet {
+            guard scale != oldValue else { return }
+            outlineView.tableColumns.first?.width *= scale / oldValue
+            applyScale()
+        }
+    }
+    private var cellFont = TreeCell.font
+    /// The outline's own row height and header at the default size.
+    private var baseRowHeight: CGFloat = 0, baseHeaderHeight: CGFloat = 0
+    private var baseHeaderFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
     private(set) lazy var editor: NSTextField = {
         let field = NSTextField(string: "")
         field.delegate = self
@@ -21,10 +33,12 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
         super.init(frame: .zero)
         outlineView.owner = self
         outlineView.documentUndoManager = document.undoManager
-        for (id, title, width) in [("key", "Key", 220.0), ("value", "Value", 400.0)] {
+        scale = document.fontSize / DataDocument.defaultFontSize
+        for (id, title, width) in [("key", "Key", 220 * scale), ("value", "Value", 400.0)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id))
             column.title = title
             column.width = width
+            baseHeaderFont = column.headerCell.font ?? baseHeaderFont
             column.minWidth = 60
             outlineView.addTableColumn(column)
         }
@@ -34,6 +48,7 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
         outlineView.allowsMultipleSelection = true
         outlineView.usesAlternatingRowBackgroundColors = true
         outlineView.style = .plain
+        baseRowHeight = outlineView.rowHeight
         outlineView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         outlineView.target = self
         outlineView.doubleAction = #selector(doubleClicked)
@@ -47,6 +62,8 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
             scrollView.topAnchor.constraint(equalTo: topAnchor), scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor), scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
+        baseHeaderHeight = outlineView.headerView?.frame.height ?? 0
+        applyScale()
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -58,6 +75,24 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     }
 
     var selectedNodes: [DataNode] { outlineView.selectedRowIndexes.compactMap { outlineView.item(atRow: $0) as? DataNode } }
+
+    /// Fonts, row height and header height for `scale`, keeping open items, the selection and a cell being typed in.
+    private func applyScale() {
+        cellFont = .systemFont(ofSize: TreeCell.font.pointSize * scale)
+        outlineView.rowHeight = ceil(baseRowHeight * scale)
+        for column in outlineView.tableColumns {
+            column.headerCell.font = NSFont(descriptor: baseHeaderFont.fontDescriptor, size: baseHeaderFont.pointSize * scale)
+        }
+        if let header = outlineView.headerView, baseHeaderHeight > 0 {
+            header.frame.size.height = ceil(baseHeaderHeight * scale)
+            scrollView.tile()
+        }
+        if let editing, editor.superview != nil {
+            editor.font = cellFont
+            editor.frame = editorFrame(for: editing.node, key: editing.key)
+        }
+        outlineView.reloadData(forRowIndexes: IndexSet(0..<outlineView.numberOfRows), columnIndexes: IndexSet(0..<outlineView.numberOfColumns))
+    }
 
     /// The tree again, first level open.
     func reload() {
@@ -125,6 +160,7 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
     func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
         guard let node = item as? DataNode, let id = tableColumn?.identifier.rawValue else { return nil }
         let cell = outlineView.makeView(withIdentifier: NSUserInterfaceItemIdentifier(id), owner: self) as? TreeCell ?? TreeCell(identifier: id)
+        cell.font = cellFont
         if id == "key" {
             cell.set(node.key ?? "\(node.index)", dim: node.key == nil)
         } else {
@@ -170,15 +206,22 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
         let row = outlineView.row(forItem: node)
         guard row >= 0 else { return }
         outlineView.scrollRowToVisible(row)
-        var frame = outlineView.frameOfCell(atColumn: key ? 0 : 1, row: row)
-        if key, let cell = outlineView.view(atColumn: 0, row: row, makeIfNecessary: true) { frame = cell.convert(cell.bounds, to: outlineView) }
+        let frame = editorFrame(for: node, key: key)
         guard !frame.isEmpty else { return }
         editing = (node, key)
         editor.frame = frame
-        editor.font = TreeCell.font
+        editor.font = cellFont
         editor.stringValue = key ? node.key ?? "" : node.value ?? ""
         outlineView.addSubview(editor)
         window?.makeFirstResponder(editor)
+    }
+
+    /// The key or value cell of `node`; a key's cell starts after its indent and disclosure triangle.
+    private func editorFrame(for node: DataNode, key: Bool) -> NSRect {
+        let row = outlineView.row(forItem: node)
+        guard row >= 0 else { return .zero }
+        if key, let cell = outlineView.view(atColumn: 0, row: row, makeIfNecessary: true) { return cell.convert(cell.bounds, to: outlineView) }
+        return outlineView.frameOfCell(atColumn: key ? 0 : 1, row: row)
     }
 
     /// Ends typing in a cell, keeping what was typed.
@@ -260,6 +303,7 @@ final class TreeOutlineView: NSOutlineView {
 
 /// A cell that draws its text, as the Table plugin's do: much cheaper than a text field per cell.
 final class TreeCell: NSView {
+    /// The font at the default size.
     static let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
     private static let paragraph: NSParagraphStyle = {
         let style = NSMutableParagraphStyle()
@@ -267,6 +311,9 @@ final class TreeCell: NSView {
         return style
     }()
     private var text = "", dim = false
+    var font = TreeCell.font {
+        didSet { if font != oldValue { needsDisplay = true } }
+    }
 
     init(identifier: String) {
         super.init(frame: .zero)
@@ -285,10 +332,10 @@ final class TreeCell: NSView {
     override var isOpaque: Bool { false }
 
     override func draw(_ dirtyRect: NSRect) {
-        let height = Self.font.boundingRectForFont.height
+        let height = font.boundingRectForFont.height
         let box = NSRect(x: 2, y: (bounds.height - height) / 2, width: bounds.width - 4, height: height)
         (text as NSString).draw(with: box, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: [
-            .font: Self.font, .foregroundColor: dim ? NSColor.secondaryLabelColor : NSColor.labelColor, .paragraphStyle: Self.paragraph,
+            .font: font, .foregroundColor: dim ? NSColor.secondaryLabelColor : NSColor.labelColor, .paragraphStyle: Self.paragraph,
         ])
     }
 

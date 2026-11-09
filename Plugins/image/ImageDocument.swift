@@ -3,14 +3,14 @@ import PeekerKit
 
 /// The decoded image fitted to the window, with zoom from fit to 16 times fit. In the Editor it has edit tools:
 /// crop, rotate, flip and resize, saved on Cmd+S at full resolution.
-final class ImageDocument: PluginDocument {
+final class ImageDocument: PluginDocument, Zooming {
     private(set) var url: URL
     /// The largest side a page is decoded at, as opening decoded the first.
     private let maxPixels: Int
     private let scrollView = NSScrollView()
     var contentScrollView: NSScrollView { scrollView }
     /// Below fit, down to an eighth, or to actual size when that's smaller.
-    private static let minimumZoom: CGFloat = 1.0 / 8
+    static let minimumZoom: CGFloat = 1.0 / 8
     let canvas: ImageCanvas
     /// The file's details for the info panel, read again after a save.
     private(set) var info: [InfoRow]
@@ -19,6 +19,7 @@ final class ImageDocument: PluginDocument {
     var isEditing: Bool { editability == .editable }
     var onEdit: (() -> Void)?
     var onSidebarChange: (() -> Void)?
+    var onZoomChange: (() -> Void)?
     /// The screen-size decode of the file as it opened (edits and marks draw on it) and the file's full size in
     /// pixels, kept beside `full`.
     private var base: CGImage
@@ -35,6 +36,8 @@ final class ImageDocument: PluginDocument {
     /// The page shown, counted from 0; always 0 but for a multi-page TIFF.
     private(set) var page = 0
     private var pinchObserver: NSObjectProtocol?
+    /// Reports every change of magnification or fit to `onZoomChange`: the menu, `setZoom`, a pinch or a resize.
+    private var zoomObservers: [NSObjectProtocol] = []
     /// Print points per pixel, from the file's or page's resolution.
     private var pointsPerPixel: CGFloat
     /// The pages of a multi-page TIFF; 1 for any other image.
@@ -121,12 +124,19 @@ final class ImageDocument: PluginDocument {
                                                                queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.sharpenIfNeeded() }
         }
+        // Magnifying changes the clip view's bounds; a resize changes the canvas, and with it the fit.
+        zoomObservers = [(NSView.boundsDidChangeNotification, scrollView.contentView), (NSView.frameDidChangeNotification, canvas)].map { name, view in
+            NotificationCenter.default.addObserver(forName: name, object: view, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.onZoomChange?() }
+            }
+        }
     }
 
     isolated deinit {
         sharpening?.cancel()
         pageChange?.cancel()
         pinchObserver.map(NotificationCenter.default.removeObserver)
+        zoomObservers.forEach(NotificationCenter.default.removeObserver)
     }
 
     var contentView: NSView { container }
@@ -233,8 +243,7 @@ final class ImageDocument: PluginDocument {
     }
 
     private func zoomToActualSize() {
-        let scale = scrollView.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-        let target = Self.actualMagnification(pixelWidth: pixelSize.width, backingScale: scale, fittedWidth: canvas.imageRect.width)
+        let target = actualSizeMagnification
         scrollView.minMagnification = min(Self.minimumZoom, target)
         scrollView.setMagnification(min(target, scrollView.maxMagnification), centeredAt: NSPoint(x: canvas.bounds.midX, y: canvas.bounds.midY))
     }
@@ -242,7 +251,7 @@ final class ImageDocument: PluginDocument {
     /// Starts the full decode when the view shows more than the screen-size decode holds: zoomed past fit, or at
     /// Actual Size, which shows the image's own pixels. Never for an animation, nor twice, nor when the screen-size
     /// decode already has every pixel the full one would.
-    private func sharpenIfNeeded(atActualSize: Bool = false) {
+    func sharpenIfNeeded(atActualSize: Bool = false) {
         guard atActualSize || scrollView.magnification > 1, animation == nil, full == nil, sharpening == nil,
               max(base.width, base.height) < ImagePlugin.fullSide(for: baseSize) else { return }
         let started = generation, source = source, size = baseSize, page = page, decode = decodeFull
@@ -357,6 +366,7 @@ final class ImageDocument: PluginDocument {
         let shown = hiding.map { id in marks.filter { $0.id != id } } ?? marks
         canvas.image = MarkRenderer.render(shown.filter(\.isPixelate), on: edited, imageSize: pixelSize) ?? edited
         marksView.show(shown, numbering: marks, imageSize: pixelSize)
+        onZoomChange?()  // a crop, turn, resize or page changes the image's size, and with it the fit
     }
 
     /// A spotlight being drawn or dragged dims together with the others, in the marks view; nil shows the marks

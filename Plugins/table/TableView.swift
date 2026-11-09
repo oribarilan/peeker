@@ -21,6 +21,19 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
     private static let rowPasteboardType = NSPasteboard.PasteboardType("dev.peeker.table-rows")
     /// The last row's fields, while AppKit asks for its cells.
     private var rowCache: (row: Int, fields: [CSVField])?
+    /// The cells' text size, from the document's zoom. Rows, the header and columns follow it.
+    var fontSize = TableDocument.defaultFontSize {
+        didSet {
+            guard fontSize != oldValue else { return }
+            for column in tableView.tableColumns { column.width *= fontSize / oldValue }
+            applyScale()
+        }
+    }
+    private var scale: CGFloat { fontSize / TableDocument.defaultFontSize }
+    private var cellFont = CellView.font, numberFont = CellView.numberFont
+    /// The table's own row height and header at the default size.
+    private var baseRowHeight: CGFloat = 0, baseHeaderHeight: CGFloat = 0
+    private var baseHeaderFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
     /// The text field shown over the cell being edited.
     private(set) lazy var editor: NSTextField = {
         let field = NSTextField(string: "")
@@ -42,6 +55,10 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.gridStyleMask = [.solidVerticalGridLineMask]
         tableView.style = .plain
+        baseRowHeight = tableView.rowHeight
+        baseHeaderHeight = tableView.headerView?.frame.height ?? 0
+        baseHeaderFont = NSTableColumn().headerCell.font ?? baseHeaderFont
+        fontSize = document.fontSize
         tableView.target = self
         tableView.action = #selector(clicked)
         tableView.doubleAction = #selector(doubleClicked)
@@ -69,6 +86,7 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
             scrollView.topAnchor.constraint(equalTo: topAnchor), scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor), scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
+        applyScale()
         reloadAll()
     }
 
@@ -93,14 +111,14 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         if tableView.numberOfColumns == 0 {
             let number = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("row"))
             number.title = ""
-            number.width = 44
+            number.width = 44 * scale
             number.isEditable = false
             tableView.addTableColumn(number)
         }
         while tableView.numberOfColumns > wanted { tableView.removeTableColumn(tableView.tableColumns[tableView.numberOfColumns - 1]) }
         while tableView.numberOfColumns < wanted {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("\(tableView.numberOfColumns - 1)"))
-            column.width = 120
+            column.width = 120 * scale
             column.minWidth = 30
             tableView.addTableColumn(column)
         }
@@ -114,10 +132,27 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         for (index, column) in tableView.tableColumns.dropFirst().enumerated() {
             column.identifier = NSUserInterfaceItemIdentifier("\(index)")
             column.title = title(of: index)
+            column.headerCell.font = NSFont(descriptor: baseHeaderFont.fontDescriptor, size: baseHeaderFont.pointSize * scale)
             let arrow = sort?.column == index ? NSImage(named: sort!.ascending ? "NSAscendingSortIndicator" : "NSDescendingSortIndicator") : nil
             tableView.setIndicatorImage(arrow, in: column)
         }
         tableView.reloadData()
+    }
+
+    /// Fonts, row height and header height for the font size; a cell being typed in keeps going at the new size.
+    private func applyScale() {
+        cellFont = .systemFont(ofSize: fontSize)
+        numberFont = .monospacedDigitSystemFont(ofSize: CellView.numberFont.pointSize * scale, weight: .regular)
+        tableView.rowHeight = ceil(baseRowHeight * scale)
+        if let header = tableView.headerView, baseHeaderHeight > 0 {
+            header.frame.size.height = ceil(baseHeaderHeight * scale)
+            scrollView.tile()
+        }
+        if let editing {
+            editor.font = cellFont
+            editor.frame = tableView.frameOfCell(atColumn: editing.column + 1, row: editing.row)
+        }
+        reloadCells()
     }
 
     /// Ends typing in a cell, keeping what was typed, before the rows or columns change under it.
@@ -159,6 +194,7 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         let isNumber = identifier.rawValue == "row"
         let reuse = NSUserInterfaceItemIdentifier(isNumber ? "number" : "cell")
         let cell = tableView.makeView(withIdentifier: reuse, owner: self) as? CellView ?? CellView(identifier: reuse, isNumber: isNumber)
+        cell.font = isNumber ? numberFont : cellFont
         let file = fileRow(row)
         if isNumber {
             cell.text = "\(file - headerOffset + 1)"
@@ -210,7 +246,7 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         currentColumn = column
         editing = (row, fileRow(row), column)
         editor.frame = frame
-        editor.font = CellView.font
+        editor.font = cellFont
         editor.stringValue = table.cell(row: fileRow(row), column: column)
         tableView.addSubview(editor)
         window?.makeFirstResponder(editor)
@@ -346,8 +382,9 @@ final class GridView: NSTableView {
 /// A cell that draws its text and nothing else: much cheaper than a text field per cell, which made opening a table
 /// slower than opening the same file as plain text.
 final class CellView: NSView {
-    static let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
-    private static let numberFont = NSFont.monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+    /// The fonts at the default size.
+    static let font = NSFont.systemFont(ofSize: TableDocument.defaultFontSize)
+    static let numberFont = NSFont.monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
     private static let paragraph: NSParagraphStyle = {
         let style = NSMutableParagraphStyle()
         style.lineBreakMode = .byTruncatingTail
@@ -363,9 +400,13 @@ final class CellView: NSView {
     var text = "" {
         didSet { if text != oldValue { needsDisplay = true } }
     }
+    var font: NSFont {
+        didSet { if font != oldValue { needsDisplay = true } }
+    }
 
     init(identifier: NSUserInterfaceItemIdentifier, isNumber: Bool) {
         self.isNumber = isNumber
+        font = isNumber ? Self.numberFont : Self.font
         super.init(frame: .zero)
         self.identifier = identifier
     }
@@ -376,12 +417,12 @@ final class CellView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: isNumber ? Self.numberFont : Self.font,
+            .font: font,
             .foregroundColor: isNumber ? NSColor.secondaryLabelColor : NSColor.labelColor,
             .paragraphStyle: isNumber ? Self.numberParagraph : Self.paragraph,
         ]
         let line = text.replacingOccurrences(of: "\n", with: " ")  // one line per cell, as a spreadsheet shows it
-        let height = (isNumber ? Self.numberFont : Self.font).boundingRectForFont.height
+        let height = font.boundingRectForFont.height
         let box = NSRect(x: 2, y: (bounds.height - height) / 2, width: bounds.width - 4, height: height)
         (line as NSString).draw(with: box, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: attributes)
     }

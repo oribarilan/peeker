@@ -37,9 +37,9 @@ import Testing
         #expect(PDFPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "markup", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split", "text-box", "markup-pen", "markup-line", "markup-arrow", "markup-box", "markup-x", "markup-check", "markup-circle", "markup-dot"])
         #expect(TextPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "toggle-wrap"])
         #expect(MarkdownPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])
-        #expect(TablePlugin.tools.map(\.id) == ["header-row", "delimiter-comma", "delimiter-semicolon", "delimiter-tab", "delimiter-pipe",
+        #expect(TablePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "header-row", "delimiter-comma", "delimiter-semicolon", "delimiter-tab", "delimiter-pipe",
                                                 "add-row-above", "add-row-below", "add-column-before", "add-column-after", "delete-rows", "delete-columns"])
-        #expect(DataPlugin.tools.map(\.id) == ["show-text", "add-item", "add-child", "delete-item"])
+        #expect(DataPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "show-text", "add-item", "add-child", "delete-item"])
     }
 
     @Test func eachPluginNamesItsSettingsIcon() {

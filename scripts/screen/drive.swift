@@ -40,6 +40,9 @@
 //        drive cmdclick <process> <x> <y>          Cmd-click at a screen point, only while <process> is in front
 //        drive move <process> <x> <y>              move the pointer to a screen point without clicking, only while
 //                                                  <process> is in front
+//        drive scroll <process> <x> <y> <lines> [cmd]
+//                                                  scroll the wheel <lines> notches at a screen point (up is positive),
+//                                                  holding Command with cmd, only while <process> is in front
 //        drive type <process> <text>               type <text>, only while <process> is in front
 //        drive drag <process> <x y>...             press at the first point, drag through the rest, release at the last
 //        drive keys <process> <combo>              press a combo such as opt+space, ctrl+cmd+h, return or cmd+up, only while <process> is in front
@@ -541,6 +544,21 @@ case "move":
                 mouseButton: .left)?.post(tap: .cghidEventTap)
         usleep(pause)
     }
+case "scroll":
+    requireFront(arg(1))
+    guard let x = Double(arg(2)), let y = Double(arg(3)), let lines = Int32(arg(4)) else { fail("scroll needs numbers") }
+    let source = CGEventSource(stateID: .hidSystemState)
+    CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: x, y: y), mouseButton: .left)?.post(tap: .cghidEventTap)
+    usleep(50_000)
+    // One notch at a time, as a mouse wheel sends them; up is positive.
+    for _ in 0..<abs(lines) {
+        let event = CGEvent(scrollWheelEvent2Source: source, units: .line, wheelCount: 1, wheel1: lines > 0 ? 1 : -1, wheel2: 0, wheel3: 0)
+        event?.location = CGPoint(x: x, y: y)
+        if args.count > 5, arg(5) == "cmd" { event?.flags = .maskCommand }
+        event?.post(tap: .cgSessionEventTap)  // a scroll posted at the HID level doesn't reach the window
+        usleep(30_000)
+    }
+    releaseModifiers(source)
 case "type":
     requireFront(arg(1))
     type(arg(2))
