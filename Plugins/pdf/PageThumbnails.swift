@@ -126,10 +126,11 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
         setHovered(collection.indexPathForItem(at: collection.convert(windowPoint, from: nil))?.item)
     }
 
+    /// `item` can be gone: the pointer stays put while its page is deleted, and asking for its frame then raises.
     private func setHovered(_ item: Int?) {
         hoveredItem = item
         guard let collection = hoverCollection, let fill = hoverFill else { return }
-        guard let item, !collection.selectionIndexPaths.contains(IndexPath(item: item, section: 0)) else {
+        guard let item, item < collection.numberOfItems(inSection: 0), !collection.selectionIndexPaths.contains(IndexPath(item: item, section: 0)) else {
             fill.isHovered = false
             return
         }

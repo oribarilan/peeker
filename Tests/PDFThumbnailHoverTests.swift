@@ -46,6 +46,20 @@ import Testing
         collection.selectionIndexPaths = [IndexPath(item: 1, section: 0)]
         #expect(view.hoverFill?.isHovered == false)
     }
+
+    /// The pointer stays over the last thumbnail while its page is deleted: the selection then changes, and the tint
+    /// must not ask the collection view for an item it no longer has, which raises an exception.
+    @Test func deletingTheHoveredLastPageTakesTheTintAway() async throws {
+        let thumbnails = try await Thumbnails(pages: 4)
+        defer { thumbnails.close() }
+        let view = thumbnails.view
+        let collection = try #require(view.hoverCollection)
+        view.mouseMoved(with: mouse(.mouseMoved, over: 3, in: view, collection: collection))
+        #expect(view.hoverFill?.isHovered == true)
+        #expect(thumbnails.document.change(.deletePages(pages: [3], token: "t")))
+        collection.selectionIndexPaths = [IndexPath(item: 0, section: 0)]
+        #expect(view.hoverFill?.isHovered == false)
+    }
 }
 
 

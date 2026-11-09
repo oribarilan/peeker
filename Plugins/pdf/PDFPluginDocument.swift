@@ -349,6 +349,11 @@ final class PDFPluginDocument: PluginDocument, Zooming {
         try document.own { () throws(PluginError) in
             try PDFEditing.apply(edit, to: document, fileName: url.lastPathComponent, stash: stash)
         }
+        if case .rotatePages = edit {
+            // PDFKit lays out a turned page on a later main queue turn, holding the view only weakly, and reads a
+            // missing view when the window closed in between: the view stays until that layout has run.
+            DispatchQueue.main.async { [pdfView] in withExtendedLifetime(pdfView) {} }
+        }
         if edit.isPageEdit {
             pagesChanged()
             thumbnails?.reselect(selected)

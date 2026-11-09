@@ -208,6 +208,28 @@ private func texts(_ document: PDFDocument) -> [String] {
         shown.document.revertEdits()
         #expect(second.rotation == 0)
     }
+
+    /// Don't Save turns a rotated page back and the window closes at once. PDFKit lays out a turned page on a later
+    /// main queue turn, holding the view only weakly, while its tile renderer can let the view go from another thread
+    /// first; with the PDF still around, that layout read a missing view.
+    @Test func closingRightAfterTurningAPageBack() async throws {
+        var shown: Shown? = try await Shown(try TempFile.makePDF(pages: 3))
+        let live = try #require(shown?.document.pdfView.document)
+        #expect(shown?.document.change(.rotatePages(pages: [1], by: 90)) == true)
+        try await Task.sleep(for: .milliseconds(100))
+        weak var view: PDFView?
+        autoreleasepool {
+            shown?.document.revertEdits()
+            shown?.window.close()
+            view = shown?.document.pdfView
+            shown = nil
+        }
+        // The main thread stays busy, as closing a window can keep it, until the view is gone or half a second passed.
+        let deadline = Date.now + 0.5
+        while view != nil, Date.now < deadline { usleep(1000) }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(live.page(at: 1)?.rotation == 0)
+    }
 }
 
 /// On macOS 26 a dragged page's copy can't be told from a page dropped in from elsewhere, so reordering by drag needs
