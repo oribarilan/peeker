@@ -93,8 +93,8 @@ front
 "$DRIVE" keys Peeker cmd+w
 check "Closing after the save asks nothing" "$("$DRIVE" wait Peeker window wide.png --gone --timeout 3 2>/dev/null && echo closed)" closed
 
-# Markup: M shows the strip; A and a drag (with a middle point, or no drag event is sent) draw an arrow, X and a drag pixelate a rectangle
-# and show the Strength slider, S shows Spotlight's shape picker and T the text style menu, and Cmd+S writes the marks into
+# Markup: M shows the strip; A and a drag (with a middle point, or no drag event is sent) draw an arrow, B draws a box with an arrow
+# dragged from inside it, X and a drag pixelate a rectangle and show the Strength slider, S shows Spotlight's shape picker and T the text style menu, and Cmd+S writes the marks into
 # the file. Copy stays a unit test, so a run never touches the clipboard.
 MARKS="$OUT/marks.png"
 sips -s format png -z 300 600 /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns --out "$MARKS" >/dev/null
@@ -108,6 +108,18 @@ check "The strip has Line, as PDFs do" "$("$DRIVE" tree Peeker 20 | grep -c 'AXR
 read -r wx wy ww wh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
 "$DRIVE" keys Peeker a
 "$DRIVE" drag Peeker $((wx + ww / 3)) $((wy + wh / 2)) $((wx + ww * 5 / 12)) $((wy + wh * 7 / 12)) $((wx + ww / 2)) $((wy + wh * 2 / 3))
+# A box low on the image, then an arrow dragged from inside it: only a box's outline selects it, so the arrow is drawn
+# and the box stays put. Each check looks for the marks' red (EB3333) in a small patch of a screen capture.
+bx=$((wx + ww * 35 / 100)) by=$((wy + wh * 70 / 100)) ay=$((wy + wh * 74 / 100))
+"$DRIVE" keys Peeker b
+"$DRIVE" drag Peeker $bx $by $((wx + ww / 2)) $((wy + wh * 3 / 4)) $((wx + ww * 62 / 100)) $((wy + wh * 78 / 100))
+"$DRIVE" keys Peeker a
+"$DRIVE" drag Peeker $((wx + ww * 40 / 100)) $ay $((wx + ww * 45 / 100)) $ay $((wx + ww * 55 / 100)) $ay
+sleep 0.3
+screencapture -x "$OUT/5-box-and-arrow.png"
+red_near() { "$DRIVE" closest "$OUT/5-box-and-arrow.png" $(($1 - 4)) $(($2 - 4)) 8 8 EB3333 | cut -d' ' -f1; }
+check "A drag inside a box draws an arrow" "$([ "$(red_near $((wx + ww * 48 / 100)) $ay)" -lt 60 ] && echo yes)" yes
+check "and leaves the box where it was" "$([ "$(red_near $bx $ay)" -lt 60 ] && echo yes)" yes
 "$DRIVE" keys Peeker x
 "$DRIVE" drag Peeker $((wx + ww * 3 / 5)) $((wy + wh * 2 / 5)) $((wx + ww * 7 / 10)) $((wy + wh / 2)) $((wx + ww * 4 / 5)) $((wy + wh * 3 / 5))
 check "Pixelate shows its Strength slider" "$("$DRIVE" tree Peeker 20 | grep -c 'AXSlider.*Strength')" 1

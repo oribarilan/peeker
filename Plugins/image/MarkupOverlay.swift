@@ -253,8 +253,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
             if near(to) { return (from, true) }
             if near(from) { return (to, false) }
         case .box(let rect, _), .pixelate(let rect, _), .spotlight(let rect, _):
-            let r = rect.standardized
-            let corners = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)]
+            let corners = rect.standardized.corners
             for (index, corner) in corners.enumerated() where near(corner) { return (corners[(index + 2) % 4], true) }
         default: break
         }
@@ -311,8 +310,7 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         switch mark.kind {
         case .arrow(let from, let to), .line(let from, let to): handles = [from, to]
         case .box(let rect, _), .pixelate(let rect, _), .spotlight(let rect, _):
-            let r = rect.standardized
-            handles = [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)]
+            handles = rect.standardized.corners
         default: break
         }
         for handle in handles.map(viewPoint) {
@@ -334,6 +332,13 @@ nonisolated extension ImageMark {
             let reach = kind.isMarker ? reach + width * 1.5 : reach
             if points.count == 1 { return hypot(point.x - points[0].x, point.y - points[0].y) <= reach }
             return zip(points, points.dropFirst()).contains { Self.distance(point, toSegment: $0, $1) <= reach }
+        case .box(let rect, let ellipse):
+            // Only its outline, so a click inside reaches the armed tool.
+            let r = rect.standardized
+            let outline = ellipse
+                ? (0...64).map { CGPoint(x: r.midX + r.width / 2 * cos(Double($0) / 32 * .pi), y: r.midY + r.height / 2 * sin(Double($0) / 32 * .pi)) }
+                : r.corners + [r.corners[0]]
+            return zip(outline, outline.dropFirst()).contains { Self.distance(point, toSegment: $0, $1) <= reach }
         default: return bounds.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
         }
     }

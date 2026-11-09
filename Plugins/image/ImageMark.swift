@@ -173,6 +173,9 @@ extension CGRect {
     nonisolated init(from a: CGPoint, to b: CGPoint) {
         self.init(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y))
     }
+
+    /// Its corners, counterclockwise from the bottom left (the top left in image pixels).
+    nonisolated var corners: [CGPoint] { [CGPoint(x: minX, y: minY), CGPoint(x: maxX, y: minY), CGPoint(x: maxX, y: maxY), CGPoint(x: minX, y: maxY)] }
 }
 
 nonisolated extension ImageMark.Kind {

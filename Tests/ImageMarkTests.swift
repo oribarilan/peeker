@@ -59,6 +59,23 @@ private func mark(_ kind: ImageMark.Kind, width: Double = 4) -> ImageMark {
         #expect(box.mapped(through: .rotate(by: 90), from: size)?.kind == .box(CGRect(x: 140, y: 10, width: 40, height: 30), ellipse: false))
     }
 
+    @Test func boxesAndEllipsesAreHitOnlyNearTheirOutline() {
+        let rect = CGRect(x: 100, y: 100, width: 200, height: 100)
+        for ellipse in [false, true] {
+            let box = mark(.box(rect, ellipse: ellipse))
+            #expect(box.contains(CGPoint(x: 101, y: 150), tolerance: 3), "on the left edge")
+            #expect(box.contains(CGPoint(x: 200, y: 98), tolerance: 3), "just off the top")
+            #expect(!box.contains(CGPoint(x: 200, y: 150), tolerance: 3), "the middle is left to the armed tool")
+        }
+        #expect(!mark(.box(rect, ellipse: true)).contains(CGPoint(x: 103, y: 103), tolerance: 3), "an ellipse misses the corner of its rect")
+    }
+
+    @Test func pixelateAndSpotlightAreHitAnywhereInside() {
+        let rect = CGRect(x: 100, y: 100, width: 200, height: 100)
+        #expect(mark(.pixelate(rect, strength: 10)).contains(CGPoint(x: 200, y: 150), tolerance: 3))
+        #expect(mark(.spotlight(rect, ellipse: true)).contains(CGPoint(x: 200, y: 150), tolerance: 3))
+    }
+
     @Test func sizesScaleWithTheImage() {
         #expect(MarkSize.medium.width(for: CGSize(width: 2000, height: 1000)) == 8)
         #expect(MarkSize.large.width(for: CGSize(width: 2000, height: 1000)) > MarkSize.small.width(for: CGSize(width: 2000, height: 1000)))

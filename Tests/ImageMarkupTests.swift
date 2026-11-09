@@ -133,7 +133,7 @@ import UniformTypeIdentifiers
         #expect(document.perform("markup-box"))
         let overlay = try #require(document.overlay)
         drag(overlay, from: CGPoint(x: 20, y: 20), to: CGPoint(x: 120, y: 80))
-        drag(overlay, from: CGPoint(x: 70, y: 50), to: CGPoint(x: 170, y: 100))
+        drag(overlay, from: CGPoint(x: 20, y: 50), to: CGPoint(x: 120, y: 100))  // by its left edge
         guard case .box(let rect, _) = document.marks.first?.kind else { Issue.record("\(document.marks)"); return }
         #expect(document.marks.count == 1 && abs(rect.minX - 120) < 1 && abs(rect.minY - 70) < 1, "dragging the box moved it")
         #expect(overlay.selectedID == document.marks.first?.id)
@@ -143,14 +143,28 @@ import UniformTypeIdentifiers
         #expect(document.marks.count == 1)
     }
 
+    @Test func aDragInsideABoxDrawsWithTheArmedTool() async throws {
+        let (document, window) = try await shown()
+        defer { window.close() }
+        #expect(document.perform("markup-box"))
+        let overlay = try #require(document.overlay)
+        drag(overlay, from: CGPoint(x: 20, y: 20), to: CGPoint(x: 220, y: 120))
+        let box = try #require(document.marks.first)
+        #expect(document.perform("markup-arrow"))
+        drag(overlay, from: CGPoint(x: 60, y: 70), to: CGPoint(x: 180, y: 70))
+        #expect(document.marks.count == 2, "an arrow, not the box moved")
+        #expect(document.marks.first == box)
+        #expect(document.marks.last.map { if case .arrow = $0.kind { true } else { false } } == true)
+    }
+
     @Test func dragsOnTheEdgeOfABoxResizeIt() async throws {
         let (document, window) = try await shown()
         defer { window.close() }
         #expect(document.perform("markup-box"))
         let overlay = try #require(document.overlay)
         drag(overlay, from: CGPoint(x: 20, y: 20), to: CGPoint(x: 120, y: 80))
-        overlay.mouseDown(with: mouse(.leftMouseDown, at: CGPoint(x: 70, y: 50), in: overlay))
-        overlay.mouseUp(with: mouse(.leftMouseUp, at: CGPoint(x: 70, y: 50), in: overlay))  // selects
+        overlay.mouseDown(with: mouse(.leftMouseDown, at: CGPoint(x: 20, y: 50), in: overlay))
+        overlay.mouseUp(with: mouse(.leftMouseUp, at: CGPoint(x: 20, y: 50), in: overlay))  // selects, on its edge
         drag(overlay, from: CGPoint(x: 120, y: 80), to: CGPoint(x: 200, y: 150))
         guard case .box(let rect, _) = document.marks.first?.kind else { Issue.record("\(document.marks)"); return }
         #expect(abs(rect.minX - 20) < 1 && abs(rect.maxX - 200) < 1 && abs(rect.maxY - 150) < 1)
