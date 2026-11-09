@@ -110,11 +110,12 @@ read -r wx wy ww wh <<< "$("$DRIVE" frame Peeker AXWindow || echo "0 0 0 0")"
 "$DRIVE" drag Peeker $((wx + ww / 3)) $((wy + wh / 2)) $((wx + ww * 5 / 12)) $((wy + wh * 7 / 12)) $((wx + ww / 2)) $((wy + wh * 2 / 3))
 # A box low on the image, then an arrow dragged from inside it: only a box's outline selects it, so the arrow is drawn
 # and the box stays put. Each check looks for the marks' red (EB3333) in a small patch of a screen capture.
-bx=$((wx + ww * 35 / 100)) by=$((wy + wh * 70 / 100)) ay=$((wy + wh * 74 / 100))
+# A drag's mark ends at its last dragged point, so the middle point repeats the end.
+bx=$((wx + ww * 35 / 100)) by=$((wy + wh * 69 / 100)) ay=$((wy + wh * 735 / 1000))
 "$DRIVE" keys Peeker b
-"$DRIVE" drag Peeker $bx $by $((wx + ww / 2)) $((wy + wh * 3 / 4)) $((wx + ww * 62 / 100)) $((wy + wh * 78 / 100))
+"$DRIVE" drag Peeker $bx $by $((wx + ww * 62 / 100)) $((wy + wh * 78 / 100)) $((wx + ww * 62 / 100)) $((wy + wh * 78 / 100))
 "$DRIVE" keys Peeker a
-"$DRIVE" drag Peeker $((wx + ww * 40 / 100)) $ay $((wx + ww * 45 / 100)) $ay $((wx + ww * 55 / 100)) $ay
+"$DRIVE" drag Peeker $((wx + ww * 40 / 100)) $ay $((wx + ww * 55 / 100)) $ay $((wx + ww * 55 / 100)) $ay
 sleep 0.3
 screencapture -x "$OUT/5-box-and-arrow.png"
 red_near() { "$DRIVE" closest "$OUT/5-box-and-arrow.png" $(($1 - 4)) $(($2 - 4)) 8 8 EB3333 | cut -d' ' -f1; }
