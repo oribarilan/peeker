@@ -105,3 +105,11 @@ Opening a CSV file in a window or the Peek panel SHALL be at least as fast as Te
 
 - **WHEN** the benchmark opens its large CSV fixture in the Peek panel and in a window
 - **THEN** both are at least as fast as Quick Look and TextEdit on the same file
+
+### Requirement: Zooming a table
+
+Zoom In and Zoom Out (Cmd+= and Cmd+-) SHALL change the table's text size, with its rows and columns growing to fit, and Actual Size (Cmd+0) SHALL go back to the default size. They SHALL be listed in the View menu only. The size SHALL be remembered across files and launches, in a window or the Peek panel, as plain text's is; tables already open keep their own until changed.
+
+#### Scenario: Zooming in on a table
+- **WHEN** the user presses Cmd+= twice in a CSV window, then opens another CSV file
+- **THEN** both tables show larger text, and Cmd+0 puts the second back at the default size

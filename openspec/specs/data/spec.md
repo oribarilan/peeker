@@ -151,3 +151,11 @@ A file using a form the tree doesn't read, such as a YAML complex key (`? `), SH
 
 - **WHEN** the user opens a YAML file whose line 3 starts with `? `
 - **THEN** the text shows under a bar saying line 3 uses a form the tree can't show
+
+### Requirement: Zooming a data file
+
+Zoom In and Zoom Out (Cmd+= and Cmd+-) SHALL change the text size of the tree and of Show Text together, and Actual Size (Cmd+0) SHALL go back to the default size. They SHALL be listed in the View menu only. The size SHALL be remembered across files and launches, in a window or the Peek panel, as plain text's is; files already open keep their own until changed.
+
+#### Scenario: Zooming a JSON tree
+- **WHEN** the user presses Cmd+= in a JSON file's tree and switches to Show Text
+- **THEN** both the tree and the text are larger, and Cmd+0 puts both back
