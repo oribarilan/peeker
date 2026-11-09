@@ -245,7 +245,8 @@ final class PDFPluginDocument: PluginDocument {
                 break  // every later page index would point at the wrong page
             }
         }
-        return applied
+        // A record whose only edit was a signature is empty: nothing to restore, so the host can drop it.
+        return applied || decoded.isEmpty
     }
 
     func save(_ edits: UnsavedEdits, accepting offer: SaveOffer?) async throws(PluginError) {
@@ -392,12 +393,55 @@ final class PDFPluginDocument: PluginDocument {
 }
 
 /// What `unsavedEdits()` hands out: the folded edits, and the number of the last one, so saving knows which pending
-/// edits it wrote. Encodes as the edits alone.
+/// edits it wrote. Encodes, for the crash-recovery copy, as the edits a recovery may hold.
 nonisolated struct PDFSnapshot: Encodable, Sendable {
     let edits: [PDFEdit]
     let through: Int
 
     func encode(to encoder: any Encoder) throws {
-        try edits.encode(to: encoder)
+        try Self.recoverable(edits).encode(to: encoder)
+    }
+
+    /// `edits` with no signature strokes in them, since a signature goes only into the PDF it's placed in: one placed
+    /// since the last save is left out and has to be placed again after a crash. A saved signature removed and put back
+    /// is kept as a move. A deleted page put back carries no copy when its deletion is in the list too, since replaying
+    /// that keeps the pages; the copy of a saved deletion loses Peeker's signatures, or its pages when it can't be
+    /// rewritten. Pages inserted from another PDF are a copy of that file, kept as they are.
+    static func recoverable(_ edits: [PDFEdit]) -> [PDFEdit] {
+        var removed = Set<String>(), deletedPages = Set<String>(), kept: [PDFEdit] = []
+        for edit in edits {
+            switch edit {
+            case .delete(let id, .signature, _):
+                removed.insert(id)
+                kept.append(edit)
+            case .add(let mark):
+                guard case .signature = mark.kind else { kept.append(edit); continue }
+                if removed.contains(mark.id) {
+                    kept.removeAll { if case .delete(mark.id, _, _) = $0 { true } else { false } }
+                    kept.append(.setBounds(id: mark.id, type: .signature, page: mark.page, rect: mark.rect))
+                }
+            case .deletePages(_, let token):
+                deletedPages.insert(token)
+                kept.append(edit)
+            case .restorePages(let pages, let token, let data) where !data.isEmpty:
+                kept.append(.restorePages(pages: pages, token: token, data: deletedPages.contains(token) ? Data() : withoutSignatures(data)))
+            default:
+                kept.append(edit)
+            }
+        }
+        return kept
+    }
+
+    /// The pages in `data` without Peeker's signatures; empty when they can't be read or written.
+    private static func withoutSignatures(_ data: Data) -> Data {
+        guard let copy = PDFDocument(data: data) else { return Data() }
+        var removed = false
+        for page in (0..<copy.pageCount).compactMap(copy.page(at:)) {
+            for annotation in page.annotations where PDFMarks.id(of: annotation) != nil && PDFMarks.type(of: annotation) == .signature {
+                page.removeAnnotation(annotation)
+                removed = true
+            }
+        }
+        return removed ? copy.dataRepresentation() ?? Data() : data
     }
 }

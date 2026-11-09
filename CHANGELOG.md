@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- A signature placed in a PDF but not yet saved no longer goes into the crash-recovery copy of your edits, nor does one on a deleted page you put back. After a crash, the other edits come back and the signature has to be placed again.
 - A box or ellipse on an image is selected by clicking its outline, as in PDFs, so an arrow, number or text can start inside it, and a mark under a box can still be selected; a click inside used to grab the box. Pixelate and Spotlight are still selected anywhere in their area.
 - PDFs get Markup (M), which replaces Text Box in the toolbar and shows the strip image markup has: Text Box (T), Pen (P), Line (L), Arrow (A) and Box (B, an ellipse with Option) draw by dragging, and the stamps X (X), Check (V), Circle (O) and Dot (D) drop on a click or fit a dragged rectangle. Drawings and stamps save as ink, which every PDF app shows, and can be selected, moved, resized, recolored and deleted later. Their color and size are remembered. Text Box keeps its T and its style, now in the same strip.
 - Cmd+C and Cmd+V copy a selected text box, drawing or stamp in a PDF, also into another PDF; the copy lands a little below and right. Signatures and highlights aren't copied.

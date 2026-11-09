@@ -1,7 +1,7 @@
 #!/bin/bash
 # The PDF editing flow on screen: Space on a form in Finder shows it in the Peek panel, which reads Open in Peeker and
 # ignores a click into a field; Open in Peeker opens it in the Editor, which fills a text field and a checkbox, adds a
-# text box from Markup's strip, an arrow and a check mark, and a drawn signature placed twice, and saves; the saved file is checked; then a digitally signed form opens
+# text box from Markup's strip, an arrow and a check mark, and a drawn signature placed twice, checks the recovery record holds no signature, and saves; the saved file is checked; then a digitally signed form opens
 # read-only, with greyed tools and the note under the toolbar. Writes screenshots and results.txt (one ok/FAIL line per
 # check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1.
 #
@@ -129,6 +129,9 @@ check "Sign offers the last signature" "$("$DRIVE" tree Peeker 12 | grep -c '“
 "$DRIVE" click Peeker $(at 320 250)
 sleep 0.5
 "$DRIVE" shot Peeker "$OUT/5-signed.png"
+sleep 2.5  # the recovery record is written a moment after the last edit
+check "The recovery record holds the unsaved edits" "$(cat "$OUT"/recovery/*.json 2>/dev/null | grep -cF '31 Oct 2026')" 1
+check "but no signature" "$(cat "$OUT"/recovery/*.json 2>/dev/null | grep -cF '"signature":{')" 0
 
 "$DRIVE" menu Peeker File Save
 sleep 2
