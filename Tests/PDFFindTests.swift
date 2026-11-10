@@ -143,10 +143,10 @@ private func menuItem(_ action: NSFindPanelAction) -> NSMenuItem {
     }
 
     @Test func fieldKeysStepAndClose() {
-        #expect(PDFFindBar.action(for: #selector(NSResponder.insertNewline(_:)), shift: false) == .next)
-        #expect(PDFFindBar.action(for: #selector(NSResponder.insertNewline(_:)), shift: true) == .previous)
-        #expect(PDFFindBar.action(for: #selector(NSResponder.cancelOperation(_:)), shift: false) == .close)
-        #expect(PDFFindBar.action(for: #selector(NSResponder.moveLeft(_:)), shift: false) == nil)
+        #expect(FindBar.action(for: #selector(NSResponder.insertNewline(_:)), shift: false) == .next)
+        #expect(FindBar.action(for: #selector(NSResponder.insertNewline(_:)), shift: true) == .previous)
+        #expect(FindBar.action(for: #selector(NSResponder.cancelOperation(_:)), shift: false) == .close)
+        #expect(FindBar.action(for: #selector(NSResponder.moveLeft(_:)), shift: false) == nil)
     }
 
     @Test func closingClearsHighlightsKeepsTheSelectionAndCmdGStillWorks() async throws {

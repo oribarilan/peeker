@@ -1,9 +1,6 @@
 import AppKit
 import PDFKit
-
-enum FindAction: Equatable {
-    case next, previous, close
-}
+import PeekerKit
 
 /// Holds the PDF view and, under the toolbar, from the first Cmd+F the find bar above it, and the markup strip while
 /// it shows. The strip floats over the pages rather than pushing them down, which would move them under the pointer
@@ -11,7 +8,7 @@ enum FindAction: Equatable {
 /// the responder chain of each.
 final class PDFFindContainer: NSView, NSMenuItemValidation {
     let finder: PDFFinder
-    private(set) var bar: PDFFindBar?
+    private(set) var bar: FindBar?
     private let pdfView: PDFView
     /// False in the Peek panel, which has no find.
     private let allowsFind: Bool
@@ -81,8 +78,10 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
         window?.makeFirstResponder(pdfView)
     }
 
-    private func makeBar() -> PDFFindBar {
-        let bar = PDFFindBar(finder: finder, container: self)
+    private func makeBar() -> FindBar {
+        let bar = FindBar(label: "Find in PDF", target: self)
+        bar.onSearch = { [weak self] in self?.finder.search($0) }
+        finder.onChange = { [weak self, weak bar] in bar?.status = self?.finder.status ?? "" }
         bar.onAction = { [weak self] action in
             switch action {
             case .next: self?.finder.next()
@@ -134,111 +133,5 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
     private static func findAction(of sender: Any?) -> NSFindPanelAction? {
         let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSControl)?.tag
         return tag.flatMap { NSFindPanelAction(rawValue: UInt($0)) }
-    }
-}
-
-/// The find bar: a search field, the match count, previous and next, and Done. Return and Shift+Return in the
-/// field step through the matches; Escape closes the bar.
-final class PDFFindBar: NSView, NSSearchFieldDelegate {
-    let field = FindField()
-    private let status = NSTextField(labelWithString: "")
-    private let finder: PDFFinder
-    var onAction: ((FindAction) -> Void)?
-
-    init(finder: PDFFinder, container: PDFFindContainer) {
-        self.finder = finder
-        super.init(frame: .zero)
-        (field.cell as? FindFieldCell)?.editor.container = container
-        field.delegate = self
-        field.placeholderString = "Find"
-        field.setAccessibilityLabel("Find in PDF")
-        status.textColor = .secondaryLabelColor
-        status.setContentHuggingPriority(.required, for: .horizontal)
-        let steps = NSSegmentedControl(images: [NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Previous")!,
-                                                NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Next")!],
-                                       trackingMode: .momentary, target: self, action: #selector(step(_:)))
-        steps.setToolTip("Previous (⇧⌘G)", forSegment: 0)
-        steps.setToolTip("Next (⌘G)", forSegment: 1)
-        let done = NSButton(title: "Done", target: self, action: #selector(done(_:)))
-        let row = NSStackView(views: [field, status, steps, done])
-        row.spacing = 8
-        row.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
-        let line = NSBox()
-        line.boxType = .separator
-        for view in [row, line] {
-            view.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(view)
-        }
-        NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: topAnchor),
-            row.leadingAnchor.constraint(equalTo: leadingAnchor),
-            row.trailingAnchor.constraint(equalTo: trailingAnchor),
-            line.topAnchor.constraint(equalTo: row.bottomAnchor),
-            line.leadingAnchor.constraint(equalTo: leadingAnchor),
-            line.trailingAnchor.constraint(equalTo: trailingAnchor),
-            line.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
-        finder.onChange = { [weak self] in self?.status.stringValue = finder.status }
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    static func action(for selector: Selector, shift: Bool) -> FindAction? {
-        switch selector {
-        case #selector(NSResponder.insertNewline(_:)): shift ? .previous : .next
-        case #selector(NSResponder.cancelOperation(_:)): .close
-        default: nil
-        }
-    }
-
-    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-        let shift = NSApp.currentEvent?.modifierFlags.contains(.shift) == true
-        guard let action = Self.action(for: commandSelector, shift: shift) else { return false }
-        onAction?(action)
-        return true
-    }
-
-    func controlTextDidChange(_ obj: Notification) {
-        finder.search(field.stringValue)
-    }
-
-    @objc private func step(_ sender: NSSegmentedControl) {
-        onAction?(sender.selectedSegment == 0 ? .previous : .next)
-    }
-
-    @objc private func done(_ sender: Any?) {
-        onAction?(.close)
-    }
-}
-
-/// A search field whose field editor passes Find Next and Find Previous on to the container. The standard field
-/// editor is a text view: it would take those menu items and grey them out.
-final class FindField: NSSearchField {
-    override class var cellClass: AnyClass? {
-        get { FindFieldCell.self }
-        set { super.cellClass = newValue }
-    }
-}
-
-final class FindFieldCell: NSSearchFieldCell {
-    let editor: FindFieldEditor = {
-        let editor = FindFieldEditor()
-        editor.isFieldEditor = true
-        return editor
-    }()
-
-    override func fieldEditor(for controlView: NSView) -> NSTextView? { editor }
-}
-
-final class FindFieldEditor: NSTextView {
-    weak var container: PDFFindContainer?
-
-    override func performFindPanelAction(_ sender: Any?) {
-        container?.performFindPanelAction(sender)
-    }
-
-    override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        guard menuItem.action == #selector(performFindPanelAction(_:)) else { return super.validateMenuItem(menuItem) }
-        return container?.validateMenuItem(menuItem) ?? false
     }
 }
