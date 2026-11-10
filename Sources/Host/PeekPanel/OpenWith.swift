@@ -31,13 +31,14 @@ enum OpenWithItem: Equatable {
     case peeker
     case alwaysPeeker
     case other
+    case showInFinder
     case separator
 }
 
 enum PeekOpenWithMenu {
     /// The menu, in order: the apps that open the file (the Mac's default first, then A to Z, without Peeker, the
     /// button's own app or a second copy of one), then Peeker and Always Open in Peeker while another app is the
-    /// default, then Other….
+    /// default, then Other…, then Show in Finder.
     static func items(apps: [AppChoice], systemDefault: String?, buttonApp: String?, hasDefault: Bool, peekerID: String) -> [OpenWithItem] {
         var seen: Set<String> = [peekerID]
         if let buttonApp { seen.insert(buttonApp) }
@@ -49,6 +50,7 @@ enum PeekOpenWithMenu {
         var groups: [[OpenWithItem]] = [sorted.map(OpenWithItem.app)]
         groups.append((buttonApp != nil ? [.peeker] : []) + (hasDefault ? [.alwaysPeeker] : []))
         groups.append([.other])
+        groups.append([.showInFinder])
         return Array(groups.filter { !$0.isEmpty }.joined(separator: [.separator]))
     }
 
@@ -67,8 +69,7 @@ extension PeekPanel: NSMenuDelegate {
 
     func updateOpenButton(for url: URL) {
         openButton.title = "Open in \(buttonApp(for: url)?.name ?? "Peeker")"
-        openButton.sizeToFit()
-        openButton.superview?.frame.size.width = openButton.frame.width + 10
+        layOutTitlebarButtons()
     }
 
     /// The button's main action: the default app for the file's type, or the Editor.
@@ -87,6 +88,9 @@ extension PeekPanel: NSMenuDelegate {
             onSetDefault?(url.pathExtension.lowercased(), nil)
             onOpenInWindow?(url, nil)
         case .other: chooseOtherApp(for: url)
+        case .showInFinder:
+            dismiss()
+            revealInFinder(url)
         case .separator: break
         }
     }
@@ -116,6 +120,7 @@ extension PeekPanel: NSMenuDelegate {
             case .peeker: menuItem = NSMenuItem(title: "Peeker", action: #selector(menuChoice(_:)), keyEquivalent: "")
             case .alwaysPeeker: menuItem = NSMenuItem(title: "Always Open in Peeker", action: #selector(menuChoice(_:)), keyEquivalent: "")
             case .other: menuItem = NSMenuItem(title: "Other…", action: #selector(menuChoice(_:)), keyEquivalent: "")
+            case .showInFinder: menuItem = NSMenuItem(title: "Show in Finder", action: #selector(menuChoice(_:)), keyEquivalent: "")
             }
             menuItem.target = self
             menuItem.representedObject = MenuChoice(item)

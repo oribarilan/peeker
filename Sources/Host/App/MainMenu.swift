@@ -129,6 +129,7 @@ enum MainMenu {
             submenuItem("Open Recent"),
             // Only an Editor window answers this, so the submenu is greyed out elsewhere; the window fills it.
             submenuItem("Open With", #selector(DocumentWindowController.reopenWithMenu(_:))),
+            item("Show in Finder", #selector(DocumentWindowController.showInFinder(_:)), "", []),
             .separator(),
             item("Close", #selector(NSWindow.performClose(_:)), "w"),
             item("Save", #selector(DocumentWindowController.saveDocument(_:)), "s"),

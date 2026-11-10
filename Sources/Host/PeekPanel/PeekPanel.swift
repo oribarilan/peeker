@@ -18,7 +18,7 @@ final class PeekPanel: NSPanel {
     var openWith: [String: String] = [:]
     /// The button's menu set a default (an app's bundle ID) or dropped one (nil) for an extension.
     var onSetDefault: ((String, String?) -> Void)?
-    /// Tests replace these three.
+    /// Tests replace these four.
     var appFor: (String) -> AppChoice? = AppChoice.installed(bundleID:)
     var listApps: (URL) -> [AppChoice] = { NSWorkspace.shared.urlsForApplications(toOpen: $0).compactMap(AppChoice.init(url:)) }
     var openInApp: (URL, URL) -> Void = { file, app in
@@ -26,8 +26,10 @@ final class PeekPanel: NSPanel {
         configuration.activates = true
         NSWorkspace.shared.open([file], withApplicationAt: app, configuration: configuration)
     }
+    var revealInFinder: (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
     /// Its name is what tells the panel apart from Quick Look, whose button opens Preview. Its arrow lists other apps.
     let openButton = NSComboButton(title: "Open in Peeker", menu: NSMenu(), target: nil, action: nil)
+    let finderButton = NSButton(image: NSImage(systemSymbolName: "folder", accessibilityDescription: "Show in Finder")!, target: nil, action: nil)
     /// Where the frame the user last gave the panel is kept, as `NSStringFromRect`.
     static let frameKey = "peekPanelFrame"
     private let defaults: UserDefaults
@@ -56,13 +58,30 @@ final class PeekPanel: NSPanel {
         openButton.style = .split
         openButton.controlSize = .small
         openButton.menu.delegate = self
-        openButton.sizeToFit()
+        finderButton.target = self
+        finderButton.action = #selector(showFileInFinder(_:))
+        finderButton.controlSize = .small
+        finderButton.toolTip = "Show in Finder"
         let accessory = NSTitlebarAccessoryViewController()
-        accessory.view = NSView(frame: NSRect(x: 0, y: 0, width: openButton.frame.width + 10, height: 28))
+        accessory.view = NSView(frame: NSRect(x: 0, y: 0, width: 0, height: 28))
+        accessory.view.addSubview(finderButton)
         accessory.view.addSubview(openButton)
-        openButton.frame.origin = NSPoint(x: 4, y: (28 - openButton.frame.height) / 2)
+        layOutTitlebarButtons()
         accessory.layoutAttribute = .trailing
         addTitlebarAccessoryViewController(accessory)
+    }
+
+    /// The folder button, then Open in Peeker, sized to their titles.
+    func layOutTitlebarButtons() {
+        finderButton.sizeToFit()
+        openButton.sizeToFit()
+        finderButton.frame.origin = NSPoint(x: 4, y: (28 - finderButton.frame.height) / 2)
+        openButton.frame.origin = NSPoint(x: finderButton.frame.maxX + 6, y: (28 - openButton.frame.height) / 2)
+        openButton.superview?.frame.size.width = openButton.frame.maxX + 6
+    }
+
+    @objc func showFileInFinder(_ sender: Any?) {
+        if let url { choose(.showInFinder, for: url) }
     }
 
     var url: URL? { document?.url }

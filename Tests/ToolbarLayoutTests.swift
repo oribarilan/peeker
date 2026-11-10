@@ -27,16 +27,27 @@ private final class BareDocument: PluginDocument {
         let controller = try await documentWindow(for: MarkdownPlugin.self, file: file, others: [TextPlugin.self])
         defer { controller.close() }
         // Back and Forward, which Markdown documents get, come between the separator and Open With.
-        #expect(Array(identifiers(controller).prefix(5))
+        #expect(Array(identifiers(controller).prefix(6))
                 == ["sidebar", NSToolbarItem.Identifier.sidebarTrackingSeparator.rawValue,
-                    "back", "forward", "openWith"])
+                    "back", "forward", "openWith", "showInFinder"])
     }
 
     @Test func withoutASidebarOpenWithComesFirst() async throws {
         let controller = try await documentWindow(for: BarePlugin.self, name: "f.txt", others: [TextPlugin.self])
         defer { controller.close() }
-        #expect(identifiers(controller).first == "openWith")
+        #expect(identifiers(controller).prefix(2) == ["openWith", "showInFinder"])
         #expect(!identifiers(controller).contains(NSToolbarItem.Identifier.sidebarTrackingSeparator.rawValue))
+    }
+
+    @Test func showInFinderIsAFolderButtonThatRevealsTheFile() async throws {
+        let controller = try await documentWindow(for: BarePlugin.self, name: "f.txt", others: [])
+        defer { controller.close() }
+        let item = try #require(controller.window?.toolbar?.items.first { $0.itemIdentifier == DocumentWindowController.showInFinder })
+        #expect(item.label == "Show in Finder" && item.toolTip == "Show in Finder" && item.image != nil)
+        var revealed: [URL] = []
+        controller.revealInFinder = { revealed.append($0) }
+        _ = (item.target as? NSObject)?.perform(item.action, with: item)
+        #expect(revealed == [controller.url])
     }
 
     @Test func wrapLinesShowsLinesOfText() {

@@ -21,7 +21,7 @@ import Testing
         try await waitUntil(seconds: 1) { identifiers(controller).contains("back") }
         let items = identifiers(controller)
         let sidebar = try #require(items.firstIndex(of: NSToolbarItem.Identifier.sidebarTrackingSeparator.rawValue))
-        #expect(Array(items[(sidebar + 1)...(sidebar + 3)]) == ["back", "forward", "openWith"])
+        #expect(Array(items[(sidebar + 1)...(sidebar + 4)]) == ["back", "forward", "openWith", "showInFinder"])
         let back = try item(controller, DocumentWindowController.back), forward = try item(controller, DocumentWindowController.forward)
         #expect(back.label == "Back" && back.toolTip == "Back (⌘[)" && forward.label == "Forward" && forward.toolTip == "Forward (⌘])")
         #expect(!controller.validateToolbarItem(back) && !controller.validateToolbarItem(forward))

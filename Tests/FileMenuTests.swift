@@ -84,6 +84,28 @@ import Testing
     }
 }
 
+@Suite(.serialized) struct FileMenuShowInFinder {
+    @Test func itFollowsOpenWithWithNoShortcutAndOnlyADocumentWindowAnswersIt() throws {
+        let file = try #require(MainMenu.make(target: nil).item(withTitle: "File")?.submenu)
+        let item = try #require(file.item(withTitle: "Show in Finder"))
+        #expect(file.index(of: item) == file.indexOfItem(withTitle: "Open With") + 1)
+        #expect(item.keyEquivalent.isEmpty && item.target == nil)
+        #expect(item.action == #selector(DocumentWindowController.showInFinder(_:)))
+        #expect(!AppDelegate().responds(to: item.action))
+    }
+
+    @Test func itRevealsTheTabsFile() async throws {
+        let controller = try await markdownWindow()
+        defer { controller.close() }
+        var revealed: [URL] = []
+        controller.revealInFinder = { revealed.append($0) }
+        let item = try #require(MainMenu.make(target: nil).item(withTitle: "File")?.submenu?.item(withTitle: "Show in Finder"))
+        #expect(controller.validateMenuItem(item))
+        controller.showInFinder(item)
+        #expect(revealed == [controller.url])
+    }
+}
+
 @Suite(.serialized) struct RevertToSaved {
     private func revertItem() throws -> NSMenuItem {
         try #require(MainMenu.make(target: nil).item(withTitle: "File")?.submenu?.item(withTitle: "Revert to Saved…"))

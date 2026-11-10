@@ -49,6 +49,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         return await OpenElsewhere.confirm(url, on: window)
     }
     var beep: () -> Void = { NSSound.beep() }
+    var revealInFinder: (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
     private let tips: TipStore
     /// The first-use tip showing now, if any, and its words.
     private(set) var tipPopover: NSPopover?
@@ -279,6 +280,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let candidates = openWithChoices
         guard sender.submenu == nil, candidates.indices.contains(sender.tag) else { return }
         Task { await reopen(with: candidates[sender.tag]) }
+    }
+
+    /// File > Show in Finder: a Finder window with the tab's file selected.
+    @objc func showInFinder(_ sender: Any?) {
+        revealInFinder(url)
     }
 
     /// Reopens the tab with `entry` once unsaved edits are resolved. False when the user cancels.
@@ -565,7 +571,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        guard let document = current else { return openWithItem }
+        guard let document = current else { return openWithItem + [Self.showInFinder] }
         let shown = document.tools.indices.filter { document.tools[$0].spec.showsInToolbar }
         let identifier = { (index: Int) in NSToolbarItem.Identifier("tool.\(index)") }
         let view = shown.filter { !document.tools[$0].spec.isEditTool }.map(identifier)
@@ -573,7 +579,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         // The tracking separator keeps the sidebar button over the sidebar, as in Finder, and the rest past it. A space
         // between tools puts each on a capsule of its own, view tools first.
         return (document.hasSidebar ? [Self.sidebar, .sidebarTrackingSeparator] : []) + (showsBackAndForward ? [Self.back, Self.forward] : [])
-            + openWithItem + [.flexibleSpace]
+            + openWithItem + [Self.showInFinder, .flexibleSpace]
             + (view + tools).flatMap { [$0, NSToolbarItem.Identifier.space] }.dropLast()
     }
 

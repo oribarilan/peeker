@@ -10,6 +10,7 @@ extension DocumentWindowController {
 
     static let back = NSToolbarItem.Identifier("back")
     static let forward = NSToolbarItem.Identifier("forward")
+    static let showInFinder = NSToolbarItem.Identifier("showInFinder")
     /// Peeker's own sidebar button, in place of the system's, so it can show its key.
     static let sidebar = NSToolbarItem.Identifier("sidebar")
 
@@ -100,13 +101,15 @@ extension DocumentWindowController {
     /// Back and Forward show while the document follows links or the tab has somewhere to go.
     var showsBackAndForward: Bool { following != nil || history.entries.count > 1 }
 
-    /// The sidebar button and Back and Forward: the host's own toolbar buttons, with their menu keys as captions.
+    /// The sidebar button, Back and Forward, and Show in Finder: the host's own toolbar buttons, with their menu keys
+    /// in the tooltips.
     func navigationItem(_ identifier: NSToolbarItem.Identifier) -> NSToolbarItem? {
-        let (title, symbol, key, action): (String, String, Shortcut, Selector)
+        let (title, symbol, key, action): (String, String, Shortcut?, Selector)
         switch identifier {
         case Self.sidebar: (title, symbol, key, action) = ("Sidebar", "sidebar.left", MainMenu.sidebarKey, #selector(toggleSidebar(_:)))
         case Self.back: (title, symbol, key, action) = ("Back", "chevron.left", MainMenu.backKey, #selector(goBack(_:)))
         case Self.forward: (title, symbol, key, action) = ("Forward", "chevron.right", MainMenu.forwardKey, #selector(goForward(_:)))
+        case Self.showInFinder: (title, symbol, key, action) = ("Show in Finder", "folder", nil, #selector(showInFinder(_:)))
         default: return nil
         }
         let item = NSToolbarItem(itemIdentifier: identifier)

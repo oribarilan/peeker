@@ -10,6 +10,17 @@ import Testing
         defer { panel.close() }
         #expect(panel.openButton.title == "Open in Peeker")
     }
+
+    @Test func aFolderButtonBesideItShowsTheFileInFinder() {
+        let (defaults, name) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let panel = PeekPanel(defaults: defaults)
+        defer { panel.close() }
+        let button = panel.finderButton
+        #expect(button.toolTip == "Show in Finder" && button.superview === panel.openButton.superview)
+        #expect(button.target === panel && button.action == #selector(PeekPanel.showFileInFinder(_:)))
+        #expect(button.frame.maxX < panel.openButton.frame.minX, "left of Open in Peeker")
+    }
 }
 
 @Suite(.serialized) struct PeekPanelFrame {
@@ -68,30 +79,30 @@ private func app(_ id: String, _ name: String) -> AppChoice {
     private let textEdit = app("com.apple.TextEdit", "TextEdit")
     private let bbedit = app("com.barebones.bbedit", "BBEdit")
 
-    @Test func theMacsDefaultComesFirstThenTheRestAToZAndOtherLast() {
+    @Test func theMacsDefaultComesFirstThenTheRestAToZThenOtherThenShowInFinder() {
         let items = PeekOpenWithMenu.items(apps: [textEdit, xcode, bbedit], systemDefault: xcode.bundleID, buttonApp: nil, hasDefault: false, peekerID: peeker)
-        #expect(items == [.app(xcode), .app(bbedit), .app(textEdit), .separator, .other])
+        #expect(items == [.app(xcode), .app(bbedit), .app(textEdit), .separator, .other, .separator, .showInFinder])
     }
 
     @Test func peekerAndDuplicateCopiesAreLeftOut() {
         let peekerApp = app(peeker, "Peeker")
         let otherXcode = AppChoice(bundleID: xcode.bundleID, name: "Xcode", url: URL(filePath: "/Users/x/Xcode.app"))
         let items = PeekOpenWithMenu.items(apps: [peekerApp, xcode, otherXcode], systemDefault: peeker, buttonApp: nil, hasDefault: false, peekerID: peeker)
-        #expect(items == [.app(xcode), .separator, .other])
+        #expect(items == [.app(xcode), .separator, .other, .separator, .showInFinder])
     }
 
     @Test func withAnotherAppAsDefaultPeekerAndAlwaysOpenInPeekerAreOffered() {
         let items = PeekOpenWithMenu.items(apps: [xcode, textEdit], systemDefault: nil, buttonApp: xcode.bundleID, hasDefault: true, peekerID: peeker)
-        #expect(items == [.app(textEdit), .separator, .peeker, .alwaysPeeker, .separator, .other])
+        #expect(items == [.app(textEdit), .separator, .peeker, .alwaysPeeker, .separator, .other, .separator, .showInFinder])
     }
 
     @Test func aDefaultWhoseAppIsGoneCanStillBeDropped() {
         let items = PeekOpenWithMenu.items(apps: [textEdit], systemDefault: nil, buttonApp: nil, hasDefault: true, peekerID: peeker)
-        #expect(items == [.app(textEdit), .separator, .alwaysPeeker, .separator, .other])
+        #expect(items == [.app(textEdit), .separator, .alwaysPeeker, .separator, .other, .separator, .showInFinder])
     }
 
-    @Test func noAppsLeavesOnlyOther() {
-        #expect(PeekOpenWithMenu.items(apps: [], systemDefault: nil, buttonApp: nil, hasDefault: false, peekerID: peeker) == [.other])
+    @Test func noAppsLeavesOtherAndShowInFinder() {
+        #expect(PeekOpenWithMenu.items(apps: [], systemDefault: nil, buttonApp: nil, hasDefault: false, peekerID: peeker) == [.other, .separator, .showInFinder])
     }
 
     @Test func theAlwaysCheckboxNamesTheExtensionAndIsAbsentWithoutOne() {
@@ -170,5 +181,19 @@ private func app(_ id: String, _ name: String) -> AppChoice {
         panel.onOpenInWindow = { url, _ in editor.append(url) }
         panel.openDefault(file)
         #expect(opened == [xcode.url] && editor.isEmpty)
+    }
+
+    @Test func showInFinderRevealsTheFileAndOpensNothing() {
+        let (defaults, name) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let panel = panel(defaults, openWith: [:], installed: [])
+        defer { panel.close() }
+        var revealed: [URL] = []
+        var opened = 0
+        panel.revealInFinder = { revealed.append($0) }
+        panel.openInApp = { _, _ in opened += 1 }
+        panel.onOpenInWindow = { _, _ in opened += 1 }
+        panel.choose(.showInFinder, for: file)
+        #expect(revealed == [file] && opened == 0)
     }
 }

@@ -19,6 +19,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 - Add, change or remove a PDF's password with File > Password… (decided 2026-11-09; after editable password-protected PDFs).
 - Replace in CSV/TSV tables, next to Find.
 - Other apps in the Editor's File > Open With, as the Peek panel's button lists them.
+- Show in Finder in a tab's right-click menu (macOS has no supported way to add to it; skipped 2026-11-10).
 
 ## Format gaps and risks
 
