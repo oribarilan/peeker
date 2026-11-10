@@ -134,8 +134,8 @@ private func hasBox(_ document: PDFDocument?) -> Bool {
     @Test func thePDFsOwnPermissionBitsAreReadFromTheFile() throws {
         let read = try #require(PDFEncryption(try Data(contentsOf: try LockedPDF.aes256Form(.lowResPrinting))))
         #expect(read.isAES256 && !read.limitsNothing && read.pdfKitPermissions & 0b10 == 0, "no high-quality printing")
-        #expect(try PDFEncryption(try Data(contentsOf: try LockedPDF.aes256Form()))?.limitsNothing == true)
-        #expect(try PDFEncryption(try Data(contentsOf: try TempFile.makePDF(pages: 1))) == nil)
+        #expect(PDFEncryption(try Data(contentsOf: try LockedPDF.aes256Form()))?.limitsNothing == true)
+        #expect(PDFEncryption(try Data(contentsOf: try TempFile.makePDF(pages: 1))) == nil)
     }
 
     @Test func anAES256FormUnlockedWithThePermissionsPasswordAsksForTheOpenOne() async throws {
