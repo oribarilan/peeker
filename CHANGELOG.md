@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- CSV and TSV tables get Find and Print. Cmd+F shows the find bar PDFs have; cells containing the search, ignoring case and accents, are tinted, and Cmd+G steps through them in the order shown. Cmd+P prints the table as shown, unsaved edits included, shrunk to the page width with the header row on every page; a Table section in the print panel adds row numbers and picks the columns.
 - The Peek panel's button gets an arrow listing the other apps that open the file, with Other… for any app. Other… can also make an app the panel's default for that kind of file, so the button reads, say, Open in Xcode for `.swift` files; Always Open in Peeker in the same menu goes back. The default only changes the panel, not what a double-click in Finder opens, and lives in the config as `peekPanel.openWith`.
 - Peeker no longer quits sometimes when a PDF window closes right after a page was rotated, as Don't Save can do, or soon after deleting a page while the pointer rests on the last thumbnail.
 - Every format zooms, now including CSV tables and JSON, YAML, TOML, XML and property-list files, with Cmd+=, Cmd+- and Cmd+0. Cmd+scroll and pinch zoom too, in windows and the Peek panel. In Editor windows, while the pointer is over a document, a small control at its bottom right shows the zoom, steps it with − and +, and offers Actual Size, Zoom to Fit and a few fixed sizes.

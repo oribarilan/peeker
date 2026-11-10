@@ -17,7 +17,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 - More PDF annotations in the PDF strip (planned with the text box styles): drawing, and stamps such as an X and a check mark; fewer than images have (maintainer, 2026-11-08).
 - Editing YAML, TOML, XML and property lists in the tree, as JSON edits (their trees are read-only since 2026-11-07).
 - Add, change or remove a PDF's password with File > Password… (decided 2026-11-09; after editable password-protected PDFs).
-- Find and Print in CSV/TSV tables.
+- Replace in CSV/TSV tables, next to Find.
 - Other apps in the Editor's File > Open With, as the Peek panel's button lists them.
 
 ## Format gaps and risks

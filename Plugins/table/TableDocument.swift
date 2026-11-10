@@ -28,6 +28,8 @@ final class TableDocument: PluginDocument {
     var onEdit: (() -> Void)?
     var onSidebarChange: (() -> Void)?
     var onZoomChange: (() -> Void)?
+    /// The print panel's last choices, for the next print from this window.
+    private(set) var printChoices = TablePrintChoices()
     /// The cells' text size, remembered for every table opened after it changes.
     private(set) var fontSize = TableDocument.defaultFontSize
     static let defaultFontSize = NSFont.systemFontSize
@@ -54,12 +56,25 @@ final class TableDocument: PluginDocument {
     var tools: [ToolSpec] { TablePlugin.tools }
     func makeSidebar() -> [SidebarPanel] { InfoPanel.make(info).map { [$0] } ?? [] }
 
+    /// Every row in the order shown, unsaved edits included.
+    var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
+        { [weak self] info in
+            guard let self else { return nil }
+            view.commitEditing()
+            let header = hasHeader && table.rowCount > 0
+            let content = TablePrintContent(table: table, hasHeader: header, rows: view.order ?? Array((header ? 1 : 0)..<table.rowCount))
+            return TablePrinting.job(content, choices: printChoices, info: info) { [weak self] in self?.printChoices = $0 }
+        }
+    }
+
     var editability: Editability {
         guard allowsEditing else { return .notEditable }
         return tooLarge ? .readOnly(TablePlugin.readOnlyReason) : .editable
     }
 
     var isEditable: Bool { editability == .editable }
+    /// Find is for the Editor, not the Peek panel.
+    var allowsFind: Bool { allowsEditing }
 
     static func info(_ table: CSVTable, format: TextFormat, byteCount: Int) -> [InfoRow] {
         [InfoRow(label: "Rows", value: table.rowCount.formatted()),
@@ -218,6 +233,7 @@ final class TableDocument: PluginDocument {
         table.moveColumn(from: source, to: destination)
         record(.rows(before))
         view.reloadCells()
+        view.tableDidChange()
     }
 
     /// Registers the way back and moves to a new state, or with `restoring`, to that earlier one (Undo and Redo).

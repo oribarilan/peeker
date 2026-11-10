@@ -1,21 +1,32 @@
 import AppKit
+import PeekerKit
 
 /// The table on screen: a row-number column, then one column per CSV column. It shows the document's `CSVTable`
 /// through `order`, which is file order or a sort, and turns clicks, typing and drags into the document's edits.
 final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate, NSMenuDelegate {
     /// Weak: AppKit can still ask the table for rows while its window closes, after the document has gone.
-    private weak var document: TableDocument?
+    private(set) weak var document: TableDocument?
     /// The document's table, or none once the document has gone.
     private var table: CSVTable { document?.table ?? CSVTable(text: "", delimiter: .comma) }
     private var isEditable: Bool { document?.isEditable == true }
     var canEdit: Bool { isEditable }
     let tableView = GridView()
-    private let scrollView = NSScrollView()
+    let scrollView = NSScrollView()
+    /// Find, from the first Cmd+F (TableFind.swift): the bar, its finder, the matches tinted and the current one.
+    var findBar: FindBar?
+    var finder: TableFinder?
+    var marks: Set<CellRef> = []
+    var currentMark: CellRef?
+    /// The table at the top, or under the find bar while that shows.
+    var scrollAtTop: NSLayoutConstraint!
+    var scrollBelowBar: NSLayoutConstraint?
+    /// No find in the Peek panel.
+    var allowsFind: Bool { document?.allowsFind == true }
     /// File rows in the order shown while sorted; nil in file order.
     private(set) var order: [Int]?
     private var sort: (column: Int, ascending: Bool)?
     /// The column of the cell last clicked or edited, in the file's columns.
-    private(set) var currentColumn: Int?
+    var currentColumn: Int?
     /// The cell being typed in: the row shown, and the file row, fixed when editing starts.
     private var editing: (row: Int, fileRow: Int, column: Int)?
     private static let rowPasteboardType = NSPasteboard.PasteboardType("dev.peeker.table-rows")
@@ -82,8 +93,9 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         scrollView.autohidesScrollers = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(scrollView)
+        scrollAtTop = scrollView.topAnchor.constraint(equalTo: topAnchor)
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: topAnchor), scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            scrollAtTop, scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor), scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
         applyScale()
@@ -93,6 +105,8 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
     required init?(coder: NSCoder) { fatalError("not used") }
 
     private var headerOffset: Int { document?.hasHeader == true && table.rowCount > 0 ? 1 : 0 }
+    /// Whether file row 0 shows as the column titles.
+    var headerIsShown: Bool { headerOffset == 1 }
 
     /// The file row shown at `row`.
     func fileRow(_ row: Int) -> Int { order?[row] ?? row + headerOffset }
@@ -123,6 +137,7 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
             tableView.addTableColumn(column)
         }
         reloadCells()
+        tableDidChange()
     }
 
     /// Titles, sort arrows and cells for the columns there are, numbered by position: a column the user dragged has
@@ -136,6 +151,7 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
             let arrow = sort?.column == index ? NSImage(named: sort!.ascending ? "NSAscendingSortIndicator" : "NSDescendingSortIndicator") : nil
             tableView.setIndicatorImage(arrow, in: column)
         }
+        if !marks.isEmpty { markTitles() }
         tableView.reloadData()
     }
 
@@ -165,6 +181,7 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         rowCache = nil
         let shown = IndexSet((0..<numberOfRows(in: tableView)).filter { fileRows.contains(fileRow($0)) })
         tableView.reloadData(forRowIndexes: shown, columnIndexes: IndexSet(0..<tableView.numberOfColumns))
+        tableDidChange()
     }
 
     private func title(of column: Int) -> String {
@@ -197,12 +214,14 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         cell.font = isNumber ? numberFont : cellFont
         let file = fileRow(row)
         if isNumber {
+            cell.mark = .none
             cell.text = "\(file - headerOffset + 1)"
         } else if let column = Int(identifier.rawValue) {
             // AppKit asks for a row's cells one after another, so the row is parsed once for all of them.
             if rowCache?.row != file { rowCache = (file, table.fields(ofRow: file)) }
             let fields = rowCache?.fields ?? []
             cell.text = column < fields.count ? fields[column].text : ""
+            cell.mark = marks.isEmpty ? .none : mark(row: file, column: column)
         }
         return cell
     }
@@ -403,6 +422,11 @@ final class CellView: NSView {
     var font: NSFont {
         didSet { if font != oldValue { needsDisplay = true } }
     }
+    enum Mark { case none, match, current }
+    /// A find match is tinted; the current one more strongly.
+    var mark = Mark.none {
+        didSet { if mark != oldValue { needsDisplay = true } }
+    }
 
     init(identifier: NSUserInterfaceItemIdentifier, isNumber: Bool) {
         self.isNumber = isNumber
@@ -416,6 +440,10 @@ final class CellView: NSView {
     override var isOpaque: Bool { false }
 
     override func draw(_ dirtyRect: NSRect) {
+        if mark != .none {
+            NSColor.findHighlightColor.withAlphaComponent(mark == .current ? 1 : 0.4).setFill()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 3, yRadius: 3).fill()
+        }
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: isNumber ? NSColor.secondaryLabelColor : NSColor.labelColor,
