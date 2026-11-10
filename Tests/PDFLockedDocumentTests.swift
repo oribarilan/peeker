@@ -32,7 +32,7 @@ private let box = PDFMark(id: "peeker-box", page: 0, rect: CGRect(x: 100, y: 400
         let document = try await unlocked(file, with: LockedPDF.open)
         #expect(document.change(.add(box)))
         let copy = file.deletingLastPathComponent().appending(path: "copy.pdf")
-        try await document.saveAs(try #require(document.unsavedEdits()), to: copy, accepting: nil)
+        try await document.saveAs(document.unsavedEdits(), to: copy, accepting: nil)
         #expect(LockedPDF.opened(copy, with: LockedPDF.open)?.page(at: 0)?.annotations.count == 1)
     }
 
