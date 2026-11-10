@@ -59,6 +59,12 @@ import Testing
         #expect(properties(schema, "peekPanel") != nil && properties(schema, "quickLook") == nil)
     }
 
+    @Test func describesThePanelsOpenWithDefaults() throws {
+        let openWith = try #require(properties(properties(try schema(), "peekPanel"), "openWith"))
+        #expect(openWith["type"] as? String == "object")
+        #expect((openWith["additionalProperties"] as? [String: Any])?["type"] as? String == "string")
+    }
+
     @Test func refusesKeysItDoesNotDescribe() throws {
         let schema = try schema()
         #expect(schema["additionalProperties"] as? Bool == false)

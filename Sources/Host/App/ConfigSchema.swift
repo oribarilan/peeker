@@ -25,6 +25,8 @@ enum ConfigSchema {
             "$schema": ["type": "string", "description": "Where this schema is, for editors."],
             "peekPanel": object("The Peek panel: a key in Finder shows the selected file in Peeker.", [
                 "key": ["type": "string", "description": "The key that opens the Peek panel. A bare key works only in Finder and not while typing; one with modifiers works anywhere; \"off\" turns the panel off. Default: space."],
+                "openWith": ["type": "object", "additionalProperties": ["type": "string"], "default": [String: String](),
+                             "description": "Apps the Peek panel's button opens files with instead of Peeker, by extension (no dot) to the app's bundle ID, such as {\"swift\": \"com.apple.dt.Xcode\"}. Only the panel follows it; the Mac's default app stays as it is. Set and cleared from the button's menu."],
             ]),
             "plugins": object("Per-plugin settings, by plugin id.", pluginProperties),
             "textTheme": ["type": "string", "enum": TextTheme.ids, "default": "system",

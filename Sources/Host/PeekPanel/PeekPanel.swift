@@ -14,8 +14,20 @@ final class PeekPanel: NSPanel {
     /// Tests replace these two.
     var beep: () -> Void = { NSSound.beep() }
     var confirmOpenElsewhere: (PeekPanel, URL) async -> Bool = { await OpenElsewhere.confirm($1, on: $0) }
-    /// Its name is what tells the panel apart from Quick Look, whose button opens Preview.
-    let openButton = NSButton(title: "Open in Peeker", target: nil, action: nil)
+    /// Extension -> bundle ID of the app the button opens it with instead of Peeker; the app sets it from the config.
+    var openWith: [String: String] = [:]
+    /// The button's menu set a default (an app's bundle ID) or dropped one (nil) for an extension.
+    var onSetDefault: ((String, String?) -> Void)?
+    /// Tests replace these three.
+    var appFor: (String) -> AppChoice? = AppChoice.installed(bundleID:)
+    var listApps: (URL) -> [AppChoice] = { NSWorkspace.shared.urlsForApplications(toOpen: $0).compactMap(AppChoice.init(url:)) }
+    var openInApp: (URL, URL) -> Void = { file, app in
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.open([file], withApplicationAt: app, configuration: configuration)
+    }
+    /// Its name is what tells the panel apart from Quick Look, whose button opens Preview. Its arrow lists other apps.
+    let openButton = NSComboButton(title: "Open in Peeker", menu: NSMenu(), target: nil, action: nil)
     /// Where the frame the user last gave the panel is kept, as `NSStringFromRect`.
     static let frameKey = "peekPanelFrame"
     private let defaults: UserDefaults
@@ -40,9 +52,10 @@ final class PeekPanel: NSPanel {
         titlebarAppearsTransparent = true
 
         openButton.target = self
-        openButton.action = #selector(openInWindow)
-        openButton.bezelStyle = .push
+        openButton.action = #selector(openFromButton)
+        openButton.style = .split
         openButton.controlSize = .small
+        openButton.menu.delegate = self
         openButton.sizeToFit()
         let accessory = NSTitlebarAccessoryViewController()
         accessory.view = NSView(frame: NSRect(x: 0, y: 0, width: openButton.frame.width + 10, height: 28))
@@ -65,6 +78,7 @@ final class PeekPanel: NSPanel {
         self.document?.close()
         self.document = document
         title = document.url.lastPathComponent
+        updateOpenButton(for: document.url)
         document.onFollowLink = { [weak self] document, link in Task { await self?.follow(link, from: document) } }
         // A visible panel keeps its frame while arrow keys and links change the file; a hidden one is placed afresh.
         let frame = isVisible ? self.frame : placement()
@@ -124,10 +138,8 @@ final class PeekPanel: NSPanel {
         dismiss()
     }
 
-    @objc private func openInWindow() {
-        guard let url else { return }
-        dismiss()
-        onOpenInWindow?(url, nil)
+    @objc private func openFromButton() {
+        if let url { openDefault(url) }
     }
 
     /// A link from the panel's document: a heading scrolls the panel; a file closes it and opens in an Editor window,

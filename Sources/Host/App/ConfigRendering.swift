@@ -20,7 +20,7 @@ extension Config {
         })
         let root: [String: Any] = [
             "$schema": "schema.json",
-            "peekPanel": ["key": peekPanelKey?.configText ?? "off"],
+            "peekPanel": ["key": peekPanelKey?.configText ?? "off", "openWith": peekPanelOpenWith] as [String: Any],
             "updates": ["automatic": automaticUpdates, "showWhatsNew": showWhatsNew],
             "textTheme": textTheme,
             "appearance": appearance,

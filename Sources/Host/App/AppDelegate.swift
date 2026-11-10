@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         panel.owner = { [weak self] in self?.catalog.owner(for: $0)?.id }
         panel.onDismiss = { [weak self] in self?.updater.installIfIdle() }
+        panel.onSetDefault = { [weak self] ext, app in self?.savePanelDefault(app, for: ext) }
         panelIsMade = true
         return panel
     }()
@@ -251,6 +252,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
     }
 
+    /// Writes the Peek panel's default app for `ext` (nil: Peeker), as Settings would. The file opens either way.
+    private func savePanelDefault(_ app: String?, for ext: String) {
+        do {
+            try configStore.save { $0.peekPanelOpenWith[ext] = app }
+        } catch {
+            NSApp.activate()
+            let alert = NSAlert()
+            alert.messageText = "The default for .\(ext) files couldn't be saved"
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
+        }
+    }
+
     // MARK: What's new
 
     /// Decides whether this launch follows an update and records the version for the next one. Returns the releases
@@ -354,6 +368,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     }
 
     private func showInPanel(_ url: URL, entry: PluginEntry) {
+        panel.openWith = config.peekPanelOpenWith
         let document = DocumentViewController(url: url, entry: entry, config: config, allowsEditing: false, recovery: nil, preferences: .standard)
         panel.show(document)
     }

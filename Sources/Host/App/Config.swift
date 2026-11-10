@@ -5,7 +5,8 @@ import PeekerKit
 ///
 ///     {
 ///       "$schema": "schema.json",
-///       "peekPanel": { "key": "space" },          // bare key: Finder only, not while typing; with modifiers: anywhere; "off"
+///       "peekPanel": { "key": "space",            // bare key: Finder only, not while typing; with modifiers: anywhere; "off"
+///                      "openWith": { "swift": "com.apple.dt.Xcode" } },   // the panel's button opens these in another app
 ///       "updates": { "automatic": "check", "showWhatsNew": true },   // off, check (and ask) or download (and install)
 ///       "textTheme": "system",                    // colors for Markdown and text: one of TextTheme.ids
 ///       "appearance": "system",                   // the app's look: system, light or dark
@@ -25,6 +26,8 @@ struct Config: Equatable {
     /// `keyID(plugin:tool:)` of each tool the config leaves without a shortcut (`"off"`).
     var noShortcut: Set<String> = []
     var peekPanelKey: Shortcut? = Shortcut(key: .space)
+    /// Extension -> bundle ID of the app the Peek panel's button opens it with instead of Peeker.
+    var peekPanelOpenWith: [String: String] = [:]
     /// One of `automaticUpdateModes`: no daily check, a daily check that asks before installing, or one that
     /// downloads and installs by itself.
     var automaticUpdates = "check"
@@ -188,11 +191,32 @@ private struct ConfigReader {
     private mutating func readPeekPanel(_ settings: [String: JSONValue]) {
         for (key, value) in sorted(settings) {
             let path = "peekPanel.\(key)"
-            guard key == "key" else { unknown(path); continue }
-            guard let text = string(value, at: path) else { continue }
-            if text == "off" { config.peekPanelKey = nil }
-            else if let shortcut = Shortcut(parsing: text) { config.peekPanelKey = shortcut }
-            else { problem(path, "“\(text)” isn't a key Peeker understands. Use one like space or opt+space, or off.") }
+            switch key {
+            case "key":
+                guard let text = string(value, at: path) else { continue }
+                if text == "off" { config.peekPanelKey = nil }
+                else if let shortcut = Shortcut(parsing: text) { config.peekPanelKey = shortcut }
+                else { problem(path, "“\(text)” isn't a key Peeker understands. Use one like space or opt+space, or off.") }
+            case "openWith":
+                if let entries = object(value, at: path) { readOpenWith(entries, at: path) }
+            default:
+                unknown(path)
+            }
+        }
+    }
+
+    private mutating func readOpenWith(_ entries: [String: JSONValue], at prefix: String) {
+        for (key, value) in sorted(entries) {
+            let path = "\(prefix).\(key)"
+            guard let ext = Config.extensionEntry(key), ext != noExtension else {
+                problem(path, "“\(key)” isn't an extension. Write one like swift, without the dot; files with no extension can't have a default.")
+                continue
+            }
+            guard case .string(let id) = value, !id.isEmpty, !id.contains(where: \.isWhitespace) else {
+                problem(path, "Should be an app's bundle ID in quotes, such as \"com.apple.TextEdit\".")
+                continue
+            }
+            config.peekPanelOpenWith[ext] = id
         }
     }
 

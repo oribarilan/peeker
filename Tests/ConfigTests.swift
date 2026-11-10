@@ -461,3 +461,42 @@ extension ThemeState { @Suite struct ConfigLooks {
         #expect(TextTheme.current.id == "system")
     }
 }}
+
+@Suite struct PeekPanelOpenWithConfig {
+    @Test func extensionsAreNormalizedAndMapToBundleIDs() throws {
+        let config = try config(#"{"peekPanel": {"openWith": {".SWIFT": "com.apple.dt.Xcode", "txt": "com.barebones.bbedit"}}}"#)
+        #expect(config.peekPanelOpenWith == ["swift": "com.apple.dt.Xcode", "txt": "com.barebones.bbedit"])
+    }
+
+    @Test func noEntriesByDefault() throws {
+        #expect(try config("{}").peekPanelOpenWith.isEmpty)
+    }
+
+    @Test func eachBadEntryIsAProblemAndTheRestApply() throws {
+        let reading = read(#"{"peekPanel": {"openWith": {"swift": "com.apple.dt.Xcode", "md": 3, "noExtension": "com.apple.TextEdit", "a b": "x", "log": "has space"}}}"#)
+        #expect(try #require(reading.config).peekPanelOpenWith == ["swift": "com.apple.dt.Xcode"])
+        #expect(Set(reading.problems.map(\.path)) == ["peekPanel.openWith.md", "peekPanel.openWith.noExtension", "peekPanel.openWith.a b", "peekPanel.openWith.log"])
+        let md = try #require(reading.problems.first { $0.path == "peekPanel.openWith.md" })
+        #expect(md.message.contains("bundle ID"))
+    }
+
+    @Test func aListInsteadOfAnObjectIsAProblem() throws {
+        let reading = read(#"{"peekPanel": {"openWith": ["swift"]}}"#)
+        #expect(try #require(reading.config).peekPanelOpenWith.isEmpty)
+        #expect(reading.problems.map(\.path) == ["peekPanel.openWith"])
+    }
+
+    @Test func otherPeekPanelKeysAreStillUnknown() {
+        #expect(read(#"{"peekPanel": {"opener": {}}}"#).problems.map(\.path) == ["peekPanel.opener"])
+    }
+
+    @Test func renderingWritesAnEmptyObjectByDefaultAndRoundTrips() throws {
+        let empty = try #require(try JSONSerialization.jsonObject(with: Config().json(plugins: plugins)) as? [String: Any])
+        #expect(((empty["peekPanel"] as? [String: Any])?["openWith"] as? [String: String]) == [:])
+        var config = Config()
+        config.peekPanelOpenWith = ["swift": "com.apple.dt.Xcode"]
+        let reading = Config.read(config.json(plugins: plugins), plugins: plugins)
+        #expect(reading.problems.isEmpty)
+        #expect(reading.config?.peekPanelOpenWith == ["swift": "com.apple.dt.Xcode"])
+    }
+}
