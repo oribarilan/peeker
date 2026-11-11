@@ -67,8 +67,13 @@ extension PeekPanel: NSMenuDelegate {
         openWith[url.pathExtension.lowercased()].flatMap(appFor)
     }
 
+    /// The main button's title and the folder button's image, each with its key while captions are on.
     func updateOpenButton(for url: URL) {
-        openButton.title = "Open in \(buttonApp(for: url)?.name ?? "Peeker")"
+        let title = "Open in \(buttonApp(for: url)?.name ?? "Peeker")"
+        openButton.title = showsKeys ? openKey.map { "\(title)  \($0.displayText)" } ?? title : title
+        openButton.toolTip = Shortcut.tooltip(title: title, shortcut: openKey)
+        finderButton.image = ToolbarImage.make(symbol: "folder", name: "Show in Finder", key: showInFinderKey, showsKey: showsKeys)
+        finderButton.toolTip = Shortcut.tooltip(title: "Show in Finder", shortcut: showInFinderKey)
         layOutTitlebarButtons()
     }
 

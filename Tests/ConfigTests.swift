@@ -500,3 +500,38 @@ extension ThemeState { @Suite struct ConfigLooks {
         #expect(reading.config?.peekPanelOpenWith == ["swift": "com.apple.dt.Xcode"])
     }
 }
+
+@Suite struct PeekPanelButtonKeysConfig {
+    private let cmdO = Shortcut(key: .character("o"), modifiers: .command)
+    private let cmdR = Shortcut(key: .character("r"), modifiers: .command)
+
+    @Test func theDefaultsAreCommandOAndCommandR() throws {
+        let config = try config("{}")
+        #expect(config.peekPanelOpenKey == cmdO && config.peekPanelShowInFinderKey == cmdR)
+    }
+
+    @Test func keysAreReadAndOffLeavesNone() throws {
+        let config = try config(#"{"peekPanel": {"openKey": "opt+cmd+o", "showInFinderKey": "off"}}"#)
+        #expect(config.peekPanelOpenKey == Shortcut(key: .character("o"), modifiers: [.option, .command]))
+        #expect(config.peekPanelShowInFinderKey == nil)
+    }
+
+    @Test func bareUnreadableAndTakenKeysAreProblemsAndKeepTheDefault() throws {
+        let reading = read(#"{"peekPanel": {"key": "opt+space", "openKey": "o", "showInFinderKey": "opt+space"}}"#)
+        let config = try #require(reading.config)
+        #expect(config.peekPanelOpenKey == cmdO && config.peekPanelShowInFinderKey == cmdR)
+        #expect(Set(reading.problems.map(\.path)) == ["peekPanel.openKey", "peekPanel.showInFinderKey"])
+        #expect(read(#"{"peekPanel": {"openKey": "cmd+nope"}}"#).problems.map(\.path) == ["peekPanel.openKey"])
+        #expect(read(#"{"peekPanel": {"openKey": "cmd+r"}}"#).problems.map(\.path) == ["peekPanel.openKey"], "the other action's key")
+    }
+
+    @Test func renderingWritesThemAndRoundTrips() throws {
+        let json = try #require(try JSONSerialization.jsonObject(with: Config().json(plugins: plugins)) as? [String: Any])
+        let panel = try #require(json["peekPanel"] as? [String: Any])
+        #expect(panel["openKey"] as? String == "cmd+o" && panel["showInFinderKey"] as? String == "cmd+r")
+        var config = Config()
+        config.peekPanelShowInFinderKey = nil
+        let reading = Config.read(config.json(plugins: plugins), plugins: plugins)
+        #expect(reading.problems.isEmpty && reading.config?.peekPanelShowInFinderKey == nil && reading.config?.peekPanelOpenKey == cmdO)
+    }
+}

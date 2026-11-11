@@ -19,6 +19,8 @@ struct Shortcut: Equatable {
         case viewTool
         /// An edit tool: like a view tool, or a single letter or digit.
         case editTool
+        /// A Peek panel button's key: with Command, Option or Control, since Finder, in front, takes bare keys.
+        case panelAction
 
         /// Why `shortcut` isn't allowed here, or nil when it is. Shift alone doesn't count as a modifier, since it only
         /// types a capital letter.
@@ -34,6 +36,8 @@ struct Shortcut: Equatable {
                 if hasModifier { return nil }
                 if case .character = shortcut.key { return nil }
                 return "Use a letter or digit, or add Command, Option or Control."
+            case .panelAction:
+                return hasModifier ? nil : "Add Command, Option or Control."
             }
         }
     }

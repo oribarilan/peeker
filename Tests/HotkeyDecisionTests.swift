@@ -4,7 +4,7 @@ import Testing
 
 /// What the Peek panel key monitor does with each key: Space must stay a space everywhere but Finder's file list.
 @Suite struct HotkeyDecisions {
-    private static let space: Int64 = 49, escape: Int64 = 53, down: Int64 = 125
+    private static let space: Int64 = 49, escape: Int64 = 53, down: Int64 = 125, o: Int64 = 31, r: Int64 = 15
 
     private struct Case {
         let name: String
@@ -18,6 +18,8 @@ import Testing
         var finderInFront = true
         var typing = false
         var menuOpen = false
+        var openKey: Shortcut? = Shortcut(key: .character("o"), modifiers: .command)
+        var showInFinderKey: Shortcut? = Shortcut(key: .character("r"), modifiers: .command)
         var swallowedKeyUp: Int64?
         let want: HotkeyMonitor.Decision
     }
@@ -41,6 +43,14 @@ import Testing
         Case(name: "Escape with the panel's menu open closes only the menu", keyCode: escape, panelVisible: true, menuOpen: true, want: .pass),
         Case(name: "an arrow with the panel's menu open moves in the menu", keyCode: down, panelVisible: true, menuOpen: true, want: .pass),
         Case(name: "Space with the panel's menu open goes to the menu", panelVisible: true, menuOpen: true, want: .pass),
+        Case(name: "Cmd-O with the panel up opens the file", keyCode: o, flags: .maskCommand, panelVisible: true, want: .open),
+        Case(name: "Cmd-R with the panel up shows it in Finder", keyCode: r, flags: .maskCommand, panelVisible: true, want: .showInFinder),
+        Case(name: "Cmd-O without the panel reaches Finder", keyCode: o, flags: .maskCommand, want: .pass),
+        Case(name: "Cmd-O with the panel up in another app passes", keyCode: o, flags: .maskCommand, panelVisible: true, finderInFront: false, want: .pass),
+        Case(name: "a held Cmd-O with the panel up is swallowed", keyCode: o, flags: .maskCommand, isRepeat: true, panelVisible: true, want: .swallowRepeat),
+        Case(name: "O alone with the panel up passes", keyCode: o, panelVisible: true, want: .pass),
+        Case(name: "Cmd-R with its key off passes", keyCode: r, flags: .maskCommand, panelVisible: true, showInFinderKey: nil, want: .pass),
+        Case(name: "Cmd-O with the menu open goes to the menu", keyCode: o, flags: .maskCommand, panelVisible: true, menuOpen: true, want: .pass),
         Case(name: "Option-Space opens the panel from any app", shortcut: Shortcut(key: .space, modifiers: .option), flags: .maskAlternate,
              finderInFront: false, typing: true, want: .trigger),
     ]
@@ -49,7 +59,8 @@ import Testing
         for c in Self.cases {
             let key = HotkeyMonitor.KeyEvent(type: c.type, keyCode: c.keyCode, flags: c.flags, isRepeat: c.isRepeat, isOwn: c.isOwn)
             let decision = HotkeyMonitor.decide(key, shortcut: c.shortcut, panelVisible: c.panelVisible, finderInFront: c.finderInFront,
-                                                menuOpen: c.menuOpen, typing: { c.typing }, swallowedKeyUp: c.swallowedKeyUp)
+                                                menuOpen: c.menuOpen, openKey: c.openKey, showInFinderKey: c.showInFinderKey,
+                                                typing: { c.typing }, swallowedKeyUp: c.swallowedKeyUp)
             #expect(decision == c.want, "\(c.name)")
         }
     }

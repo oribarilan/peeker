@@ -28,6 +28,10 @@ final class HotkeyMonitor {
     var onSelectionMayHaveChanged: (() -> Void)?
     var isPanelVisible: () -> Bool = { false }
     var isMenuOpen: () -> Bool = { false }
+    /// The panel's button keys, read at each key so a saved config applies at once, and what they do.
+    var panelKeys: () -> (open: Shortcut?, showInFinder: Shortcut?) = { (nil, nil) }
+    var onOpen: (() -> Void)?
+    var onShowInFinder: (() -> Void)?
 
     init(shortcut: Shortcut) {
         self.shortcut = shortcut
@@ -92,16 +96,25 @@ final class HotkeyMonitor {
         case swallowRepeat
         case trigger
         case dismiss
+        /// The panel's main button, by its key.
+        case open
+        /// The panel's folder button, by its key.
+        case showInFinder
     }
 
     /// The decision for `key`, given what's on screen. `typing` is asked only when a bare key could open the panel,
     /// since it costs an Accessibility call. While the panel's button menu is open, every key goes to the menu.
     static func decide(_ key: KeyEvent, shortcut: Shortcut, panelVisible: Bool, finderInFront: Bool, menuOpen: Bool,
-                       typing: () -> Bool, swallowedKeyUp: Int64?) -> Decision {
+                       openKey: Shortcut?, showInFinderKey: Shortcut?, typing: () -> Bool, swallowedKeyUp: Int64?) -> Decision {
         guard !key.isOwn else { return .pass }
         if key.type == .keyUp { return key.keyCode == swallowedKeyUp ? .swallowKeyUp : .pass }
         if menuOpen { return .pass }
         let modifiers = key.flags.intersection([.maskCommand, .maskShift, .maskAlternate, .maskControl])
+        if panelVisible, finderInFront {
+            let matches = { (wanted: Shortcut?) in wanted.map { key.keyCode == $0.keyCode && modifiers == cgFlags($0.modifiers) } ?? false }
+            if matches(openKey) { return key.isRepeat ? .swallowRepeat : .open }
+            if matches(showInFinderKey) { return key.isRepeat ? .swallowRepeat : .showInFinder }
+        }
         if panelVisible, finderInFront, modifiers.isEmpty {
             if key.keyCode == 53 { return .dismiss }  // Escape
             if (123...126).contains(key.keyCode) { return .followSelection }  // arrows
@@ -117,9 +130,11 @@ final class HotkeyMonitor {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return false
         }
+        let keys = panelKeys()
         let decision = Self.decide(key, shortcut: shortcut, panelVisible: isPanelVisible(),
                                    finderInFront: NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder",
-                                   menuOpen: isMenuOpen(), typing: Self.isTextInputFocused, swallowedKeyUp: swallowedKeyUp)
+                                   menuOpen: isMenuOpen(), openKey: keys.open, showInFinderKey: keys.showInFinder,
+                                   typing: Self.isTextInputFocused, swallowedKeyUp: swallowedKeyUp)
         switch decision {
         case .pass:
             return false
@@ -131,9 +146,14 @@ final class HotkeyMonitor {
             return true
         case .swallowRepeat:
             return true
-        case .trigger, .dismiss:
+        case .trigger, .dismiss, .open, .showInFinder:
             swallowedKeyUp = key.keyCode
-            let action = decision == .trigger ? onTrigger : onDismiss
+            let action = switch decision {
+            case .trigger: onTrigger
+            case .open: onOpen
+            case .showInFinder: onShowInFinder
+            default: onDismiss
+            }
             DispatchQueue.main.async { action?() }
             return true
         }

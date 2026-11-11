@@ -59,6 +59,13 @@ import Testing
         #expect(properties(schema, "peekPanel") != nil && properties(schema, "quickLook") == nil)
     }
 
+    @Test func describesThePanelsButtonKeys() throws {
+        let panel = try #require(properties(try schema(), "peekPanel"))
+        for name in ["openKey", "showInFinderKey"] {
+            #expect(try #require(properties(panel, name))["type"] as? String == "string", "\(name)")
+        }
+    }
+
     @Test func describesThePanelsOpenWithDefaults() throws {
         let openWith = try #require(properties(properties(try schema(), "peekPanel"), "openWith"))
         #expect(openWith["type"] as? String == "object")

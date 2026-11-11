@@ -31,6 +31,10 @@ final class PeekPanel: NSPanel {
     let openButton = NSComboButton(title: "Open in Peeker", menu: NSMenu(), target: nil, action: nil)
     /// While the button's menu is open, the key monitor leaves every key to it.
     var isMenuOpen = false
+    /// The buttons' keys, shown as captions while `showsKeys` (the Show shortcuts setting) is on; the app sets them.
+    var openKey: Shortcut?
+    var showInFinderKey: Shortcut?
+    var showsKeys = false
     let finderButton = NSButton(image: NSImage(systemSymbolName: "folder", accessibilityDescription: "Show in Finder")!, target: nil, action: nil)
     /// Where the frame the user last gave the panel is kept, as `NSStringFromRect`.
     static let frameKey = "peekPanelFrame"

@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- The Peek panel's buttons have keys: Cmd+O opens the file as the main button does, and Cmd+R shows it in Finder, while the panel is up over Finder. Each button shows its key, and Settings > General changes or clears them (`peekPanel.openKey` and `peekPanel.showInFinderKey` in the config).
 - Show in Finder opens a Finder window with the file selected: File > Show in Finder and a folder button in the toolbar in Editor windows, and in the Peek panel a folder button beside Open in Peeker and an item at the end of its menu.
 - CSV and TSV tables get Find and Print. Cmd+F shows the find bar PDFs have; cells containing the search, ignoring case and accents, are tinted, and Cmd+G steps through them in the order shown. Cmd+P prints the table as shown, unsaved edits included, shrunk to the page width with the header row on every page; a Table section in the print panel adds row numbers and picks the columns.
 - The Peek panel's button gets an arrow listing the other apps that open the file, with Other… for any app. Other… can also make an app the panel's default for that kind of file, so the button reads, say, Open in Xcode for `.swift` files; Always Open in Peeker in the same menu goes back. The default only changes the panel, not what a double-click in Finder opens, and lives in the config as `peekPanel.openWith`.

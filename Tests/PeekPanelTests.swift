@@ -11,6 +11,27 @@ import Testing
         #expect(panel.openButton.title == "Open in Peeker")
     }
 
+    @Test func bothButtonsShowTheirKeysWhileCaptionsAreOn() {
+        let (defaults, name) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let panel = PeekPanel(defaults: defaults)
+        defer { panel.close() }
+        let file = URL(filePath: "/tmp/notes.md")
+        panel.openKey = Shortcut(key: .character("o"), modifiers: .command)
+        panel.showInFinderKey = Shortcut(key: .character("r"), modifiers: .command)
+        let plainWidth = panel.finderButton.frame.width
+        panel.showsKeys = true
+        panel.updateOpenButton(for: file)
+        #expect(panel.openButton.title == "Open in Peeker  ⌘O")
+        #expect(panel.openButton.toolTip == "Open in Peeker (⌘O)" && panel.finderButton.toolTip == "Show in Finder (⌘R)")
+        #expect(panel.finderButton.frame.width > plainWidth, "the key beside the icon")
+        #expect(panel.finderButton.frame.maxX < panel.openButton.frame.minX)
+        panel.showsKeys = false
+        panel.updateOpenButton(for: file)
+        #expect(panel.openButton.title == "Open in Peeker" && panel.finderButton.frame.width == plainWidth)
+        #expect(panel.openButton.toolTip == "Open in Peeker (⌘O)", "the tooltip names the key either way")
+    }
+
     @Test func aFolderButtonBesideItShowsTheFileInFinder() {
         let (defaults, name) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: name) }

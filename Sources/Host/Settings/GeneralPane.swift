@@ -18,9 +18,16 @@ struct GeneralPane: View {
                                 onRecord: { key in model.save { $0.peekPanelKey = key } })
                 }
                 .disabled(store.config.peekPanelKey == nil)
+                Group {
+                    buttonKeyRow("Open key", id: "peekPanel.open", current: store.config.peekPanelOpenKey,
+                                 other: store.config.peekPanelShowInFinderKey, default: Config.defaultOpenKey) { $0.peekPanelOpenKey = $1 }
+                    buttonKeyRow("Show in Finder key", id: "peekPanel.showInFinder", current: store.config.peekPanelShowInFinderKey,
+                                 other: store.config.peekPanelOpenKey, default: Config.defaultShowInFinderKey) { $0.peekPanelShowInFinderKey = $1 }
+                }
+                .disabled(store.config.peekPanelKey == nil)
                 PeekPanelReset(model: model)
             } footer: {
-                Text("Space opens the Peek panel only in Finder, and not while you type there. A key with Command, Option or Control opens it from any app. Off leaves Space to Finder's Quick Look.")
+                Text("Space opens the Peek panel only in Finder, and not while you type there. A key with Command, Option or Control opens it from any app. Off leaves Space to Finder's Quick Look. The Open and Show in Finder keys work while the panel is up over Finder.")
                     .foregroundStyle(.secondary)
             }
             .disabled(!store.isUsable)
@@ -46,6 +53,32 @@ struct GeneralPane: View {
             TipsSection(model: model)
         }
         .formStyle(.grouped)
+    }
+}
+
+extension GeneralPane {
+    /// A key for one of the panel's buttons: a recorder, a button that leaves it without a key, and Reset.
+    private func buttonKeyRow(_ title: String, id: String, current: Shortcut?, other: Shortcut?, default defaultKey: Shortcut,
+                              set: @escaping (inout Config, Shortcut?) -> Void) -> some View {
+        let panelKey = store.config.peekPanelKey
+        return LabeledContent(title) {
+            HStack(alignment: .firstTextBaseline) {
+                KeyRecorder(shortcut: current, rules: .panelAction,
+                            conflict: { $0 == panelKey ? "That's the Peek panel key." : $0 == other ? "The other button has that key." : nil },
+                            listening: $model.recorder, id: id,
+                            onRecord: { key in model.save { set(&$0, key) } })
+                if current != nil {
+                    Button { model.save { set(&$0, nil) } } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                        .help("No key")
+                        .accessibilityLabel("Clear the \(title)")
+                }
+                Button("Reset") { model.save { set(&$0, defaultKey) } }
+                    .disabled(current == defaultKey)
+                    .help("Back to \(defaultKey.displayText)")
+            }
+        }
     }
 }
 

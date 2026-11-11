@@ -26,6 +26,11 @@ struct Config: Equatable {
     /// `keyID(plugin:tool:)` of each tool the config leaves without a shortcut (`"off"`).
     var noShortcut: Set<String> = []
     var peekPanelKey: Shortcut? = Shortcut(key: .space)
+    /// The keys for the Peek panel's main button and its folder button, caught while it's up; nil is none.
+    var peekPanelOpenKey: Shortcut? = Config.defaultOpenKey
+    var peekPanelShowInFinderKey: Shortcut? = Config.defaultShowInFinderKey
+    static let defaultOpenKey = Shortcut(key: .character("o"), modifiers: .command)
+    static let defaultShowInFinderKey = Shortcut(key: .character("r"), modifiers: .command)
     /// Extension -> bundle ID of the app the Peek panel's button opens it with instead of Peeker.
     var peekPanelOpenWith: [String: String] = [:]
     /// One of `automaticUpdateModes`: no daily check, a daily check that asks before installing, or one that
@@ -199,10 +204,33 @@ private struct ConfigReader {
                 else { problem(path, "“\(text)” isn't a key Peeker understands. Use one like space or opt+space, or off.") }
             case "openWith":
                 if let entries = object(value, at: path) { readOpenWith(entries, at: path) }
+            case "openKey":
+                if let key = panelActionKey(value, at: path, taken: [config.peekPanelKey, config.peekPanelShowInFinderKey]) { config.peekPanelOpenKey = key }
+            case "showInFinderKey":
+                if let key = panelActionKey(value, at: path, taken: [config.peekPanelKey, config.peekPanelOpenKey]) { config.peekPanelShowInFinderKey = key }
             default:
                 unknown(path)
             }
         }
+    }
+
+    /// A panel button's key: `.some(nil)` for "off", nil after a problem, which leaves the default.
+    private mutating func panelActionKey(_ value: JSONValue, at path: String, taken: [Shortcut?]) -> Shortcut?? {
+        guard let text = string(value, at: path) else { return nil }
+        if text == "off" { return .some(nil) }
+        guard let shortcut = Shortcut(parsing: text) else {
+            problem(path, "“\(text)” isn't a key Peeker understands. Use one like cmd+o, or off.")
+            return nil
+        }
+        if let refusal = Shortcut.Rules.panelAction.refusal(for: shortcut) {
+            problem(path, refusal)
+            return nil
+        }
+        guard !taken.contains(shortcut) else {
+            problem(path, "\(shortcut.displayText) is already the Peek panel key or the other button's key.")
+            return nil
+        }
+        return .some(shortcut)
     }
 
     private mutating func readOpenWith(_ entries: [String: JSONValue], at prefix: String) {

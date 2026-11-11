@@ -34,10 +34,12 @@ record pdf-flow 120
 "$DRIVE" select "$FORM"
 sleep 2.5  # Finder answers the select script first; Space too soon can find it busy
 "$DRIVE" keys Finder space
-"$DRIVE" wait Peeker control "Open in Peeker"
+# The button's label carries its key's caption, which the flows' default config shows.
+OPEN_BUTTON="Open in Peeker  ⌘O"
+"$DRIVE" wait Peeker control "$OPEN_BUTTON"
 # The button shows before the PDF has loaded; wait for its Name field before reading where it is.
 for _ in $(seq 50); do "$DRIVE" frame Peeker AXTextField >/dev/null 2>&1 && break; sleep 0.1; done
-check "The Peek panel's button reads Open in Peeker" "$("$DRIVE" tree Peeker 12 | grep -c '“Open in Peeker”')" 1
+check "The Peek panel's button reads Open in Peeker" "$("$DRIVE" tree Peeker 12 | grep -c 'AXButton “Open in Peeker')" 1
 # The Name field, found through Accessibility; the page's scale comes from its height (22 pt in the file).
 read -r fx fy fw fh <<< "$(frame AXTextField)"
 scale=$(echo "$fh / 22" | bc -l)
@@ -49,7 +51,7 @@ sleep 0.5
 check "A click into a field in the Peek panel gives it no cursor" "$(grep -cE 'AXText(Area|Field)' "$OUT/focus-peek-panel.txt")" 0
 "$DRIVE" shot Peeker "$OUT/1-peek-panel.png"
 
-"$DRIVE" press Peeker "Open in Peeker"
+"$DRIVE" press Peeker "$OPEN_BUTTON"
 "$DRIVE" wait Peeker window form.pdf --timeout 10
 sleep 0.5
 check "The Editor opens in front of Finder" "$("$DRIVE" focus Peeker | sed -n 's/^front: //p')" Peeker

@@ -198,6 +198,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let monitor = HotkeyMonitor(shortcut: shortcut)
         monitor.isPanelVisible = { [weak self] in self?.panel.isVisible == true }
         monitor.isMenuOpen = { [weak self] in self?.panel.isMenuOpen == true }
+        monitor.panelKeys = { [weak self] in (self?.config.peekPanelOpenKey, self?.config.peekPanelShowInFinderKey) }
+        monitor.onOpen = { [weak self] in if let panel = self?.panel, let url = panel.url { panel.openDefault(url) } }
+        monitor.onShowInFinder = { [weak self] in self?.panel.showFileInFinder(nil) }
         monitor.onTrigger = { [weak self] in self?.peekFinderSelection() }
         monitor.onDismiss = { [weak self] in self?.panel.dismiss() }
         monitor.onSelectionMayHaveChanged = { [weak self] in self?.followFinderSelection() }
@@ -370,6 +373,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
 
     private func showInPanel(_ url: URL, entry: PluginEntry) {
         panel.openWith = config.peekPanelOpenWith
+        panel.openKey = config.peekPanelOpenKey
+        panel.showInFinderKey = config.peekPanelShowInFinderKey
+        panel.showsKeys = config.showShortcuts
         let document = DocumentViewController(url: url, entry: entry, config: config, allowsEditing: false, recovery: nil, preferences: .standard)
         panel.show(document)
     }

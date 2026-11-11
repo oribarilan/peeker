@@ -126,6 +126,21 @@ click_middle AXButton "Show in Finder"
 check "The panel's folder button closes it" "$("$DRIVE" wait Peeker window notes.md --gone --timeout 3 2>/dev/null && echo closed)" closed
 check "and leaves the file selected in Finder" "$(osascript -e 'tell application "Finder" to get name of item 1 of (get selection)' 2>/dev/null)" notes.md
 
+# The buttons' keys: captions on both, Cmd+R closes the panel and shows the file, Cmd+O opens it in the Editor.
+peek
+check "The main button shows its key" "$("$DRIVE" tree Peeker 3 | grep -c 'AXButton “Open in Peeker  ⌘O”')" 1
+"$DRIVE" shot Peeker "$OUT/4d-panel-keys.png" notes.md
+"$DRIVE" keys Finder cmd+r
+check "Cmd+R closes the panel" "$("$DRIVE" wait Peeker window notes.md --gone --timeout 3 2>/dev/null && echo closed)" closed
+check "and leaves the file selected in Finder" "$(osascript -e 'tell application "Finder" to get name of item 1 of (get selection)' 2>/dev/null)" notes.md
+peek
+"$DRIVE" keys Finder cmd+o
+sleep 1.5
+check "Cmd+O opens the file in an Editor window" "$("$DRIVE" windows Peeker | awk '$4 == 0 && / notes\.md$/ { n++ } END { print n + 0 }')" 1
+check "and Peeker comes to the front" "$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null)" Peeker
+"$DRIVE" keys Peeker cmd+w
+"$DRIVE" wait Peeker window notes.md --gone >/dev/null 2>&1
+
 # Open With in an Editor window: Markdown, then Plain Text from the File menu, then back to Markdown from the toolbar,
 # which lists only the plugins that read the file. In Plain Text, an edit and Revert to Saved… bring the file's text
 # back. A photo's window has no Open With, since only Image reads it.
