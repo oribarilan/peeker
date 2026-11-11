@@ -17,6 +17,7 @@ import Testing
         var panelVisible = false
         var finderInFront = true
         var typing = false
+        var menuOpen = false
         var swallowedKeyUp: Int64?
         let want: HotkeyMonitor.Decision
     }
@@ -37,6 +38,9 @@ import Testing
         Case(name: "the key-up of a swallowed key is swallowed", type: .keyUp, swallowedKeyUp: space, want: .swallowKeyUp),
         Case(name: "another key-up passes", type: .keyUp, keyCode: escape, swallowedKeyUp: space, want: .pass),
         Case(name: "Peeker's own key passes", isOwn: true, want: .pass),
+        Case(name: "Escape with the panel's menu open closes only the menu", keyCode: escape, panelVisible: true, menuOpen: true, want: .pass),
+        Case(name: "an arrow with the panel's menu open moves in the menu", keyCode: down, panelVisible: true, menuOpen: true, want: .pass),
+        Case(name: "Space with the panel's menu open goes to the menu", panelVisible: true, menuOpen: true, want: .pass),
         Case(name: "Option-Space opens the panel from any app", shortcut: Shortcut(key: .space, modifiers: .option), flags: .maskAlternate,
              finderInFront: false, typing: true, want: .trigger),
     ]
@@ -45,7 +49,7 @@ import Testing
         for c in Self.cases {
             let key = HotkeyMonitor.KeyEvent(type: c.type, keyCode: c.keyCode, flags: c.flags, isRepeat: c.isRepeat, isOwn: c.isOwn)
             let decision = HotkeyMonitor.decide(key, shortcut: c.shortcut, panelVisible: c.panelVisible, finderInFront: c.finderInFront,
-                                                typing: { c.typing }, swallowedKeyUp: c.swallowedKeyUp)
+                                                menuOpen: c.menuOpen, typing: { c.typing }, swallowedKeyUp: c.swallowedKeyUp)
             #expect(decision == c.want, "\(c.name)")
         }
     }

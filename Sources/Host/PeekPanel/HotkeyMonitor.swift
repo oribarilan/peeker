@@ -27,6 +27,7 @@ final class HotkeyMonitor {
     var onDismiss: (() -> Void)?
     var onSelectionMayHaveChanged: (() -> Void)?
     var isPanelVisible: () -> Bool = { false }
+    var isMenuOpen: () -> Bool = { false }
 
     init(shortcut: Shortcut) {
         self.shortcut = shortcut
@@ -94,11 +95,12 @@ final class HotkeyMonitor {
     }
 
     /// The decision for `key`, given what's on screen. `typing` is asked only when a bare key could open the panel,
-    /// since it costs an Accessibility call.
-    static func decide(_ key: KeyEvent, shortcut: Shortcut, panelVisible: Bool, finderInFront: Bool, typing: () -> Bool,
-                       swallowedKeyUp: Int64?) -> Decision {
+    /// since it costs an Accessibility call. While the panel's button menu is open, every key goes to the menu.
+    static func decide(_ key: KeyEvent, shortcut: Shortcut, panelVisible: Bool, finderInFront: Bool, menuOpen: Bool,
+                       typing: () -> Bool, swallowedKeyUp: Int64?) -> Decision {
         guard !key.isOwn else { return .pass }
         if key.type == .keyUp { return key.keyCode == swallowedKeyUp ? .swallowKeyUp : .pass }
+        if menuOpen { return .pass }
         let modifiers = key.flags.intersection([.maskCommand, .maskShift, .maskAlternate, .maskControl])
         if panelVisible, finderInFront, modifiers.isEmpty {
             if key.keyCode == 53 { return .dismiss }  // Escape
@@ -117,7 +119,7 @@ final class HotkeyMonitor {
         }
         let decision = Self.decide(key, shortcut: shortcut, panelVisible: isPanelVisible(),
                                    finderInFront: NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder",
-                                   typing: Self.isTextInputFocused, swallowedKeyUp: swallowedKeyUp)
+                                   menuOpen: isMenuOpen(), typing: Self.isTextInputFocused, swallowedKeyUp: swallowedKeyUp)
         switch decision {
         case .pass:
             return false

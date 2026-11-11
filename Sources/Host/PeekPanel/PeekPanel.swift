@@ -29,6 +29,8 @@ final class PeekPanel: NSPanel {
     var revealInFinder: (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
     /// Its name is what tells the panel apart from Quick Look, whose button opens Preview. Its arrow lists other apps.
     let openButton = NSComboButton(title: "Open in Peeker", menu: NSMenu(), target: nil, action: nil)
+    /// While the button's menu is open, the key monitor leaves every key to it.
+    var isMenuOpen = false
     let finderButton = NSButton(image: NSImage(systemSymbolName: "folder", accessibilityDescription: "Show in Finder")!, target: nil, action: nil)
     /// Where the frame the user last gave the panel is kept, as `NSStringFromRect`.
     static let frameKey = "peekPanelFrame"
@@ -58,6 +60,8 @@ final class PeekPanel: NSPanel {
         openButton.style = .split
         openButton.controlSize = .small
         openButton.menu.delegate = self
+        // NSComboButton won't open an empty menu; menuNeedsUpdate replaces this as it opens.
+        openButton.menu.addItem(withTitle: "Other…", action: nil, keyEquivalent: "")
         finderButton.target = self
         finderButton.action = #selector(showFileInFinder(_:))
         finderButton.controlSize = .small
@@ -75,8 +79,8 @@ final class PeekPanel: NSPanel {
     func layOutTitlebarButtons() {
         finderButton.sizeToFit()
         openButton.sizeToFit()
-        finderButton.frame.origin = NSPoint(x: 4, y: (28 - finderButton.frame.height) / 2)
-        openButton.frame.origin = NSPoint(x: finderButton.frame.maxX + 6, y: (28 - openButton.frame.height) / 2)
+        finderButton.frame.origin = NSPoint(x: 4, y: ((28 - finderButton.frame.height) / 2).rounded())
+        openButton.frame.origin = NSPoint(x: finderButton.frame.maxX + 6, y: ((28 - openButton.frame.height) / 2).rounded())
         openButton.superview?.frame.size.width = openButton.frame.maxX + 6
     }
 

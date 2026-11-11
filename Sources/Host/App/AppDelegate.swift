@@ -197,6 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard let shortcut = config.peekPanelKey else { return }
         let monitor = HotkeyMonitor(shortcut: shortcut)
         monitor.isPanelVisible = { [weak self] in self?.panel.isVisible == true }
+        monitor.isMenuOpen = { [weak self] in self?.panel.isMenuOpen == true }
         monitor.onTrigger = { [weak self] in self?.peekFinderSelection() }
         monitor.onDismiss = { [weak self] in self?.panel.dismiss() }
         monitor.onSelectionMayHaveChanged = { [weak self] in self?.followFinderSelection() }

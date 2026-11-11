@@ -128,6 +128,9 @@ extension PeekPanel: NSMenuDelegate {
         }
     }
 
+    func menuWillOpen(_ menu: NSMenu) { isMenuOpen = true }
+    func menuDidClose(_ menu: NSMenu) { isMenuOpen = false }
+
     @objc private func menuChoice(_ sender: NSMenuItem) {
         guard let url, let choice = sender.representedObject as? MenuChoice else { return }
         choose(choice.item, for: url)
