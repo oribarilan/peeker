@@ -22,7 +22,9 @@ import Testing
         #expect(editor.zoomPercent == 100)
         #expect(editor.perform("zoom-in"))
         #expect(editor.zoomPercent == 15.0 / 14 * 100)
-        #expect(editor.zoomRange == (8.0 / 14 * 100)...(48.0 / 14 * 100), "8 to 48 points over the default 14")
+        // Typed up front: inside #expect, Xcode 26.6's compiler gives up inferring the range's type.
+        let points8To48: ClosedRange<Double> = (8.0 / 14 * 100)...(48.0 / 14 * 100)
+        #expect(editor.zoomRange == points8To48, "8 to 48 points over the default 14")
     }
 
     @Test func setZoomScalesTheTextAndIsRememberedForTheNextFile() async throws {

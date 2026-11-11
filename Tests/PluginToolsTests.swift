@@ -58,12 +58,12 @@ import Testing
     }
 
     @Test func eachPluginNamesItsSettingsIcon() {
-        #expect(
-            [ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, DataPlugin.symbol, TextPlugin.symbol] == [
-                "photo", "doc.richtext", "number", "tablecells", "curlybraces", "doc.plaintext",
-            ])
+        let symbols: [String] = [
+            ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, DataPlugin.symbol, TextPlugin.symbol,
+        ]
+        #expect(symbols == ["photo", "doc.richtext", "number", "tablecells", "curlybraces", "doc.plaintext"])
         #expect(PluginEntry(PDFPlugin.self).symbol == "doc.richtext")
-        for symbol in [ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, DataPlugin.symbol, TextPlugin.symbol] {
+        for symbol in symbols {
             #expect(NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil, "\(symbol) is an SF Symbol")
         }
     }
