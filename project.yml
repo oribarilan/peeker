@@ -28,7 +28,7 @@ settings:
     SWIFT_TREAT_WARNINGS_AS_ERRORS: $(PEEKER_WARNINGS_AS_ERRORS)
     # A release build gets its version and build number from the tag (scripts/release-version.sh); any other build
     # is a development build of the next planned release.
-    MARKETING_VERSION: 0.36.6-dev
+    MARKETING_VERSION: 0.36.7-dev
     CURRENT_PROJECT_VERSION: 0
     # Sparkle's public EdDSA key for update signatures (docs/releasing.md); empty means updates can't install.
     SPARKLE_PUBLIC_KEY: ""
