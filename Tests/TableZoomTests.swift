@@ -97,7 +97,7 @@ import Testing
         document.onZoomChange = { changes += 1 }
         let base = NSFont.systemFontSize
         #expect(document.zoomPercent == 100 && !document.pinchesNatively)
-        #expect(document.zoomRange == (6 / base * 100)...(72 / base * 100))
+        #expect(abs(document.zoomRange.lowerBound - 6 / base * 100) < 1e-9 && abs(document.zoomRange.upperBound - 72 / base * 100) < 1e-9)
         document.setZoom(150, around: nil)
         #expect(document.zoomPercent == 150 && changes == 1)
         #expect(try cellSize(view) == base * 1.5, "fractional sizes are fine")

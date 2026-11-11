@@ -333,6 +333,9 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
 }
 
 @Suite(.serialized) struct ImageAnimation {
+    /// Off unless a test turns it on, whatever the Mac running the tests is set to.
+    init() { AnimationPlayer.reducesMotion = { false } }
+
     /// A GIF of three solid frames (red, green, blue), 50 ms each, looping forever.
     private func gif() throws -> URL {
         let url = try TempFile.make(Data(), name: "f.gif")
@@ -369,7 +372,7 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
 
     @Test func withReduceMotionAnAnimationStartsPausedOnItsFirstFrame() async throws {
         AnimationPlayer.reducesMotion = { true }
-        defer { AnimationPlayer.reducesMotion = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion } }
+        defer { AnimationPlayer.reducesMotion = { false } }
         let document = try await open(try gif())
         let animation = try #require(document.animation)
         #expect(animation.isPaused)
