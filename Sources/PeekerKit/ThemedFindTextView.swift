@@ -71,7 +71,20 @@ open class ThemedFindTextView: NSTextView, @preconcurrency NSTextFinderClient {
 
     /// Typing already ends the search; this also ends it for text replaced in code, such as a reload.
     @objc private func noteTextChange(_ notification: Notification) {
-        if textStorage?.editedMask.contains(.editedCharacters) == true { finder?.noteClientStringWillChange() }
+        guard textStorage?.editedMask.contains(.editedCharacters) == true, let finder else { return }
+        endingSearch = true
+        finder.noteClientStringWillChange()
+        endingSearch = false
+    }
+
+    /// Set while a search ends mid-edit, when the finder selects its current match.
+    private var endingSearch = false
+
+    /// The match a search ends on belongs to the old text, so mid-edit the text view keeps the selection the edit
+    /// leaves. Selecting it would also throw on macOS 26: the layout manager still holds the old text, and Writing
+    /// Tools measures the new selection with it, past the new text's end.
+    open override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting: Bool) {
+        if !endingSearch { super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelecting) }
     }
 
     /// Mid-edit the layout manager hasn't caught up with the text, so the marks change once the edit is done.

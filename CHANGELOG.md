@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- On macOS 26, Peeker no longer quits when a text or Markdown file's text changes while the find bar shows a match, as Revert to Saved can do.
 - CSV and TSV tables work more like a spreadsheet. Columns open sized to their content, and number columns line up on the right. A current cell moves with the arrow keys and Tab, Return edits it, and typing replaces it. Click a column title or row number to select it, Shift-click or drag for a block, Cmd+A for everything, and Delete clears what's selected. Sorting moves to an arrow on the column title, shown when the pointer is over it, and to Sort Ascending, Sort Descending and Original Order in Tools and the title's right-click menu.
 - The Peek panel's buttons have keys: Cmd+O opens the file as the main button does, and Cmd+R shows it in Finder, while the panel is up over Finder. Each button shows its key, and Settings > General changes or clears them (`peekPanel.openKey` and `peekPanel.showInFinderKey` in the config).
 - Show in Finder opens a Finder window with the file selected: File > Show in Finder and a folder button in the toolbar in Editor windows, and in the Peek panel a folder button beside Open in Peeker and an item at the end of its menu.

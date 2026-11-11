@@ -128,6 +128,29 @@ extension ThemeState {
             }
         }
 
+        /// The match a search ends on belongs to the old text: typing keeps its caret, and text shorter than the match
+        /// leaves the selection inside it.
+        @Test func anEditEndingTheSearchKeepsTheEditsSelection() async throws {
+            let file = try TempFile.make(Data("one two three four pie\n".utf8))
+            let document = try await openDocument(file, with: TextPlugin.self, as: TextDocument.self)
+            let view = try textView(document)
+            let window = offscreenWindow(holding: document.contentView)
+            defer { window.close() }
+            try await runFindSteps {
+                #expect(find(view, .showFindInterface))
+                try search(view, for: "pie")
+                try await waitUntil(seconds: 5) { marks(view).count == 1 }
+                view.setSelectedRange(NSRange(location: 0, length: 0))
+                view.insertText("x", replacementRange: NSRange(location: 0, length: 0))
+                #expect(view.selectedRange() == NSRange(location: 1, length: 0))
+                try search(view, for: "pie")
+                try await waitUntil(seconds: 5) { marks(view).count == 1 }
+                view.string = "pi"
+                try await waitUntil(seconds: 5) { marks(view).isEmpty }
+                #expect(NSMaxRange(view.selectedRange()) <= 2)
+            }
+        }
+
         @Test func findMarksOnlyTheMatchesNearTheVisibleText() async throws {
             defer { TextTheme.current = .system }
             TextTheme.current = paper
