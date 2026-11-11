@@ -2,7 +2,7 @@
 
 ## 1. Prove the risky part
 
-- [ ] 1.1 In a scratch build, show an `NSOpenPanel` as a sheet on the Peek panel after `NSApp.activate()`, then Cancel and reactivate Finder; verify by hand in the real app that the picker takes typing and that the arrow keys move Finder's selection afterwards. If it fails, stop and ask the maintainer.
+- [x] 1.1 In a scratch build, show an `NSOpenPanel` as a sheet on the Peek panel after `NSApp.activate()`, then Cancel and reactivate Finder; verify by hand in the real app that the picker takes typing and that the arrow keys move Finder's selection afterwards. If it fails, stop and ask the maintainer.
 
 ## 2. Config
 
@@ -22,10 +22,10 @@
 
 ## 5. Checks and docs
 
-- [ ] 5.1 Add a screen-flow step: the panel's menu lists Other…, and with a default in the config the button reads Open in <app> (run with the maintainer's go).
-- [ ] 5.2 Check by hand: pick an app once, choose a default through Other…, Always Open in Peeker, Cancel then arrow keys with two Finder windows.
-- [ ] 5.3 CHANGELOG line under Unreleased; backlog: drop the Open With line and add "Other apps in the Editor's File > Open With"; `openspec validate --all` passes.
-- [ ] 5.4 `scripts/bench-ab.sh main` shows no regression on the Peek panel.
+- [x] 5.1 Add a screen-flow step: the panel's menu lists Other…, and with a default in the config the button reads Open in <app> (run with the maintainer's go).
+- [x] 5.2 Check by hand: pick an app once, choose a default through Other…, Always Open in Peeker, Cancel then arrow keys with two Finder windows.
+- [x] 5.3 CHANGELOG line under Unreleased; backlog: drop the Open With line and add "Other apps in the Editor's File > Open With"; `openspec validate --all` passes.
+- [x] 5.4 `scripts/bench-ab.sh main` shows no regression on the Peek panel.
 
 ## Workflow follow-up
 

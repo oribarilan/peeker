@@ -19,7 +19,7 @@
 ## 4. Checks and docs
 
 - [x] 4.1 `scripts/build.sh test` passes with no warnings.
-- [ ] 4.2 Screen step in `scripts/screen/table-edit-flow.sh`: Cmd+F, type, the bar shows "1 of N"; Cmd+P shows the print panel with the Table section (queued until the maintainer's go).
+- [x] 4.2 Screen step in `scripts/screen/table-edit-flow.sh`: Cmd+F, type, the bar shows "1 of N"; Cmd+P shows the print panel with the Table section (queued until the maintainer's go).
 - [x] 4.3 CHANGELOG line; backlog: drop "Find and Print in CSV/TSV tables", add "Replace in CSV/TSV tables"; `openspec validate --all` passes.
 
 ## Workflow follow-up

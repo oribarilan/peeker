@@ -13,7 +13,7 @@
 ## 3. Checks and docs
 
 - [x] 3.1 `scripts/build.sh test` passes with no warnings.
-- [ ] 3.2 On screen: the toolbar button and the panel's folder button look right in light and dark, a long file name still fits the panel's title bar, and each opens Finder with the file selected; add a step to a screen flow (queued until the maintainer's go).
+- [x] 3.2 On screen: the toolbar button and the panel's folder button look right in light and dark, a long file name still fits the panel's title bar, and each opens Finder with the file selected; add a step to a screen flow (queued until the maintainer's go).
 - [x] 3.3 CHANGELOG line; backlog line for the tab's right-click menu; `openspec validate --all` passes.
 
 ## Workflow follow-up

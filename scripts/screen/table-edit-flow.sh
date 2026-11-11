@@ -101,6 +101,33 @@ check "Without the header, name shows as a cell" "$("$DRIVE" tree Peeker 30 | gr
 sleep 0.3
 check "Choosing Header Row again checks it" "$("$DRIVE" menuitems Peeker View | grep -cx '✓ Header Row')" 1
 
+# Find: Cmd+F shows the bar with the cursor in it, "ea" matches Tea and Bread, and Escape closes it.
+"$DRIVE" keys Peeker cmd+f
+sleep 0.3
+"$DRIVE" type Peeker ea
+sleep 0.8
+check "Cmd+F and typing find two cells" "$("$DRIVE" tree Peeker 12 | grep -oE 'AXStaticText = [0-9]+ of [0-9]+' | head -1)" "AXStaticText = 1 of 2"
+"$DRIVE" shot Peeker "$OUT/5b-find.png" prices.csv
+"$DRIVE" keys Peeker escape
+sleep 0.3
+check "Escape closes the find bar" "$("$DRIVE" tree Peeker 12 | grep -c 'Find in table')" 0
+
+# Print: the print panel has a Table section with Row Numbers and a checkbox per column.
+"$DRIVE" keys Peeker cmd+p
+"$DRIVE" wait Peeker sheet --timeout 8
+sleep 1
+print_tree=$("$DRIVE" tree Peeker 14)
+check "The print panel has a Table section" "$(grep -cE 'AXCheckBox “(Row Numbers|name|price)”' <<< "$print_tree")" 3
+"$DRIVE" shot Peeker "$OUT/5c-print.png" prices.csv
+"$DRIVE" press Peeker Cancel
+"$DRIVE" wait Peeker sheet --gone
+
+# Show in Finder in the toolbar brings Finder forward with the file selected.
+"$DRIVE" press Peeker "Show in Finder"
+sleep 1.5
+check "Show in Finder selects the file in Finder" "$(osascript -e 'tell application "Finder" to get name of item 1 of (get selection)' 2>/dev/null)" prices.csv
+front
+
 # Tools > Add Row Below is an edit: closing asks to save, and Don't Save leaves the file as it was.
 "$DRIVE" menu Peeker Tools "Add Row Below"
 sleep 0.3

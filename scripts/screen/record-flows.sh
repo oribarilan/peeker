@@ -100,6 +100,32 @@ peek
 check "After Reset the panel opens at its first size again" "$(panel size)" "$first"
 "$DRIVE" keys Finder escape && sleep 1
 
+# The panel's button: its arrow lists other apps, then Other… and Show in Finder; a default app in the config names
+# the button; and the folder button beside it closes the panel and shows the file in Finder.
+# Clicks the middle of the panel's control; frames can have fractions, which shell arithmetic can't take.
+click_middle() { read -r x y w h <<< "$("$DRIVE" frame Peeker "$1" "$2" || echo "0 0 0 0")"; x=${x%.*} y=${y%.*} w=${w%.*} h=${h%.*}; [ "$w" -gt 0 ] && "$DRIVE" click Finder $((x + w / 2)) $((y + h / 2)); }
+arrow() { click_middle AXMenuButton "$1"; sleep 0.8; }
+peek
+arrow "Open in Peeker"
+items=$(osascript -e 'tell application "System Events" to tell process "Peeker" to get name of every menu item of menu 1 of (first UI element of group 1 of window "notes.md" whose role is "AXMenuButton")' 2>/dev/null)
+screencapture -x "$OUT/4c-panel-menu.png"
+check "The panel's arrow ends with Other… and Show in Finder" "$(awk -F', ' '{ print $(NF-2) "," $NF }' <<< "$items")" "Other…,Show in Finder"
+# Escape closes the menu and leaves the panel up; a second Escape closes the panel.
+"$DRIVE" keys Finder escape && sleep 0.6
+check "Escape with the menu open closes only the menu" "$("$DRIVE" windows Peeker | awk '$4 >= 100 { m = 1 } / notes\.md$/ { p = 1 } END { print (m ? "menu" : "") (p ? "panel" : "") }')" panel
+"$DRIVE" keys Finder escape && sleep 1
+echo '{"peekPanel": {"openWith": {"md": "com.apple.TextEdit"}}}' > "$CONFIG"
+sleep 1.5
+peek
+check "A default app in the config names the button" "$("$DRIVE" tree Peeker 3 | grep -c 'AXButton “Open in TextEdit')" 1
+"$DRIVE" keys Finder escape && sleep 1
+echo '{}' > "$CONFIG"
+sleep 1.5
+peek
+click_middle AXButton "Show in Finder"
+check "The panel's folder button closes it" "$("$DRIVE" wait Peeker window notes.md --gone --timeout 3 2>/dev/null && echo closed)" closed
+check "and leaves the file selected in Finder" "$(osascript -e 'tell application "Finder" to get name of item 1 of (get selection)' 2>/dev/null)" notes.md
+
 # Open With in an Editor window: Markdown, then Plain Text from the File menu, then back to Markdown from the toolbar,
 # which lists only the plugins that read the file. In Plain Text, an edit and Revert to Saved… bring the file's text
 # back. A photo's window has no Open With, since only Image reads it.
