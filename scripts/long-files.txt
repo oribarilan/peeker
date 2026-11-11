@@ -1,0 +1,8 @@
+# Swift files allowed past scripts/lint.sh's 500-line limit, each at most the lines given. Split a file and drop it
+# from here; never raise a number.
+Plugins/markdown/MarkdownEditor.swift 530
+Plugins/pdf/PDFPluginDocument.swift 560
+Sources/Host/Documents/DocumentViewController.swift 586
+Sources/Host/Documents/DocumentWindowController.swift 655
+Tests/ConfigTests.swift 546
+scripts/screen/drive.swift 724

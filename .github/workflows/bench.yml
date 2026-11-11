@@ -22,8 +22,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Install XcodeGen, ShellCheck and OpenSpec
+        run: |
+          brew install xcodegen shellcheck
+          npm install --global @fission-ai/openspec@1.15.0
+
+      - name: Specs
+        run: openspec validate --all
 
       - name: Unit tests
         run: scripts/build.sh test

@@ -17,6 +17,7 @@ source "$(dirname "$0")/common.sh" "$@"
 
 F="$OUT/files"
 mkdir -p "$F/folder"
+# shellcheck disable=SC2016  # the files' text, written as is
 printf '# Release notes\n\nPeeker routes files **by extension**.\n\n| File | Plugin |\n|---|---|\n| notes.md | Markdown |\n| nginx.conf | Plain Text |\n\n```swift\nlet owner = catalog.owner(for: url)\n```\n' > "$F/notes.md"
 printf 'export EDITOR=vim\nalias ll="ls -la"\npath+=(~/.local/bin)\n' > "$F/.zshrc"
 printf 'not a real movie' > "$F/movie.mp4"

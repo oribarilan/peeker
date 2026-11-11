@@ -34,6 +34,7 @@ page_label() {
 }
 # Clicks the thumbnail of page n.
 pick_page() {
+    # shellcheck disable=SC2046  # page_label prints x and y, meant as two arguments
     "$DRIVE" click Peeker $(page_label "$1")
     sleep 0.3
 }
@@ -147,7 +148,7 @@ check "Insert Pages from File… adds the other PDF's pages" "$(thumbnails)" 6
 "$DRIVE" wait Peeker sheet
 "$DRIVE" press Peeker "Every Page"
 for _ in $(seq 30); do [ -f "$OUT/pages 6.pdf" ] && break; sleep 0.1; done
-check "Split… writes one file per page" "$(ls "$OUT" | grep -cE '^pages [0-9]+\.pdf$')" 6
+check "Split… writes one file per page" "$(find "$OUT" -maxdepth 1 -name 'pages *.pdf' | grep -cE '/pages [0-9]+\.pdf$')" 6
 "$DRIVE" keys Peeker cmd+w
 "$DRIVE" wait Peeker sheet
 "$DRIVE" press Peeker "Don't Save"

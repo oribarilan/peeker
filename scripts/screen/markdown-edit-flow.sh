@@ -98,8 +98,8 @@ read -r x y w h <<< "$(textframe "buy milk")"
 sleep 0.3
 check "Moving the cursor into the Notes section marks Notes" "$("$DRIVE" marked Peeker)" Notes
 # The sidebar button rides over the sidebar, as in Finder, rather than beside Open With.
-read -r bx by bw bh <<< "$("$DRIVE" frame Peeker AXButton Sidebar || echo "0 0 0 0")"
-read -r ox oy ow oh <<< "$("$DRIVE" frame Peeker AXTable || echo "0 0 0 0")"
+read -r bx _ bw _ <<< "$("$DRIVE" frame Peeker AXButton Sidebar || echo "0 0 0 0")"
+read -r ox _ ow _ <<< "$("$DRIVE" frame Peeker AXTable || echo "0 0 0 0")"
 check "The sidebar button sits over the sidebar" \
     "$([ "$bw" -gt 0 ] && [ "$ow" -gt 0 ] && [ $((bx + bw)) -le $((ox + ow)) ] && echo yes || echo "button ends at $((bx + bw)), outline at $((ox + ow))")" yes
 
@@ -134,7 +134,7 @@ check "Cmd-click on other.md shows it in the same tab" "$("$DRIVE" wait Peeker w
 check "The links.md window is gone, replaced in its tab" "$("$DRIVE" wait Peeker window links.md --gone --timeout 3 2>/dev/null && echo replaced)" replaced
 crumbs=""
 for crumb in "links.md" "Later" "other.md"; do  # their titles; drive reads a title before a description
-    "$DRIVE" frame Peeker AXButton "$crumb" >/dev/null 2>&1 && crumbs="$crumbs[$crumb]"
+    "$DRIVE" frame Peeker AXButton "$crumb" >/dev/null 2>&1 && crumbs="${crumbs}[$crumb]"
 done
 check "The trail lists links.md, Later and other.md" "$crumbs" "[links.md][Later][other.md]"
 "$DRIVE" shot Peeker "$OUT/6-trail.png" other.md

@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2046  # at prints x and y, meant as two arguments
 # The PDF editing flow on screen: Space on a form in Finder shows it in the Peek panel, which reads Open in Peeker and
 # ignores a click into a field; Open in Peeker opens it in the Editor, which fills a text field and a checkbox, adds a
 # text box from Markup's strip, an arrow and a check mark, and a drawn signature placed twice, checks the recovery record holds no signature, and saves; the saved file is checked; then a digitally signed form opens
@@ -41,7 +42,7 @@ OPEN_BUTTON="Open in Peeker  ⌘O"
 for _ in $(seq 50); do "$DRIVE" frame Peeker AXTextField >/dev/null 2>&1 && break; sleep 0.1; done
 check "The Peek panel's button reads Open in Peeker" "$("$DRIVE" tree Peeker 12 | grep -c 'AXButton “Open in Peeker')" 1
 # The Name field, found through Accessibility; the page's scale comes from its height (22 pt in the file).
-read -r fx fy fw fh <<< "$(frame AXTextField)"
+read -r fx fy _ fh <<< "$(frame AXTextField)"
 scale=$(echo "$fh / 22" | bc -l)
 at() { echo "$(echo "$fx + $1 * $scale" | bc) $(echo "$fy + $fh / 2 + $2 * $scale" | bc)"; }  # points right and down of the field
 "$DRIVE" click Finder $(at 20 0)
@@ -62,7 +63,7 @@ sleep 0.5
 "$DRIVE" wait Peeker control "Markup"
 check "The Editor shows the tools at once" "$([ "$(tools_shown)" -gt 0 ] && echo yes)" yes
 "$DRIVE" tree Peeker 30 > "$OUT/tree-editor.txt"
-read -r fx fy fw fh <<< "$(frame AXTextField)"
+read -r fx fy _ fh <<< "$(frame AXTextField)"
 scale=$(echo "$fh / 22" | bc -l)
 "$DRIVE" shot Peeker "$OUT/2-editor.png"
 # Where the keyboard is before and after the click, for when the typing doesn't arrive.
@@ -116,7 +117,7 @@ sleep 0.3
 
 "$DRIVE" menu Peeker Tools "Sign (S)"
 "$DRIVE" wait Peeker sheet
-read -r dx dy dw dh <<< "$(frame AXButton Done)"
+read -r dx dy _ _ <<< "$(frame AXButton Done)"
 "$DRIVE" drag Peeker $((dx - 380)) $((dy - 60)) $((dx - 330)) $((dy - 110)) $((dx - 290)) $((dy - 50)) $((dx - 240)) $((dy - 100)) $((dx - 190)) $((dy - 55))
 "$DRIVE" shot Peeker "$OUT/4-signature-pad.png"
 "$DRIVE" press Peeker Done

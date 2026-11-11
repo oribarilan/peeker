@@ -20,7 +20,7 @@ Generated files stay out of git: `build/`, `Peeker.xcodeproj/` (XcodeGen output)
 - **Ask, don't assume.** Product calls (what a plugin does, what the UI says, what gets saved) belong to the maintainer. Ask when unsure.
 - **Keep it simple.** Write the least code that works: reuse what's here, then the standard library and Apple frameworks, then an existing dependency. If you pick a more complex path, say why.
 - **Don't repeat yourself, but don't abstract early.** Wait for the third copy before extracting.
-- **One job per file.** Most files are under 300 lines; split a file that grows past about 500.
+- **One job per file.** Most files are under 300 lines; split a Swift file before it passes 500 (`scripts/lint.sh` checks).
 - **Security.** Validate everything that comes from a file: config, recovery records, the files users open. Never weaken the safe-write path in `Sources/PeekerKit/FileReplacement.swift`.
 
 ## Architecture rules
@@ -55,11 +55,16 @@ Needs Xcode 26+ and XcodeGen (`brew install xcodegen`). The project file is gene
 
 ```sh
 scripts/build.sh          # Release build into build/dd; log in build/build.log
-scripts/build.sh test     # all unit tests
+scripts/build.sh test     # scripts/lint.sh, then all unit tests
+scripts/format.sh         # format every Swift file as .swift-format says
 open build/dd/Build/Products/Release/Peeker.app
 ```
 
-Fix new warnings before you finish; the build is currently warning-free. Write tests with Swift Testing, next to the existing suites in `Tests/`. For bugs, add a failing test first. Files named `PDF*.swift` run in a bundle of their own, `PDFTests`: PDFKit analyzes form PDFs shown in a window on queues of its own, which can take every worker thread the other tests need.
+Fix new warnings before you finish; the build is warning-free, and on CI a warning fails it. Write tests with Swift Testing, next to the existing suites in `Tests/`. For bugs, add a failing test first. Files named `PDF*.swift` run in a bundle of their own, `PDFTests`: PDFKit analyzes form PDFs shown in a window on queues of its own, which can take every worker thread the other tests need.
+
+## Style and checks
+
+Swift is formatted by swift-format (it ships with Xcode) as `.swift-format` sets it: run `scripts/format.sh` before committing. `scripts/lint.sh`, which `scripts/build.sh test` and CI run, fails on unformatted code or swift-format's lint rules, a Swift file over 500 lines, em dashes, section signs or home-folder paths in tracked files, ShellCheck findings in the bash scripts (`brew install shellcheck`; it can't read the zsh ones), and plugin imports. Files that were already longer are listed in `scripts/long-files.txt` with their ceilings: split them, never raise one. CI also runs `openspec validate --all`. A commit that only reformats goes in `.git-blame-ignore-revs`; `git config blame.ignoreRevsFile .git-blame-ignore-revs` makes `git blame` skip it.
 
 ## Screen tests
 

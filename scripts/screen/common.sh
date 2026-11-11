@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared setup for the screen flows; sourced, not run. The flow sets FLOW (its evidence folder's name) and passes
 # its arguments: an optional path to Peeker.app.
 #
@@ -5,12 +6,13 @@
 # CONFIG, RESULTS, check, launch, quit_app, record and finish, and installs the cleanup trap. Stops with exit 2 when
 # the screen is locked or another copy of Peeker runs.
 set -u
-cd "$(git rev-parse --show-toplevel)"
+cd "$(git rev-parse --show-toplevel)" || exit 2
 APP=${1:-build/dd/Build/Products/Release/Peeker.app}
 APP="$(cd "$(dirname "$APP")" && pwd)/$(basename "$APP")"  # open -a needs an absolute path
 BIN="$APP/Contents/MacOS/Peeker"
 TOOLS=build/run-tools
 DRIVE=$TOOLS/drive
+# shellcheck disable=SC2034  # used by the flows that source this
 PDF=$TOOLS/pdf-tool
 mkdir -p "$TOOLS"
 for tool in drive pdf-tool; do

@@ -9,7 +9,7 @@
 #   --record     also save a screen recording of each flow (slower: a recording runs to its time limit)
 #   --no-build   test the app already in build/ instead of building first
 set -u
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 all=(routing flows pdf-edit pdf-pages image-edit markdown-edit table-edit data-edit recovery viewer theme)
 script() {
     case $1 in

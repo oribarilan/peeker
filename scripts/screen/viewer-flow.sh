@@ -51,7 +51,8 @@ capture() { thumb "$1"; local left=$((hx - 50 > wx ? hx - 50 : wx + 1)); screenc
 over() { thumb "$1"; "$DRIVE" move Peeker $((hx + hw / 2)) $((hy - 40)) && sleep 0.4; }
 thumb 1 && "$DRIVE" click Peeker $((hx + hw / 2)) $((hy - 40))
 away
-before2=$(capture 2 0a-thumb-2) before1=$(capture 1 0b-thumb-1)
+before2=$(capture 2 0a-thumb-2)
+capture 1 0b-thumb-1 >/dev/null
 over 2
 for _ in $(seq 10); do [ "$(capture 2 0c-thumb-2-hovered)" != "$before2" ] && break; sleep 0.2; done
 check "A thumbnail under the pointer shows the hover tint" "$([ "$(capture 2 0c-thumb-2-hovered)" != "$before2" ] && echo yes)" yes

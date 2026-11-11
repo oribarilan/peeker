@@ -108,7 +108,7 @@ private func app(_ id: String, _ name: String) -> AppChoice {
 
     @Test func peekerAndDuplicateCopiesAreLeftOut() {
         let peekerApp = app(peeker, "Peeker")
-        let otherXcode = AppChoice(bundleID: xcode.bundleID, name: "Xcode", url: URL(filePath: "/Users/x/Xcode.app"))
+        let otherXcode = AppChoice(bundleID: xcode.bundleID, name: "Xcode", url: URL(filePath: "/Applications/Xcode-beta.app"))
         let items = PeekOpenWithMenu.items(
             apps: [peekerApp, xcode, otherXcode], systemDefault: peeker, buttonApp: nil, hasDefault: false, peekerID: peeker)
         #expect(items == [.app(xcode), .separator, .other, .separator, .showInFinder])

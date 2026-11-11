@@ -20,7 +20,6 @@ printf 'First line\n' > "$NOTES"
 "$PDF" form "$FORM"
 "$PDF" locked "$LOCKED" secret 2
 records() { find "$OUT/recovery" -name '*.json' 2>/dev/null | wc -l | tr -d ' '; }
-tools_shown() { "$DRIVE" tree Peeker 12 | grep -c '“Markup”'; }
 shown() { "$DRIVE" tree Peeker 30 | grep -c "$1"; }
 front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.5; }
 
@@ -34,7 +33,7 @@ open -a "$APP" "$FORM"
 "$DRIVE" wait Peeker window form.pdf
 front
 "$DRIVE" wait Peeker control "Markup"
-read -r fx fy fw fh <<< "$("$DRIVE" frame Peeker AXTextField || echo "0 0 0 0")"
+read -r fx fy _ fh <<< "$("$DRIVE" frame Peeker AXTextField || echo "0 0 0 0")"
 "$DRIVE" click Peeker $((fx + 20)) $((fy + fh / 2))
 "$DRIVE" type Peeker "Jane Doe"
 "$DRIVE" keys Peeker tab  # ends typing in the field, which makes it an edit

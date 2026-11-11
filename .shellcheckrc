@@ -1,0 +1,8 @@
+# ShellCheck settings for scripts/ (bash only: ShellCheck can't read the zsh scripts).
+# Follow `source` into the shared screen-flow setup.
+external-sources=true
+source-path=SCRIPTDIR
+# Curly quotes in scripts are text the app shows, such as Accessibility labels.
+disable=SC1111
+# launch takes an optional file; most flows call it without one.
+disable=SC2119
