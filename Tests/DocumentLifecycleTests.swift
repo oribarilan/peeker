@@ -265,12 +265,14 @@ private final class StubDocument: PluginDocument {
         return (controller, controller.url, { asked })
     }
 
-    private func closed(_ controller: DocumentWindowController) async throws -> Bool {
+    /// Whether the window closes within `wait`: the answer, and a save, finish on later turns.
+    private func closed(_ controller: DocumentWindowController, within wait: Duration = .seconds(2)) async throws -> Bool {
         var closed = false
         controller.onClose = { _ in closed = true }
         let window = try #require(controller.window)
         if controller.windowShouldClose(window) { window.close() }
-        try await Task.sleep(for: .milliseconds(100))  // the answer arrives on a later turn
+        let deadline = ContinuousClock.now + wait
+        while !closed, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(20)) }
         return closed
     }
 
@@ -290,7 +292,7 @@ private final class StubDocument: PluginDocument {
     @Test func cancelKeepsTheWindowAndItsEdits() async throws {
         let (controller, file, _) = try await editedWindow(answering: .cancel)
         defer { controller.close() }
-        #expect(try await !closed(controller))
+        #expect(try await !closed(controller, within: .milliseconds(300)))
         #expect(controller.current?.isEdited == true)
         #expect(try String(contentsOf: file, encoding: .utf8) == "x")
     }
