@@ -18,5 +18,5 @@ mkdir -p build
 xcodebuild -project Peeker.xcodeproj -scheme Peeker -configuration Release -derivedDataPath build/dd -packageAuthorizationProvider netrc \
   -destination "platform=macOS,arch=$(uname -m)" ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="${identity:--}" "${strict[@]}" "${@:-build}" > build/build.log 2>&1
 result=$?
-grep -E "^/.*(error|warning): |^\*\* .* \*\*$|✘|✔ Test run" build/build.log | sort -u
+grep -E "^[^[:space:]]+:[0-9]+:[0-9]+: (error|warning): |^\*\* .* \*\*$|✘|✔ Test run" build/build.log | sort -u
 exit $result
