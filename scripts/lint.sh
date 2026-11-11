@@ -25,7 +25,9 @@ done < <(git ls-files -z '*.swift' | xargs -0 wc -l)
 echo "Prose and privacy"
 # OpenSpec writes its own skill and command files; they aren't ours to edit.
 generated=(':!.claude/commands/opsx' ':!.claude/skills/openspec-*')
-if git grep -nI -e '—' -e '§' -- . "${generated[@]}"; then
+# Spelled as UTF-8 bytes, so this file doesn't hold the characters it looks for.
+em_dash=$(printf '\342\200\224') section_sign=$(printf '\302\247')
+if git grep -nI -e "$em_dash" -e "$section_sign" -- . "${generated[@]}"; then
     echo "Em dashes and section signs read as machine-written; rewrite the sentence (see AGENTS.md)."
     failed=1
 fi
