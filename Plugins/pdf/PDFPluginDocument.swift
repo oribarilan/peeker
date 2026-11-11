@@ -102,7 +102,7 @@ final class PDFPluginDocument: PluginDocument, Zooming {
     private static let pageTools: Set = ["rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split"]
 
     /// The pages, with the find bar above them from the first Cmd+F. No find in the Peek panel.
-    private lazy var container = PDFFindContainer(pdfView: pdfView, allowsFind: editable)
+    lazy var container = PDFFindContainer(pdfView: pdfView, allowsFind: editable)
     var contentView: NSView { container }
     var focusView: NSView? { pdfView }
 
@@ -243,7 +243,7 @@ final class PDFPluginDocument: PluginDocument, Zooming {
         return nil
     }
 
-    private var allowsPageChanges: Bool { document.allowsDocumentAssembly }
+    var allowsPageChanges: Bool { document.allowsDocumentAssembly }
 
     /// The pages selected in the sidebar, or the current page when none are.
     var targetPages: [Int] {
@@ -342,7 +342,7 @@ final class PDFPluginDocument: PluginDocument, Zooming {
 
     /// Finishes typing and stops PDFKit's search, which reads the pages on another thread, before pages change.
     /// Ending the tools also drops the selection, whose page index a page edit may change.
-    private func endInteraction() {
+    func endInteraction() {
         editController?.end()
         container.finder.cancel()
     }
@@ -367,30 +367,6 @@ final class PDFPluginDocument: PluginDocument, Zooming {
         motion?.play()
         pdfView.sharpenAnnotations()
         if case .field(let name, let value) = edit { fields?.applied(name, value) }
-    }
-
-    /// Pages were moved by a drag in the thumbnails. Puts the old order back with the original page objects (PDFKit
-    /// leaves copies), then makes a real move an edit like any other; one that isn't a move, or isn't allowed, beeps.
-    private func pagesDragged(before: [PDFPage]) {
-        endInteraction()
-        let after = (0..<document.pageCount).compactMap(document.page(at:))
-        let order = isEditing && allowsPageChanges ? PeekerPDFDocument.order(before: before, after: after) : nil
-        document.own {
-            for page in after where !before.contains(where: { $0 === page }) { document.removePage(at: document.index(for: page)) }
-            for (index, page) in before.enumerated() where index >= document.pageCount || document.page(at: index) !== page {
-                let at = document.index(for: page)
-                if at != NSNotFound { document.removePage(at: at) }
-                document.insert(page, at: index)
-            }
-        }
-        if let order, order != Array(order.indices), change(.reorderPages(order: order)) { return }
-        pagesChanged()
-        if order == nil { NSSound.beep() }
-    }
-
-    private func pagesChanged() {
-        pdfView.layoutDocumentView()
-        container.finder.searchAgain()
     }
 
     /// Makes an edit the view already shows (a form field the user filled in) pending and undoable.
