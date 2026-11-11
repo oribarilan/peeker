@@ -37,8 +37,9 @@ import Testing
     }
 
     @Test func theTextShowsAtOnceWithSpaceForThePictureAndThePictureArrivesLater() async throws {
-        let file = try markdownFolder("# Plan\n\n![chart](img/chart.png)\n\nAfter the chart.\n", pictures: ["img/chart.png"],
-                                      size: CGSize(width: 3000, height: 1500))
+        let file = try markdownFolder(
+            "# Plan\n\n![chart](img/chart.png)\n\nAfter the chart.\n", pictures: ["img/chart.png"],
+            size: CGSize(width: 3000, height: 1500))
         let (document, window) = try await document(file)
         defer { window.close() }
         let view = try textView(document)

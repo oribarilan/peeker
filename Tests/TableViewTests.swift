@@ -38,8 +38,10 @@ import Testing
     @Test func movingAColumnReachesTheFile() async throws {
         let (document, view, window) = try await shown("a,b,c\n1,2,3\n")
         defer { window.close() }
-        view.tableViewColumnDidMove(Notification(name: NSTableView.columnDidMoveNotification, object: view.tableView,
-                                                 userInfo: ["NSOldColumn": 3, "NSNewColumn": 1]))
+        view.tableViewColumnDidMove(
+            Notification(
+                name: NSTableView.columnDidMoveNotification, object: view.tableView,
+                userInfo: ["NSOldColumn": 3, "NSNewColumn": 1]))
         #expect(document.table.serialized(lineEnding: "\n") == "c,a,b\n3,1,2\n")
     }
 
@@ -50,8 +52,10 @@ import Testing
         let field = view.editor
         #expect(field.superview === view.tableView && field.stringValue == "2")
         field.stringValue = "7"
-        view.controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification, object: field,
-                                                   userInfo: ["NSTextMovement": NSTextMovement.other.rawValue]))
+        view.controlTextDidEndEditing(
+            Notification(
+                name: NSControl.textDidEndEditingNotification, object: field,
+                userInfo: ["NSTextMovement": NSTextMovement.other.rawValue]))
         #expect(document.table.cell(row: 1, column: 1) == "7" && field.superview == nil)
     }
 }

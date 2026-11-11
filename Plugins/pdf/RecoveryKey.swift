@@ -42,9 +42,10 @@ nonisolated final class RecoveryKey: Sendable {
             var bytes = [UInt8](repeating: 0, count: 32)
             let utf8 = Array(password.utf8)
             let status = salt.withUnsafeBytes { salt in
-                CCKeyDerivationPBKDF(CCPBKDFAlgorithm(kCCPBKDF2), utf8.map { CChar(bitPattern: $0) }, utf8.count,
-                                     salt.bindMemory(to: UInt8.self).baseAddress, salt.count,
-                                     CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256), Self.rounds, &bytes, bytes.count)
+                CCKeyDerivationPBKDF(
+                    CCPBKDFAlgorithm(kCCPBKDF2), utf8.map { CChar(bitPattern: $0) }, utf8.count,
+                    salt.bindMemory(to: UInt8.self).baseAddress, salt.count,
+                    CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256), Self.rounds, &bytes, bytes.count)
             }
             precondition(status == kCCSuccess, "PBKDF2 failed")  // only fails on bad arguments, which these aren't
             let made = SymmetricKey(data: bytes)

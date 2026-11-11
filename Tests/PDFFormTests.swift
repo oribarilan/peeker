@@ -86,7 +86,9 @@ import Testing
     @Test func typingInATextBoxIsNotAFieldChange() async throws {
         let form = try await OpenForm()
         form.clickEnded(on: form.widget("Name"))
-        let editor = TextBoxEditor(view: form.document.pdfView, page: form.page, topLeft: CGPoint(x: 300, y: 400), text: "", fontSize: 12, style: .standard, hiding: nil) { _, _, _ in }
+        let editor = TextBoxEditor(
+            view: form.document.pdfView, page: form.page, topLeft: CGPoint(x: 300, y: 400), text: "", fontSize: 12, style: .standard, hiding: nil
+        ) { _, _, _ in }
         let box = try #require(form.window.firstResponder as? NSTextView)
         box.string = "31 Oct"
         NotificationCenter.default.post(name: NSText.didChangeNotification, object: box)
@@ -98,8 +100,10 @@ import Testing
         let form = try await OpenForm(editing: false)
         form.widget("Name").widgetStringValue = "Ori"
         let point = form.document.pdfView.convert(form.point(in: CGRect(x: 400, y: 400, width: 1, height: 1)), to: nil)
-        let release = try #require(NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: 0,
-                                                      windowNumber: form.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        let release = try #require(
+            NSEvent.mouseEvent(
+                with: .leftMouseUp, location: point, modifierFlags: [], timestamp: 0,
+                windowNumber: form.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
         form.document.pdfView.mouseUp(with: release)
         #expect(form.document.pendingEdits.isEmpty)
     }
@@ -144,8 +148,10 @@ import Testing
     @Test func aSwallowedClickChangesNothing() async throws {
         let form = try await OpenForm(editing: false)
         let point = form.document.pdfView.convert(form.point(in: FormPDF.nameField), to: nil)
-        let click = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0,
-                                                    windowNumber: form.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        let click = try #require(
+            NSEvent.mouseEvent(
+                with: .leftMouseDown, location: point, modifierFlags: [], timestamp: 0,
+                windowNumber: form.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
         form.document.pdfView.mouseDown(with: click)
         #expect(form.widget("Name").widgetStringValue == "")
         #expect(form.window.firstResponder === form.window, "no field editor took focus")

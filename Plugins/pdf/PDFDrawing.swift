@@ -37,7 +37,9 @@ nonisolated struct PDFDrawing: Codable, Sendable, Equatable {
 
     /// The mark a drag from `from` to `to` makes, in page space; Pen takes its stroke from `points`. Nil when there's
     /// nothing to draw.
-    static func make(_ shape: Shape, from: CGPoint, to: CGPoint, points: [CGPoint], color: RGBA, width: Double) -> (rect: CGRect, drawing: PDFDrawing)? {
+    static func make(_ shape: Shape, from: CGPoint, to: CGPoint, points: [CGPoint], color: RGBA, width: Double) -> (
+        rect: CGRect, drawing: PDFDrawing
+    )? {
         let strokes: [[CGPoint]]
         var width = width
         var rect = CGRect(from: from, to: to)
@@ -61,8 +63,10 @@ nonisolated struct PDFDrawing: Codable, Sendable, Equatable {
             // The strokes' extent, with room for the line's width.
             let all = strokes.flatMap { $0 }
             let xs = all.map(\.x), ys = all.map(\.y)
-            rect = CGRect(x: xs.min() ?? first.x, y: ys.min() ?? first.y, width: (xs.max() ?? 0) - (xs.min() ?? 0), height: (ys.max() ?? 0) - (ys.min() ?? 0))
-                .insetBy(dx: -width / 2 - 1, dy: -width / 2 - 1)
+            rect = CGRect(
+                x: xs.min() ?? first.x, y: ys.min() ?? first.y, width: (xs.max() ?? 0) - (xs.min() ?? 0), height: (ys.max() ?? 0) - (ys.min() ?? 0)
+            )
+            .insetBy(dx: -width / 2 - 1, dy: -width / 2 - 1)
         }
         guard rect.width > 0, rect.height > 0 else { return nil }
         let relative = strokes.map { $0.map { CGPoint(x: ($0.x - rect.minX) / rect.width, y: ($0.y - rect.minY) / rect.height) } }

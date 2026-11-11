@@ -113,8 +113,9 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
         guard let document else { return State(expanded: [], selected: []) }
         let rows = 0..<outlineView.numberOfRows
         let nodes = rows.compactMap { outlineView.item(atRow: $0) as? DataNode }
-        return State(expanded: nodes.filter { outlineView.isItemExpanded($0) }.map(document.indexPath),
-                     selected: selectedNodes.map(document.indexPath))
+        return State(
+            expanded: nodes.filter { outlineView.isItemExpanded($0) }.map(document.indexPath),
+            selected: selectedNodes.map(document.indexPath))
     }
 
     func restore(_ state: State) {
@@ -274,7 +275,9 @@ final class DataTreeView: NSView, NSOutlineViewDataSource, NSOutlineViewDelegate
         return document?.node(at: string.split(separator: ".").compactMap { Int($0) })
     }
 
-    func outlineView(_ outlineView: NSOutlineView, validateDrop info: any NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
+    func outlineView(_ outlineView: NSOutlineView, validateDrop info: any NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int)
+        -> NSDragOperation
+    {
         guard info.draggingSource as? NSOutlineView === outlineView, let node = dragged(info), index >= 0 else { return [] }
         let target = (item as? DataNode) ?? document?.root
         return target === node.parent ? .move : []
@@ -334,9 +337,11 @@ final class TreeCell: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let height = font.boundingRectForFont.height
         let box = NSRect(x: 2, y: (bounds.height - height) / 2, width: bounds.width - 4, height: height)
-        (text as NSString).draw(with: box, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: [
-            .font: font, .foregroundColor: dim ? NSColor.secondaryLabelColor : NSColor.labelColor, .paragraphStyle: Self.paragraph,
-        ])
+        (text as NSString).draw(
+            with: box, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
+            attributes: [
+                .font: font, .foregroundColor: dim ? NSColor.secondaryLabelColor : NSColor.labelColor, .paragraphStyle: Self.paragraph,
+            ])
     }
 
     override func isAccessibilityElement() -> Bool { true }

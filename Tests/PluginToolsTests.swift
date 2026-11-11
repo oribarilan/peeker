@@ -16,7 +16,8 @@ import Testing
     }
 
     @Test func documentsOfferOnlyToolsTheirPluginDeclares() async throws {
-        let png = try TempFile.make(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")!, name: "f.png")
+        let png = try TempFile.make(
+            Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=")!, name: "f.png")
         let cases: [(any Plugin.Type, URL)] = [
             (ImagePlugin.self, png),
             (PDFPlugin.self, try TempFile.makePDF(pages: 1)),
@@ -33,18 +34,34 @@ import Testing
     }
 
     @Test func pluginsDeclareTheirTools() {
-        #expect(ImagePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "previous-page", "next-page", "play-animation", "crop", "transform", "markup", "markup-arrow", "markup-line", "markup-box", "markup-text", "markup-pixelate", "markup-step", "markup-pen", "markup-marker", "markup-spotlight"])
-        #expect(PDFPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "markup", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split", "text-box", "markup-pen", "markup-line", "markup-arrow", "markup-box", "markup-x", "markup-check", "markup-circle", "markup-dot"])
+        #expect(
+            ImagePlugin.tools.map(\.id) == [
+                "zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "previous-page", "next-page", "play-animation", "crop", "transform", "markup",
+                "markup-arrow", "markup-line", "markup-box", "markup-text", "markup-pixelate", "markup-step", "markup-pen", "markup-marker",
+                "markup-spotlight",
+            ])
+        #expect(
+            PDFPlugin.tools.map(\.id) == [
+                "zoom-in", "zoom-out", "zoom-fit", "zoom-actual", "markup", "sign", "highlight", "rotate-left", "rotate-right", "delete-page",
+                "insert-pages", "save-selected-pages", "split", "text-box", "markup-pen", "markup-line", "markup-arrow", "markup-box", "markup-x",
+                "markup-check", "markup-circle", "markup-dot",
+            ])
         #expect(TextPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "toggle-wrap"])
         #expect(MarkdownPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])
-        #expect(TablePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "header-row", "delimiter-comma", "delimiter-semicolon", "delimiter-tab", "delimiter-pipe",
-                                                "add-row-above", "add-row-below", "add-column-before", "add-column-after", "delete-rows", "delete-columns",
-                                                "sort-ascending", "sort-descending", "sort-none"])
+        #expect(
+            TablePlugin.tools.map(\.id) == [
+                "zoom-in", "zoom-out", "zoom-actual", "header-row", "delimiter-comma", "delimiter-semicolon", "delimiter-tab", "delimiter-pipe",
+                "add-row-above", "add-row-below", "add-column-before", "add-column-after", "delete-rows", "delete-columns",
+                "sort-ascending", "sort-descending", "sort-none",
+            ])
         #expect(DataPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "show-text", "add-item", "add-child", "delete-item"])
     }
 
     @Test func eachPluginNamesItsSettingsIcon() {
-        #expect([ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, DataPlugin.symbol, TextPlugin.symbol] == ["photo", "doc.richtext", "number", "tablecells", "curlybraces", "doc.plaintext"])
+        #expect(
+            [ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, DataPlugin.symbol, TextPlugin.symbol] == [
+                "photo", "doc.richtext", "number", "tablecells", "curlybraces", "doc.plaintext",
+            ])
         #expect(PluginEntry(PDFPlugin.self).symbol == "doc.richtext")
         for symbol in [ImagePlugin.symbol, PDFPlugin.symbol, MarkdownPlugin.symbol, TablePlugin.symbol, DataPlugin.symbol, TextPlugin.symbol] {
             #expect(NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil, "\(symbol) is an SF Symbol")
@@ -67,7 +84,10 @@ import Testing
         #expect(keys["markup"] == "m" && keys["text-box"] == "t" && keys["sign"] == "s" && keys["highlight"] == "h", "single letters, as Crop's C")
         let all = PDFPlugin.tools.compactMap(\.shortcut)
         #expect(Set(all).count == all.count, "no two PDF tools share a key")
-        let shared = ["text-box": "markup-text", "markup-pen": "markup-pen", "markup-line": "markup-line", "markup-arrow": "markup-arrow", "markup-box": "markup-box"]
+        let shared = [
+            "text-box": "markup-text", "markup-pen": "markup-pen", "markup-line": "markup-line", "markup-arrow": "markup-arrow",
+            "markup-box": "markup-box",
+        ]
         let imageKeys = Dictionary(uniqueKeysWithValues: ImagePlugin.tools.map { ($0.id, $0.shortcut) })
         #expect(shared.allSatisfy { keys[$0.key] == imageKeys[$0.value] }, "a tool both plugins have uses the same key in each")
         #expect(keys["delete-page"] == .some(nil), "nothing destructive on a bare key")

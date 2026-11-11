@@ -26,7 +26,8 @@ nonisolated enum PDFMarks {
     /// style string too.
     static func fontSize(of annotation: PDFAnnotation) -> Double? {
         guard let style = annotation.value(forAnnotationKey: styleKey) as? String,
-              let match = style.firstMatch(of: /font:[^;]*?([0-9.]+)pt/), let size = Double(match.1) else { return nil }
+            let match = style.firstMatch(of: /font:[^;]*?([0-9.]+)pt/), let size = Double(match.1)
+        else { return nil }
         return min(max(size, fontSizes.lowerBound), fontSizes.upperBound)  // a file can say anything
     }
 
@@ -131,14 +132,17 @@ nonisolated enum PDFMarks {
     /// The drawing an ink annotation of Peeker's shows; nil for a signature or a shape Peeker doesn't know.
     static func drawing(of annotation: PDFAnnotation) -> PDFDrawing? {
         guard annotation.type == "Ink", let name = annotation.value(forAnnotationKey: shapeKey) as? String,
-              let shape = PDFDrawing.Shape(rawValue: name.hasPrefix("/") ? String(name.dropFirst()) : name),
-              annotation.bounds.width > 0, annotation.bounds.height > 0,
-              let color = annotation.color.usingColorSpace(.sRGB) else { return nil }
+            let shape = PDFDrawing.Shape(rawValue: name.hasPrefix("/") ? String(name.dropFirst()) : name),
+            annotation.bounds.width > 0, annotation.bounds.height > 0,
+            let color = annotation.color.usingColorSpace(.sRGB)
+        else { return nil }
         // In whole 8-bit steps, as the file keeps them, so a swatch's color reads back as the swatch's.
         let step = { (value: CGFloat) in (Double(value) * 255).rounded() / 255 }
-        let drawing = PDFDrawing(shape: shape, strokes: relativeStrokes(of: annotation),
-                                 color: RGBA(red: step(color.redComponent), green: step(color.greenComponent), blue: step(color.blueComponent), alpha: color.alphaComponent),
-                                 width: Double(annotation.border?.lineWidth ?? 1))
+        let drawing = PDFDrawing(
+            shape: shape, strokes: relativeStrokes(of: annotation),
+            color: RGBA(
+                red: step(color.redComponent), green: step(color.greenComponent), blue: step(color.blueComponent), alpha: color.alphaComponent),
+            width: Double(annotation.border?.lineWidth ?? 1))
         return drawing.isValid ? drawing : nil
     }
 

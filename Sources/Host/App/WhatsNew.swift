@@ -14,7 +14,9 @@ enum Changelog {
         var version: String?
         var notes: [String] = []
         func finish() {
-            if let version, isNewer(version, than: last), !isNewer(version, than: current) { releases.append(Release(version: version, notes: notes)) }
+            if let version, isNewer(version, than: last), !isNewer(version, than: current) {
+                releases.append(Release(version: version, notes: notes))
+            }
         }
         for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
             if line.hasPrefix("## ") {

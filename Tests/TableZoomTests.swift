@@ -3,7 +3,9 @@ import PeekerKit
 @testable import PeekerTable
 import Testing
 
-@MainActor private func shown(_ text: String = "name,price\nTea,3\n", preferences: PluginPreferences? = nil) async throws -> (TableDocument, TableView, NSWindow) {
+@MainActor private func shown(_ text: String = "name,price\nTea,3\n", preferences: PluginPreferences? = nil) async throws -> (
+    TableDocument, TableView, NSWindow
+) {
     let url = try TempFile.make(Data(text.utf8), name: "z.csv")
     let document = try await openDocument(url, with: TablePlugin.self, as: TableDocument.self, preferences: preferences)
     let view = try #require(document.contentView as? TableView)
@@ -64,8 +66,10 @@ import Testing
         document.setZoom(200, around: nil)
         #expect(field.superview != nil && field.font?.pointSize == NSFont.systemFontSize * 2, "typing goes on at the new size")
         field.stringValue = "4"
-        view.controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification, object: field,
-                                                   userInfo: ["NSTextMovement": NSTextMovement.other.rawValue]))
+        view.controlTextDidEndEditing(
+            Notification(
+                name: NSControl.textDidEndEditingNotification, object: field,
+                userInfo: ["NSTextMovement": NSTextMovement.other.rawValue]))
         #expect(document.table.cell(row: 1, column: 1) == "4")
     }
 

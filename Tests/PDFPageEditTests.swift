@@ -115,7 +115,8 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
     }
 
     @Test func pageEditsRoundTripAndStayInPlaceWhenFolded() throws {
-        let mark = PDFMark(id: "peeker-a", page: 0, rect: CGRect(x: 1, y: 2, width: 3, height: 4), kind: .highlight(RGBA(red: 1, green: 0, blue: 0, alpha: 1)))
+        let mark = PDFMark(
+            id: "peeker-a", page: 0, rect: CGRect(x: 1, y: 2, width: 3, height: 4), kind: .highlight(RGBA(red: 1, green: 0, blue: 0, alpha: 1)))
         let edits: [PDFEdit] = [
             .add(mark), .rotatePages(pages: [0], by: 90), .reorderPages(order: [1, 0]),
             .deletePages(pages: [1], token: "t"), .restorePages(pages: [1], token: "t", data: Data([1, 2])),
@@ -163,7 +164,8 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
     @Test func aMarkMovesWithItsPageAndSavesThere() async throws {
         let file = try TempFile.makePDF(pages: 3)
         let document = try await open(file)
-        let mark = PDFMark(id: PDFEdit.newID(), page: 2, rect: CGRect(x: 72, y: 400, width: 120, height: 30), kind: .textBox(text: "Moved", fontSize: 12))
+        let mark = PDFMark(
+            id: PDFEdit.newID(), page: 2, rect: CGRect(x: 72, y: 400, width: 120, height: 30), kind: .textBox(text: "Moved", fontSize: 12))
         #expect(document.change(.add(mark)))
         #expect(document.change(.reorderPages(order: [2, 0, 1])))
         #expect(document.change(.rotatePages(pages: [0], by: 90)))
@@ -178,7 +180,8 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
     @Test func savedMarksOnShiftedPagesKeepTheirNameAndSize() async throws {
         let file = try TempFile.makePDF(pages: 3)
         let first = try await open(file)
-        let mark = PDFMark(id: PDFEdit.newID(), page: 2, rect: CGRect(x: 72, y: 400, width: 120, height: 30), kind: .textBox(text: "Big", fontSize: 24))
+        let mark = PDFMark(
+            id: PDFEdit.newID(), page: 2, rect: CGRect(x: 72, y: 400, width: 120, height: 30), kind: .textBox(text: "Big", fontSize: 24))
         #expect(first.change(.add(mark)))
         try await save(first)
         let second = try await open(file)
@@ -205,7 +208,8 @@ private func apply(_ edit: PDFEdit, to document: PDFDocument, stash: PageStash =
     @Test func aMarkOnARestoredPageKeepsItsName() async throws {
         let file = try TempFile.makePDF(pages: 3)
         let first = try await open(file)
-        let mark = PDFMark(id: PDFEdit.newID(), page: 1, rect: CGRect(x: 72, y: 400, width: 120, height: 30), kind: .textBox(text: "Keep", fontSize: 20))
+        let mark = PDFMark(
+            id: PDFEdit.newID(), page: 1, rect: CGRect(x: 72, y: 400, width: 120, height: 30), kind: .textBox(text: "Keep", fontSize: 20))
         #expect(first.change(.add(mark)))
         try await save(first)
         let second = try await open(file)

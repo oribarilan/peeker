@@ -15,11 +15,14 @@ enum LockedPDF {
     static func page(_ cipher: Cipher, printing: Bool = true) throws -> URL {
         let file = try TempFile.make(Data(), name: "locked.pdf")
         var box = CGRect(x: 0, y: 0, width: 612, height: 792)
-        let info: [CFString: Any] = [kCGPDFContextUserPassword: open, kCGPDFContextOwnerPassword: perms,
-                                     kCGPDFContextEncryptionKeyLength: cipher == .aes128 ? 128 : 40, kCGPDFContextAllowsPrinting: printing]
+        let info: [CFString: Any] = [
+            kCGPDFContextUserPassword: open, kCGPDFContextOwnerPassword: perms,
+            kCGPDFContextEncryptionKeyLength: cipher == .aes128 ? 128 : 40, kCGPDFContextAllowsPrinting: printing,
+        ]
         let context = try #require(CGContext(file as CFURL, mediaBox: &box, info as CFDictionary))
         context.beginPDFPage(nil)
-        let line = CTLineCreateWithAttributedString(NSAttributedString(string: "Secret page", attributes: [.font: CTFontCreateWithName("Helvetica" as CFString, 24, nil)]))
+        let line = CTLineCreateWithAttributedString(
+            NSAttributedString(string: "Secret page", attributes: [.font: CTFontCreateWithName("Helvetica" as CFString, 24, nil)]))
         context.textPosition = CGPoint(x: 72, y: 700)
         CTLineDraw(line, context)
         context.endPDFPage()
@@ -35,8 +38,10 @@ enum LockedPDF {
         return try TempFile.make(try #require(document.dataRepresentation(options: options)), name: "locked-form.pdf")
     }
 
-    enum Limit: String { case none = "aes256-form", noPrinting = "aes256-form-no-printing", lowResPrinting = "aes256-form-low-res-printing",
-                             noOpenPasswordNoAssembly = "aes256-form-no-open-password" }
+    enum Limit: String {
+        case none = "aes256-form", noPrinting = "aes256-form-no-printing", lowResPrinting = "aes256-form-low-res-printing",
+            noOpenPasswordNoAssembly = "aes256-form-no-open-password"
+    }
 
     /// A copy of the checked-in form locked with 40-bit RC4 (`/R 2`), allowing no changes or comments.
     static func rc4_40FormNoChanges() throws -> URL {

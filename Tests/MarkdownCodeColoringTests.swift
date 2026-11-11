@@ -5,21 +5,21 @@ import PeekerSyntax
 import Testing
 
 private let source = """
-# Notes
+    # Notes
 
-```python
-def size(path):
-    return len("x")  # count
-```
+    ```python
+    def size(path):
+        return len("x")  # count
+    ```
 
-```
-def untagged(): pass
-```
+    ```
+    def untagged(): pass
+    ```
 
-```mermaid
-graph def
-```
-"""
+    ```mermaid
+    graph def
+    ```
+    """
 
 @Suite struct MarkdownFenceStyling {
     @Test func aTaggedBlockGetsSyntaxRunsInsideItsFences() {
@@ -29,10 +29,12 @@ graph def
             guard case .syntax(let role) = run.kind else { return nil }
             return "\(role.rawValue):\(ns.substring(with: run.range))"
         }
-        #expect(syntax.contains("keyword:def") && syntax.contains("string:\"x\"") && syntax.contains("comment:# count")
+        #expect(
+            syntax.contains("keyword:def") && syntax.contains("string:\"x\"") && syntax.contains("comment:# count")
                 && syntax.contains("function:size"))
-        #expect(!syntax.contains { $0.contains("untagged") || $0.contains("graph") || $0.contains("python") },
-                "untagged and unknown blocks, and the fence line itself, aren't scanned")
+        #expect(
+            !syntax.contains { $0.contains("untagged") || $0.contains("graph") || $0.contains("python") },
+            "untagged and unknown blocks, and the fence line itself, aren't scanned")
     }
 }
 
@@ -44,36 +46,41 @@ graph def
 }
 
 /// These change the current theme, so they nest in `ThemeState`.
-extension ThemeState { @Suite struct MarkdownCodeColoring {
-    @Test func theEditorColorsTaggedBlocksAndFollowsTheTheme() async throws {
-        defer { TextTheme.current = .system }
-        let editor = try await openDocument(try TempFile.make(Data(source.utf8), name: "f.md"), with: MarkdownPlugin.self, as: MarkdownEditor.self)
-        let view = try #require(editor.focusView as? NSTextView)
-        #expect(color(of: "def size", in: view) == hex(TextTheme.current.syntax.keyword, in: .aqua))
-        #expect(color(of: "\"x\"", in: view) == hex(TextTheme.current.syntax.string, in: .aqua))
-        #expect(color(of: "def untagged", in: view) == hex(TextTheme.current.text, in: .aqua))
-        let code = (view.string as NSString).range(of: "def size").location
-        #expect(view.textStorage?.attribute(.backgroundColor, at: code, effectiveRange: nil) != nil, "on the code background still")
-        let paper = TextTheme.named("paper")!
-        TextTheme.current = paper
-        #expect(color(of: "def size", in: view) == hex(paper.syntax.keyword, in: .aqua))
-    }
+extension ThemeState {
+    @Suite struct MarkdownCodeColoring {
+        @Test func theEditorColorsTaggedBlocksAndFollowsTheTheme() async throws {
+            defer { TextTheme.current = .system }
+            let editor = try await openDocument(
+                try TempFile.make(Data(source.utf8), name: "f.md"), with: MarkdownPlugin.self, as: MarkdownEditor.self)
+            let view = try #require(editor.focusView as? NSTextView)
+            #expect(color(of: "def size", in: view) == hex(TextTheme.current.syntax.keyword, in: .aqua))
+            #expect(color(of: "\"x\"", in: view) == hex(TextTheme.current.syntax.string, in: .aqua))
+            #expect(color(of: "def untagged", in: view) == hex(TextTheme.current.text, in: .aqua))
+            let code = (view.string as NSString).range(of: "def size").location
+            #expect(view.textStorage?.attribute(.backgroundColor, at: code, effectiveRange: nil) != nil, "on the code background still")
+            let paper = TextTheme.named("paper")!
+            TextTheme.current = paper
+            #expect(color(of: "def size", in: view) == hex(paper.syntax.keyword, in: .aqua))
+        }
 
-    @Test func thePeekPanelColorsTaggedBlocks() async throws {
-        let document = try await openDocument(try TempFile.make(Data(source.utf8), name: "f.md"), with: MarkdownPlugin.self,
-                                              as: MarkdownDocument.self, editing: false)
-        let view = try #require(document.focusView as? NSTextView)
-        #expect(color(of: "def size", in: view) == hex(TextTheme.current.syntax.keyword, in: .aqua))
-        #expect(color(of: "def untagged", in: view) == hex(TextTheme.current.text, in: .aqua))
-    }
+        @Test func thePeekPanelColorsTaggedBlocks() async throws {
+            let document = try await openDocument(
+                try TempFile.make(Data(source.utf8), name: "f.md"), with: MarkdownPlugin.self,
+                as: MarkdownDocument.self, editing: false)
+            let view = try #require(document.focusView as? NSTextView)
+            #expect(color(of: "def size", in: view) == hex(TextTheme.current.syntax.keyword, in: .aqua))
+            #expect(color(of: "def untagged", in: view) == hex(TextTheme.current.text, in: .aqua))
+        }
 
-    @Test func printingUsesSystemsLightCodeColors() async throws {
-        defer { TextTheme.current = .system }
-        TextTheme.current = TextTheme.named("tokyo-night")!
-        let editor = try await openDocument(try TempFile.make(Data(source.utf8), name: "f.md"), with: MarkdownPlugin.self, as: MarkdownEditor.self)
-        let printed = editor.printText(for: NSPrintInfo())
-        let location = (printed.string as NSString).range(of: "def size").location
-        let keyword = try #require(printed.attribute(.foregroundColor, at: location, effectiveRange: nil) as? NSColor)
-        #expect(hex(keyword, in: .aqua) == 0x9B2393)
+        @Test func printingUsesSystemsLightCodeColors() async throws {
+            defer { TextTheme.current = .system }
+            TextTheme.current = TextTheme.named("tokyo-night")!
+            let editor = try await openDocument(
+                try TempFile.make(Data(source.utf8), name: "f.md"), with: MarkdownPlugin.self, as: MarkdownEditor.self)
+            let printed = editor.printText(for: NSPrintInfo())
+            let location = (printed.string as NSString).range(of: "def size").location
+            let keyword = try #require(printed.attribute(.foregroundColor, at: location, effectiveRange: nil) as? NSColor)
+            #expect(hex(keyword, in: .aqua) == 0x9B2393)
+        }
     }
-}}
+}

@@ -29,7 +29,9 @@ final class TipStore {
 
     /// A plugin's tip with `{key}` filled in with the tool's key; without one, "press {key}" becomes "click <title>".
     static func text(_ tip: String, title: String, key: Shortcut?) -> String {
-        guard let key else { return tip.replacingOccurrences(of: "press {key}", with: "click \(title)").replacingOccurrences(of: "{key}", with: title) }
+        guard let key else {
+            return tip.replacingOccurrences(of: "press {key}", with: "click \(title)").replacingOccurrences(of: "{key}", with: title)
+        }
         return tip.replacingOccurrences(of: "{key}", with: key.displayText)
     }
 }

@@ -34,7 +34,8 @@ final class PeekerPDFView: PDFView, NSMenuItemValidation {
 
     func widget(at point: NSPoint) -> PDFAnnotation? {
         guard let page = page(for: point, nearest: false), let annotation = page.annotation(at: convert(point, to: page)),
-              annotation.type == "Widget" else { return nil }
+            annotation.type == "Widget"
+        else { return nil }
         return annotation
     }
 

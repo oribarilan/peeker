@@ -28,8 +28,9 @@ private final class StubDocument: PluginDocument {
 @Suite(.serialized) struct ModuleDocuments {
     private func document() throws -> DocumentViewController {
         let url = try TempFile.make(Data("x".utf8), name: "f.bin")
-        let document = DocumentViewController(url: url, entry: PluginEntry(GatedPlugin.self), config: Config(),
-                                              allowsEditing: false, recovery: nil)
+        let document = DocumentViewController(
+            url: url, entry: PluginEntry(GatedPlugin.self), config: Config(),
+            allowsEditing: false, recovery: nil)
         document.loadViewIfNeeded()
         return document
     }

@@ -76,7 +76,7 @@ private func large(_ size: Int) -> Data {
     }
 
     @Test func aWindows1252FileKeepsItsEncodingAndLineEndings() async throws {
-        let (file, editor) = try await open(Data([0x63, 0x61, 0x66, 0xE9, 0x0D, 0x0A]))   // "café\r\n" in Windows-1252
+        let (file, editor) = try await open(Data([0x63, 0x61, 0x66, 0xE9, 0x0D, 0x0A]))  // "café\r\n" in Windows-1252
         #expect(editor.text.hasPrefix("café"))
         editor.type("# T\r\n")
         try await editor.save()

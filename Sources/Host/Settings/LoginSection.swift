@@ -8,10 +8,14 @@ struct LoginSection: View {
 
     var body: some View {
         Section {
-            Toggle("Open at Login", isOn: Binding(get: { enabled || needsApproval }, set: { _ in
-                LoginItem.toggleReportingErrors()
-                refresh()
-            }))
+            Toggle(
+                "Open at Login",
+                isOn: Binding(
+                    get: { enabled || needsApproval },
+                    set: { _ in
+                        LoginItem.toggleReportingErrors()
+                        refresh()
+                    }))
             if needsApproval {
                 LabeledContent {
                     Button("Open Login Items") { LoginItem.openSystemSettings() }

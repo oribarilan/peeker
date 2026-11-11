@@ -37,7 +37,9 @@ extension Config {
         let dropped = effectiveExtensions(of: plugin, among: plugins).filter { !plugin.defaultExtensions.contains($0) }
         extensions[plugin.id] = nil
         for ext in dropped {
-            if let home = plugins.first(where: { $0.id != plugin.id && $0.defaultExtensions.contains(ext) }) { addExtension(ext, to: home, among: plugins) }
+            if let home = plugins.first(where: { $0.id != plugin.id && $0.defaultExtensions.contains(ext) }) {
+                addExtension(ext, to: home, among: plugins)
+            }
         }
     }
 }

@@ -13,7 +13,8 @@ enum LinkOpener {
     /// itself. Nil for a link with a scheme, which `open` handles.
     static func resolve(_ destination: String, against file: URL) -> URL? {
         guard URL(string: destination)?.scheme == nil, let link = URL(string: destination, relativeTo: file),
-              var parts = URLComponents(url: link.absoluteURL, resolvingAgainstBaseURL: false) else { return nil }
+            var parts = URLComponents(url: link.absoluteURL, resolvingAgainstBaseURL: false)
+        else { return nil }
         parts.query = nil
         return parts.url
     }

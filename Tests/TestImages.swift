@@ -7,8 +7,10 @@ import UniformTypeIdentifiers
 /// A `width`×`height` sRGB image with a colored square in each corner: red top left, green top right, blue bottom
 /// left, white bottom right, the rest black.
 func cornerImage(width: Int = 40, height: Int = 20, bits: Int = 8) throws -> CGImage {
-    let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: bits, bytesPerRow: 0,
-                                         space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    let context = try #require(
+        CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: bits, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
     context.setFillColor(gray: 0, alpha: 1)
     context.fill(CGRect(x: 0, y: 0, width: width, height: height))
     let s = 4
@@ -22,8 +24,10 @@ func cornerImage(width: Int = 40, height: Int = 20, bits: Int = 8) throws -> CGI
 /// The color names in the four corners: top left, top right, bottom left, bottom right.
 func corners(_ image: CGImage) throws -> [String] {
     let w = image.width, h = image.height
-    let context = try #require(CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-                                         space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    let context = try #require(
+        CGContext(
+            data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
     context.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
     let data = try #require(context.data).bindMemory(to: UInt8.self, capacity: w * h * 4)
     func name(_ x: Int, _ y: Int) -> String {  // y from the top
@@ -53,8 +57,10 @@ func multiPageTIFF(_ sizes: [(width: Int, height: Int)]) throws -> URL {
     let url = try TempFile.make(Data(), name: "pages.tiff")
     let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.tiff.identifier as CFString, sizes.count, nil))
     for (index, size) in sizes.enumerated() {
-        let context = try #require(CGContext(data: nil, width: size.width, height: size.height, bitsPerComponent: 8, bytesPerRow: 0,
-                                             space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        let context = try #require(
+            CGContext(
+                data: nil, width: size.width, height: size.height, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
         let rgb = [(1.0, 0.0, 0.0), (0, 1, 0), (0, 0, 1)][index % 3]
         context.setFillColor(red: rgb.0, green: rgb.1, blue: rgb.2, alpha: 1)
         context.fill(CGRect(x: 0, y: 0, width: size.width, height: size.height))

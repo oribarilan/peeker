@@ -58,7 +58,8 @@ nonisolated enum ImageEditing {
         for edit in edits {
             var shown = edit
             if case .resize(let width, let height) = edit, full.width > 0, full.height > 0 {
-                var size = CGSize(width: CGFloat(image.width) * CGFloat(width) / full.width, height: CGFloat(image.height) * CGFloat(height) / full.height)
+                var size = CGSize(
+                    width: CGFloat(image.width) * CGFloat(width) / full.width, height: CGFloat(image.height) * CGFloat(height) / full.height)
                 let limit = CGFloat(max(decode.width, decode.height)) / max(size.width, size.height)
                 if limit < 1 { size = CGSize(width: size.width * limit, height: size.height * limit) }
                 shown = .resize(width: max(Int(size.width.rounded()), 1), height: max(Int(size.height.rounded()), 1))
@@ -83,7 +84,8 @@ nonisolated enum ImageEditing {
             let turn = by > 0 ? CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: w) : CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: h, ty: 0)
             return redraw(image, size: CGSize(width: h, height: w), transform: turn)
         case .flip(let horizontal):
-            let mirror = horizontal ? CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: w, ty: 0) : CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: h)
+            let mirror =
+                horizontal ? CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: w, ty: 0) : CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: h)
             return redraw(image, size: CGSize(width: w, height: h), transform: mirror)
         case .resize(let width, let height):
             let scale = CGAffineTransform(scaleX: CGFloat(width) / w, y: CGFloat(height) / h)
@@ -115,7 +117,8 @@ nonisolated enum ImageEditing {
         let space = image.colorSpace.flatMap { $0.model == .rgb || ($0.model == .monochrome && !hasAlpha) ? $0 : nil } ?? srgb
         let alpha: CGImageAlphaInfo = space.model == .monochrome ? .none : hasAlpha ? .premultipliedLast : .noneSkipLast
         return CGContext(data: nil, width: width, height: height, bitsPerComponent: bits, bytesPerRow: 0, space: space, bitmapInfo: alpha.rawValue)
-            ?? CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: srgb,
-                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            ?? CGContext(
+                data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: srgb,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
     }
 }

@@ -46,7 +46,7 @@ func copyPath(beside file: URL) -> URL {
     }
 
     @Test func textTheEncodingCantHoldOffersUTF8() async throws {
-        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))   // "café" in Windows-1252
+        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))  // "café" in Windows-1252
         let document = try await openDocument(file, with: TextPlugin.self, as: TextDocument.self)
         #expect(document.restore(encoded: try JSONEncoder().encode(TextEdits(text: "café🙂"))))
         let edits = try #require(document.unsavedEdits()), copy = copyPath(beside: file)
@@ -76,7 +76,7 @@ func copyPath(beside file: URL) -> URL {
     }
 
     @Test func textTheEncodingCantHoldOffersUTF8() async throws {
-        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]), name: "a.md")   // "café" in Windows-1252
+        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]), name: "a.md")  // "café" in Windows-1252
         let editor = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownEditor.self)
         #expect(editor.restore(encoded: try JSONEncoder().encode(TextEdits(text: "café🙂"))))
         let edits = try #require(editor.unsavedEdits()), copy = copyPath(beside: file)

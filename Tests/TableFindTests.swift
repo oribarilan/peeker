@@ -22,8 +22,9 @@ import Testing
     @Test func orderFollowsTheRowsShownWithTheHeaderFirst() {
         let found = [CellRef(row: 0, column: 1), CellRef(row: 1, column: 1), CellRef(row: 3, column: 0), CellRef(row: 3, column: 1)]
         let shown = [3, 1, 2]
-        #expect(TableSearch.ordered(found, hasHeader: true, shownRows: shown)
-            == [CellRef(row: 0, column: 1), CellRef(row: 3, column: 0), CellRef(row: 3, column: 1), CellRef(row: 1, column: 1)])
+        #expect(
+            TableSearch.ordered(found, hasHeader: true, shownRows: shown)
+                == [CellRef(row: 0, column: 1), CellRef(row: 3, column: 0), CellRef(row: 3, column: 1), CellRef(row: 1, column: 1)])
         #expect(TableSearch.ordered(found, hasHeader: true, shownRows: nil) == found)
     }
 }
@@ -97,8 +98,9 @@ private func findItem(_ action: NSFindPanelAction) -> NSMenuItem {
         view.performFindPanelAction(findItem(.showFindPanel))
         view.finder?.search("berlin")
         await settle(view)
-        #expect(view.finder?.matches == [CellRef(row: 2, column: 1), CellRef(row: 1, column: 0), CellRef(row: 4, column: 0)]
-            || view.finder?.matches == [CellRef(row: 2, column: 1), CellRef(row: 4, column: 0), CellRef(row: 1, column: 0)])
+        #expect(
+            view.finder?.matches == [CellRef(row: 2, column: 1), CellRef(row: 1, column: 0), CellRef(row: 4, column: 0)]
+                || view.finder?.matches == [CellRef(row: 2, column: 1), CellRef(row: 4, column: 0), CellRef(row: 1, column: 0)])
         #expect(view.finder?.matches.first == CellRef(row: 2, column: 1), "Paris's row shows before both Berlins")
         withExtendedLifetime(document) {}
     }

@@ -13,7 +13,9 @@ extension PDFPluginDocument {
             let name = url.lastPathComponent
             if let pdf = PDFDocument(url: url) {
                 guard !pdf.isLocked else { throw PluginError("“\(name)” is password protected.") }
-                for index in 0..<pdf.pageCount { if let page = pdf.page(at: index)?.copy() as? PDFPage { combined.insert(page, at: combined.pageCount) } }
+                for index in 0..<pdf.pageCount {
+                    if let page = pdf.page(at: index)?.copy() as? PDFPage { combined.insert(page, at: combined.pageCount) }
+                }
             } else if let image = NSImage(contentsOf: url), image.isValid, let page = PDFPage(image: image) {
                 combined.insert(page, at: combined.pageCount)
             } else {

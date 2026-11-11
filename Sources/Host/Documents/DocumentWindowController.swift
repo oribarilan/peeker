@@ -4,7 +4,9 @@ import UniformTypeIdentifiers
 
 /// An Editor window (tabbed). Owns the chrome: "Open With" and the plugin's tools in the toolbar, and the save
 /// prompts as sheets. Following links, Back, Forward and the trail are in DocumentWindowController+Navigation.swift.
-final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, NSToolbarItemValidation, SavePrompts {
+final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate, NSMenuItemValidation, NSToolbarItemValidation,
+    SavePrompts
+{
     /// The file the tab shows now; a followed link can change it.
     private(set) var url: URL
     let catalog: PluginCatalog
@@ -59,8 +61,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     var isOnScreen: (NSToolbarItem) -> Bool = { $0.isVisible && $0.toolbar?.isVisible == true }
     var presentTip: (NSPopover, NSToolbarItem) -> Void = { popover, item in popover.show(relativeTo: item) }
 
-    init(url: URL, catalog: PluginCatalog, config: Config, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?,
-         sidebarMemory: SidebarMemory = .shared, tips: TipStore = .shared, preferences: UserDefaults? = nil) {
+    init(
+        url: URL, catalog: PluginCatalog, config: Config, recovery: RecoveryStore?, recoveryClipboard: RecoveryClipboard?,
+        sidebarMemory: SidebarMemory = .shared, tips: TipStore = .shared, preferences: UserDefaults? = nil
+    ) {
         self.sidebarMemory = sidebarMemory
         self.preferences = preferences
         self.tips = tips
@@ -70,9 +74,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         self.config = config
         self.recovery = recovery
         self.recoveryClipboard = recoveryClipboard
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-                              backing: .buffered, defer: false)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered, defer: false)
         window.tabbingIdentifier = "document"
         window.tabbingMode = .preferred
         window.title = url.lastPathComponent
@@ -93,7 +98,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     /// since its greyed-out menu item can't. True when it took the key.
     func handleToolKey(_ event: NSEvent) -> Bool {
         guard event.window === window, let document = current, let pressed = Shortcut(event: event),
-              let tool = document.tools.first(where: { $0.shortcut == pressed }) else { return false }
+            let tool = document.tools.first(where: { $0.shortcut == pressed })
+        else { return false }
         let typing = window?.firstResponder is NSText
         guard tool.spec.isEditTool else {
             guard pressed.isSingleKey, !typing else { return false }
@@ -119,9 +125,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         current?.close()
         if let file { url = file }
         if history.current.pluginID != entry.id { history.reopened(with: entry.id) }  // the first open, or Open With
-        let document = DocumentViewController(url: url, entry: entry, config: config,
-                                              allowsEditing: true, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString,
-                                              sidebarMemory: sidebarMemory, preferences: preferences)
+        let document = DocumentViewController(
+            url: url, entry: entry, config: config,
+            allowsEditing: true, recovery: recovery, recoveryID: record?.id ?? UUID().uuidString,
+            sidebarMemory: sidebarMemory, preferences: preferences)
         document.onToolsChanged = { [weak self] document in
             // While a file opens, its tools wait for its content (onContentShown); a failure shows at once.
             guard document.hasShownContent || document.pluginDocument == nil else { return }
@@ -221,7 +228,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         guard let document = current?.pluginDocument else { return }
         for item in window?.toolbar?.items ?? [] {
             guard let button = item.view as? NSButton, let index = toolIndex(item.itemIdentifier), let tools = current?.tools,
-                  tools.indices.contains(index), let on = document.isOn(tools[index].spec.id) else { continue }
+                tools.indices.contains(index), let on = document.isOn(tools[index].spec.id)
+            else { continue }
             button.state = on ? .on : .off
         }
     }
@@ -238,7 +246,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         let (spec, shortcut) = document.tools[index]
         let id = "\(document.entry.id).\(spec.id)"
         guard let tip = spec.tip, !tips.hasShown(id), unavailableReason(forToolAt: index) == nil,
-              let item = window?.toolbar?.items.first(where: { toolIndex($0.itemIdentifier) == index }), isOnScreen(item) else { return }
+            let item = window?.toolbar?.items.first(where: { toolIndex($0.itemIdentifier) == index }), isOnScreen(item)
+        else { return }
         let text = TipStore.text(tip, title: spec.title, key: shortcut)
         let label = NSTextField(wrappingLabelWithString: text)
         label.preferredMaxLayoutWidth = 260
@@ -440,9 +449,12 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         if item.action == #selector(goForward(_:)) { return history.canGoForward }
         guard item.action == #selector(runTool(_:)) else { return true }
         let reason = unavailableReason(forToolAt: item.tag)
-        item.toolTip = reason ?? current.flatMap { document in
-            document.tools.indices.contains(item.tag) ? Shortcut.tooltip(title: document.tools[item.tag].spec.title, shortcut: document.tools[item.tag].shortcut) : nil
-        }
+        item.toolTip =
+            reason
+            ?? current.flatMap { document in
+                document.tools.indices.contains(item.tag)
+                    ? Shortcut.tooltip(title: document.tools[item.tag].spec.title, shortcut: document.tools[item.tag].shortcut) : nil
+            }
         return reason == nil
     }
 
@@ -587,8 +599,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         toolbarDefaultItemIdentifiers(toolbar)
     }
 
-
-    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool)
+        -> NSToolbarItem?
+    {
         if let item = navigationItem(identifier) { return item }
         let item = NSToolbarItem(itemIdentifier: identifier)
         if identifier == Self.openWith {

@@ -12,7 +12,8 @@ public nonisolated struct TextEdits: Codable, Sendable {
 /// Reads and writes text files for the plugins that show them as text.
 public nonisolated enum TextFile {
     public static let readOnlyNote = "Read-only: files over 10 MB open for viewing only."
-    public static let saveAsUTF8 = SaveOffer(id: "utf8", button: "Save as UTF-8", detail: "Some characters can't be represented in the file's encoding.")
+    public static let saveAsUTF8 = SaveOffer(
+        id: "utf8", button: "Save as UTF-8", detail: "Some characters can't be represented in the file's encoding.")
 
     public struct Loaded: Sendable {
         /// What the view shows: all of the text, or its first part when the file is too big.
@@ -42,8 +43,9 @@ public nonisolated enum TextFile {
         let editable = data.count <= TextLimits.editableBytes && !truncated
         let note = truncated ? "Showing the first \(limit / 1_048_576) MB of \(size(data.count)). Read-only." : editable ? nil : readOnlyNote
         let shown = truncated ? String(decoding: utf8.prefix(shownCount), as: UTF8.self) : text
-        return Loaded(text: shown, format: format, editable: editable, note: note, byteCount: data.count, lineCount: TextCodec.lineCount(of: text),
-                      isPartial: truncated)
+        return Loaded(
+            text: shown, format: format, editable: editable, note: note, byteCount: data.count, lineCount: TextCodec.lineCount(of: text),
+            isPartial: truncated)
     }
 
     /// Writes `text` to `path` as `format`, off the main thread, and returns the bytes written. Never substitutes
@@ -54,8 +56,9 @@ public nonisolated enum TextFile {
             data = try TextCodec.encode(text, as: format)
         } catch {
             let name = URL(filePath: path).lastPathComponent
-            throw PluginError("“\(name)” can't be saved as \(String.localizedName(of: format.encoding)).", code: error.code,
-                              offer: error.code == .cannotEncode ? saveAsUTF8 : nil)
+            throw PluginError(
+                "“\(name)” can't be saved as \(String.localizedName(of: format.encoding)).", code: error.code,
+                offer: error.code == .cannotEncode ? saveAsUTF8 : nil)
         }
         try FileReplacement.replaceContents(ofFileAt: path, with: data)
         return data.count
@@ -80,7 +83,9 @@ public nonisolated enum TextFile {
     /// One pass over the line breaks (LF or CR) in `head`: whether a line is longer than `TextLimits.longLineBytes`, and
     /// where the last break ends overall and within `longLineDisplayBytes`. Follows the next LF and the next CR with
     /// memchr, each searched for again only once passed, so 16 MB take about 2 ms.
-    private static func scanBreaks(_ head: UnsafeBufferPointer<UInt8>) -> (hasLongLine: Bool, lastBreakEnd: Int?, lastBreakEndWithinLongLineLimit: Int?) {
+    private static func scanBreaks(_ head: UnsafeBufferPointer<UInt8>) -> (
+        hasLongLine: Bool, lastBreakEnd: Int?, lastBreakEndWithinLongLineLimit: Int?
+    ) {
         guard let base = head.baseAddress else { return (false, nil, nil) }
         func next(_ byte: UInt8, from start: Int) -> Int {
             guard start < head.count, let found = memchr(base + start, Int32(byte), head.count - start) else { return head.count }

@@ -27,8 +27,9 @@ private let prices = "name,price,notes\nTea,2.50,short\nCake,3.50,\(long)\nBread
     let frame = view.tableView.frameOfCell(atColumn: column + 1, row: row)
     let point = view.tableView.convert(NSPoint(x: frame.midX, y: frame.midY), to: nil)
     func event(_ type: NSEvent.EventType) -> NSEvent {
-        NSEvent.mouseEvent(with: type, location: point, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber,
-                           context: nil, eventNumber: 0, clickCount: count, pressure: 1)!
+        NSEvent.mouseEvent(
+            with: type, location: point, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 0, clickCount: count, pressure: 1)!
     }
     window.postEvent(event(.leftMouseUp), atStart: false)
     view.tableView.mouseDown(with: event(.leftMouseDown))

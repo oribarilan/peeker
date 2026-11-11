@@ -31,7 +31,8 @@ public enum SyntaxLanguage: String, Sendable, CaseIterable {
     /// The language a Markdown fence names in its first word, as ```` ```python ```` or ```` ```c++ {.numbered} ````.
     public init?(fenceTag: String) {
         guard let word = fenceTag.split(separator: " ").first.map({ $0.lowercased() }),
-              let language = Self.fenceTags[word] ?? Self.extensions[word] else { return nil }
+            let language = Self.fenceTags[word] ?? Self.extensions[word]
+        else { return nil }
         self = language
     }
 

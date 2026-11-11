@@ -64,7 +64,8 @@ private struct Scanner {
         let end = i
         let word = bytes[start..<end]
         if rules.stringPrefixes, end - start <= 2, word.allSatisfy({ "rRbBfFuU".utf8.contains($0) }),
-           let string = rules.strings.first(where: { matches($0.delimiter, at: end) }) {
+            let string = rules.strings.first(where: { matches($0.delimiter, at: end) })
+        {
             skipString(string)
             return emit(start, .string)
         }
@@ -176,7 +177,9 @@ private struct Scanner {
                 skipString(inner, depth: depth + 1)
                 continue
             }
-            if byte == opening { level += 1 } else if byte == close {
+            if byte == opening {
+                level += 1
+            } else if byte == close {
                 level -= 1
                 if level == 0 {
                     i += 1

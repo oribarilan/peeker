@@ -29,7 +29,8 @@ open class ThemedFindTextView: NSTextView, @preconcurrency NSTextFinderClient {
 
     open override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
         guard item.action == #selector(performTextFinderAction(_:)) || item.action == #selector(performFindPanelAction(_:)),
-              let action = action(of: item), let finder = textFinder else { return super.validateUserInterfaceItem(item) }
+            let action = action(of: item), let finder = textFinder
+        else { return super.validateUserInterfaceItem(item) }
         return finder.validateAction(action)
     }
 
@@ -93,7 +94,7 @@ open class ThemedFindTextView: NSTextView, @preconcurrency NSTextFinderClient {
         let near = NSRange(location: start, length: min(length, NSMaxRange(visible) + visible.length) - start)
         let color = TextTheme.current.findMatch
         for match in matches.lazy.drop(while: { NSMaxRange($0) <= near.location }).prefix(while: { $0.location < NSMaxRange(near) })
-            where NSMaxRange(match) <= length {
+        where NSMaxRange(match) <= length {
             setMark(color, on: match)
         }
         marked = near
@@ -119,7 +120,8 @@ open class ThemedFindTextView: NSTextView, @preconcurrency NSTextFinderClient {
     private func visibleCharacters() -> NSRange? {
         if let textLayoutManager {
             guard let viewport = textLayoutManager.textViewportLayoutController.viewportRange,
-                  let content = textLayoutManager.textContentManager else { return nil }
+                let content = textLayoutManager.textContentManager
+            else { return nil }
             let start = content.offset(from: content.documentRange.location, to: viewport.location)
             return NSRange(location: start, length: content.offset(from: viewport.location, to: viewport.endLocation))
         }
@@ -130,8 +132,9 @@ open class ThemedFindTextView: NSTextView, @preconcurrency NSTextFinderClient {
 
     private func textRange(_ range: NSRange) -> NSTextRange? {
         guard let content = textLayoutManager?.textContentManager,
-              let start = content.location(content.documentRange.location, offsetBy: range.location),
-              let end = content.location(start, offsetBy: range.length) else { return nil }
+            let start = content.location(content.documentRange.location, offsetBy: range.location),
+            let end = content.location(start, offsetBy: range.length)
+        else { return nil }
         return NSTextRange(location: start, end: end)
     }
 }

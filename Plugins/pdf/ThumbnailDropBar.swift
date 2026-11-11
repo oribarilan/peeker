@@ -49,24 +49,32 @@ import AppKit
         onWillDisplay?(item, indexPath.item)
     }
 
-    func collectionView(_ collectionView: NSCollectionView, validateDrop draggingInfo: any NSDraggingInfo,
-                        proposedIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
-                        dropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>) -> NSDragOperation {
-        let answer = original.collectionView?(collectionView, validateDrop: draggingInfo, proposedIndexPath: proposedIndexPath,
-                                              dropOperation: dropOperation) ?? []
+    func collectionView(
+        _ collectionView: NSCollectionView, validateDrop draggingInfo: any NSDraggingInfo,
+        proposedIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
+        dropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>
+    ) -> NSDragOperation {
+        let answer =
+            original.collectionView?(
+                collectionView, validateDrop: draggingInfo, proposedIndexPath: proposedIndexPath,
+                dropOperation: dropOperation) ?? []
         // A drop onto a page lands before it, so both kinds of proposal put the bar before the proposed item.
         if answer.isEmpty { hide() } else { show(gapBefore: proposedIndexPath.pointee.item) }
         return answer
     }
 
-    func collectionView(_ collectionView: NSCollectionView, acceptDrop draggingInfo: any NSDraggingInfo, indexPath: IndexPath,
-                        dropOperation: NSCollectionView.DropOperation) -> Bool {
+    func collectionView(
+        _ collectionView: NSCollectionView, acceptDrop draggingInfo: any NSDraggingInfo, indexPath: IndexPath,
+        dropOperation: NSCollectionView.DropOperation
+    ) -> Bool {
         hide()
         return original.collectionView?(collectionView, acceptDrop: draggingInfo, indexPath: indexPath, dropOperation: dropOperation) ?? false
     }
 
-    func collectionView(_ collectionView: NSCollectionView, draggingSession session: NSDraggingSession, endedAt screenPoint: NSPoint,
-                        dragOperation operation: NSDragOperation) {
+    func collectionView(
+        _ collectionView: NSCollectionView, draggingSession session: NSDraggingSession, endedAt screenPoint: NSPoint,
+        dragOperation operation: NSDragOperation
+    ) {
         hide()
         original.collectionView?(collectionView, draggingSession: session, endedAt: screenPoint, dragOperation: operation)
     }
@@ -82,12 +90,13 @@ import AppKit
             let index = min(max(index, 0), count)
             let above = index > 0 ? collection.frameForItem(at: index - 1) : nil
             let below = index < count ? collection.frameForItem(at: index) : nil
-            let y = switch (above, below) {
-            case let (above?, below?): (above.maxY + below.minY) / 2
-            case let (above?, nil): above.maxY
-            case let (nil, below?): below.minY
-            case (nil, nil): CGFloat(0)
-            }
+            let y =
+                switch (above, below) {
+                case let (above?, below?): (above.maxY + below.minY) / 2
+                case let (above?, nil): above.maxY
+                case let (nil, below?): below.minY
+                case (nil, nil): CGFloat(0)
+                }
             let reference = below ?? above ?? .zero
             frame = NSRect(x: reference.minX, y: max(0, y - 1.5), width: reference.width, height: 3)
         }

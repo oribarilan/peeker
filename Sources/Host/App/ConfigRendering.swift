@@ -5,24 +5,28 @@ extension Config {
     /// settings themselves, so keys the app doesn't understand and values it couldn't use never come out, and each
     /// plugin lists only the extensions it owns. Reading it back gives the same settings.
     func json(plugins: [PluginEntry]) -> Data {
-        let pluginSettings = Dictionary(uniqueKeysWithValues: plugins.map { plugin in
-            let tools = Dictionary(uniqueKeysWithValues: plugin.tools.compactMap { command -> (String, [String: String])? in
-                if noShortcut.contains(Config.keyID(plugin: plugin.id, command: command.id)) { return (command.id, ["shortcut": "off"]) }
-                guard let shortcut = shortcut(for: command, of: plugin.id) else { return nil }
-                return (command.id, ["shortcut": shortcut.configText])
+        let pluginSettings = Dictionary(
+            uniqueKeysWithValues: plugins.map { plugin in
+                let tools = Dictionary(
+                    uniqueKeysWithValues: plugin.tools.compactMap { command -> (String, [String: String])? in
+                        if noShortcut.contains(Config.keyID(plugin: plugin.id, command: command.id)) { return (command.id, ["shortcut": "off"]) }
+                        guard let shortcut = shortcut(for: command, of: plugin.id) else { return nil }
+                        return (command.id, ["shortcut": shortcut.configText])
+                    })
+                var settings: [String: Any] = [
+                    "enabled": !disabled.contains(plugin.id),
+                    "extensions": effectiveExtensions(of: plugin, among: plugins),
+                ]
+                if !tools.isEmpty { settings["tools"] = tools }
+                return (plugin.id, settings)
             })
-            var settings: [String: Any] = [
-                "enabled": !disabled.contains(plugin.id),
-                "extensions": effectiveExtensions(of: plugin, among: plugins),
-            ]
-            if !tools.isEmpty { settings["tools"] = tools }
-            return (plugin.id, settings)
-        })
         let root: [String: Any] = [
             "$schema": "schema.json",
-            "peekPanel": ["key": peekPanelKey?.configText ?? "off", "openWith": peekPanelOpenWith,
-                          "openKey": peekPanelOpenKey?.configText ?? "off",
-                          "showInFinderKey": peekPanelShowInFinderKey?.configText ?? "off"] as [String: Any],
+            "peekPanel": [
+                "key": peekPanelKey?.configText ?? "off", "openWith": peekPanelOpenWith,
+                "openKey": peekPanelOpenKey?.configText ?? "off",
+                "showInFinderKey": peekPanelShowInFinderKey?.configText ?? "off",
+            ] as [String: Any],
             "updates": ["automatic": automaticUpdates, "showWhatsNew": showWhatsNew],
             "textTheme": textTheme,
             "appearance": appearance,

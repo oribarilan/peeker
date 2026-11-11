@@ -23,8 +23,9 @@ final class MenuBarItem {
         /// The red dot wins over the accent one: a problem needs fixing, an update can wait.
         init(problems: Int, needsAccessibility: Bool, update: String? = nil) {
             let dot: Dot? = problems > 0 || needsAccessibility ? .red : update != nil ? .accent : nil
-            self.init(dot: dot, problemsLine: problems > 0 ? MenuBarItem.problemsTitle(count: problems) : nil,
-                      accessibilityLine: needsAccessibility, updateLine: update.map { "Update to \($0)…" })
+            self.init(
+                dot: dot, problemsLine: problems > 0 ? MenuBarItem.problemsTitle(count: problems) : nil,
+                accessibilityLine: needsAccessibility, updateLine: update.map { "Update to \($0)…" })
         }
 
         /// What VoiceOver reads for the icon: "Peeker", then what the dot is about.
@@ -63,9 +64,10 @@ final class MenuBarItem {
     }
 
     static func lines(target: AppDelegate) -> Lines {
-        let lines = Lines(update: NSMenuItem(title: "", action: #selector(AppDelegate.checkForUpdates(_:)), keyEquivalent: ""),
-                          problems: NSMenuItem(title: "", action: #selector(AppDelegate.showConfigFileSettings(_:)), keyEquivalent: ""),
-                          accessibility: NSMenuItem(title: accessibilityTitle, action: #selector(AppDelegate.showPermissionsSettings(_:)), keyEquivalent: ""))
+        let lines = Lines(
+            update: NSMenuItem(title: "", action: #selector(AppDelegate.checkForUpdates(_:)), keyEquivalent: ""),
+            problems: NSMenuItem(title: "", action: #selector(AppDelegate.showConfigFileSettings(_:)), keyEquivalent: ""),
+            accessibility: NSMenuItem(title: accessibilityTitle, action: #selector(AppDelegate.showPermissionsSettings(_:)), keyEquivalent: ""))
         for line in lines.all {
             line.target = target
             line.isHidden = true
@@ -77,9 +79,11 @@ final class MenuBarItem {
     static func menu(target: AppDelegate, lines: [NSMenuItem]) -> NSMenu {
         let menu = NSMenu()
         lines.forEach(menu.addItem)
-        let commands = [("Open…", #selector(AppDelegate.showOpenPanel(_:))), ("Settings…", #selector(AppDelegate.showSettings(_:))),
-                        ("Check for Updates…", #selector(AppDelegate.checkForUpdates(_:))),
-                        ("Open at Login", #selector(AppDelegate.toggleOpenAtLogin(_:)))]
+        let commands = [
+            ("Open…", #selector(AppDelegate.showOpenPanel(_:))), ("Settings…", #selector(AppDelegate.showSettings(_:))),
+            ("Check for Updates…", #selector(AppDelegate.checkForUpdates(_:))),
+            ("Open at Login", #selector(AppDelegate.toggleOpenAtLogin(_:))),
+        ]
         for (title, action) in commands {
             menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = target
         }

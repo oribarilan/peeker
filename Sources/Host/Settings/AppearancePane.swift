@@ -85,8 +85,9 @@ struct ThemeCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(run("# ", theme.marker, size: 13) + run("Title", theme.heading, size: 13, weight: .bold))
                     Text(run("See ", theme.text) + run("the docs", theme.link) + run(".", theme.text))
-                    Text(run("Run ", theme.text) + run("`", theme.marker) + run("make", theme.text, mono: true, background: theme.codeBackground)
-                         + run("`", theme.marker))
+                    Text(
+                        run("Run ", theme.text) + run("`", theme.marker) + run("make", theme.text, mono: true, background: theme.codeBackground)
+                            + run("`", theme.marker))
                     Text(run("- [x] ", theme.marker) + run("Done", theme.text))
                 }
                 .lineLimit(1)
@@ -110,8 +111,10 @@ struct ThemeCard: View {
 
     private func color(_ color: NSColor) -> Color { Color(nsColor: Self.resolve(color, dark: dark)) }
 
-    private func run(_ text: String, _ foreground: NSColor, size: CGFloat = 11, weight: Font.Weight = .regular, mono: Bool = false,
-                     background: NSColor? = nil) -> AttributedString {
+    private func run(
+        _ text: String, _ foreground: NSColor, size: CGFloat = 11, weight: Font.Weight = .regular, mono: Bool = false,
+        background: NSColor? = nil
+    ) -> AttributedString {
         var run = AttributedString(text)
         run.foregroundColor = color(foreground)
         run.font = .system(size: size, weight: weight, design: mono ? .monospaced : .default)

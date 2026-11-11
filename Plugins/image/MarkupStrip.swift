@@ -85,20 +85,24 @@ final class MarkupStrip: NSView {
     let strength = NSSlider(value: MarkStyle.defaultStrength, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let strengthRow: NSStackView
     /// Text's font, bold, italic and effect, in one menu so the strip stays narrow. Ids are the raw values, which don't overlap.
-    let textMenu = StyleMenu(sections: [TextStyle.Font.allCases.map { ($0.rawValue.capitalized, $0.rawValue) },
-                                        [("Bold", "bold"), ("Italic", "italic")],
-                                        TextStyle.Effect.allCases.map { ($0.rawValue.capitalized, $0.rawValue) }])
+    let textMenu = StyleMenu(sections: [
+        TextStyle.Font.allCases.map { ($0.rawValue.capitalized, $0.rawValue) },
+        [("Bold", "bold"), ("Italic", "italic")],
+        TextStyle.Effect.allCases.map { ($0.rawValue.capitalized, $0.rawValue) },
+    ])
     private var textStyle = TextStyle.standard
-    let shapes = NSSegmentedControl(images: ["rectangle", "oval"].map { NSImage(systemSymbolName: $0, accessibilityDescription: nil)! },
-                                    trackingMode: .selectOne, target: nil, action: nil)
+    let shapes = NSSegmentedControl(
+        images: ["rectangle", "oval"].map { NSImage(systemSymbolName: $0, accessibilityDescription: nil)! },
+        trackingMode: .selectOne, target: nil, action: nil)
 
     init() {
         let icon = NSImageView(image: NSImage(systemSymbolName: "checkerboard.rectangle", accessibilityDescription: nil)!)
         icon.contentTintColor = .secondaryLabelColor
         strengthRow = NSStackView(views: [icon, strength])
         strengthRow.spacing = 6
-        bar = MarkupBar(tools: MarkupTool.allCases.map { MarkupBar.Tool(id: $0.id, title: $0.title, symbol: $0.symbol, key: $0.key) },
-                        palette: markupPalette, moreColors: true, details: [sizes, strengthRow, shapes, textMenu])
+        bar = MarkupBar(
+            tools: MarkupTool.allCases.map { MarkupBar.Tool(id: $0.id, title: $0.title, symbol: $0.symbol, key: $0.key) },
+            palette: markupPalette, moreColors: true, details: [sizes, strengthRow, shapes, textMenu])
         super.init(frame: .zero)
         bar.onTool = { [weak self] id in self?.onTool?(id.flatMap(MarkupTool.init(id:))) }
         bar.onColor = { [weak self] in self?.onColor?($0) }
@@ -139,8 +143,10 @@ final class MarkupStrip: NSView {
         strength.doubleValue = style.strength
         shapes.selectedSegment = style.ovalSpotlight ? 1 : 0
         textStyle = style.text
-        textMenu.check(Set([style.text.font.rawValue, style.text.effect.rawValue]
-                           + (style.text.bold ? ["bold"] : []) + (style.text.italic ? ["italic"] : [])))
+        textMenu.check(
+            Set(
+                [style.text.font.rawValue, style.text.effect.rawValue]
+                    + (style.text.bold ? ["bold"] : []) + (style.text.italic ? ["italic"] : [])))
         sizes.isHidden = detail != .size && detail != .text  // text has a size too
         strengthRow.isHidden = detail != .strength
         shapes.isHidden = detail != .shape
@@ -165,9 +171,13 @@ final class MarkupStrip: NSView {
         case "bold": style.bold.toggle()
         case "italic": style.italic.toggle()
         default:
-            if let font = TextStyle.Font(rawValue: id) { style.font = font }
-            else if let effect = TextStyle.Effect(rawValue: id) { style.effect = effect }
-            else { return }
+            if let font = TextStyle.Font(rawValue: id) {
+                style.font = font
+            } else if let effect = TextStyle.Effect(rawValue: id) {
+                style.effect = effect
+            } else {
+                return
+            }
         }
         onText?(style)
     }

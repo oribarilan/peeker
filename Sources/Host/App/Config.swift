@@ -97,8 +97,10 @@ struct Config: Equatable {
                 let pluginIsDefault = plugin.defaultExtensions.contains(ext) && !holder.defaultExtensions.contains(ext)
                 let (winner, loser) = pluginIsDefault ? (plugin, holder) : (holder, plugin)
                 owners[ext] = winner
-                problems.append(ConfigProblem(path: "plugins.\(loser.id).extensions",
-                                              message: "“\(ext)” belongs to the \(winner.name) plugin, so \(loser.name) doesn't open it."))
+                problems.append(
+                    ConfigProblem(
+                        path: "plugins.\(loser.id).extensions",
+                        message: "“\(ext)” belongs to the \(winner.name) plugin, so \(loser.name) doesn't open it."))
             }
         }
         return (owners.mapValues(\.id), problems)
@@ -141,7 +143,8 @@ struct Config: Equatable {
             root = try JSONDecoder().decode(JSONValue.self, from: data)
         } catch {
             let detail = (error as NSError).userInfo["NSDebugDescription"] as? String
-            return ConfigReading(config: nil, problems: [ConfigProblem(path: "", message: "The file isn't valid JSON" + (detail.map { ": \($0)" } ?? "."))])
+            return ConfigReading(
+                config: nil, problems: [ConfigProblem(path: "", message: "The file isn't valid JSON" + (detail.map { ": \($0)" } ?? "."))])
         }
         guard case .object(let sections) = root else {
             return ConfigReading(config: nil, problems: [ConfigProblem(path: "", message: "The file should be a JSON object, in braces.")])
@@ -199,15 +202,23 @@ private struct ConfigReader {
             switch key {
             case "key":
                 guard let text = string(value, at: path) else { continue }
-                if text == "off" { config.peekPanelKey = nil }
-                else if let shortcut = Shortcut(parsing: text) { config.peekPanelKey = shortcut }
-                else { problem(path, "“\(text)” isn't a key Peeker understands. Use one like space or opt+space, or off.") }
+                if text == "off" {
+                    config.peekPanelKey = nil
+                } else if let shortcut = Shortcut(parsing: text) {
+                    config.peekPanelKey = shortcut
+                } else {
+                    problem(path, "“\(text)” isn't a key Peeker understands. Use one like space or opt+space, or off.")
+                }
             case "openWith":
                 if let entries = object(value, at: path) { readOpenWith(entries, at: path) }
             case "openKey":
-                if let key = panelActionKey(value, at: path, taken: [config.peekPanelKey, config.peekPanelShowInFinderKey]) { config.peekPanelOpenKey = key }
+                if let key = panelActionKey(value, at: path, taken: [config.peekPanelKey, config.peekPanelShowInFinderKey]) {
+                    config.peekPanelOpenKey = key
+                }
             case "showInFinderKey":
-                if let key = panelActionKey(value, at: path, taken: [config.peekPanelKey, config.peekPanelOpenKey]) { config.peekPanelShowInFinderKey = key }
+                if let key = panelActionKey(value, at: path, taken: [config.peekPanelKey, config.peekPanelOpenKey]) {
+                    config.peekPanelShowInFinderKey = key
+                }
             default:
                 unknown(path)
             }
@@ -262,7 +273,8 @@ private struct ConfigReader {
         for (key, value) in sorted(settings) {
             let path = "updates.\(key)"
             switch key {
-            case "automatic": if let mode = choice(value, at: path, from: Config.automaticUpdateModes, "an update mode") { config.automaticUpdates = mode }
+            case "automatic":
+                if let mode = choice(value, at: path, from: Config.automaticUpdateModes, "an update mode") { config.automaticUpdates = mode }
             case "showWhatsNew": if let show = bool(value, at: path) { config.showWhatsNew = show }
             default: unknown(path)
             }
@@ -297,7 +309,9 @@ private struct ConfigReader {
             let path = "\(prefix).\(command)"
             guard plugin.tools.contains(where: { $0.id == command }) else {
                 let known = plugin.tools.map(\.id)
-                problem(path, "The \(plugin.name) plugin has no tool “\(command)”" + (known.isEmpty ? "." : ". Its tools: \(known.joined(separator: ", "))."))
+                problem(
+                    path,
+                    "The \(plugin.name) plugin has no tool “\(command)”" + (known.isEmpty ? "." : ". Its tools: \(known.joined(separator: ", "))."))
                 continue
             }
             guard let settings = object(value, at: path) else { continue }

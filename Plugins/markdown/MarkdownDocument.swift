@@ -116,7 +116,8 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
         // One frame later, so the first screen is drawn and shown before the rest is laid out.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.016) { [weak self] in
             guard let self, renders == render, let storage = textView.textStorage else { return }
-            let tail = MarkdownRenderer.render(blocks.dropFirst(Self.firstPaintBlocks), theme: theme, images: pictures.usable(images), scale: scale, leadingBreak: true)
+            let tail = MarkdownRenderer.render(
+                blocks.dropFirst(Self.firstPaintBlocks), theme: theme, images: pictures.usable(images), scale: scale, leadingBreak: true)
             let offset = storage.length  // not the head's length: a picture that failed to decode changed it
             storage.append(tail.text)
             for (line, location) in tail.anchors { anchors[line] = location + offset }
@@ -134,7 +135,11 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
     func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
         guard let link = link as? URL else { return false }
         // The renderer builds links without a base, so the relative string is the destination as written.
-        if let local = LinkOpener.resolve(link.relativeString, against: url) { onFollowLink?(local) } else { LinkOpener.open(link, from: scrollView.window) }
+        if let local = LinkOpener.resolve(link.relativeString, against: url) {
+            onFollowLink?(local)
+        } else {
+            LinkOpener.open(link, from: scrollView.window)
+        }
         return true
     }
 
@@ -149,8 +154,9 @@ final class MarkdownDocument: NSObject, LinkFollowing, NSTextViewDelegate {
     /// Scrolls the line holding the position's character to the top.
     func restore(_ position: any Sendable) {
         guard let top = position as? Int, top > 0, let layout = textView.textLayoutManager, let content = layout.textContentManager,
-              let location = content.location(content.documentRange.location, offsetBy: min(top, textView.string.utf16.count - 1)),
-              let before = NSTextRange(location: content.documentRange.location, end: location) else { return textView.scroll(.zero) }
+            let location = content.location(content.documentRange.location, offsetBy: min(top, textView.string.utf16.count - 1)),
+            let before = NSTextRange(location: content.documentRange.location, end: location)
+        else { return textView.scroll(.zero) }
         layout.ensureLayout(for: before)
         guard let fragment = layout.textLayoutFragment(for: location) else { return }
         let offset = content.offset(from: fragment.rangeInElement.location, to: location)

@@ -18,8 +18,10 @@ final class LockedPDFDocument: PluginDocument {
     /// A crash-recovery copy of edits made after an earlier unlock, kept sealed until the PDF is unlocked again.
     private var held: SealedEdits?
     static let unlockToSave = "Unlock this PDF to save its changes."
-    static let misfitMessage = "The changes recovered for this PDF no longer fit it, since the file changed. Close the window and choose Don't Save to drop them."
-    static let otherPasswordMessage = "These changes were made after unlocking with this PDF's other password. Type that one to get them back, or close the window and choose Don't Save to drop them."
+    static let misfitMessage =
+        "The changes recovered for this PDF no longer fit it, since the file changed. Close the window and choose Don't Save to drop them."
+    static let otherPasswordMessage =
+        "These changes were made after unlocking with this PDF's other password. Type that one to get them back, or close the window and choose Don't Save to drop them."
 
     init(url: URL, canUnlock: Bool, preferences: PluginPreferences? = nil) {
         self.url = url
@@ -90,9 +92,10 @@ final class LockedPDFDocument: PluginDocument {
             recovered = opened
         }
         let lock = PDFLock(password: password, isPermissionsPassword: document.permissionsStatus == .owner)
-        let unlocked = PDFPluginDocument(url: url, document: document, info: checked.info, editable: true,
-                                         uneditableReason: PDFPlugin.uneditableReason(checked, document), preferences: preferences, lock: lock,
-                                         recoveryKey: key)
+        let unlocked = PDFPluginDocument(
+            url: url, document: document, info: checked.info, editable: true,
+            uneditableReason: PDFPlugin.uneditableReason(checked, document), preferences: preferences, lock: lock,
+            recoveryKey: key)
         if let recovered, !unlocked.restore(encoded: recovered) {
             messageLabel.stringValue = Self.misfitMessage
             NSSound.beep()
@@ -121,4 +124,3 @@ final class LockedPDFDocument: PluginDocument {
 
     func revertEdits() { held = nil }
 }
-

@@ -38,12 +38,14 @@ final class OutlineList: HoverTableScrollView, NSTableViewDataSource, NSTableVie
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let item = items[row]
-        let cell = tableView.makeView(withIdentifier: .init("cell"), owner: nil) as? NSTextField ?? {
-            let field = NSTextField(labelWithString: "")
-            field.identifier = .init("cell")
-            field.lineBreakMode = .byTruncatingTail
-            return field
-        }()
+        let cell =
+            tableView.makeView(withIdentifier: .init("cell"), owner: nil) as? NSTextField
+            ?? {
+                let field = NSTextField(labelWithString: "")
+                field.identifier = .init("cell")
+                field.lineBreakMode = .byTruncatingTail
+                return field
+            }()
         cell.stringValue = String(repeating: "   ", count: max(0, item.level - 1)) + item.title
         cell.font = .systemFont(ofSize: 12, weight: item.level == 1 ? .semibold : .regular)
         return cell

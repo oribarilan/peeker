@@ -5,8 +5,10 @@ import PeekerSyntax
 /// Lays out the block tree as native attributed text, with each heading's source line mapped to where it starts.
 enum MarkdownRenderer {
     /// `scale` sizes every font together: 1 draws body text at 14 points.
-    static func render(_ blocks: some Collection<MarkdownBlock>, theme: TextTheme, images: [String: LocalImage] = [:],
-                       scale: CGFloat = 1, leadingBreak: Bool = false) -> (text: NSAttributedString, anchors: [Int: Int]) {
+    static func render(
+        _ blocks: some Collection<MarkdownBlock>, theme: TextTheme, images: [String: LocalImage] = [:],
+        scale: CGFloat = 1, leadingBreak: Bool = false
+    ) -> (text: NSAttributedString, anchors: [Int: Int]) {
         var context = Context(theme: theme, images: images, scale: scale)
         if leadingBreak { context.out.append(NSAttributedString(string: "\n")) }
         for block in blocks { context.render(block, indent: 0) }
@@ -25,7 +27,9 @@ enum MarkdownRenderer {
         if style.contains(.strong) { traits.insert(.bold) }
         if style.contains(.emphasis) { traits.insert(.italic) }
         if !traits.isEmpty {
-            font = NSFont(descriptor: base.fontDescriptor.withSymbolicTraits(base.fontDescriptor.symbolicTraits.union(traits)), size: base.pointSize) ?? base
+            font =
+                NSFont(descriptor: base.fontDescriptor.withSymbolicTraits(base.fontDescriptor.symbolicTraits.union(traits)), size: base.pointSize)
+                ?? base
         }
         if style.contains(.code) { font = .monospacedSystemFont(ofSize: base.pointSize - 1.5, weight: .regular) }
         fontCache[key] = font
@@ -69,13 +73,17 @@ enum MarkdownRenderer {
                 style.paragraphSpacing = 10
                 let code = text.trimmingCharacters(in: .newlines)
                 let start = out.length
-                out.append(NSAttributedString(string: code + "\n", attributes: [
-                    .font: mono, .foregroundColor: theme.text, .backgroundColor: theme.codeBackground, .paragraphStyle: style,
-                ]))
+                out.append(
+                    NSAttributedString(
+                        string: code + "\n",
+                        attributes: [
+                            .font: mono, .foregroundColor: theme.text, .backgroundColor: theme.codeBackground, .paragraphStyle: style,
+                        ]))
                 if let language = tag.flatMap(SyntaxLanguage.init(fenceTag:)) {
                     for span in SyntaxScanner.spans(in: code, language: language) {
-                        out.addAttribute(.foregroundColor, value: theme.syntax.color(for: span.role),
-                                         range: NSRange(location: start + span.range.location, length: span.range.length))
+                        out.addAttribute(
+                            .foregroundColor, value: theme.syntax.color(for: span.role),
+                            range: NSRange(location: start + span.range.location, length: span.range.length))
                     }
                 }
             case .quote(let children):
@@ -83,9 +91,12 @@ enum MarkdownRenderer {
                 for child in children { render(child, indent: indent + 18) }
                 out.addAttribute(.foregroundColor, value: theme.marker, range: NSRange(location: start, length: out.length - start))
             case .rule:
-                out.append(NSAttributedString(string: String(repeating: "─", count: 24) + "\n", attributes: [
-                    .foregroundColor: theme.marker, .paragraphStyle: paragraphStyle(indent: indent, before: 6),
-                ]))
+                out.append(
+                    NSAttributedString(
+                        string: String(repeating: "─", count: 24) + "\n",
+                        attributes: [
+                            .foregroundColor: theme.marker, .paragraphStyle: paragraphStyle(indent: indent, before: 6),
+                        ]))
             case .table(let rows):
                 table(rows, indent: indent)
             }
@@ -94,9 +105,12 @@ enum MarkdownRenderer {
         private mutating func listItem(_ item: ListItem, marker: String, indent: CGFloat) {
             let prefix = NSMutableAttributedString(string: marker + "\t", attributes: [.font: body, .foregroundColor: theme.marker])
             if let checked = item.checked {
-                prefix.setAttributedString(NSAttributedString(string: (checked ? "☑" : "☐") + "\t", attributes: [
-                    .font: NSFont.systemFont(ofSize: 15 * scale), .foregroundColor: theme.marker,
-                ]))
+                prefix.setAttributedString(
+                    NSAttributedString(
+                        string: (checked ? "☑" : "☐") + "\t",
+                        attributes: [
+                            .font: NSFont.systemFont(ofSize: 15 * scale), .foregroundColor: theme.marker,
+                        ]))
             }
             guard let first = item.blocks.first else {
                 out.append(prefix)
@@ -107,7 +121,9 @@ enum MarkdownRenderer {
             for child in item.blocks.dropFirst() { render(child, indent: indent + 22) }
         }
 
-        private mutating func paragraph(_ spans: [Span], font: NSFont, color: NSColor? = nil, indent: CGFloat, before: CGFloat, prefix: NSAttributedString?) {
+        private mutating func paragraph(
+            _ spans: [Span], font: NSFont, color: NSColor? = nil, indent: CGFloat, before: CGFloat, prefix: NSAttributedString?
+        ) {
             let start = out.length
             let style = paragraphStyle(indent: indent, before: before)
             if let prefix {
@@ -128,8 +144,10 @@ enum MarkdownRenderer {
                 let start = out.length
                 for (column, cell) in row.enumerated() {
                     if column > 0 { out.append(NSAttributedString(string: "\t")) }
-                    appendSpans(cell, font: index == 0 ? .systemFont(ofSize: 13 * scale, weight: .semibold) : .systemFont(ofSize: 13 * scale), color: theme.text,
-                                images: [:])
+                    appendSpans(
+                        cell, font: index == 0 ? .systemFont(ofSize: 13 * scale, weight: .semibold) : .systemFont(ofSize: 13 * scale),
+                        color: theme.text,
+                        images: [:])
                 }
                 out.append(NSAttributedString(string: "\n"))
                 out.addAttribute(.paragraphStyle, value: style, range: NSRange(location: start, length: out.length - start))

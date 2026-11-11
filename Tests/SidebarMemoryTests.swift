@@ -33,8 +33,9 @@ private final class OutlineDocument: PluginDocument {
 @Suite(.serialized) struct SidebarMemoryTests {
     @Test func openingADocumentWithoutToolsDoesNotRebuildTheToolbar() async throws {
         let url = try TempFile.make(Data("x".utf8), name: "f.bin")
-        let document = DocumentViewController(url: url, entry: PluginEntry(Outline.self), config: Config(), allowsEditing: true,
-                                              recovery: nil, sidebarMemory: SidebarMemory(defaults: nil))
+        let document = DocumentViewController(
+            url: url, entry: PluginEntry(Outline.self), config: Config(), allowsEditing: true,
+            recovery: nil, sidebarMemory: SidebarMemory(defaults: nil))
         let window = offscreenWindow(holding: document.view)
         defer { window.close(); document.close() }
         #expect(document.hasSidebar, "assumed while the file opens, so the first toolbar has the button")

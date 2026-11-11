@@ -30,13 +30,15 @@ final class DataOutlineList: HoverTableScrollView, NSTableViewDataSource, NSTabl
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { rowView(for: row) }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        let cell = tableView.makeView(withIdentifier: .init("cell"), owner: nil) as? NSTextField ?? {
-            let field = NSTextField(labelWithString: "")
-            field.identifier = .init("cell")
-            field.lineBreakMode = .byTruncatingTail
-            field.font = .systemFont(ofSize: 12)
-            return field
-        }()
+        let cell =
+            tableView.makeView(withIdentifier: .init("cell"), owner: nil) as? NSTextField
+            ?? {
+                let field = NSTextField(labelWithString: "")
+                field.identifier = .init("cell")
+                field.lineBreakMode = .byTruncatingTail
+                field.font = .systemFont(ofSize: 12)
+                return field
+            }()
         cell.stringValue = items[row]
         return cell
     }

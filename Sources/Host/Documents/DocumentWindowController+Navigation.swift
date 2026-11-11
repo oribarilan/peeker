@@ -19,8 +19,9 @@ extension DocumentWindowController {
     /// Takes a link to a local file from the tab's document.
     func follow(_ link: URL) async {
         guard let plugin = current?.entry.id else { return }
-        let route = LinkRoute(link: link, from: url, plugin: plugin, owner: { [catalog] in catalog.owner(for: $0)?.id },
-                              isOpenElsewhere: { [weak self] in self?.otherWindow($0) != nil })
+        let route = LinkRoute(
+            link: link, from: url, plugin: plugin, owner: { [catalog] in catalog.owner(for: $0)?.id },
+            isOpenElsewhere: { [weak self] in self?.otherWindow($0) != nil })
         switch route {
         case .missing: beep()
         case .stay: break
@@ -68,7 +69,8 @@ extension DocumentWindowController {
     /// forward instead.
     private func show(_ entry: NavigationHistory.Entry, movingTo target: Int?) async {
         guard FileManager.default.fileExists(atPath: entry.url.path),
-              let plugin = catalog.enabled.first(where: { $0.id == entry.pluginID }) else { return beep() }
+            let plugin = catalog.enabled.first(where: { $0.id == entry.pluginID })
+        else { return beep() }
         if let other = otherWindow(entry.url) { return bringForward(other) }
         if let position = following?.position { history.record(position) }
         guard await resolveUnsavedEdits() else { return }

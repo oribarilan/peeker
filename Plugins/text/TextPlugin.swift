@@ -24,8 +24,9 @@ public enum TextPlugin: Plugin {
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let loaded = try await TextFile.load(url)
-        return TextDocument(url: url, loaded: loaded, code: await CodeColoring.scan(url, text: loaded.text), allowsEditing: context.allowsEditing,
-                            preferences: context.preferences)
+        return TextDocument(
+            url: url, loaded: loaded, code: await CodeColoring.scan(url, text: loaded.text), allowsEditing: context.allowsEditing,
+            preferences: context.preferences)
     }
 
     public static func recoveryText(from edits: Data) -> String? {
@@ -37,9 +38,11 @@ public enum TextPlugin: Plugin {
     }
 
     nonisolated static func info(lineCount: Int, format: TextFormat, byteCount: Int) -> [InfoRow] {
-        [InfoRow(label: "Lines", value: lineCount.formatted()),
-         InfoRow(label: "Encoding", value: String.localizedName(of: format.encoding) + (format.hasBOM ? " with BOM" : "")),
-         InfoRow(label: "Line endings", value: format.lineEnding.rawValue),
-         InfoRow(label: "Size", value: size(byteCount))]
+        [
+            InfoRow(label: "Lines", value: lineCount.formatted()),
+            InfoRow(label: "Encoding", value: String.localizedName(of: format.encoding) + (format.hasBOM ? " with BOM" : "")),
+            InfoRow(label: "Line endings", value: format.lineEnding.rawValue),
+            InfoRow(label: "Size", value: size(byteCount)),
+        ]
     }
 }

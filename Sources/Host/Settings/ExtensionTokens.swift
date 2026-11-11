@@ -47,7 +47,9 @@ struct ExtensionTokens: View {
             }
             if let message { Text(message).font(.caption).foregroundStyle(.red) }
         }
-        .confirmationDialog(move.map { "“\($0.ext)” opens in \($0.owner.name)" } ?? "", isPresented: Binding(get: { move != nil }, set: { if !$0 { move = nil } })) {
+        .confirmationDialog(
+            move.map { "“\($0.ext)” opens in \($0.owner.name)" } ?? "", isPresented: Binding(get: { move != nil }, set: { if !$0 { move = nil } })
+        ) {
             if let move {
                 Button("Move to \(plugin.name)") {
                     model.save { $0.moveExtension(move.ext, to: plugin, among: plugins) }
@@ -63,7 +65,9 @@ struct ExtensionTokens: View {
     private func token(_ ext: String) -> some View {
         HStack(spacing: 4) {
             Text(ext).font(.callout.monospaced())
-            Button { model.save { $0.removeExtension(ext, from: plugin, among: plugins) } } label: {
+            Button {
+                model.save { $0.removeExtension(ext, from: plugin, among: plugins) }
+            } label: {
                 Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)

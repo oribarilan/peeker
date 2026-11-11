@@ -97,9 +97,11 @@ extension PDFPluginDocument {
     /// history, and a highlight belongs to its text.
     func copyMark() -> Bool {
         guard let controller = editController, let annotation = controller.selectedAnnotation, let page = annotation.page,
-              let index = pdfView.document?.index(for: page) else { return false }
+            let index = pdfView.document?.index(for: page)
+        else { return false }
         guard let mark = PDFMarks.mark(of: annotation, page: index), mark.type == .textBox || mark.type == .drawing,
-              let data = try? JSONEncoder().encode(mark) else {
+            let data = try? JSONEncoder().encode(mark)
+        else {
             NSSound.beep()
             return true
         }
@@ -114,9 +116,10 @@ extension PDFPluginDocument {
     /// What comes off the pasteboard is checked as a saved edit would be.
     func pasteMark() -> Bool {
         guard canPasteMark, let data = pasteboard.data(forType: Self.markPasteboardType),
-              let copied = try? JSONDecoder().decode(PDFMark.self, from: data), copied.type == .textBox || copied.type == .drawing,
-              let controller = prepareEditing(), let document = pdfView.document,
-              let page = pdfView.currentPage ?? document.page(at: 0) else { return false }
+            let copied = try? JSONDecoder().decode(PDFMark.self, from: data), copied.type == .textBox || copied.type == .drawing,
+            let controller = prepareEditing(), let document = pdfView.document,
+            let page = pdfView.currentPage ?? document.page(at: 0)
+        else { return false }
         let index = document.index(for: page)
         // No bigger than the page: what's on the pasteboard may come from another app.
         let box = page.bounds(for: .mediaBox)

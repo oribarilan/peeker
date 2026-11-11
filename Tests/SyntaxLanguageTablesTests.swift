@@ -4,53 +4,84 @@ import Testing
 
 /// One example per language: its comments, a string, a keyword, and what it calls a constant.
 @Suite struct SyntaxLanguageTables {
-    private func check(_ code: String, _ language: SyntaxLanguage, _ expected: [(String, SyntaxRole?)], sourceLocation: SourceLocation = #_sourceLocation) {
+    private func check(
+        _ code: String, _ language: SyntaxLanguage, _ expected: [(String, SyntaxRole?)], sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         for (piece, wanted) in expected {
             #expect(role(of: piece, in: code, language) == wanted, "\(language): \(piece)", sourceLocation: sourceLocation)
         }
     }
 
     @Test func javascriptAndTypescript() {
-        let code = "// load\nexport async function load(url: string): Promise<Data> { /* fetch */ const msg = `got ${url.replace(\"a\", 'b')}`; return null }"
-        check(code, .javascript, [("// load", .comment), ("/* fetch */", .comment), ("export", .keyword), ("function", .keyword),
-                                  ("load(", .function), ("Promise", .type), ("`got", .string), ("'b'", .string), ("null", .number),
-                                  ("string", .type)])
+        let code =
+            "// load\nexport async function load(url: string): Promise<Data> { /* fetch */ const msg = `got ${url.replace(\"a\", 'b')}`; return null }"
+        check(
+            code, .javascript,
+            [
+                ("// load", .comment), ("/* fetch */", .comment), ("export", .keyword), ("function", .keyword),
+                ("load(", .function), ("Promise", .type), ("`got", .string), ("'b'", .string), ("null", .number),
+                ("string", .type),
+            ])
     }
 
     @Test func cFamily() {
         let code = "#include <stdio.h>\n// main\nint main(void) { /* x */ char *s = \"hi\\n\"; @autoreleasepool { return NULL; } }"
-        check(code, .c, [("#include", .keyword), ("// main", .comment), ("int", .keyword), ("main(", .function), ("\"hi\\n\"", .string),
-                         ("NULL", .number), ("@autoreleasepool", .keyword), ("/* x */", .comment)])
+        check(
+            code, .c,
+            [
+                ("#include", .keyword), ("// main", .comment), ("int", .keyword), ("main(", .function), ("\"hi\\n\"", .string),
+                ("NULL", .number), ("@autoreleasepool", .keyword), ("/* x */", .comment),
+            ])
     }
 
     @Test func go() {
         let code = "// Package x\nfunc Sum(xs []int) error { s := `raw \"q\"`; return nil }"
-        check(code, .go, [("// Package x", .comment), ("func", .keyword), ("Sum(", .function), ("int", .type), ("error", .type),
-                          ("`raw \"q\"`", .string), ("nil", .number)])
+        check(
+            code, .go,
+            [
+                ("// Package x", .comment), ("func", .keyword), ("Sum(", .function), ("int", .type), ("error", .type),
+                ("`raw \"q\"`", .string), ("nil", .number),
+            ])
     }
 
     @Test func rust() {
         let code = "/// docs\nfn main() -> Result<(), String> { let s: &'static str = \"hi\"; if true { None } else { Some(1u8) } }"
-        check(code, .rust, [("/// docs", .comment), ("fn", .keyword), ("main(", .function), ("Result", .type), ("\"hi\"", .string),
-                            ("true", .number), ("let", .keyword), ("str", .type)])
+        check(
+            code, .rust,
+            [
+                ("/// docs", .comment), ("fn", .keyword), ("main(", .function), ("Result", .type), ("\"hi\"", .string),
+                ("true", .number), ("let", .keyword), ("str", .type),
+            ])
     }
 
     @Test func java() {
         let code = "// App\npublic final class App { static String NAME = \"app\"; void run() { if (x == null) return; } }"
-        check(code, .java, [("// App", .comment), ("public", .keyword), ("class", .keyword), ("App {", .type), ("NAME", .number),
-                            ("\"app\"", .string), ("run(", .function), ("null", .number)])
+        check(
+            code, .java,
+            [
+                ("// App", .comment), ("public", .keyword), ("class", .keyword), ("App {", .type), ("NAME", .number),
+                ("\"app\"", .string), ("run(", .function), ("null", .number),
+            ])
     }
 
     @Test func kotlin() {
         let code = "// main\nfun greet(name: String) = println(\"Hi ${name.uppercase()}!\")\nval x: Int? = null"
-        check(code, .kotlin, [("// main", .comment), ("fun", .keyword), ("greet(", .function), ("String", .type),
-                              ("\"Hi ${name.uppercase()}!\"", .string), ("val", .keyword), ("null", .number)])
+        check(
+            code, .kotlin,
+            [
+                ("// main", .comment), ("fun", .keyword), ("greet(", .function), ("String", .type),
+                ("\"Hi ${name.uppercase()}!\"", .string), ("val", .keyword), ("null", .number),
+            ])
     }
 
     @Test func ruby() {
         let code = "# greet\nclass Greeter\n  def hi(name)\n    puts \"Hi #{name.upcase}\" unless name.nil?\n  end\nend\nx = nil"
-        check(code, .ruby, [("# greet", .comment), ("class", .keyword), ("Greeter", .type), ("def", .keyword), ("\"Hi #{name.upcase}\"", .string),
-                            ("unless", .keyword), ("end", .keyword), ("= nil", .number)])
+        check(
+            code, .ruby,
+            [
+                ("# greet", .comment), ("class", .keyword), ("Greeter", .type), ("def", .keyword), ("\"Hi #{name.upcase}\"", .string),
+                ("unless", .keyword), ("end", .keyword), ("= nil", .number),
+            ])
     }
 
     @Test func perl() {
@@ -60,20 +91,32 @@ import Testing
 
     @Test func sql() {
         let code = "-- active users\nSELECT id, name FROM users WHERE active = TRUE and name LIKE 'a%' /* x */ LIMIT 10;"
-        check(code, .sql, [("-- active users", .comment), ("SELECT", .keyword), ("FROM", .keyword), ("and", .keyword), ("TRUE", .number),
-                           ("'a%'", .string), ("/* x */", .comment), ("10", .number)])
+        check(
+            code, .sql,
+            [
+                ("-- active users", .comment), ("SELECT", .keyword), ("FROM", .keyword), ("and", .keyword), ("TRUE", .number),
+                ("'a%'", .string), ("/* x */", .comment), ("10", .number),
+            ])
     }
 
     @Test func cssAndScss() {
         let code = "/* layout */\n@media (max-width: 600px) { .box { color: #fff; width: 50%; margin: 0 auto !important; } }\n// scss note"
-        check(code, .css, [("/* layout */", .comment), ("@media", .keyword), ("600px", .number), ("#fff", .number), ("50%", .number),
-                           ("!important", .keyword), ("// scss note", .comment)])
+        check(
+            code, .css,
+            [
+                ("/* layout */", .comment), ("@media", .keyword), ("600px", .number), ("#fff", .number), ("50%", .number),
+                ("!important", .keyword), ("// scss note", .comment),
+            ])
     }
 
     @Test func yaml() {
         let code = "# config\nname: \"peeker\"\nport: 8080\ndebug: true\nlist: [a, 'b']\nurl: http://x#frag"
-        check(code, .yaml, [("# config", .comment), ("\"peeker\"", .string), ("8080", .number), ("true", .number), ("'b'", .string),
-                            ("#frag", nil)])
+        check(
+            code, .yaml,
+            [
+                ("# config", .comment), ("\"peeker\"", .string), ("8080", .number), ("true", .number), ("'b'", .string),
+                ("#frag", nil),
+            ])
     }
 
     @Test func toml() {

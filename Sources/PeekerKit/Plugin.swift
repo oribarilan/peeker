@@ -263,8 +263,10 @@ public struct ToolSpec: Sendable, Equatable {
         }
     }
 
-    public init(id: String, title: String, symbol: String? = nil, shortcut: String? = nil, isEditTool: Bool = false,
-                showsInToolbar: Bool = true, tip: String? = nil, menu: Menu? = nil, choices: [Choice] = [], choicesTitle: String? = nil) {
+    public init(
+        id: String, title: String, symbol: String? = nil, shortcut: String? = nil, isEditTool: Bool = false,
+        showsInToolbar: Bool = true, tip: String? = nil, menu: Menu? = nil, choices: [Choice] = [], choicesTitle: String? = nil
+    ) {
         self.choices = choices
         self.choicesTitle = choicesTitle
         self.menu = menu ?? (isEditTool ? .tools : .view)

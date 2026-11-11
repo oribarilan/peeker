@@ -40,7 +40,9 @@ private let box = PDFMark(id: "peeker-box", page: 0, rect: CGRect(x: 100, y: 400
         let file = try LockedPDF.aes256Form()
         let document = try await unlocked(file, with: LockedPDF.perms)
         var asked: [PDFPasswordKind] = []
-        document.askForPassword = { kind in asked.append(kind); return LockedPDF.open }
+        document.askForPassword = { kind in
+            asked.append(kind); return LockedPDF.open
+        }
         #expect(document.change(.add(box)))
         try await document.save(try #require(document.unsavedEdits()), accepting: nil)
         #expect(asked == [.open], "asked by the document itself, with no prompt from the host first")
@@ -56,7 +58,9 @@ private let box = PDFMark(id: "peeker-box", page: 0, rect: CGRect(x: 100, y: 400
         let document = try await unlocked(file, with: LockedPDF.perms)
         document.askForPassword = { _ in LockedPDF.perms }
         #expect(document.change(.add(box)))
-        await #expect(throws: PluginError(PDFPluginDocument.notOpenPassword)) { try await document.save(try #require(document.unsavedEdits()), accepting: nil) }
+        await #expect(throws: PluginError(PDFPluginDocument.notOpenPassword)) {
+            try await document.save(try #require(document.unsavedEdits()), accepting: nil)
+        }
         #expect(try Data(contentsOf: file) == before)
     }
 

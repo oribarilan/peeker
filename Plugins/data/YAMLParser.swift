@@ -14,7 +14,6 @@ nonisolated enum YAMLParser {
         }
     }
 
-
     /// A mapping key found on a line: its name, where it starts, and just past its colon.
     struct Key {
         let name: String
@@ -58,7 +57,8 @@ nonisolated enum YAMLParser {
                     }
                 }
                 lastWasEmpty = indent() < 0
-                let root = lastWasEmpty ? DataNode(kind: .null, key: nil, value: "", start: start) : try block(parent: -1, key: nil, start: at, depth: 0)
+                let root =
+                    lastWasEmpty ? DataNode(kind: .null, key: nil, value: "", start: start) : try block(parent: -1, key: nil, start: at, depth: 0)
                 if at < bytes.count, indent() >= 0 { throw ParseFailure("Unexpected text after the value", at) }
                 documents.append(root)
             }
@@ -88,7 +88,8 @@ nonisolated enum YAMLParser {
 
         /// What follows a key or dash that ends its line: a more indented block, a list at the key's own indent, or
         /// nothing.
-        mutating func nested(parent: Int, sameIndentList: Bool, key: String?, start: Int, depth: Int, asString: Bool) throws(ParseFailure) -> DataNode {
+        mutating func nested(parent: Int, sameIndentList: Bool, key: String?, start: Int, depth: Int, asString: Bool) throws(ParseFailure) -> DataNode
+        {
             let column = indent()
             if column > parent { return try block(parent: parent, key: key, start: start, depth: depth, asString: asString) }
             if sameIndentList, column == parent, isIndicator(UInt8(ascii: "-")) {
@@ -108,7 +109,8 @@ nonisolated enum YAMLParser {
                 if atLineEnd() {
                     try endLine()
                     try skipToContent()
-                    child = try nested(parent: column, sameIndentList: true, key: entry.name, start: entry.start, depth: depth + 1, asString: asString)
+                    child = try nested(
+                        parent: column, sameIndentList: true, key: entry.name, start: entry.start, depth: depth + 1, asString: asString)
                 } else {
                     child = try inline(parent: column, key: entry.name, start: entry.start, depth: depth + 1, asString: asString)
                 }
@@ -188,7 +190,7 @@ nonisolated enum YAMLParser {
                 guard colon < bytes.count, bytes[colon] == UInt8(ascii: ":"), isSeparator(colon + 1) else { return nil }
                 name = decodeQuoted(start..<close)
             case UInt8(ascii: "["), UInt8(ascii: "{"), UInt8(ascii: "|"), UInt8(ascii: ">"), UInt8(ascii: "*"), UInt8(ascii: "#"),
-                 UInt8(ascii: "&"), UInt8(ascii: "!"), UInt8(ascii: "%"), UInt8(ascii: "@"), UInt8(ascii: "`"):
+                UInt8(ascii: "&"), UInt8(ascii: "!"), UInt8(ascii: "%"), UInt8(ascii: "@"), UInt8(ascii: "`"):
                 return nil
             default:
                 if isIndicator(UInt8(ascii: "-")) || isIndicator(UInt8(ascii: "?")) { return nil }
@@ -386,7 +388,8 @@ nonisolated enum YAMLParser {
         }
 
         func isFlowIndicator(_ byte: UInt8) -> Bool {
-            byte == UInt8(ascii: ",") || byte == UInt8(ascii: "[") || byte == UInt8(ascii: "]") || byte == UInt8(ascii: "{") || byte == UInt8(ascii: "}")
+            byte == UInt8(ascii: ",") || byte == UInt8(ascii: "[") || byte == UInt8(ascii: "]") || byte == UInt8(ascii: "{")
+                || byte == UInt8(ascii: "}")
         }
 
         func misaligned(after child: DataNode) -> ParseFailure {

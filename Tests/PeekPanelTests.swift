@@ -101,19 +101,22 @@ private func app(_ id: String, _ name: String) -> AppChoice {
     private let bbedit = app("com.barebones.bbedit", "BBEdit")
 
     @Test func theMacsDefaultComesFirstThenTheRestAToZThenOtherThenShowInFinder() {
-        let items = PeekOpenWithMenu.items(apps: [textEdit, xcode, bbedit], systemDefault: xcode.bundleID, buttonApp: nil, hasDefault: false, peekerID: peeker)
+        let items = PeekOpenWithMenu.items(
+            apps: [textEdit, xcode, bbedit], systemDefault: xcode.bundleID, buttonApp: nil, hasDefault: false, peekerID: peeker)
         #expect(items == [.app(xcode), .app(bbedit), .app(textEdit), .separator, .other, .separator, .showInFinder])
     }
 
     @Test func peekerAndDuplicateCopiesAreLeftOut() {
         let peekerApp = app(peeker, "Peeker")
         let otherXcode = AppChoice(bundleID: xcode.bundleID, name: "Xcode", url: URL(filePath: "/Users/x/Xcode.app"))
-        let items = PeekOpenWithMenu.items(apps: [peekerApp, xcode, otherXcode], systemDefault: peeker, buttonApp: nil, hasDefault: false, peekerID: peeker)
+        let items = PeekOpenWithMenu.items(
+            apps: [peekerApp, xcode, otherXcode], systemDefault: peeker, buttonApp: nil, hasDefault: false, peekerID: peeker)
         #expect(items == [.app(xcode), .separator, .other, .separator, .showInFinder])
     }
 
     @Test func withAnotherAppAsDefaultPeekerAndAlwaysOpenInPeekerAreOffered() {
-        let items = PeekOpenWithMenu.items(apps: [xcode, textEdit], systemDefault: nil, buttonApp: xcode.bundleID, hasDefault: true, peekerID: peeker)
+        let items = PeekOpenWithMenu.items(
+            apps: [xcode, textEdit], systemDefault: nil, buttonApp: xcode.bundleID, hasDefault: true, peekerID: peeker)
         #expect(items == [.app(textEdit), .separator, .peeker, .alwaysPeeker, .separator, .other, .separator, .showInFinder])
     }
 
@@ -123,7 +126,10 @@ private func app(_ id: String, _ name: String) -> AppChoice {
     }
 
     @Test func noAppsLeavesOtherAndShowInFinder() {
-        #expect(PeekOpenWithMenu.items(apps: [], systemDefault: nil, buttonApp: nil, hasDefault: false, peekerID: peeker) == [.other, .separator, .showInFinder])
+        #expect(
+            PeekOpenWithMenu.items(apps: [], systemDefault: nil, buttonApp: nil, hasDefault: false, peekerID: peeker) == [
+                .other, .separator, .showInFinder,
+            ])
     }
 
     @Test func theAlwaysCheckboxNamesTheExtensionAndIsAbsentWithoutOne() {

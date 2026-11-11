@@ -51,7 +51,9 @@ final class PluginCatalog {
     }
 
     /// The plugins built into the app, in sidebar order.
-    static let builtIn: [any Plugin.Type] = [ImagePlugin.self, PDFPlugin.self, MarkdownPlugin.self, TablePlugin.self, DataPlugin.self, TextPlugin.self]
+    static let builtIn: [any Plugin.Type] = [
+        ImagePlugin.self, PDFPlugin.self, MarkdownPlugin.self, TablePlugin.self, DataPlugin.self, TextPlugin.self,
+    ]
 
     /// Applies a re-read config.
     func reload(config: Config) {

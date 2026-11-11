@@ -47,11 +47,12 @@ private func write(_ edits: [PDFEdit], to file: URL) async throws {
     /// PDFKit fills a new annotation's author with the Mac account's full name, which would go out with every shared file.
     @Test func savedMarksCarryNoAuthor() async throws {
         let file = try TempFile.makePDF(pages: 1)
-        try await write([
-            .add(PDFMark(id: "peeker-h", page: 0, rect: place, kind: .highlight(yellow))),
-            .add(PDFMark(id: "peeker-t", page: 0, rect: place.offsetBy(dx: 0, dy: 100), kind: .textBox(text: "Hello", fontSize: 12))),
-            .add(PDFMark(id: "peeker-s", page: 0, rect: place.offsetBy(dx: 0, dy: 200), kind: .signature(strokes: [stroke]))),
-        ], to: file)
+        try await write(
+            [
+                .add(PDFMark(id: "peeker-h", page: 0, rect: place, kind: .highlight(yellow))),
+                .add(PDFMark(id: "peeker-t", page: 0, rect: place.offsetBy(dx: 0, dy: 100), kind: .textBox(text: "Hello", fontSize: 12))),
+                .add(PDFMark(id: "peeker-s", page: 0, rect: place.offsetBy(dx: 0, dy: 200), kind: .signature(strokes: [stroke]))),
+            ], to: file)
         let saved = try annotations(file)
         #expect(saved.count == 3)
         #expect(saved.allSatisfy { ($0.userName ?? "").isEmpty })
@@ -123,10 +124,11 @@ private func write(_ edits: [PDFEdit], to file: URL) async throws {
 
     @Test func fieldValuesAreSavedAndStayFields() async throws {
         let file = try FormPDF.make()
-        try await write([
-            .field(name: "Name", value: "Ori"), .field(name: "Agree", value: "Yes"),
-            .field(name: "Pick", value: "B"), .field(name: "Color", value: "Green"),
-        ], to: file)
+        try await write(
+            [
+                .field(name: "Name", value: "Ori"), .field(name: "Agree", value: "Yes"),
+                .field(name: "Pick", value: "B"), .field(name: "Color", value: "Green"),
+            ], to: file)
         let widgets = try annotations(file).filter { $0.type == "Widget" }
         #expect(widgets.count == 5, "no field was flattened")
         func value(_ name: String) -> String? { widgets.first { $0.fieldName == name }?.widgetStringValue }
@@ -137,10 +139,11 @@ private func write(_ edits: [PDFEdit], to file: URL) async throws {
         let file = try TempFile.makePDF(pages: 1)
         let bytes = try Data(contentsOf: file)
         await #expect(throws: PluginError("Can't save: the signature to move on page 1 is no longer in “f.pdf”.")) {
-            try await write([
-                .add(PDFMark(id: "peeker-h", page: 0, rect: place, kind: .highlight(yellow))),
-                .setBounds(id: "peeker-gone", type: .signature, page: 0, rect: place),
-            ], to: file)
+            try await write(
+                [
+                    .add(PDFMark(id: "peeker-h", page: 0, rect: place, kind: .highlight(yellow))),
+                    .setBounds(id: "peeker-gone", type: .signature, page: 0, rect: place),
+                ], to: file)
         }
         #expect(try Data(contentsOf: file) == bytes)
     }

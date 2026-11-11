@@ -52,8 +52,10 @@ final class PDFPluginDocument: PluginDocument, Zooming {
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "dev.peeker", category: "pdf")
 
     /// `uneditableReason` makes a file that can't be safely changed read-only.
-    init(url: URL, document: PeekerPDFDocument, info: [InfoRow], editable: Bool, uneditableReason: String? = nil,
-         preferences: PluginPreferences? = nil, lock: PDFLock? = nil, recoveryKey: RecoveryKey? = nil) {
+    init(
+        url: URL, document: PeekerPDFDocument, info: [InfoRow], editable: Bool, uneditableReason: String? = nil,
+        preferences: PluginPreferences? = nil, lock: PDFLock? = nil, recoveryKey: RecoveryKey? = nil
+    ) {
         self.preferences = preferences
         self.lock = lock
         self.recoveryKey = recoveryKey ?? lock.map { RecoveryKey(password: $0.password) }
@@ -129,7 +131,6 @@ final class PDFPluginDocument: PluginDocument, Zooming {
     var tools: [ToolSpec] {
         editable ? PDFPlugin.tools : PDFPlugin.tools.filter { !$0.isEditTool }
     }
-
 
     /// Makes the edit tools' parts and starts watching the form fields, once: before the first tool runs, and before
     /// the view handles the first click on an annotation or field, so that click's change is recorded.
@@ -223,7 +224,10 @@ final class PDFPluginDocument: PluginDocument, Zooming {
         defer { undoManager.endUndoGrouping() }
         for line in lines {
             for page in line.pages {
-                change(.add(PDFMark(id: PDFEdit.newID(), page: document.index(for: page), rect: line.bounds(for: page), kind: .highlight(highlightColor))))
+                change(
+                    .add(
+                        PDFMark(id: PDFEdit.newID(), page: document.index(for: page), rect: line.bounds(for: page), kind: .highlight(highlightColor)))
+                )
             }
         }
     }
@@ -231,7 +235,9 @@ final class PDFPluginDocument: PluginDocument, Zooming {
     func unavailableReason(for tool: String) -> String? {
         guard Self.pageTools.contains(tool), editability == .editable else { return nil }
         if !allowsPageChanges { return "This PDF's permissions don't allow page changes." }
-        if let lock, !lock.password.isEmpty, tool == "save-selected-pages" || tool == "split" { return "Peeker can't yet save a password-protected PDF's pages as new files." }
+        if let lock, !lock.password.isEmpty, tool == "save-selected-pages" || tool == "split" {
+            return "Peeker can't yet save a password-protected PDF's pages as new files."
+        }
         if tool == "delete-page", targetPages.count >= document.pageCount { return "A PDF needs at least one page." }
         if tool == "split", document.pageCount < 2 { return "There's only one page." }
         return nil
@@ -536,7 +542,8 @@ extension PDFPluginDocument {
     fileprivate func passwordSheet(_ kind: PDFPasswordKind) async -> String? {
         guard let window = pdfView.window else { return nil }
         let alert = NSAlert()
-        alert.messageText = kind == .open ? "Enter the open password for “\(url.lastPathComponent)”" : "Enter the permissions password for “\(url.lastPathComponent)”"
+        alert.messageText =
+            kind == .open ? "Enter the open password for “\(url.lastPathComponent)”" : "Enter the permissions password for “\(url.lastPathComponent)”"
         alert.informativeText = kind == .open ? PDFPlugin.needsOpenPassword : PDFPlugin.needsPermissionsPassword
         let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 22))
         field.placeholderString = kind == .open ? "Open password" : "Permissions password"

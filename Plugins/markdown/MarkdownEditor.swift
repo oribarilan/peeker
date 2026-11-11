@@ -209,7 +209,8 @@ final class MarkdownEditor: NSObject, LinkFollowing, Zooming, NSTextViewDelegate
         let source = try await MarkdownPlugin.load(url)
         guard unsavedEdits() == nil else { return true }
         format = source.file.format
-        guard (source.file.editable ? nil : source.file.note ?? TextFile.readOnlyNote) == readOnlyReason else { return false }  // reopen to show or drop the note
+        // A change to the read-only note needs a reopen to show or drop it.
+        guard (source.file.editable ? nil : source.file.note ?? TextFile.readOnlyNote) == readOnlyReason else { return false }
         style = source.style
         styled = source.styled
         show(source.file.text)
@@ -223,12 +224,14 @@ final class MarkdownEditor: NSObject, LinkFollowing, Zooming, NSTextViewDelegate
     /// The index of the outline heading the cursor is under, or nil above the first. Between a keystroke and the next
     /// style pass the heading offsets can be a little off; they're worked out again with the new outline.
     var currentSection: Int? {
-        let starts = headingStarts ?? {
-            let lines = MarkdownStyler.lineStarts(in: textView.string)
-            let starts = outline.map { lines.indices.contains($0.line - 1) ? lines[$0.line - 1] : Int.max }
-            headingStarts = starts
-            return starts
-        }()
+        let starts =
+            headingStarts
+            ?? {
+                let lines = MarkdownStyler.lineStarts(in: textView.string)
+                let starts = outline.map { lines.indices.contains($0.line - 1) ? lines[$0.line - 1] : Int.max }
+                headingStarts = starts
+                return starts
+            }()
         let cursor = textView.selectedRange().location
         var low = 0, high = starts.count  // the first heading after the cursor
         while low < high {
@@ -297,7 +300,8 @@ final class MarkdownEditor: NSObject, LinkFollowing, Zooming, NSTextViewDelegate
             return true
         }
         guard !command, readOnlyReason == nil, let box = style.taskBoxes.first(where: { NSLocationInRange(index, $0) }),
-              NSMaxRange(box) <= storage.length else { return false }
+            NSMaxRange(box) <= storage.length
+        else { return false }
         let mark = NSRange(location: box.location + 1, length: 1)
         replace(mark, with: (storage.string as NSString).substring(with: mark) == " " ? "x" : " ")
         return true

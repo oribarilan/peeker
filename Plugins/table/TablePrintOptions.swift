@@ -108,8 +108,10 @@ final class TablePrintOptions: NSViewController, NSPrintPanelAccessorizing {
     // MARK: NSPrintPanelAccessorizing
 
     func localizedSummaryItems() -> [[NSPrintPanel.AccessorySummaryKey: String]] {
-        [[.itemName: "Row Numbers", .itemDescription: choices.showsRowNumbers ? "On" : "Off"],
-         [.itemName: "Columns", .itemDescription: "\(shownCount) of \(columnBoxes.count)"]]
+        [
+            [.itemName: "Row Numbers", .itemDescription: choices.showsRowNumbers ? "On" : "Off"],
+            [.itemName: "Columns", .itemDescription: "\(shownCount) of \(columnBoxes.count)"],
+        ]
     }
 
     func keyPathsForValuesAffectingPreview() -> Set<String> { [#keyPath(choicesVersion)] }

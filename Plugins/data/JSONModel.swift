@@ -22,7 +22,9 @@ nonisolated enum JSONParser {
         do throws(ParseFailure) {
             try reader.skip()
             // The whole file is checked, but nodes are made only for the levels the tree shows at first.
-            guard let root = try reader.value(keyRange: nil, depth: 0, build: true, levels: eagerLevels) else { throw ParseFailure("Expected a value", 0) }
+            guard let root = try reader.value(keyRange: nil, depth: 0, build: true, levels: eagerLevels) else {
+                throw ParseFailure("Expected a value", 0)
+            }
             try reader.skip()
             guard reader.at == bytes.count else { throw ParseFailure("Unexpected text after the end", reader.at) }
             return .success(root)
@@ -56,7 +58,8 @@ nonisolated enum JSONParser {
                 guard var scalar = hex(at) else { out.append(escape); continue }
                 at += 4
                 if (0xD800...0xDBFF).contains(scalar), at + 6 <= inner.endIndex, inner[at] == 0x5C, inner[at + 1] == 0x75,
-                   let low = hex(at + 2), (0xDC00...0xDFFF).contains(low) {
+                    let low = hex(at + 2), (0xDC00...0xDFFF).contains(low)
+                {
                     at += 6
                     scalar = 0x10000 + (scalar - 0xD800) << 10 + (low - 0xDC00)
                 }
@@ -89,7 +92,6 @@ nonisolated enum JSONParser {
         }
         return at == bytes.endIndex
     }
-
 
     fileprivate struct Reader {
         let bytes: [UInt8]
@@ -131,12 +133,13 @@ nonisolated enum JSONParser {
                 kind = .string
             case let byte? where byte == 0x2D || (0x30...0x39).contains(byte):
                 at += 1
-                while let next = peek(), (0x30...0x39).contains(next) || next == 0x2E || next == 0x65 || next == 0x45 || next == 0x2B || next == 0x2D { at += 1 }
+                while let next = peek(), (0x30...0x39).contains(next) || next == 0x2E || next == 0x65 || next == 0x45 || next == 0x2B || next == 0x2D
+                { at += 1 }
                 guard JSONParser.isNumber(bytes[start..<at]) else { throw ParseFailure("This isn't a number", start) }
                 kind = .number
-            case 0x74 where matches(0x74, 0x72, 0x75, 0x65): at += 4; kind = .bool                    // true
-            case 0x66 where matches(0x66, 0x61, 0x6C, 0x73, 0x65): at += 5; kind = .bool              // false
-            case 0x6E where matches(0x6E, 0x75, 0x6C, 0x6C): at += 4; kind = .null                    // null
+            case 0x74 where matches(0x74, 0x72, 0x75, 0x65): at += 4; kind = .bool  // true
+            case 0x66 where matches(0x66, 0x61, 0x6C, 0x73, 0x65): at += 5; kind = .bool  // false
+            case 0x6E where matches(0x6E, 0x75, 0x6C, 0x6C): at += 4; kind = .null  // null
             default: throw ParseFailure("Expected a value", start)
             }
             return build ? DataNode(kind: kind, keyRange: keyRange, valueRange: start..<at, source: source) : nil
@@ -166,7 +169,9 @@ nonisolated enum JSONParser {
                     guard peek() == 0x3A else { throw ParseFailure("Expected a colon after the key", at) }
                     at += 1
                     try skip()
-                    if let child = try value(keyRange: nameRange, depth: depth + 1, build: buildChildren, levels: levels - 1) { children.append(child) }
+                    if let child = try value(keyRange: nameRange, depth: depth + 1, build: buildChildren, levels: levels - 1) {
+                        children.append(child)
+                    }
                 } else {
                     if let child = try value(keyRange: nil, depth: depth + 1, build: buildChildren, levels: levels - 1) { children.append(child) }
                 }
@@ -282,7 +287,8 @@ nonisolated enum JSONEdits {
         let from = bytes[inner].lastIndex { ![0x20, 0x09, 0x0A, 0x0D].contains($0) }.map { $0 + 1 } ?? inner.lowerBound
         let lead = from == inner.lowerBound ? "" : " "
         guard multiline else { return TextChange(range: from..<inner.upperBound, replacement: lead + member + (lead.isEmpty ? "" : " ")) }
-        return TextChange(range: from..<inner.upperBound, replacement: "\n" + outer + unit(in: bytes) + member + "\n" + indent(at: inner.upperBound, in: bytes))
+        return TextChange(
+            range: from..<inner.upperBound, replacement: "\n" + outer + unit(in: bytes) + member + "\n" + indent(at: inner.upperBound, in: bytes))
     }
 
     /// Moves a member to `index` among its siblings. The text between members (commas, comments, line breaks) stays

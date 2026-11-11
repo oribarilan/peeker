@@ -25,7 +25,9 @@ nonisolated enum MarkRenderer {
         context.translateBy(x: 0, y: CGFloat(image.height))
         context.scaleBy(x: scale, y: -scale)
         for mark in marks {
-            if case .pixelate(let rect, let strength) = mark.kind { pixelate(rect, strength: strength, of: image, scale: scale, imageSize: imageSize, in: context) }
+            if case .pixelate(let rect, let strength) = mark.kind {
+                pixelate(rect, strength: strength, of: image, scale: scale, imageSize: imageSize, in: context)
+            }
         }
         drawStrokes(marks, imageSize: imageSize, in: context)
         context.restoreGState()
@@ -34,7 +36,9 @@ nonisolated enum MarkRenderer {
     /// Draws every mark but Pixelate over `image`, shown at `rect` in an unflipped view, at the view's resolution, so
     /// lines and text stay sharp at any zoom. Pixelate needs the image's pixels, so it's in the shown image instead.
     /// Steps are numbered among `numbering`, every mark, so a step being dragged keeps its number.
-    static func drawOnScreen(_ marks: [ImageMark], numbering: [ImageMark], over image: CGImage, imageSize: CGSize, in rect: CGRect, context: CGContext) {
+    static func drawOnScreen(
+        _ marks: [ImageMark], numbering: [ImageMark], over image: CGImage, imageSize: CGSize, in rect: CGRect, context: CGContext
+    ) {
         guard imageSize.width > 0, imageSize.height > 0, !marks.isEmpty else { return }
         context.saveGState()
         context.translateBy(x: rect.minX, y: rect.maxY)
@@ -46,14 +50,18 @@ nonisolated enum MarkRenderer {
     /// Markers, Spotlight's dimming, then the other marks, in image pixels from the top left. A marker multiplies with
     /// what's under it; with `underlay`, that's drawn under the marker's stroke first, since an empty view has nothing
     /// to multiply with.
-    private static func drawStrokes(_ marks: [ImageMark], numbers: [String: Int]? = nil, imageSize: CGSize, underlay: CGImage? = nil, in context: CGContext) {
+    private static func drawStrokes(
+        _ marks: [ImageMark], numbers: [String: Int]? = nil, imageSize: CGSize, underlay: CGImage? = nil, in context: CGContext
+    ) {
         context.setLineCap(.round)
         context.setLineJoin(.round)
         for mark in marks where mark.kind.isMarker {
             if let underlay { drawUnderlay(underlay, under: mark, imageSize: imageSize, in: context) }
             draw(mark, number: nil, in: context)
         }
-        let lit = marks.compactMap { mark -> (CGRect, Bool)? in if case .spotlight(let rect, let ellipse) = mark.kind { (rect.standardized, ellipse) } else { nil } }
+        let lit = marks.compactMap { mark -> (CGRect, Bool)? in
+            if case .spotlight(let rect, let ellipse) = mark.kind { (rect.standardized, ellipse) } else { nil }
+        }
         if !lit.isEmpty { dim(outside: lit, imageSize: imageSize, in: context) }
         let numbers = numbers ?? ImageMark.stepNumbers(marks)
         for mark in marks where !mark.kind.isMarker { draw(mark, number: numbers[mark.id], in: context) }
@@ -199,8 +207,9 @@ nonisolated enum MarkRenderer {
         if style.effect == .shadow {
             // Shadow offsets ignore the transform, so they're scaled by it to look the same at any zoom and when saved.
             let scale = hypot(context.ctm.a, context.ctm.b)
-            context.setShadow(offset: CGSize(width: size * 0.05 * scale, height: -size * 0.07 * scale), blur: size * 0.15 * scale,
-                              color: CGColor(gray: 0, alpha: 0.6))
+            context.setShadow(
+                offset: CGSize(width: size * 0.05 * scale, height: -size * 0.07 * scale), blur: size * 0.15 * scale,
+                color: CGColor(gray: 0, alpha: 0.6))
         }
         for (index, text) in lines.enumerated() {
             let baseline = CGPoint(x: origin.x + (label ? pad : 0), y: origin.y + (label ? pad / 2 : 0) + size + lineHeight * CGFloat(index))
@@ -214,12 +223,13 @@ nonisolated enum MarkRenderer {
 
     /// The font for markup text of `style` at `size`; a design with no italic, such as Rounded, comes back upright.
     static func font(_ style: TextStyle, size: CGFloat) -> NSFont {
-        let design: NSFontDescriptor.SystemDesign? = switch style.font {
-        case .system: nil
-        case .serif: .serif
-        case .rounded: .rounded
-        case .mono: .monospaced
-        }
+        let design: NSFontDescriptor.SystemDesign? =
+            switch style.font {
+            case .system: nil
+            case .serif: .serif
+            case .rounded: .rounded
+            case .mono: .monospaced
+            }
         var descriptor = NSFont.systemFont(ofSize: size, weight: style.bold ? .bold : .regular).fontDescriptor
         if let design, let designed = descriptor.withDesign(design) { descriptor = designed }
         if style.italic { descriptor = descriptor.withSymbolicTraits(descriptor.symbolicTraits.union(.italic)) }
@@ -227,13 +237,16 @@ nonisolated enum MarkRenderer {
     }
 
     private static func textLine(_ text: String, size: CGFloat, bold: Bool, color: CGColor) -> CTLine {
-        let font = CTFontCreateUIFontForLanguage(bold ? .emphasizedSystem : .system, size, nil)
+        let font =
+            CTFontCreateUIFontForLanguage(bold ? .emphasizedSystem : .system, size, nil)
             ?? CTFontCreateWithName("Helvetica-Bold" as CFString, size, nil)
         return textLine(text, font: font, color: color)
     }
 
     private static func textLine(_ text: String, font: CTFont, color: CGColor, stroke: CGFloat = 0) -> CTLine {
-        var attributes: [NSAttributedString.Key: Any] = [.init(kCTFontAttributeName as String): font, .init(kCTForegroundColorAttributeName as String): color]
+        var attributes: [NSAttributedString.Key: Any] = [
+            .init(kCTFontAttributeName as String): font, .init(kCTForegroundColorAttributeName as String): color,
+        ]
         if stroke > 0 {
             attributes[.init(kCTStrokeColorAttributeName as String)] = color
             attributes[.init(kCTStrokeWidthAttributeName as String)] = stroke / CTFontGetSize(font) * 100  // percent of the font size, stroked only

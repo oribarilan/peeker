@@ -164,8 +164,10 @@ final class EditController {
             let bounds = annotation.bounds
             if drawing.shape == .dot, size != MarkupSize(of: drawing, in: bounds) {
                 let side = size.stampSide
-                document.change(.setBounds(id: id, type: .drawing, page: selectedPage,
-                                           rect: CGRect(x: bounds.midX - side / 2, y: bounds.midY - side / 2, width: side, height: side)))
+                document.change(
+                    .setBounds(
+                        id: id, type: .drawing, page: selectedPage,
+                        rect: CGRect(x: bounds.midX - side / 2, y: bounds.midY - side / 2, width: side, height: side)))
             } else if color != drawing.color || (drawing.shape != .dot && size.width != drawing.width) {
                 document.change(.setLook(id: id, page: selectedPage, color: color, width: drawing.shape == .dot ? drawing.width : size.width))
             }
@@ -187,7 +189,8 @@ final class EditController {
             guard style != PDFMarks.style(of: annotation) || size != PDFMarks.fontSize(of: annotation) ?? TextBoxStyle.standardSize else { return }
             let topLeft = CGPoint(x: annotation.bounds.minX, y: annotation.bounds.maxY)
             let rect = TextBoxEditor.fittedRect(text: annotation.contents ?? "", fontSize: size, style: style, topLeft: topLeft)
-            document.change(.setText(id: id, page: selectedPage, text: annotation.contents ?? "", fontSize: size, rect: rect, style: style.nilIfStandard))
+            document.change(
+                .setText(id: id, page: selectedPage, text: annotation.contents ?? "", fontSize: size, rect: rect, style: style.nilIfStandard))
             select(id, page: selectedPage)
         }
         onStripChange?()
@@ -219,7 +222,8 @@ final class EditController {
     /// `tolerance` is in page points: a few screen points at the view's scale.
     static func hit(_ annotations: [PDFAnnotation], at point: CGPoint, tolerance: CGFloat = 3) -> PDFAnnotation? {
         annotations.last { annotation in
-            guard PDFMarks.id(of: annotation) != nil, PDFMarks.type(of: annotation) != nil, annotation.bounds.insetBy(dx: -2, dy: -2).contains(point) else {
+            guard PDFMarks.id(of: annotation) != nil, PDFMarks.type(of: annotation) != nil, annotation.bounds.insetBy(dx: -2, dy: -2).contains(point)
+            else {
                 return false
             }
             guard let drawing = PDFMarks.drawing(of: annotation), drawing.shape.isHitAlongStrokes else { return true }
@@ -229,8 +233,10 @@ final class EditController {
     }
 
     static func corner(at point: CGPoint, of rect: CGRect, tolerance: CGFloat) -> Corner? {
-        let corners: [(Corner, CGPoint)] = [(.topLeft, CGPoint(x: rect.minX, y: rect.maxY)), (.topRight, CGPoint(x: rect.maxX, y: rect.maxY)),
-                                            (.bottomLeft, CGPoint(x: rect.minX, y: rect.minY)), (.bottomRight, CGPoint(x: rect.maxX, y: rect.minY))]
+        let corners: [(Corner, CGPoint)] = [
+            (.topLeft, CGPoint(x: rect.minX, y: rect.maxY)), (.topRight, CGPoint(x: rect.maxX, y: rect.maxY)),
+            (.bottomLeft, CGPoint(x: rect.minX, y: rect.minY)), (.bottomRight, CGPoint(x: rect.maxX, y: rect.minY)),
+        ]
         return corners.first { abs($0.1.x - point.x) <= tolerance && abs($0.1.y - point.y) <= tolerance }?.0
     }
 
@@ -263,7 +269,8 @@ final class EditController {
         case (nil, true):
             break
         case (nil, false):
-            let mark = PDFMark(id: PDFEdit.newID(), page: page, rect: rect, kind: .textBox(text: text, fontSize: fontSize, style: style.nilIfStandard))
+            let mark = PDFMark(
+                id: PDFEdit.newID(), page: page, rect: rect, kind: .textBox(text: text, fontSize: fontSize, style: style.nilIfStandard))
             if document.change(.add(mark)) { select(mark.id, page: page) }
         case (let id?, true):
             document.change(.delete(id: id, type: .textBox, page: page))
@@ -282,8 +289,10 @@ final class EditController {
         // An existing box keeps its own style; a new one takes the remembered style.
         let size = annotation.map { PDFMarks.fontSize(of: $0) ?? TextBoxStyle.standardSize } ?? document.textBoxSize
         let style = annotation.map(PDFMarks.style(of:)) ?? document.textBoxStyle
-        textBox = TextBoxEditor(view: view, page: page, topLeft: start, text: annotation?.contents ?? "", fontSize: size, style: style,
-                                hiding: annotation) { [weak self] text, size, style in
+        textBox = TextBoxEditor(
+            view: view, page: page, topLeft: start, text: annotation?.contents ?? "", fontSize: size, style: style,
+            hiding: annotation
+        ) { [weak self] text, size, style in
             self?.textBox = nil
             self?.commitTextBox(id: id, page: index, topLeft: start, text: text, fontSize: size, style: style)
         }
@@ -321,12 +330,15 @@ final class EditController {
             break
         }
         let tolerance = Self.handleSize / max(view.scaleFactor, 0.01)
-        if let selected = selectedAnnotation, selectedPage == index, let corner = Self.corner(at: pagePoint, of: selected.bounds, tolerance: tolerance) {
+        if let selected = selectedAnnotation, selectedPage == index,
+            let corner = Self.corner(at: pagePoint, of: selected.bounds, tolerance: tolerance)
+        {
             drag = (corner, pagePoint, selected.bounds, selected)
             return true
         }
         guard let annotation = Self.hit(page.annotations, at: pagePoint, tolerance: 3 / max(view.scaleFactor, 0.01)),
-              let id = PDFMarks.id(of: annotation) else {
+            let id = PDFMarks.id(of: annotation)
+        else {
             select(nil, page: 0)
             if case .draw(let shape) = tool {
                 draft = (shape, page, index, [pagePoint])
@@ -371,7 +383,8 @@ final class EditController {
         guard let drag else { return false }
         self.drag = nil
         if let id = PDFMarks.id(of: drag.annotation), let type = PDFMarks.type(of: drag.annotation), let page = drag.annotation.page,
-           let index = view.document?.index(for: page) {
+            let index = view.document?.index(for: page)
+        {
             finishDrag(id: id, type: type, page: index, from: drag.original, to: drag.annotation.bounds)
         }
         return true
@@ -379,7 +392,9 @@ final class EditController {
 
     /// The mark a draft makes with the strip's color and size: a stamp at the strip's size for a click, nothing for
     /// any other tool's click (under 3 points of movement), and with Option an ellipse for Box.
-    private func drawn(_ draft: (shape: PDFDrawing.Shape, page: PDFPage, index: Int, points: [CGPoint]), option: Bool) -> (rect: CGRect, drawing: PDFDrawing)? {
+    private func drawn(_ draft: (shape: PDFDrawing.Shape, page: PDFPage, index: Int, points: [CGPoint]), option: Bool) -> (
+        rect: CGRect, drawing: PDFDrawing
+    )? {
         guard let start = draft.points.first, let end = draft.points.last else { return nil }
         var shape = draft.shape
         if shape == .box, option { shape = .ellipse }
@@ -388,8 +403,10 @@ final class EditController {
         if !draft.points.contains(where: { hypot($0.x - start.x, $0.y - start.y) >= 3 }) {
             guard shape.isStamp else { return nil }
             let side = size.stampSide
-            let square = Self.kept(CGRect(x: start.x - side / 2, y: start.y - side / 2, width: side, height: side), on: draft.page.bounds(for: .mediaBox))
-            return PDFDrawing.make(shape, from: square.origin, to: CGPoint(x: square.maxX, y: square.maxY), points: [], color: document.markupColor, width: size.width)
+            let square = Self.kept(
+                CGRect(x: start.x - side / 2, y: start.y - side / 2, width: side, height: side), on: draft.page.bounds(for: .mediaBox))
+            return PDFDrawing.make(
+                shape, from: square.origin, to: CGPoint(x: square.maxX, y: square.maxY), points: [], color: document.markupColor, width: size.width)
         }
         return PDFDrawing.make(shape, from: start, to: end, points: draft.points, color: document.markupColor, width: size.width)
     }
@@ -422,7 +439,8 @@ final class EditController {
     /// The `highlighter` symbol as a cursor, pointing with its tip at the bottom left.
     static let highlighterCursor: NSCursor = {
         let configuration = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
-        guard let image = NSImage(systemSymbolName: "highlighter", accessibilityDescription: "Highlight")?.withSymbolConfiguration(configuration) else {
+        guard let image = NSImage(systemSymbolName: "highlighter", accessibilityDescription: "Highlight")?.withSymbolConfiguration(configuration)
+        else {
             return .iBeam
         }
         return NSCursor(image: image, hotSpot: NSPoint(x: 2, y: image.size.height - 2))

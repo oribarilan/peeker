@@ -96,8 +96,10 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         fontSize = document.fontSize
         tableView.registerForDraggedTypes([Self.rowPasteboardType])
         let rowMenu = NSMenu(), columnMenu = NSMenu()
-        let menus = [(rowMenu, ["add-row-above", "add-row-below", "delete-rows"]),
-                     (columnMenu, ["add-column-before", "add-column-after", "delete-columns", "", "sort-ascending", "sort-descending", "sort-none"])]
+        let menus = [
+            (rowMenu, ["add-row-above", "add-row-below", "delete-rows"]),
+            (columnMenu, ["add-column-before", "add-column-after", "delete-columns", "", "sort-ascending", "sort-descending", "sort-none"]),
+        ]
         for (menu, ids) in menus {
             menu.delegate = self
             menu.autoenablesItems = false  // enabled by `menuNeedsUpdate`
@@ -413,8 +415,10 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         return item
     }
 
-    func tableView(_ tableView: NSTableView, validateDrop info: any NSDraggingInfo, proposedRow row: Int,
-                   proposedDropOperation operation: NSTableView.DropOperation) -> NSDragOperation {
+    func tableView(
+        _ tableView: NSTableView, validateDrop info: any NSDraggingInfo, proposedRow row: Int,
+        proposedDropOperation operation: NSTableView.DropOperation
+    ) -> NSDragOperation {
         guard info.draggingSource as? NSTableView === tableView else { return [] }
         tableView.setDropRow(row, dropOperation: .above)
         return .move
@@ -433,7 +437,9 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
     }
 
     func tableViewColumnDidMove(_ notification: Notification) {
-        guard let old = notification.userInfo?["NSOldColumn"] as? Int, let new = notification.userInfo?["NSNewColumn"] as? Int, old != new else { return }
+        guard let old = notification.userInfo?["NSOldColumn"] as? Int, let new = notification.userInfo?["NSNewColumn"] as? Int, old != new else {
+            return
+        }
         document?.moveColumn(from: old - 1, to: new - 1)
     }
 

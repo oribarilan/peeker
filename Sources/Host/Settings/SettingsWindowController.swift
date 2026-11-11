@@ -78,9 +78,14 @@ final class SettingsModel {
     }
 
     /// The Automatic updates pop-up's choices, one per `Config.automaticUpdateModes`.
-    static let automaticUpdateChoices = [(mode: "off", title: "Off", footer: "Peeker checks for a new version only when you click Check Now."),
-                                         (mode: "check", title: "Check and Ask", footer: "Peeker checks once a day and shows what's new before installing anything."),
-                                         (mode: "download", title: "Download and Install", footer: "Peeker checks once a day, downloads a new version and installs it once no Peeker window is open.")]
+    static let automaticUpdateChoices = [
+        (mode: "off", title: "Off", footer: "Peeker checks for a new version only when you click Check Now."),
+        (mode: "check", title: "Check and Ask", footer: "Peeker checks once a day and shows what's new before installing anything."),
+        (
+            mode: "download", title: "Download and Install",
+            footer: "Peeker checks once a day, downloads a new version and installs it once no Peeker window is open."
+        ),
+    ]
 
     /// The Automatic updates pop-up: the config's `updates.automatic`.
     var automaticUpdates: String {

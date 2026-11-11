@@ -36,15 +36,18 @@ nonisolated struct PDFEncryption: Equatable {
     /// is read, found from the end of the file, and only the bytes around it are decoded.
     init?(_ bytes: Data) {
         guard let standard = bytes.range(of: Data("/Standard".utf8), options: .backwards),
-              let start = bytes.range(of: Data("obj".utf8), options: .backwards, in: bytes.startIndex..<standard.lowerBound)?.upperBound else { return nil }
-        let end = bytes.range(of: Data("endobj".utf8), in: standard.upperBound..<min(bytes.endIndex, standard.upperBound + 8192))?.lowerBound
+            let start = bytes.range(of: Data("obj".utf8), options: .backwards, in: bytes.startIndex..<standard.lowerBound)?.upperBound
+        else { return nil }
+        let end =
+            bytes.range(of: Data("endobj".utf8), in: standard.upperBound..<min(bytes.endIndex, standard.upperBound + 8192))?.lowerBound
             ?? min(bytes.endIndex, standard.upperBound + 8192)
         guard standard.lowerBound - start < 8192 else { return nil }
         // Strings (the password records) are left out, so their bytes can't look like `/P`.
         let dictionary = String(decoding: bytes[start..<end], as: UTF8.self)
             .replacing(#/\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>/#, with: "")
         guard dictionary.contains("/Filter"),
-              let match = dictionary.firstMatch(of: #/\/P\s*(-?\d+)\b(?!\s+\d+\s+R)/#), let value = Int64(match.1) else { return nil }
+            let match = dictionary.firstMatch(of: #/\/P\s*(-?\d+)\b(?!\s+\d+\s+R)/#), let value = Int64(match.1)
+        else { return nil }
         var bits = Int32(truncatingIfNeeded: value)
         if let revision = dictionary.firstMatch(of: #/\/R\s*(\d+)\b/#), revision.1 == "2" {
             // Revision 2 reserves bits 9 to 12; what they mean later follows bits 6, 5, 4 and 3 there.
@@ -87,8 +90,9 @@ nonisolated struct LockState: Equatable {
     /// `password` in the same role.
     func isKept(by data: Data, password: String, encryption: PDFEncryption?) -> Bool {
         guard let encryption, let written = PDFEncryption(data), written.hasSamePermissions(as: encryption),
-              written.isAES128 == encryption.isAES128, written.isAES256 == encryption.isAES256,
-              let copy = PDFDocument(data: data), copy.isLocked == needsPassword else { return false }
+            written.isAES128 == encryption.isAES128, written.isAES256 == encryption.isAES256,
+            let copy = PDFDocument(data: data), copy.isLocked == needsPassword
+        else { return false }
         if copy.isLocked, !copy.unlock(withPassword: password) { return false }
         return LockState(copy, needsPassword: needsPassword) == self
     }

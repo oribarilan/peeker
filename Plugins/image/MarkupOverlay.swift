@@ -108,11 +108,15 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         case .step:
             document.put(ImageMark(id: ImageMark.newID(), kind: .step(center: point), color: style.color, size: style.size, width: width))
         case .text:
-            beginTextEditing(ImageMark(id: ImageMark.newID(), kind: .text(origin: point, string: " ", style: Self.textStyle(style.text, label: option)), color: style.color,
-                                       size: style.size, width: width), new: true)
+            beginTextEditing(
+                ImageMark(
+                    id: ImageMark.newID(), kind: .text(origin: point, string: " ", style: Self.textStyle(style.text, label: option)),
+                    color: style.color,
+                    size: style.size, width: width), new: true)
         default:
-            draft = ImageMark(id: ImageMark.newID(), kind: Self.kind(tool, from: point, to: point, ellipse: option, style: style), color: style.color,
-                              size: style.size, width: width)
+            draft = ImageMark(
+                id: ImageMark.newID(), kind: Self.kind(tool, from: point, to: point, ellipse: option, style: style), color: style.color,
+                size: style.size, width: width)
             drag = .drawing(start: point)
         }
     }
@@ -192,7 +196,8 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         field.delegate = self
         field.setAccessibilityLabel("Markup text")
         let top = viewPoint(origin)
-        field.frame = NSRect(x: top.x, y: top.y - field.intrinsicContentSize.height, width: max(bounds.maxX - top.x, 80), height: field.intrinsicContentSize.height)
+        field.frame = NSRect(
+            x: top.x, y: top.y - field.intrinsicContentSize.height, width: max(bounds.maxX - top.x, 80), height: field.intrinsicContentSize.height)
         addSubview(field)
         window?.makeFirstResponder(field)
         self.field = field
@@ -297,7 +302,8 @@ final class MarkupOverlay: NSView, NSTextFieldDelegate {
         if let draft, let context = NSGraphicsContext.current?.cgContext {
             var marks = document.marks()
             if let index = marks.firstIndex(where: { $0.id == draft.id }) { marks[index] = draft } else { marks.append(draft) }
-            MarkRenderer.drawDraft(draft, number: ImageMark.stepNumbers(marks)[draft.id], imageSize: document.pixelSize(), in: imageRect, context: context)
+            MarkRenderer.drawDraft(
+                draft, number: ImageMark.stepNumbers(marks)[draft.id], imageSize: document.pixelSize(), in: imageRect, context: context)
             return
         }
         guard drag == nil, let mark = selected else { return }
@@ -335,8 +341,11 @@ nonisolated extension ImageMark {
         case .box(let rect, let ellipse):
             // Only its outline, so a click inside reaches the armed tool.
             let r = rect.standardized
-            let outline = ellipse
-                ? (0...64).map { CGPoint(x: r.midX + r.width / 2 * cos(Double($0) / 32 * .pi), y: r.midY + r.height / 2 * sin(Double($0) / 32 * .pi)) }
+            let outline =
+                ellipse
+                ? (0...64).map {
+                    CGPoint(x: r.midX + r.width / 2 * cos(Double($0) / 32 * .pi), y: r.midY + r.height / 2 * sin(Double($0) / 32 * .pi))
+                }
                 : r.corners + [r.corners[0]]
             return zip(outline, outline.dropFirst()).contains { Self.distance(point, toSegment: $0, $1) <= reach }
         default: return bounds.insetBy(dx: -tolerance, dy: -tolerance).contains(point)

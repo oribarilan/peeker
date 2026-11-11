@@ -50,7 +50,7 @@ import Testing
     }
 
     @Test func unencodableTextOffersUTF8() async throws {
-        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))   // "café" in Windows-1252
+        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))  // "café" in Windows-1252
         let document = await loadedDocument(file, with: TextPlugin.self)
         defer { document.close() }
         try document.type("🙂")
@@ -76,7 +76,7 @@ import Testing
         defer { document.close() }
         try document.type("mine\n")
         try Data("theirs\n".utf8).write(to: file, options: .atomic)
-        try await Task.sleep(for: .milliseconds(700))   // past the watcher's 200 ms coalescing and a reload
+        try await Task.sleep(for: .milliseconds(700))  // past the watcher's 200 ms coalescing and a reload
         #expect(document.shownText == "mine\n")
         let prompts = StubPrompts()
         #expect(await document.save(prompts: prompts) == .saved)
@@ -93,7 +93,7 @@ import Testing
         try Data("theirs\n".utf8).write(to: file)
         try FileManager.default.setAttributes([.modificationDate: Date.now.addingTimeInterval(10)], ofItemAtPath: file.path)
         document.reloadIfChangedOnDisk()
-        try document.type("mine\n")   // same main-actor turn: before the reply
+        try document.type("mine\n")  // same main-actor turn: before the reply
         try await Task.sleep(for: .milliseconds(300))
         #expect(document.shownText == "mine\n")
         let prompts = StubPrompts()

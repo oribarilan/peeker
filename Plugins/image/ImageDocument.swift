@@ -120,12 +120,15 @@ final class ImageDocument: PluginDocument, Zooming {
             canvas.onPaste = { [weak self] in self?.paste() }
             canvas.canPaste = { [weak self] in self?.canPasteMark ?? false }
         }
-        pinchObserver = NotificationCenter.default.addObserver(forName: NSScrollView.didEndLiveMagnifyNotification, object: scrollView,
-                                                               queue: .main) { [weak self] _ in
+        pinchObserver = NotificationCenter.default.addObserver(
+            forName: NSScrollView.didEndLiveMagnifyNotification, object: scrollView,
+            queue: .main
+        ) { [weak self] _ in
             MainActor.assumeIsolated { self?.sharpenIfNeeded() }
         }
         // Magnifying changes the clip view's bounds; a resize changes the canvas, and with it the fit.
-        zoomObservers = [(NSView.boundsDidChangeNotification, scrollView.contentView), (NSView.frameDidChangeNotification, canvas)].map { name, view in
+        zoomObservers = [(NSView.boundsDidChangeNotification, scrollView.contentView), (NSView.frameDidChangeNotification, canvas)].map {
+            name, view in
             NotificationCenter.default.addObserver(forName: name, object: view, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.onZoomChange?() }
             }
@@ -148,7 +151,8 @@ final class ImageDocument: PluginDocument, Zooming {
     }
 
     /// The thumbnails of a multi-page TIFF; nil for any other image.
-    private(set) lazy var pageList: PageList? = showsPages
+    private(set) lazy var pageList: PageList? =
+        showsPages
         ? PageList(url: url, pageCount: pageCount) { [weak self] in self?.showPage($0) } : nil
 
     var tools: [ToolSpec] {
@@ -253,7 +257,8 @@ final class ImageDocument: PluginDocument, Zooming {
     /// decode already has every pixel the full one would.
     func sharpenIfNeeded(atActualSize: Bool = false) {
         guard atActualSize || scrollView.magnification > 1, animation == nil, full == nil, sharpening == nil,
-              max(base.width, base.height) < ImagePlugin.fullSide(for: baseSize) else { return }
+            max(base.width, base.height) < ImagePlugin.fullSide(for: baseSize)
+        else { return }
         let started = generation, source = source, size = baseSize, page = page, decode = decodeFull
         sharpening = Task { [weak self] in
             let image = try? await decode(source, size, page)
@@ -391,10 +396,13 @@ final class ImageDocument: PluginDocument, Zooming {
             return false
         }
         guard recovered.edits.count + recovered.marks.count <= Self.maxRecoveredEdits, !(recovered.edits.isEmpty && recovered.marks.isEmpty),
-              recovered.edits.allSatisfy(\.isValid), recovered.marks.allSatisfy(\.isValid) else { return false }
+            recovered.edits.allSatisfy(\.isValid), recovered.marks.allSatisfy(\.isValid)
+        else { return false }
         if recovered.fromOriginal {
             // Saved since it opened: the edits start from the file as it opened, which the record carries.
-            guard let bytes = recovered.original, let decoded = try? ImagePlugin.screenDecode(.bytes(bytes), maxPixels: maxPixels) else { return false }
+            guard let bytes = recovered.original, let decoded = try? ImagePlugin.screenDecode(.bytes(bytes), maxPixels: maxPixels) else {
+                return false
+            }
             original = bytes
             base = decoded.image
             baseSize = decoded.pixelSize

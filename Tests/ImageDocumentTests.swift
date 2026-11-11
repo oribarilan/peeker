@@ -15,10 +15,13 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     @Test func onlyWritableSingleFrameImagesOfSaneSizeCanBeEdited() {
         #expect(ImagePlugin.uneditableReason(type: UTType.png.identifier, frames: 1, pixels: 1_000_000, isFloat: false) == nil)
         #expect(ImagePlugin.uneditableReason(type: UTType.jpeg.identifier, frames: 1, pixels: 100_000_000, isFloat: false) == nil)
-        #expect(ImagePlugin.uneditableReason(type: "org.webmproject.webp", frames: 1, pixels: 100, isFloat: false) == "Peeker can't save this format.")
+        #expect(
+            ImagePlugin.uneditableReason(type: "org.webmproject.webp", frames: 1, pixels: 100, isFloat: false) == "Peeker can't save this format.")
         #expect(ImagePlugin.uneditableReason(type: "com.adobe.raw-image", frames: 1, pixels: 100, isFloat: false) == "Peeker can't save this format.")
         #expect(ImagePlugin.uneditableReason(type: UTType.gif.identifier, frames: 3, pixels: 100, isFloat: false) == "This image has several frames.")
-        #expect(ImagePlugin.uneditableReason(type: UTType.jpeg.identifier, frames: 1, pixels: 100_000_001, isFloat: false) == "This image is too large to edit.")
+        #expect(
+            ImagePlugin.uneditableReason(type: UTType.jpeg.identifier, frames: 1, pixels: 100_000_001, isFloat: false)
+                == "This image is too large to edit.")
         #expect(ImagePlugin.uneditableReason(type: UTType.tiff.identifier, frames: 1, pixels: 100, isFloat: true) == "Peeker can't save this format.")
     }
 
@@ -113,7 +116,9 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     /// ImageIO ignores a PNG's orientation in the thumbnail unless the properties were read first; the window and the
     /// save must agree.
     @Test func aPNGWithOrientationShowsAndSavesTheSameWay() async throws {
-        let exif: [CFString: Any] = [kCGImagePropertyOrientation: 6, kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: "2026:10:31 09:00:00"]]
+        let exif: [CFString: Any] = [
+            kCGImagePropertyOrientation: 6, kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: "2026:10:31 09:00:00"],
+        ]
         let url = try imageFile(try cornerImage(), type: .png, properties: exif)
         let document = try await open(url)
         #expect(document.shownSize.width < document.shownSize.height, "turned, as the tag says")
@@ -163,7 +168,8 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         let clip = scroll.contentView.bounds, image = document.canvas.frame
         #expect(abs(clip.midX - image.midX) < 1 && abs(clip.midY - image.midY) < 1, "centered")
         #expect(document.perform("zoom-actual"))
-        let expected = ImageDocument.actualMagnification(pixelWidth: 400, backingScale: window.backingScaleFactor, fittedWidth: document.canvas.imageRect.width)
+        let expected = ImageDocument.actualMagnification(
+            pixelWidth: 400, backingScale: window.backingScaleFactor, fittedWidth: document.canvas.imageRect.width)
         #expect(abs(scroll.magnification - expected) < 0.001)
     }
 
@@ -275,9 +281,13 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
 
     /// A full decoder that answers a request for `image`'s size with `image` once `gate` ends, whatever cancels it
     /// meanwhile, like a decode that finished its work just before being cancelled. Other sizes decode the file.
-    private func holdingBack(_ image: CGImage, until gate: Task<Void, Never>) -> @concurrent @Sendable (ImageSource, CGSize, Int) async throws(PluginError) -> CGImage {
+    private func holdingBack(_ image: CGImage, until gate: Task<Void, Never>)
+        -> @concurrent @Sendable (ImageSource, CGSize, Int) async throws(PluginError) -> CGImage
+    {
         { url, size, page throws(PluginError) in
-            guard size == CGSize(width: image.width, height: image.height) else { return try await ImagePlugin.decodeFull(url, pixelSize: size, page: page) }
+            guard size == CGSize(width: image.width, height: image.height) else {
+                return try await ImagePlugin.decodeFull(url, pixelSize: size, page: page)
+            }
             await gate.value
             return image
         }
@@ -330,8 +340,10 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.gif.identifier as CFString, 3, nil))
         CGImageDestinationSetProperties(destination, loop)
         for (r, g, b) in [(1.0, 0.0, 0.0), (0, 1, 0), (0, 0, 1)] {
-            let context = try #require(CGContext(data: nil, width: 8, height: 8, bitsPerComponent: 8, bytesPerRow: 0,
-                                                 space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            let context = try #require(
+                CGContext(
+                    data: nil, width: 8, height: 8, bitsPerComponent: 8, bytesPerRow: 0,
+                    space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
             context.setFillColor(red: r, green: g, blue: b, alpha: 1)
             context.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
             let delay = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: 0.05]] as CFDictionary
@@ -383,8 +395,10 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     @Test func aClickOnTheImagePausesAndAnotherResumes() async throws {
         let document = try await open(try gif())
         let animation = try #require(document.animation)
-        let click = try #require(NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0,
-                                                    context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+        let click = try #require(
+            NSEvent.mouseEvent(
+                with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0,
+                context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
         document.canvas.mouseDown(with: click)
         #expect(animation.isPaused)
         document.canvas.mouseDown(with: click)

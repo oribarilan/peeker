@@ -110,9 +110,10 @@ extension PeekPanel: NSMenuDelegate {
         menu.removeAllItems()
         guard let url else { return }
         let apps = listApps(url)
-        let items = PeekOpenWithMenu.items(apps: apps, systemDefault: NSWorkspace.shared.urlForApplication(toOpen: url).flatMap { Bundle(url: $0)?.bundleIdentifier },
-                                          buttonApp: buttonApp(for: url)?.bundleID, hasDefault: openWith[url.pathExtension.lowercased()] != nil,
-                                          peekerID: Bundle.main.bundleIdentifier ?? "")
+        let items = PeekOpenWithMenu.items(
+            apps: apps, systemDefault: NSWorkspace.shared.urlForApplication(toOpen: url).flatMap { Bundle(url: $0)?.bundleIdentifier },
+            buttonApp: buttonApp(for: url)?.bundleID, hasDefault: openWith[url.pathExtension.lowercased()] != nil,
+            peekerID: Bundle.main.bundleIdentifier ?? "")
         for item in items {
             let menuItem: NSMenuItem
             switch item {

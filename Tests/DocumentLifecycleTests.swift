@@ -180,8 +180,9 @@ private final class StubDocument: PluginDocument {
 @Suite(.serialized) struct DocumentLoadingState {
     /// A document starting to open `file` in a window, and the open running.
     private func startLoading(_ file: URL, allowsEditing: Bool = true) -> (DocumentViewController, NSWindow, Task<Void, Never>) {
-        let document = DocumentViewController(url: file, entry: PluginEntry(Stub.self), config: Config(), allowsEditing: allowsEditing,
-                                              recovery: nil, recoveryID: UUID().uuidString, journalDelay: 2)
+        let document = DocumentViewController(
+            url: file, entry: PluginEntry(Stub.self), config: Config(), allowsEditing: allowsEditing,
+            recovery: nil, recoveryID: UUID().uuidString, journalDelay: 2)
         let window = offscreenWindow(holding: document.view)
         return (document, window, Task.immediate { await document.load() })
     }

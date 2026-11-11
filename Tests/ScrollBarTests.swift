@@ -30,11 +30,13 @@ import Testing
     }
 
     @Test func anImageAndATIFFsPages() async throws {
-        let image = try await openDocument(try imageFile(try cornerImage(), type: .png), with: ImagePlugin.self,
-                                           as: (any PluginDocument).self, maxPixels: 1000)
+        let image = try await openDocument(
+            try imageFile(try cornerImage(), type: .png), with: ImagePlugin.self,
+            as: (any PluginDocument).self, maxPixels: 1000)
         #expect(scrollViews(in: image).filter { !$0.autohidesScrollers }.isEmpty)
-        let pages = try await openDocument(try multiPageTIFF([(40, 20), (20, 40)]), with: ImagePlugin.self,
-                                           as: (any PluginDocument).self, maxPixels: 1000)
+        let pages = try await openDocument(
+            try multiPageTIFF([(40, 20), (20, 40)]), with: ImagePlugin.self,
+            as: (any PluginDocument).self, maxPixels: 1000)
         let views = scrollViews(in: pages)
         #expect(views.count >= 2, "the image and the page list")
         #expect(views.filter { !$0.autohidesScrollers }.isEmpty, "\(views)")

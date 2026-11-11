@@ -44,9 +44,10 @@ final class PeekPanel: NSPanel {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        super.init(contentRect: PanelPlacement.frame(saved: nil, screen: Self.pointerScreenFrame()),
-                   styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
-                   backing: .buffered, defer: false)
+        super.init(
+            contentRect: PanelPlacement.frame(saved: nil, screen: Self.pointerScreenFrame()),
+            styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered, defer: false)
         minSize = PanelPlacement.minimumSize
         for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
             NotificationCenter.default.addObserver(self, selector: #selector(frameChanged), name: name, object: self)

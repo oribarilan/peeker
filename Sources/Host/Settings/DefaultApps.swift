@@ -18,10 +18,15 @@ enum DefaultAppSummary: Equatable {
     init(of extensions: [ExtensionDefault]) {
         let settable = extensions.filter { $0.type != nil }
         let peeker = settable.count { $0.isPeeker }
-        if settable.isEmpty { self = .cantSet }
-        else if peeker == settable.count { self = .all }
-        else if peeker == 0 { self = .none }
-        else { self = .some(peeker, of: settable.count) }
+        if settable.isEmpty {
+            self = .cantSet
+        } else if peeker == settable.count {
+            self = .all
+        } else if peeker == 0 {
+            self = .none
+        } else {
+            self = .some(peeker, of: settable.count)
+        }
     }
 }
 

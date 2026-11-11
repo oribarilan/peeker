@@ -43,7 +43,8 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
 
     /// Whether a thumbnail drag can reorder pages: from macOS 27. Before, PDFKit's copy of a dragged page isn't tied to
     /// the original, so a move can't be told from a page dropped in from elsewhere.
-    nonisolated static let dragsReorderPages = ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 27, minorVersion: 0, patchVersion: 0))
+    nonisolated static let dragsReorderPages = ProcessInfo.processInfo.isOperatingSystemAtLeast(
+        OperatingSystemVersion(majorVersion: 27, minorVersion: 0, patchVersion: 0))
 
     private func update() {
         allowsDragging = isEditing && allowsPageChanges && Self.dragsReorderPages
@@ -82,7 +83,8 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
         let observation = imageView.observe(\.image) { [weak self, weak item] imageView, _ in
             MainActor.assumeIsolated {
                 guard let image = imageView.image, !(image is TurnedThumbnail), let item, let index = item.collectionView?.indexPath(for: item)?.item,
-                      let rotation = self?.pdfView?.document?.page(at: index)?.rotation, rotation % 360 != 0 else { return }
+                    let rotation = self?.pdfView?.document?.page(at: index)?.rotation, rotation % 360 != 0
+                else { return }
                 imageView.image = TurnedThumbnail(image, by: rotation)
             }
         }
@@ -101,8 +103,10 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
         collection.backgroundView = background
         hoverFill = fill
         hoverCollection = collection
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-                                       owner: self))
+        addTrackingArea(
+            NSTrackingArea(
+                rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+                owner: self))
         selectionObservation = collection.observe(\.selectionIndexPaths) { [weak self] _, _ in
             MainActor.assumeIsolated { self?.setHovered(self?.hoveredItem) }
         }
@@ -130,7 +134,8 @@ final class PageThumbnails: PDFThumbnailView, NSMenuItemValidation {
     private func setHovered(_ item: Int?) {
         hoveredItem = item
         guard let collection = hoverCollection, let fill = hoverFill else { return }
-        guard let item, item < collection.numberOfItems(inSection: 0), !collection.selectionIndexPaths.contains(IndexPath(item: item, section: 0)) else {
+        guard let item, item < collection.numberOfItems(inSection: 0), !collection.selectionIndexPaths.contains(IndexPath(item: item, section: 0))
+        else {
             fill.isHovered = false
             return
         }

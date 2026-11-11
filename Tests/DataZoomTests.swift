@@ -3,7 +3,9 @@ import PeekerKit
 @testable import PeekerData
 import Testing
 
-@MainActor private func open(_ text: String = #"{"name": "app", "deps": {"a": 1}}"#, preferences: PluginPreferences? = nil) async throws -> (DataDocument, NSWindow) {
+@MainActor private func open(_ text: String = #"{"name": "app", "deps": {"a": 1}}"#, preferences: PluginPreferences? = nil) async throws -> (
+    DataDocument, NSWindow
+) {
     let url = try TempFile.make(Data(text.utf8), name: "z.json")
     let document = try await openDocument(url, with: DataPlugin.self, as: DataDocument.self, preferences: preferences)
     let window = offscreenWindow(holding: document.contentView)

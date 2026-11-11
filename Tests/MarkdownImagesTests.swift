@@ -46,8 +46,10 @@ import UniformTypeIdentifiers
     }
 
     @Test func webDataAndOtherSchemesResolveToNothing() {
-        for source in ["http://example.com/a.png", "https://example.com/badge.svg", "HTTPS://EXAMPLE.COM/A.PNG",
-                       "data:image/png;base64,iVBORw0KGgo=", "x-custom:chart.png", "ftp://example.com/a.png", ""] {
+        for source in [
+            "http://example.com/a.png", "https://example.com/badge.svg", "HTTPS://EXAMPLE.COM/A.PNG",
+            "data:image/png;base64,iVBORw0KGgo=", "x-custom:chart.png", "ftp://example.com/a.png", "",
+        ] {
             #expect(resolved(source) == nil, "\(source)")
         }
     }
@@ -106,8 +108,10 @@ func bmpHeader(width: Int, height: Int) throws -> URL {
 /// A folder holding `markdown` as notes.md and a solid red PNG of `size` pixels for each name in `pictures`.
 func markdownFolder(_ markdown: String, pictures: [String] = [], size: CGSize = CGSize(width: 40, height: 20)) throws -> URL {
     let file = try TempFile.make(Data(markdown.utf8), name: "notes.md")
-    let context = try #require(CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
-                                         space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    let context = try #require(
+        CGContext(
+            data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
     context.setFillColor(red: 1, green: 0, blue: 0, alpha: 1)
     context.fill(CGRect(origin: .zero, size: size))
     let png = try Data(contentsOf: try imageFile(try #require(context.makeImage()), type: .png))
@@ -133,8 +137,9 @@ func markdownFolder(_ markdown: String, pictures: [String] = [], size: CGSize = 
     }
 
     @Test func parseKeysEachUsableImageByItsSourceAsWritten() async throws {
-        let file = try markdownFolder("![a](a.png) and ![again](./a.png)\n\n- ![sub](img/b.png)\n\n> ![gone](missing.png) ![web](https://example.com/c.png)\n",
-                                      pictures: ["a.png", "img/b.png"])
+        let file = try markdownFolder(
+            "![a](a.png) and ![again](./a.png)\n\n- ![sub](img/b.png)\n\n> ![gone](missing.png) ![web](https://example.com/c.png)\n",
+            pictures: ["a.png", "img/b.png"])
         let images = try await MarkdownPlugin.parse(file).images
         #expect(Set(images.keys) == ["a.png", "./a.png", "img/b.png"])
         #expect(images["img/b.png"]?.pixelSize == CGSize(width: 40, height: 20))
@@ -174,12 +179,13 @@ func markdownFolder(_ markdown: String, pictures: [String] = [], size: CGSize = 
     }
 }
 
-
 /// The alpha of the middle pixel when `image` is drawn into a clear bitmap of its size.
 @MainActor func middleAlpha(_ image: NSImage) throws -> CGFloat {
     let width = Int(image.size.width), height = Int(image.size.height)
-    let rep = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4,
-                                            hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+    let rep = try #require(
+        NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4,
+            hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     image.draw(in: NSRect(x: 0, y: 0, width: width, height: height))
@@ -244,8 +250,10 @@ func markdownFolder(_ markdown: String, pictures: [String] = [], size: CGSize = 
         let style = NSMutableParagraphStyle()
         style.headIndent = indent
         style.firstLineHeadIndent = indent
-        view.textStorage?.setAttributedString(NSAttributedString(string: "Text \u{FFFC} text",
-                                                                 attributes: [.attachment: MarkdownImageAttachment(local, alt: "p"), .paragraphStyle: style]))
+        view.textStorage?.setAttributedString(
+            NSAttributedString(
+                string: "Text \u{FFFC} text",
+                attributes: [.attachment: MarkdownImageAttachment(local, alt: "p"), .paragraphStyle: style]))
         if textKit2 {
             let layout = try #require(view.textLayoutManager)
             let content = try #require(layout.textContentManager)

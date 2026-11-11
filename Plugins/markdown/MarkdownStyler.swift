@@ -68,7 +68,9 @@ nonisolated enum MarkdownStyler {
     static func wordCount(_ source: String) -> Int {
         var words = 0, inWord = false
         for scalar in source.unicodeScalars {
-            let space = scalar.isASCII ? scalar == " " || scalar == "\n" || scalar == "\t" || scalar == "\r" || scalar.value == 0x0B || scalar.value == 0x0C
+            let space =
+                scalar.isASCII
+                ? scalar == " " || scalar == "\n" || scalar == "\t" || scalar == "\r" || scalar.value == 0x0B || scalar.value == 0x0C
                 : scalar.properties.isWhitespace
             if !space && !inWord { words += 1 }
             inWord = !space
@@ -166,11 +168,13 @@ nonisolated enum MarkdownStyler {
         /// A fenced block's opening and closing fence lines.
         private mutating func markFences(of code: CodeBlock, in range: NSRange) {
             guard let span = byteSpan(range), let first = bytes[span].first(where: { $0 != UInt8(ascii: " ") }),
-                  first == UInt8(ascii: "`") || first == UInt8(ascii: "~") else { return }
+                first == UInt8(ascii: "`") || first == UInt8(ascii: "~")
+            else { return }
             let lineRanges = self.lineRanges(in: range)
             guard let opening = lineRanges.first else { return }
             add(opening, .marker)
-            let closed = lineRanges.count > 1
+            let closed =
+                lineRanges.count > 1
                 && text(lineRanges.last!).trimmingCharacters(in: .whitespaces).hasPrefix(String(UnicodeScalar(first)))
             if closed { add(lineRanges.last!, .marker) }
             let inner = lineRanges.dropFirst().dropLast(closed ? 1 : 0)
@@ -203,7 +207,8 @@ nonisolated enum MarkdownStyler {
             var index = start
             while index + 2 < bytes.count, bytes[index] != 0x0A, bytes[index] != 0x0D {
                 if bytes[index] == UInt8(ascii: "["), [UInt8(ascii: " "), UInt8(ascii: "x"), UInt8(ascii: "X")].contains(bytes[index + 1]),
-                   bytes[index + 2] == UInt8(ascii: "]") {
+                    bytes[index + 2] == UInt8(ascii: "]")
+                {
                     return NSRange(location: lines.utf16(at: index), length: 3)
                 }
                 index += 1

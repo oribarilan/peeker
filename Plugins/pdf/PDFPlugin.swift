@@ -10,26 +10,32 @@ public enum PDFPlugin: Plugin {
     public static let symbol = "doc.richtext"
     public static let defaultExtensions = ["pdf"]
     public static let readableTypes = [UTType.pdf]
-    public static let tools = [
-        ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
-        ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
-        ToolSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", showsInToolbar: false),
-        ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
-        // Single letters, as Crop's C: they run only while nothing that takes typing has the keyboard.
-        ToolSpec(id: "markup", title: "Markup", symbol: "pencil.tip.crop.circle", shortcut: "m", isEditTool: true,
-                 tip: "Pick a tool, or press its key, then click or drag on the page. Hold Option for an ellipse."),
-        ToolSpec(id: "sign", title: "Sign", symbol: "signature", shortcut: "s", isEditTool: true,
-                 tip: "Draw your signature, then click where it goes."),
-        ToolSpec(id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "h", isEditTool: true,
-                 tip: "Select text and press {key}, or drag across text while Highlight is on.",
-                 choices: highlightColors, choicesTitle: "Highlight Color"),
-        ToolSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", isEditTool: true),
-        ToolSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", isEditTool: true),
-        ToolSpec(id: "delete-page", title: "Delete Page", symbol: "trash", isEditTool: true),
-        ToolSpec(id: "insert-pages", title: "Insert Pages from File…", isEditTool: true, showsInToolbar: false, menu: .file),
-        ToolSpec(id: "save-selected-pages", title: "Save Selected Pages As…", isEditTool: true, showsInToolbar: false, menu: .file),
-        ToolSpec(id: "split", title: "Split…", isEditTool: true, showsInToolbar: false, menu: .file),
-    ] + markupTools.map { ToolSpec(id: $0.id, title: $0.title, symbol: $0.symbol, shortcut: $0.key, isEditTool: true, showsInToolbar: false) }
+    public static let tools =
+        [
+            ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
+            ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
+            ToolSpec(
+                id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", showsInToolbar: false
+            ),
+            ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
+            // Single letters, as Crop's C: they run only while nothing that takes typing has the keyboard.
+            ToolSpec(
+                id: "markup", title: "Markup", symbol: "pencil.tip.crop.circle", shortcut: "m", isEditTool: true,
+                tip: "Pick a tool, or press its key, then click or drag on the page. Hold Option for an ellipse."),
+            ToolSpec(
+                id: "sign", title: "Sign", symbol: "signature", shortcut: "s", isEditTool: true,
+                tip: "Draw your signature, then click where it goes."),
+            ToolSpec(
+                id: "highlight", title: "Highlight", symbol: "highlighter", shortcut: "h", isEditTool: true,
+                tip: "Select text and press {key}, or drag across text while Highlight is on.",
+                choices: highlightColors, choicesTitle: "Highlight Color"),
+            ToolSpec(id: "rotate-left", title: "Rotate Left", symbol: "rotate.left", isEditTool: true),
+            ToolSpec(id: "rotate-right", title: "Rotate Right", symbol: "rotate.right", isEditTool: true),
+            ToolSpec(id: "delete-page", title: "Delete Page", symbol: "trash", isEditTool: true),
+            ToolSpec(id: "insert-pages", title: "Insert Pages from File…", isEditTool: true, showsInToolbar: false, menu: .file),
+            ToolSpec(id: "save-selected-pages", title: "Save Selected Pages As…", isEditTool: true, showsInToolbar: false, menu: .file),
+            ToolSpec(id: "split", title: "Split…", isEditTool: true, showsInToolbar: false, menu: .file),
+        ] + markupTools.map { ToolSpec(id: $0.id, title: $0.title, symbol: $0.symbol, shortcut: $0.key, isEditTool: true, showsInToolbar: false) }
 
     /// The markup strip's tools in its order, each in the Tools menu with its key. Keys image markup has too (T, P, L,
     /// A, B) are the same there. Text Box keeps the id it had as a toolbar tool, so shortcuts set for it still work.
@@ -55,8 +61,9 @@ public enum PDFPlugin: Plugin {
             return LockedPDFDocument(url: url, canUnlock: context.allowsEditing, preferences: context.preferences)
         }
         guard let document = PeekerPDFDocument(url: url) else { throw PluginError("This file isn't a readable PDF.") }
-        return PDFPluginDocument(url: url, document: document, info: checked.info, editable: context.allowsEditing,
-                                 uneditableReason: uneditableReason(checked, document), preferences: context.preferences)
+        return PDFPluginDocument(
+            url: url, document: document, info: checked.info, editable: context.allowsEditing,
+            uneditableReason: uneditableReason(checked, document), preferences: context.preferences)
     }
 
     /// Why `document` can't be edited, if it can't. The edit tools add annotations and fill in fields, so it needs those
@@ -111,7 +118,9 @@ public enum PDFPlugin: Plugin {
     /// Unlocks a password-protected source with `lock`, keeping its lock in what it writes. Returns a note to show the
     /// user once, when the lock had to change.
     @discardableResult
-    @concurrent nonisolated static func write(_ edits: [PDFEdit], from source: String? = nil, to path: String, lock: PDFLock? = nil) async throws(PluginError) -> String? {
+    @concurrent nonisolated static func write(_ edits: [PDFEdit], from source: String? = nil, to path: String, lock: PDFLock? = nil)
+        async throws(PluginError) -> String?
+    {
         let saved = try saved(edits, from: source ?? path, lock: lock)
         try FileReplacement.replaceContents(ofFileAt: path, with: saved.data)
         return saved.note
@@ -119,12 +128,18 @@ public enum PDFPlugin: Plugin {
 
     /// Writes the pages of each run, from the PDF at `source` with `edits` applied, to its file. For Save Selected
     /// Pages As… and Split….
-    @concurrent nonisolated static func writePages(_ runs: [(pages: [Int], path: String)], edits: [PDFEdit], from source: String) async throws(PluginError) {
-        guard let full = PDFDocument(data: try edited(edits, from: source)) else { throw PluginError("“\(URL(filePath: source).lastPathComponent)” couldn't be read.") }
+    @concurrent nonisolated static func writePages(_ runs: [(pages: [Int], path: String)], edits: [PDFEdit], from source: String)
+        async throws(PluginError)
+    {
+        guard let full = PDFDocument(data: try edited(edits, from: source)) else {
+            throw PluginError("“\(URL(filePath: source).lastPathComponent)” couldn't be read.")
+        }
         for run in runs {
             let part = PDFDocument()
             for index in run.pages.sorted() { if let page = full.page(at: index)?.copy() as? PDFPage { part.insert(page, at: part.pageCount) } }
-            guard part.pageCount > 0, let data = part.dataRepresentation() else { throw PluginError("“\(URL(filePath: run.path).lastPathComponent)” couldn't be written.") }
+            guard part.pageCount > 0, let data = part.dataRepresentation() else {
+                throw PluginError("“\(URL(filePath: run.path).lastPathComponent)” couldn't be written.")
+            }
             try FileReplacement.replaceContents(ofFileAt: run.path, with: data)
         }
     }
@@ -142,14 +157,18 @@ public enum PDFPlugin: Plugin {
     nonisolated static let needsOpenPassword = "Saving this PDF needs its open password too, since it was unlocked with its permissions password."
     nonisolated static let needsPermissionsPassword = "Saving this PDF needs its permissions password, since it limits printing, copying or changes."
     nonisolated static let olderEncryptionNote = "This PDF is now saved with 128-bit RC4 encryption, older than the AES-256 it had."
-    nonisolated static let openPasswordGuardsNote = "Its open password now also guards its permissions, since Peeker didn't have its permissions password; it limits nothing, so nothing changes for anyone opening it."
-    nonisolated static let permissionsPasswordReplacedNote = "Its permissions password was replaced, since Peeker didn't have it; it limits nothing, so nothing changes for anyone opening it."
+    nonisolated static let openPasswordGuardsNote =
+        "Its open password now also guards its permissions, since Peeker didn't have its permissions password; it limits nothing, so nothing changes for anyone opening it."
+    nonisolated static let permissionsPasswordReplacedNote =
+        "Its permissions password was replaced, since Peeker didn't have it; it limits nothing, so nothing changes for anyone opening it."
 
     /// The PDF at `path` with `edits` applied, as data, locked as the file was, and a note when its lock had to change.
     /// An encrypted file is written as PDFKit does by default, which keeps AES-128 and 128-bit RC4 locks as they were;
     /// when that doesn't keep it (RC4-40), it's written with 128-bit RC4 and both passwords. AES-256 always is: its
     /// default write can look right through the permissions password yet no longer open with the open one.
-    nonisolated static func saved(_ edits: [PDFEdit], from path: String, lock: PDFLock?, keepingLock: Bool = true) throws(PluginError) -> (data: Data, note: String?) {
+    nonisolated static func saved(_ edits: [PDFEdit], from path: String, lock: PDFLock?, keepingLock: Bool = true) throws(PluginError) -> (
+        data: Data, note: String?
+    ) {
         let name = URL(filePath: path).lastPathComponent
         guard let bytes = try? Data(contentsOf: URL(filePath: path), options: .mappedIfSafe), let document = PDFDocument(data: bytes) else {
             throw PluginError("“\(name)” is no longer a readable PDF.")
@@ -168,7 +187,9 @@ public enum PDFPlugin: Plugin {
                 throw PluginError("“\(name)” couldn't be written as a PDF.")
             }
             if movesPages {
-                guard let repaired = MovedPageRepair.repaired(data, kept: kept, password: password) else { throw PluginError("“\(name)” couldn't be written as a PDF.") }
+                guard let repaired = MovedPageRepair.repaired(data, kept: kept, password: password) else {
+                    throw PluginError("“\(name)” couldn't be written as a PDF.")
+                }
                 data = repaired
             }
             return data
@@ -198,11 +219,13 @@ public enum PDFPlugin: Plugin {
         } else {
             throw PluginError(needsPermissionsPassword, offer: permissionsPasswordOffer)
         }
-        let data = try written([.userPasswordOption: open, .ownerPasswordOption: owner, .accessPermissionsOption: encryption.pdfKitPermissions], password: owner)
+        let data = try written(
+            [.userPasswordOption: open, .ownerPasswordOption: owner, .accessPermissionsOption: encryption.pdfKitPermissions], password: owner)
         guard let written = PDFEncryption(data), written.hasSamePermissions(as: encryption),
-              let asOpen = PDFDocument(data: data), asOpen.isLocked == needsPassword, !needsPassword || asOpen.unlock(withPassword: open),
-              owner == open || asOpen.permissionsStatus == .user,  // the open password mustn't get the permissions password's rights
-              let asOwner = PDFDocument(data: data), asOwner.unlock(withPassword: owner), asOwner.permissionsStatus == .owner else {
+            let asOpen = PDFDocument(data: data), asOpen.isLocked == needsPassword, !needsPassword || asOpen.unlock(withPassword: open),
+            owner == open || asOpen.permissionsStatus == .user,  // the open password mustn't get the permissions password's rights
+            let asOwner = PDFDocument(data: data), asOwner.unlock(withPassword: owner), asOwner.permissionsStatus == .owner
+        else {
             throw PluginError("“\(name)” couldn't be saved with its password.")
         }
         return (data, notes.isEmpty ? nil : notes.joined(separator: " "))

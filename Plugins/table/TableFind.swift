@@ -200,8 +200,9 @@ extension TableView: NSMenuItemValidation {
         markTitles()
         let visible = tableView.rows(in: tableView.visibleRect)
         guard visible.length > 0 else { return }
-        tableView.reloadData(forRowIndexes: IndexSet(integersIn: visible.location..<visible.location + visible.length),
-                             columnIndexes: IndexSet(integersIn: 0..<tableView.numberOfColumns))
+        tableView.reloadData(
+            forRowIndexes: IndexSet(integersIn: visible.location..<visible.location + visible.length),
+            columnIndexes: IndexSet(integersIn: 0..<tableView.numberOfColumns))
     }
 
     /// Tints the column titles that match, when the header row is on.
@@ -213,9 +214,11 @@ extension TableView: NSMenuItemValidation {
                 continue
             }
             let tint = NSColor.findHighlightColor.withAlphaComponent(ref == currentMark ? 1 : 0.4)
-            column.headerCell.attributedStringValue = NSAttributedString(string: column.title, attributes: [
-                .backgroundColor: tint, .font: column.headerCell.font ?? NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-            ])
+            column.headerCell.attributedStringValue = NSAttributedString(
+                string: column.title,
+                attributes: [
+                    .backgroundColor: tint, .font: column.headerCell.font ?? NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                ])
         }
         tableView.headerView?.needsDisplay = true
     }

@@ -25,12 +25,16 @@ private final class Answering: NSObject, NSCollectionViewDelegate {
     var answer: NSDragOperation = .move
     var accepted = false
 
-    func collectionView(_ collectionView: NSCollectionView, validateDrop draggingInfo: any NSDraggingInfo,
-                        proposedIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
-                        dropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>) -> NSDragOperation { answer }
+    func collectionView(
+        _ collectionView: NSCollectionView, validateDrop draggingInfo: any NSDraggingInfo,
+        proposedIndexPath: AutoreleasingUnsafeMutablePointer<NSIndexPath>,
+        dropOperation: UnsafeMutablePointer<NSCollectionView.DropOperation>
+    ) -> NSDragOperation { answer }
 
-    func collectionView(_ collectionView: NSCollectionView, acceptDrop draggingInfo: any NSDraggingInfo, indexPath: IndexPath,
-                        dropOperation: NSCollectionView.DropOperation) -> Bool {
+    func collectionView(
+        _ collectionView: NSCollectionView, acceptDrop draggingInfo: any NSDraggingInfo, indexPath: IndexPath,
+        dropOperation: NSCollectionView.DropOperation
+    ) -> Bool {
         accepted = true
         return true
     }
@@ -50,9 +54,11 @@ private final class Drag: NSObject, NSDraggingInfo {
     var draggingFormation: NSDraggingFormation = .default
     var animatesToDestination = false
     var numberOfValidItemsForDrop = 1
-    func enumerateDraggingItems(options: NSDraggingItemEnumerationOptions = [], for view: NSView?, classes: [AnyClass],
-                                searchOptions: [NSPasteboard.ReadingOptionKey: Any] = [:],
-                                using block: @escaping (NSDraggingItem, Int, UnsafeMutablePointer<ObjCBool>) -> Void) {}
+    func enumerateDraggingItems(
+        options: NSDraggingItemEnumerationOptions = [], for view: NSView?, classes: [AnyClass],
+        searchOptions: [NSPasteboard.ReadingOptionKey: Any] = [:],
+        using block: @escaping (NSDraggingItem, Int, UnsafeMutablePointer<ObjCBool>) -> Void
+    ) {}
     var springLoadingHighlight: NSSpringLoadingHighlight { .none }
     func resetSpringLoading() {}
 }

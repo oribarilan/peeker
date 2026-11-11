@@ -110,7 +110,9 @@ nonisolated enum PDFEditing {
         return page
     }
 
-    private static func find(_ id: String, _ type: MarkType, verb: String, on page: PDFPage, _ index: Int, fileName: String) throws(PluginError) -> PDFAnnotation {
+    private static func find(_ id: String, _ type: MarkType, verb: String, on page: PDFPage, _ index: Int, fileName: String) throws(PluginError)
+        -> PDFAnnotation
+    {
         guard let annotation = PDFMarks.find(id, on: page) else {
             throw PluginError("Can't save: the \(type.name) to \(verb) on page \(index + 1) is no longer in “\(fileName)”.")
         }
@@ -151,8 +153,9 @@ nonisolated enum PDFEditing {
             return annotation(id, page).map { .setBounds(id: id, type: type, page: page, rect: $0.bounds) }
         case .setText(let id, let page, _, _, _, _):
             return annotation(id, page).map {
-                .setText(id: id, page: page, text: $0.contents ?? "", fontSize: PDFMarks.fontSize(of: $0) ?? 12, rect: $0.bounds,
-                         style: PDFMarks.style(of: $0).nilIfStandard)
+                .setText(
+                    id: id, page: page, text: $0.contents ?? "", fontSize: PDFMarks.fontSize(of: $0) ?? 12, rect: $0.bounds,
+                    style: PDFMarks.style(of: $0).nilIfStandard)
             }
         case .setLook(let id, let page, _, _):
             return annotation(id, page).flatMap(PDFMarks.drawing(of:)).map { .setLook(id: id, page: page, color: $0.color, width: $0.width) }

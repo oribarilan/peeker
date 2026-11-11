@@ -17,7 +17,8 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
     @Test func aStyledBoxWritesItsBaseFontAndColors() throws {
         let document = PDFDocument()
         document.insert(PDFPage(), at: 0)
-        let mark = PDFMark(id: "peeker-t", page: 0, rect: CGRect(x: 10, y: 10, width: 100, height: 20), kind: .textBox(text: "Hi", fontSize: 14, style: redSerif))
+        let mark = PDFMark(
+            id: "peeker-t", page: 0, rect: CGRect(x: 10, y: 10, width: 100, height: 20), kind: .textBox(text: "Hi", fontSize: 14, style: redSerif))
         let annotation = PDFMarks.annotation(for: mark)
         #expect(annotation.font?.fontName == "Times-BoldItalic" && annotation.font?.pointSize == 14)
         let ink = try #require(annotation.fontColor?.usingColorSpace(.sRGB))
@@ -27,8 +28,10 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
 
     @Test func aBoxIsFilledWithItsColorAndTheTextReadsOnIt() throws {
         let boxed = TextBoxStyle(font: .mono, bold: false, italic: false, color: red, boxed: true)
-        let annotation = PDFMarks.annotation(for: PDFMark(id: "peeker-b", page: 0, rect: CGRect(x: 10, y: 10, width: 100, height: 20),
-                                                          kind: .textBox(text: "Hi", fontSize: 12, style: boxed)))
+        let annotation = PDFMarks.annotation(
+            for: PDFMark(
+                id: "peeker-b", page: 0, rect: CGRect(x: 10, y: 10, width: 100, height: 20),
+                kind: .textBox(text: "Hi", fontSize: 12, style: boxed)))
         #expect(annotation.font?.fontName == "Courier")
         #expect(try #require(annotation.color.usingColorSpace(.sRGB)).alphaComponent == 1)
         #expect(try #require(annotation.fontColor?.usingColorSpace(.sRGB)).brightnessComponent == 1, "white on red")
@@ -40,7 +43,8 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
             for bold in [false, true] {
                 for italic in [false, true] {
                     let style = TextBoxStyle(font: font, bold: bold, italic: italic, color: red, boxed: false)
-                    #expect(TextBoxStyle.face(of: style.fontName).map { [$0.font == font, $0.bold == bold, $0.italic == italic] } == [true, true, true])
+                    #expect(
+                        TextBoxStyle.face(of: style.fontName).map { [$0.font == font, $0.bold == bold, $0.italic == italic] } == [true, true, true])
                     #expect(NSFont(name: style.fontName, size: 12) != nil, "\(style.fontName) exists on the Mac")
                 }
             }
@@ -56,8 +60,12 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
 
     @Test func savedStyleSurvivesWritingTheFile() throws {
         let file = try TempFile.makePDF(pages: 1)
-        let edits: [PDFEdit] = [.add(PDFMark(id: "peeker-t", page: 0, rect: CGRect(x: 100, y: 300, width: 120, height: 30),
-                                              kind: .textBox(text: "Note", fontSize: 16, style: redSerif)))]
+        let edits: [PDFEdit] = [
+            .add(
+                PDFMark(
+                    id: "peeker-t", page: 0, rect: CGRect(x: 100, y: 300, width: 120, height: 30),
+                    kind: .textBox(text: "Note", fontSize: 16, style: redSerif)))
+        ]
         let data = try PDFPlugin.edited(edits, from: file.path)
         let annotation = try #require(PDFDocument(data: data)?.page(at: 0)?.annotations.first)
         #expect(PDFMarks.style(of: annotation) == redSerif && PDFMarks.fontSize(of: annotation) == 16)
@@ -109,8 +117,9 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
         let page = try #require(document.pdfView.document?.page(at: 0))
         let point = CGPoint(x: 100, y: 500)
         let location = document.pdfView.convert(document.pdfView.convert(point, from: page), to: nil)
-        let click = NSEvent.mouseEvent(with: .leftMouseDown, location: location, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-                                       context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        let click = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: location, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
         #expect(tools.mouseDown(with: click, at: document.pdfView.convert(point, from: page)))
         let textView = try #require(window.firstResponder as? NSTextView)
         textView.string = "Typed"
@@ -148,8 +157,10 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
 
     @Test func aRestyleFoldsIntoItsBox() {
         let box = CGRect(x: 10, y: 10, width: 50, height: 20)
-        let folded = PDFEdit.folded([.add(PDFMark(id: "peeker-1", page: 0, rect: box, kind: .textBox(text: "Hi", fontSize: 12))),
-                                     .setText(id: "peeker-1", page: 0, text: "Hi", fontSize: 14, rect: box, style: redSerif)])
+        let folded = PDFEdit.folded([
+            .add(PDFMark(id: "peeker-1", page: 0, rect: box, kind: .textBox(text: "Hi", fontSize: 12))),
+            .setText(id: "peeker-1", page: 0, text: "Hi", fontSize: 14, rect: box, style: redSerif),
+        ])
         #expect(folded == [.add(PDFMark(id: "peeker-1", page: 0, rect: box, kind: .textBox(text: "Hi", fontSize: 14, style: redSerif)))])
     }
 
@@ -166,7 +177,10 @@ private let redSerif = TextBoxStyle(font: .serif, bold: true, italic: true, colo
     }
 
     @Test func boxTextIsWhicheverOfBlackAndWhiteReadsBetter() {
-        let text = { (name: String) in TextBoxStyle(font: .sans, bold: false, italic: false, color: PDFMarkupStrip.palette.first { $0.name == name }!.color, boxed: true).textColor }
+        let text = { (name: String) in
+            TextBoxStyle(font: .sans, bold: false, italic: false, color: PDFMarkupStrip.palette.first { $0.name == name }!.color, boxed: true)
+                .textColor
+        }
         let black = RGBA(red: 0, green: 0, blue: 0, alpha: 1), white = RGBA(red: 1, green: 1, blue: 1, alpha: 1)
         #expect(text("Orange") == black && text("Green") == black && text("Yellow") == black)
         #expect(text("Red") == white && text("Blue") == white && text("Black") == white)

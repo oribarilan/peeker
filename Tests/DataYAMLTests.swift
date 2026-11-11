@@ -82,8 +82,9 @@ private func outline(_ text: String) throws -> String { outline(try parse(text))
 
     @Test func coreSchemaKinds() throws {
         let text = "[1, -2, +3, 0x1F, 0o17, 1.5, .5, 1e3, -1.5E-3, .inf, -.Inf, .NaN, \"true\", 'null', True, FALSE, Null, ~, yes, 1_000, 1.2.3]"
-        #expect(try outline(text) == "[n:1,n:-2,n:+3,n:0x1F,n:0o17,n:1.5,n:.5,n:1e3,n:-1.5E-3,n:.inf,n:-.Inf,n:.NaN,"
-            + "s:true,s:null,b:True,b:FALSE,0:Null,0:~,s:yes,s:1_000,s:1.2.3]")
+        #expect(
+            try outline(text) == "[n:1,n:-2,n:+3,n:0x1F,n:0o17,n:1.5,n:.5,n:1e3,n:-1.5E-3,n:.inf,n:-.Inf,n:.NaN,"
+                + "s:true,s:null,b:True,b:FALSE,0:Null,0:~,s:yes,s:1_000,s:1.2.3]")
     }
 }
 
@@ -129,8 +130,10 @@ private func outline(_ text: String) throws -> String { outline(try parse(text))
     }
 
     @Test func nastyInputNeverCrashes() {
-        for nasty in ["-", "- ", "---", "...", ":", "::", "? ", "[", "{", "]", "\"", "'", "|", ">", "&", "*", "!", "\t", "\r\n",
-                      "a:\n- ", "[a,", "{a:", "- [", "a: 'x", "\"\\u12", "a: >\n\t\tx", "- - - -", "a: &", "--- [", "k: |+", "{,}", "[a, , b]"] {
+        for nasty in [
+            "-", "- ", "---", "...", ":", "::", "? ", "[", "{", "]", "\"", "'", "|", ">", "&", "*", "!", "\t", "\r\n",
+            "a:\n- ", "[a,", "{a:", "- [", "a: 'x", "\"\\u12", "a: >\n\t\tx", "- - - -", "a: &", "--- [", "k: |+", "{,}", "[a, , b]",
+        ] {
             _ = YAMLParser.parse(nasty)
         }
         var generator = SystemRandomNumberGenerator()
@@ -146,8 +149,10 @@ private func outline(_ text: String) throws -> String { outline(try parse(text))
         var keys = ""
         for level in 0..<1000 { keys += String(repeating: " ", count: level) + "k:\n" }
         // Found in review: anchors or tags ending their lines nested without counting, and overflowed the stack.
-        let inputs = [String(repeating: "- ", count: 2000) + "x", String(repeating: "[", count: 2000), keys,
-                      String(repeating: "&a\n", count: 200_000) + "x", "key:\n" + String(repeating: "  !t\n", count: 200_000)]
+        let inputs = [
+            String(repeating: "- ", count: 2000) + "x", String(repeating: "[", count: 2000), keys,
+            String(repeating: "&a\n", count: 200_000) + "x", "key:\n" + String(repeating: "  !t\n", count: 200_000),
+        ]
         let messages = Messages()
         let done = DispatchSemaphore(value: 0)
         let thread = Thread {

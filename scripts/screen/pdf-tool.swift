@@ -20,7 +20,8 @@ import PDFKit
 func form(signed: Bool = false) -> String {
     let on = "<< /Type /XObject /Subtype /Form /BBox [0 0 16 16] /Length 18 >>\nstream\n0 g 2 2 12 12 re f\nendstream"
     let off = "<< /Type /XObject /Subtype /Form /BBox [0 0 16 16] /Length 0 >>\nstream\n\nendstream"
-    let label = "BT /Helv 14 Tf 72 740 Td (Name) Tj 0 -50 Td (I agree) Tj 0 -50 Td (Pick one) Tj 0 -50 Td (Color) Tj 0 -50 Td (Date:) Tj 0 -50 Td (Signature:) Tj ET"
+    let label =
+        "BT /Helv 14 Tf 72 740 Td (Name) Tj 0 -50 Td (I agree) Tj 0 -50 Td (Pick one) Tj 0 -50 Td (Color) Tj 0 -50 Td (Date:) Tj 0 -50 Td (Signature:) Tj ET"
     let objects = [
         "<< /Type /Catalog /Pages 2 0 R /AcroForm 4 0 R >>",
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -50,7 +51,8 @@ func pages(_ count: Int) -> String {
     ]
     for number in 1...count {
         let text = "BT /Helv 48 Tf 72 680 Td (Page \(number)) Tj ET"
-        objects.append("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents \(5 + 2 * (number - 1)) 0 R /Resources << /Font << /Helv 3 0 R >> >> >>")
+        objects.append(
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents \(5 + 2 * (number - 1)) 0 R /Resources << /Font << /Helv 3 0 R >> >> >>")
         objects.append("<< /Length \(text.utf8.count) >>\nstream\n\(text)\nendstream")
     }
     return pdf(objects)
@@ -71,7 +73,8 @@ func pdf(_ objects: [String]) -> String {
 }
 
 let args = CommandLine.arguments
-let usage = "usage: pdf-tool form <out.pdf> | signed <out.pdf> | pages <out.pdf> <n> | locked <out.pdf> <password> <n> [permissions password] | inspect <in.pdf> [password]"
+let usage =
+    "usage: pdf-tool form <out.pdf> | signed <out.pdf> | pages <out.pdf> <n> | locked <out.pdf> <password> <n> [permissions password] | inspect <in.pdf> [password]"
 guard args.count >= 3 else { print(usage); exit(2) }
 switch args[1] {
 case "form":
@@ -82,7 +85,9 @@ case "pages":
     guard args.count == 4, let count = Int(args[3]), count > 0 else { print(usage); exit(2) }
     try Data(pages(count).utf8).write(to: URL(filePath: args[2]))
 case "locked":
-    guard (5...6).contains(args.count), let count = Int(args[4]), count > 0, let document = PDFDocument(data: Data(pages(count).utf8)) else { print(usage); exit(2) }
+    guard (5...6).contains(args.count), let count = Int(args[4]), count > 0, let document = PDFDocument(data: Data(pages(count).utf8)) else {
+        print(usage); exit(2)
+    }
     let options: [PDFDocumentWriteOption: Any] = [.userPasswordOption: args[3], .ownerPasswordOption: args.count == 6 ? args[5] : args[3]]
     guard document.write(to: URL(filePath: args[2]), withOptions: options) else { print("couldn't write \(args[2])"); exit(1) }
 case "inspect":

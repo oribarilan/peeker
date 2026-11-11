@@ -38,7 +38,7 @@ import Testing
     }
 
     @Test func textTheEncodingCantHoldAsksToSaveAsUTF8() async throws {
-        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))   // "café" in Windows-1252
+        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))  // "café" in Windows-1252
         let document = await loadedDocument(file, with: TextPlugin.self)
         defer { document.close() }
         try document.type("🙂")

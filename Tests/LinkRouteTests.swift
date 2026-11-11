@@ -15,9 +15,15 @@ import Testing
     /// Markdown opens .md, Plain Text opens .txt, nothing opens the rest.
     private func route(_ link: String, openElsewhere: Set<String> = []) throws -> LinkRoute {
         let url = try #require(URL(string: link, relativeTo: readme)?.absoluteURL)
-        return LinkRoute(link: url, from: readme, plugin: "markdown", owner: { url in
-            switch url.pathExtension { case "md": "markdown"; case "txt": "text"; default: nil }
-        }, isOpenElsewhere: { openElsewhere.contains($0.lastPathComponent) })
+        return LinkRoute(
+            link: url, from: readme, plugin: "markdown",
+            owner: { url in
+                switch url.pathExtension {
+                case "md": "markdown";
+                case "txt": "text";
+                default: nil
+                }
+            }, isOpenElsewhere: { openElsewhere.contains($0.lastPathComponent) })
     }
 
     @Test func aMissingFileBeeps() throws {

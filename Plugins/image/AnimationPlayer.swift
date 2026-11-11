@@ -30,7 +30,8 @@ final class AnimationPlayer {
     private func play(from start: Int) {
         run += 1
         let current = run
-        let status = CGAnimateImageAtURLWithBlock(url as CFURL, [kCGImageAnimationStartIndex: start] as CFDictionary) { [weak self] index, image, stop in
+        let status = CGAnimateImageAtURLWithBlock(url as CFURL, [kCGImageAnimationStartIndex: start] as CFDictionary) {
+            [weak self] index, image, stop in
             MainActor.assumeIsolated {
                 guard let self, self.run == current, !self.isPaused, let canvas = self.canvas else {
                     stop.pointee = true

@@ -40,7 +40,9 @@ final class FileWatcher {
         guard fd >= 0 else {
             let code = errno
             if attempt == timing.retries {
-                Self.log.info("\(self.url.path, privacy: .private) is gone: \(String(cString: strerror(code)), privacy: .public); checking every \(self.timing.slowRetryInterval, privacy: .public) s")
+                Self.log.info(
+                    "\(self.url.path, privacy: .private) is gone: \(String(cString: strerror(code)), privacy: .public); checking every \(self.timing.slowRetryInterval, privacy: .public) s"
+                )
             }
             let delay = attempt < timing.retries ? timing.retryInterval : timing.slowRetryInterval
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in

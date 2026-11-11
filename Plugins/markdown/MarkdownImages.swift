@@ -21,20 +21,24 @@ nonisolated enum MarkdownImages {
     /// yet, or not an image the system can read. Reads the file's header, not its pixels.
     static func check(_ url: URL) -> LocalImage? {
         let file = url.resolvingSymlinksInPath()
-        let keys: Set<URLResourceKey> = [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey, .isUbiquitousItemKey,
-                                         .ubiquitousItemDownloadingStatusKey]
+        let keys: Set<URLResourceKey> = [
+            .isRegularFileKey, .fileSizeKey, .contentModificationDateKey, .isUbiquitousItemKey,
+            .ubiquitousItemDownloadingStatusKey,
+        ]
         // A regular file only, so a FIFO or a device can't block the read; an iCloud file only once downloaded, so
         // nothing starts a download.
         guard let values = try? file.resourceValues(forKeys: keys), values.isRegularFile == true, (values.fileSize ?? .max) <= maxBytes,
-              values.isUbiquitousItem != true || values.ubiquitousItemDownloadingStatus == .current,
-              let source = CGImageSourceCreateWithURL(file as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
-              let type = CGImageSourceGetType(source).flatMap({ UTType($0 as String) }), type.conforms(to: .image),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-              let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int,
-              width > 0, height > 0, width * height <= maxPixels else { return nil }
+            values.isUbiquitousItem != true || values.ubiquitousItemDownloadingStatus == .current,
+            let source = CGImageSourceCreateWithURL(file as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
+            let type = CGImageSourceGetType(source).flatMap({ UTType($0 as String) }), type.conforms(to: .image),
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+            let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int,
+            width > 0, height > 0, width * height <= maxPixels
+        else { return nil }
         let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
-        return LocalImage(url: url, pixelSize: turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height),
-                          modified: values.contentModificationDate)
+        return LocalImage(
+            url: url, pixelSize: turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height),
+            modified: values.contentModificationDate)
     }
 
     static let maxImages = 50
@@ -47,7 +51,8 @@ nonisolated enum MarkdownImages {
         func visit(_ spans: [Span]) {
             for span in spans where span.style.contains(.image) && found.count < maxImages {
                 guard let source = span.link, seen.insert(source).inserted,
-                      let url = resolve(source, in: folder), var image = check(url) else { continue }
+                    let url = resolve(source, in: folder), var image = check(url)
+                else { continue }
                 image.order = found.count
                 found[source] = image
             }
@@ -81,7 +86,8 @@ nonisolated enum MarkdownImages {
     /// (it changed since) or its data is damaged.
     static func decode(_ image: LocalImage, maxPixels: Int) -> CGImage? {
         guard check(image.url) != nil,
-              let source = CGImageSourceCreateWithURL(image.url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+            let source = CGImageSourceCreateWithURL(image.url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary)
+        else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,

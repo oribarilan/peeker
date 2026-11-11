@@ -28,9 +28,12 @@ public final class FindBar: NSView, NSSearchFieldDelegate {
         field.setAccessibilityLabel(label)
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.setContentHuggingPriority(.required, for: .horizontal)
-        let steps = NSSegmentedControl(images: [NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Previous")!,
-                                                NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Next")!],
-                                       trackingMode: .momentary, target: self, action: #selector(step(_:)))
+        let steps = NSSegmentedControl(
+            images: [
+                NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Previous")!,
+                NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Next")!,
+            ],
+            trackingMode: .momentary, target: self, action: #selector(step(_:)))
         steps.setToolTip("Previous (⇧⌘G)", forSegment: 0)
         steps.setToolTip("Next (⌘G)", forSegment: 1)
         let done = NSButton(title: "Done", target: self, action: #selector(done(_:)))

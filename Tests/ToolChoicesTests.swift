@@ -8,10 +8,13 @@ private enum Choosy: Plugin {
     static let name = "Choosy"
     static let defaultExtensions: [String] = []
     static let tools = [
-        ToolSpec(id: "paint", title: "Paint", symbol: "paintbrush", isEditTool: true,
-                 choices: [ToolSpec.Choice(id: "paint-red", title: "Red", color: RGBA(red: 1, green: 0, blue: 0, alpha: 1)),
-                           ToolSpec.Choice(id: "paint-blue", title: "Blue", color: RGBA(red: 0, green: 0, blue: 1, alpha: 1))],
-                 choicesTitle: "Paint Color"),
+        ToolSpec(
+            id: "paint", title: "Paint", symbol: "paintbrush", isEditTool: true,
+            choices: [
+                ToolSpec.Choice(id: "paint-red", title: "Red", color: RGBA(red: 1, green: 0, blue: 0, alpha: 1)),
+                ToolSpec.Choice(id: "paint-blue", title: "Blue", color: RGBA(red: 0, green: 0, blue: 1, alpha: 1)),
+            ],
+            choicesTitle: "Paint Color"),
         ToolSpec(id: "erase", title: "Erase", symbol: "eraser", isEditTool: true),
     ]
     @MainActor static var last: ChoosyDocument?

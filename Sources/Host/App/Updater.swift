@@ -47,8 +47,9 @@ final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate
     }
 
     convenience init(bundle: Bundle = .main) {
-        self.init(version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? Updater.developmentVersion,
-                  build: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0")
+        self.init(
+            version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? Updater.developmentVersion,
+            build: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0")
     }
 
     /// Whether this build updates itself: only released builds do.
@@ -151,7 +152,9 @@ final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate
 
     func updaterWillRelaunchApplication(_ updater: SPUUpdater) { noteRelaunch() }
 
-    func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem, immediateInstallationBlock immediateInstallHandler: @escaping () -> Void) -> Bool {
+    func updater(
+        _ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem, immediateInstallationBlock immediateInstallHandler: @escaping () -> Void
+    ) -> Bool {
         installWhenIdle(immediateInstallHandler)
     }
 }

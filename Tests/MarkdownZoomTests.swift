@@ -4,8 +4,9 @@ import PeekerKit
 import Testing
 
 @MainActor private func edit(_ scratch: ScratchDefaults, name: String = "a.md") async throws -> MarkdownEditor {
-    try await openDocument(try TempFile.make(Data("# Big\nbody\n".utf8), name: name), with: MarkdownPlugin.self, as: MarkdownEditor.self,
-                           preferences: scratch.preferences("markdown"))
+    try await openDocument(
+        try TempFile.make(Data("# Big\nbody\n".utf8), name: name), with: MarkdownPlugin.self, as: MarkdownEditor.self,
+        preferences: scratch.preferences("markdown"))
 }
 
 /// The body text's size, after the heading.
@@ -68,8 +69,9 @@ import Testing
         let scratch = ScratchDefaults()
         defer { scratch.close() }
         let file = try TempFile.make(Data("# Notes\n\nSome text.\n".utf8), name: "n.md")
-        let document = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownDocument.self, editing: false,
-                                              preferences: scratch.preferences("markdown"))
+        let document = try await openDocument(
+            file, with: MarkdownPlugin.self, as: MarkdownDocument.self, editing: false,
+            preferences: scratch.preferences("markdown"))
         var changes = 0
         document.onZoomChange = { changes += 1 }
         #expect(document.zoomPercent == 100)

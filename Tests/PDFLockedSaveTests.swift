@@ -113,7 +113,9 @@ private func hasBox(_ document: PDFDocument?) -> Bool {
     @Test func anRC40FilesReservedBitsFollowWhatTheyMeantThere() async throws {
         let file = try LockedPDF.rc4_40FormNoChanges()
         let read = try #require(PDFEncryption(try Data(contentsOf: file)))
-        #expect(read.permissions & (1 << 10) == 0 && read.permissions & (1 << 8) == 0, "no assembly and no form filling, as no changes and no comments meant")
+        #expect(
+            read.permissions & (1 << 10) == 0 && read.permissions & (1 << 8) == 0,
+            "no assembly and no form filling, as no changes and no comments meant")
         _ = try await PDFPlugin.write([.field(name: "Name", value: "Jane")], to: file.path, lock: lock(LockedPDF.perms, open: LockedPDF.open))
         let written = try #require(PDFEncryption(try Data(contentsOf: file)))
         #expect(written.hasSamePermissions(as: read) && written.permissions & (1 << 10) == 0)
@@ -156,8 +158,12 @@ private func hasBox(_ document: PDFDocument?) -> Bool {
     @Test func movedPagesInALockedPDFKeepTheirMarksAndTheLock() async throws {
         let file = try LockedPDF.page(.aes128)
         _ = try await PDFPlugin.write([.add(box)], to: file.path, lock: lock(LockedPDF.open))
-        _ = try await PDFPlugin.write([.rotatePages(pages: [0], by: 90), .restorePages(pages: [1], token: "t", data: try Data(contentsOf: try TempFile.makePDF(pages: 1))), .reorderPages(order: [1, 0])],
-                                      to: file.path, lock: lock(LockedPDF.open))
+        _ = try await PDFPlugin.write(
+            [
+                .rotatePages(pages: [0], by: 90), .restorePages(pages: [1], token: "t", data: try Data(contentsOf: try TempFile.makePDF(pages: 1))),
+                .reorderPages(order: [1, 0]),
+            ],
+            to: file.path, lock: lock(LockedPDF.open))
         let asOpen = try #require(LockedPDF.opened(file, with: LockedPDF.open))
         #expect(asOpen.pageCount == 2 && asOpen.page(at: 1)?.annotations.contains { PDFMarks.id(of: $0) == box.id } == true)
     }

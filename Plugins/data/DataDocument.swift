@@ -113,17 +113,21 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         // The bar sits under the toolbar; the text below it only while it shows, as Plain Text's note does.
         textBelowBar = textScroll.topAnchor.constraint(equalTo: errorBar.bottomAnchor)
         textAtTop = textScroll.topAnchor.constraint(equalTo: container.topAnchor)
-        NSLayoutConstraint.activate([
-            errorBar.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor),
-            errorBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            errorBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            textAtTop,
-            tree.topAnchor.constraint(equalTo: container.topAnchor),
-        ] + [textScroll, tree].flatMap { view in [
-            view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-        ] })
+        NSLayoutConstraint.activate(
+            [
+                errorBar.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor),
+                errorBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                errorBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                textAtTop,
+                tree.topAnchor.constraint(equalTo: container.topAnchor),
+            ]
+                + [textScroll, tree].flatMap { view in
+                    [
+                        view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                        view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                        view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+                    ]
+                })
         applyTheme()
         showView()
     }
@@ -413,7 +417,8 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
         let byteCount = try await TextFile.write(text, as: target, to: destination.path)
         textFormat = target
         baseline = text
-        info = [InfoRow(label: "Lines", value: TextCodec.lineCount(of: text).formatted())] + info.dropFirst().dropLast()
+        info =
+            [InfoRow(label: "Lines", value: TextCodec.lineCount(of: text).formatted())] + info.dropFirst().dropLast()
             + [InfoRow(label: "Size", value: ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))]
         onSidebarChange?()
     }
@@ -444,7 +449,9 @@ final class DataDocument: NSObject, PluginDocument, NSTextViewDelegate {
 
 extension DataDocument: Zooming {
     var zoomPercent: Double { fontSize / Self.defaultFontSize * 100 }
-    var zoomRange: ClosedRange<Double> { Self.fontSizes.lowerBound / Self.defaultFontSize * 100...Self.fontSizes.upperBound / Self.defaultFontSize * 100 }
+    var zoomRange: ClosedRange<Double> {
+        Self.fontSizes.lowerBound / Self.defaultFontSize * 100...Self.fontSizes.upperBound / Self.defaultFontSize * 100
+    }
 
     func setZoom(_ percent: Double, around point: NSPoint?) {
         guard percent.isFinite else { return }

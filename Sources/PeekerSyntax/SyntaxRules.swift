@@ -97,7 +97,8 @@ struct SyntaxRules: Sendable {
     static let swift = SyntaxRules(
         lineComments: [bytes("//")], blockComment: cComments, nestedComments: true,
         strings: [string("\"\"\"", multiline: true, interpolation: "\\("), string("\"", interpolation: "\\(")],
-        keywords: keys("""
+        keywords: keys(
+            """
             associatedtype actor async await break case catch class continue default defer deinit do else enum extension
             fallthrough fileprivate final for func guard if import in init inout internal is let lazy mutating
             nonisolated open operator override private protocol public repeat rethrows return self Self some static
@@ -111,7 +112,8 @@ struct SyntaxRules: Sendable {
         lineComments: [bytes("#")],
         strings: [string("\"\"\"", multiline: true), string("'''", multiline: true), string("\""), string("'")],
         stringPrefixes: true,
-        keywords: keys("""
+        keywords: keys(
+            """
             and as assert async await break class continue def del elif else except finally for from global if import in
             is lambda nonlocal not or pass raise return try while with yield match case self
             """),
@@ -122,7 +124,8 @@ struct SyntaxRules: Sendable {
         lineComments: [bytes("#")], commentStart: .wordStart,
         // Single-quoted strings often hold whole awk or python programs, so they may run over lines.
         strings: [string("'", escapes: false, multiline: true), string("\"", multiline: true, interpolation: "$(")],
-        keywords: keys("""
+        keywords: keys(
+            """
             if then else elif fi for while until do done case esac function in return local export select readonly
             declare unset shift exit begin end switch not and or set source
             """),
@@ -138,7 +141,8 @@ struct SyntaxRules: Sendable {
     static let javascript = SyntaxRules(
         lineComments: [bytes("//")], blockComment: cComments,
         strings: [string("`", multiline: true, interpolation: "${"), string("\""), string("'")],
-        keywords: keys("""
+        keywords: keys(
+            """
             break case catch class const continue debugger default delete do else export extends finally for function if
             import in instanceof let new return super switch this throw try typeof var void while with yield async await
             of static get set from as interface type enum implements private protected public readonly declare namespace
@@ -152,7 +156,8 @@ struct SyntaxRules: Sendable {
     static let c = SyntaxRules(
         lineComments: [bytes("//")], blockComment: cComments,
         strings: [string("\""), string("'")],
-        keywords: keys("""
+        keywords: keys(
+            """
             auto break case char const continue default do double else enum extern float for goto if inline int long
             register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while
             bool class namespace template typename public private protected virtual override final new delete this throw
@@ -168,12 +173,14 @@ struct SyntaxRules: Sendable {
     static let go = SyntaxRules(
         lineComments: [bytes("//")], blockComment: cComments,
         strings: [string("\""), string("`", escapes: false, multiline: true), string("'")],
-        keywords: keys("""
+        keywords: keys(
+            """
             break case chan const continue default defer else fallthrough for func go goto if import interface map
             package range return select struct switch type var
             """),
         constants: keys("true false nil iota"),
-        types: keys("""
+        types: keys(
+            """
             bool byte complex64 complex128 error float32 float64 int int8 int16 int32 int64 rune string uint uint8
             uint16 uint32 uint64 uintptr any
             """),
@@ -183,7 +190,8 @@ struct SyntaxRules: Sendable {
     static let rust = SyntaxRules(
         lineComments: [bytes("//")], blockComment: cComments, nestedComments: true,
         strings: [string("\"", multiline: true)],
-        keywords: keys("""
+        keywords: keys(
+            """
             as async await break const continue crate dyn else enum extern fn for if impl in let loop match mod move mut
             pub ref return self Self static struct super trait type unsafe use where while
             """),
@@ -194,7 +202,8 @@ struct SyntaxRules: Sendable {
     static let java = SyntaxRules(
         lineComments: [bytes("//")], blockComment: cComments,
         strings: [string("\"\"\"", multiline: true), string("\""), string("'")],
-        keywords: keys("""
+        keywords: keys(
+            """
             abstract assert boolean break byte case catch char class const continue default do double else enum extends
             final finally float for goto if implements import instanceof int interface long native new package private
             protected public return short static strictfp super switch synchronized this throw throws transient try void
@@ -206,7 +215,8 @@ struct SyntaxRules: Sendable {
     static let kotlin = SyntaxRules(
         lineComments: [bytes("//")], blockComment: cComments, nestedComments: true,
         strings: [string("\"\"\"", escapes: false, multiline: true, interpolation: "${"), string("\"", interpolation: "${"), string("'")],
-        keywords: keys("""
+        keywords: keys(
+            """
             as break class continue do else for fun if in interface is object package return super this throw try
             typealias val var when while by catch constructor finally get import init set where abstract annotation
             companion const data enum external final infix inline inner internal lateinit open operator out override
@@ -219,7 +229,8 @@ struct SyntaxRules: Sendable {
     static let ruby = SyntaxRules(
         lineComments: [bytes("#")],
         strings: [string("\"", interpolation: "#{"), string("'"), string("`")],
-        keywords: keys("""
+        keywords: keys(
+            """
             alias and begin break case class def defined do else elsif end ensure for if in module next not or redo
             rescue retry return self super then undef unless until when while yield require require_relative
             """),
@@ -230,7 +241,8 @@ struct SyntaxRules: Sendable {
     static let perl = SyntaxRules(
         lineComments: [bytes("#")], commentStart: .wordStart,
         strings: [string("\""), string("'")],
-        keywords: keys("""
+        keywords: keys(
+            """
             my our local sub if elsif else unless while until for foreach do last next redo return use no package require
             eval die print and or not eq ne lt gt le ge cmp
             """),
@@ -239,21 +251,25 @@ struct SyntaxRules: Sendable {
     static let sql = SyntaxRules(
         lineComments: [bytes("--")], blockComment: cComments,
         strings: [string("'")],
-        keywords: keys("""
+        keywords: keys(
+            """
             select from where insert into values update set delete create table drop alter add column index view join
             inner left right outer full cross on as and or not is in exists between like order by group having limit offset
             union all distinct case when then else end primary key foreign references default unique check constraint
             begin commit rollback transaction with returning if replace asc desc count sum avg min max
             """, folding: true),
         constants: keys("true false null", folding: true),
-        types: keys("int integer bigint smallint varchar char text boolean bool date time timestamp numeric decimal real float double serial blob", folding: true),
+        types: keys(
+            "int integer bigint smallint varchar char text boolean bool date time timestamp numeric decimal real float double serial blob",
+            folding: true),
         caseInsensitive: true)
 
     /// CSS and SCSS: at-rules, `!important`, numbers with units and hex colors. Selectors and properties stay plain.
     static let css = SyntaxRules(
         lineComments: [bytes("//")], blockComment: cComments,
         strings: [string("\""), string("'")],
-        keywords: keys("""
+        keywords: keys(
+            """
             @media @import @font-face @keyframes @supports @charset @namespace @page @layer @container @use @forward
             @mixin @include @extend @if @else @each @for @function @return @tailwind !important
             """),

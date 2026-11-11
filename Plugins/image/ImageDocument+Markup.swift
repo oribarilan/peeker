@@ -49,7 +49,9 @@ extension ImageDocument {
         if let size = preferences?.string("markupSize").flatMap(MarkSize.init(rawValue:)) { style.size = size }
         if let strength = preferences?.double("markupStrength"), (0...1).contains(strength) { style.strength = strength }
         style.ovalSpotlight = preferences?.string("spotlightShape") == "oval"
-        if let json = preferences?.string("textStyle"), let text = try? JSONDecoder().decode(TextStyle.self, from: Data(json.utf8)) { style.text = text }
+        if let json = preferences?.string("textStyle"), let text = try? JSONDecoder().decode(TextStyle.self, from: Data(json.utf8)) {
+            style.text = text
+        }
         guard let hex = preferences?.string("markupColor"), hex.count == 6, let value = UInt32(hex, radix: 16) else { return style }
         // A swatch comes back as itself, so it shows as chosen.
         if let swatch = markupPalette.first(where: { Self.hex($0.color) == hex.uppercased() }) {
@@ -108,15 +110,17 @@ extension ImageDocument {
     }
 
     private func makeOverlay() -> MarkupOverlay {
-        let overlay = MarkupOverlay(canvas: canvas, document: MarkupOverlay.Document(
-            marks: { [weak self] in self?.marks ?? [] },
-            pixelSize: { [weak self] in self?.pixelSize ?? .zero },
-            style: { [weak self] in self?.markupStyle ?? .standard },
-            hide: { [weak self] in self?.redraw(hiding: $0) },
-            preview: { [weak self] in self?.preview($0) },
-            put: { [weak self] in self?.put($0) },
-            remove: { [weak self] in self?.removeMark(id: $0) },
-            selected: { [weak self] _ in self?.showStyle() }))
+        let overlay = MarkupOverlay(
+            canvas: canvas,
+            document: MarkupOverlay.Document(
+                marks: { [weak self] in self?.marks ?? [] },
+                pixelSize: { [weak self] in self?.pixelSize ?? .zero },
+                style: { [weak self] in self?.markupStyle ?? .standard },
+                hide: { [weak self] in self?.redraw(hiding: $0) },
+                preview: { [weak self] in self?.preview($0) },
+                put: { [weak self] in self?.put($0) },
+                remove: { [weak self] in self?.removeMark(id: $0) },
+                selected: { [weak self] _ in self?.showStyle() }))
         self.overlay = overlay
         return overlay
     }
@@ -201,7 +205,9 @@ extension ImageDocument {
         markupStyle.size = size
         preferences?.set(size.rawValue, for: "markupSize")
         let width = size.width(for: pixelSize)
-        if overlay?.restyleEditing({ $0.size = size; $0.width = width }) == true {
+        if overlay?.restyleEditing({
+            $0.size = size; $0.width = width
+        }) == true {
             // put when typing ends
         } else if var mark = overlay?.selected {
             mark.size = size
@@ -236,7 +242,8 @@ extension ImageDocument {
     /// A copied mark again, a little below and right of where it was, selected.
     func paste() {
         guard isEditing, let data = pasteboard.data(forType: Self.markPasteboardType),
-              let copied = try? JSONDecoder().decode(ImageMark.self, from: data), copied.isValid else { return NSSound.beep() }
+            let copied = try? JSONDecoder().decode(ImageMark.self, from: data), copied.isValid
+        else { return NSSound.beep() }
         var mark = copied.moved(by: CGPoint(x: copied.width * 4, y: copied.width * 4))
         mark = ImageMark(id: ImageMark.newID(), kind: mark.kind, color: mark.color, size: mark.size, width: mark.width)
         showMarkup()

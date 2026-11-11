@@ -7,7 +7,9 @@ private enum StubPDF: Plugin {
     static let id = "pdf"
     static let name = "PDF"
     static let defaultExtensions = ["pdf"]
-    static let tools = [ToolSpec(id: "zoom-in", title: "Zoom In", shortcut: "cmd+="), ToolSpec(id: "highlight", title: "Highlight", shortcut: "ctrl+cmd+h")]
+    static let tools = [
+        ToolSpec(id: "zoom-in", title: "Zoom In", shortcut: "cmd+="), ToolSpec(id: "highlight", title: "Highlight", shortcut: "ctrl+cmd+h"),
+    ]
     static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument { throw PluginError("not used") }
 }
 
@@ -190,8 +192,12 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
         let delegate = AppDelegate()  // menu items hold their target weakly
         defer { withExtendedLifetime(delegate) {} }
         let shortcuts = menuShortcuts(in: MainMenu.make(target: delegate))
-        #expect(shortcutConflict(Shortcut(parsing: "cmd+p")!, command: "highlight", plugin: plugins[0], config: Config(), menu: shortcuts) == "Print", "named in a sentence, so without the menu's ellipsis")
-        #expect(shortcutConflict(Shortcut(parsing: "cmd+shift+g")!, command: "highlight", plugin: plugins[0], config: Config(), menu: shortcuts) == "Find Previous")
+        #expect(
+            shortcutConflict(Shortcut(parsing: "cmd+p")!, command: "highlight", plugin: plugins[0], config: Config(), menu: shortcuts) == "Print",
+            "named in a sentence, so without the menu's ellipsis")
+        #expect(
+            shortcutConflict(Shortcut(parsing: "cmd+shift+g")!, command: "highlight", plugin: plugins[0], config: Config(), menu: shortcuts)
+                == "Find Previous")
     }
 }
 
@@ -206,7 +212,8 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
 
 @Suite struct DefaultAppSummaries {
     private func ext(_ name: String, _ isPeeker: Bool?) -> ExtensionDefault {
-        ExtensionDefault(ext: name, type: isPeeker == nil ? nil : .plainText, appName: isPeeker == true ? "Peeker" : "TextEdit", isPeeker: isPeeker ?? false)
+        ExtensionDefault(
+            ext: name, type: isPeeker == nil ? nil : .plainText, appName: isPeeker == true ? "Peeker" : "TextEdit", isPeeker: isPeeker ?? false)
     }
 
     @Test func allSomeOrNoneCountOnlyExtensionsThatCanBeSet() {
@@ -334,9 +341,13 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
     @Test func theDotShowsForProblemsOrMissingAccessibility() {
         #expect(MenuBarItem.accessibilityTitle == "The Peek panel needs Accessibility…")
         #expect(MenuBarItem.State(problems: 0, needsAccessibility: false) == .init(dot: nil, problemsLine: nil, accessibilityLine: false))
-        #expect(MenuBarItem.State(problems: 2, needsAccessibility: false) == .init(dot: .red, problemsLine: "Config has 2 problems", accessibilityLine: false))
+        #expect(
+            MenuBarItem.State(problems: 2, needsAccessibility: false)
+                == .init(dot: .red, problemsLine: "Config has 2 problems", accessibilityLine: false))
         #expect(MenuBarItem.State(problems: 0, needsAccessibility: true) == .init(dot: .red, problemsLine: nil, accessibilityLine: true))
-        #expect(MenuBarItem.State(problems: 1, needsAccessibility: true) == .init(dot: .red, problemsLine: "Config has 1 problem", accessibilityLine: true))
+        #expect(
+            MenuBarItem.State(problems: 1, needsAccessibility: true)
+                == .init(dot: .red, problemsLine: "Config has 1 problem", accessibilityLine: true))
     }
 
     @Test func anUpdateAloneShowsTheAccentDotAndItsLine() {

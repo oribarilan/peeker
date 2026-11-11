@@ -2,8 +2,10 @@ import AppKit
 import Testing
 
 /// A record whose edits are `json`, as a plugin would encode them.
-private func record(_ id: String, _ json: String, url: URL = URL(filePath: "/tmp/a.txt"), plugin: String = "text",
-                    fileModified: Date? = nil) throws -> RecoveryRecord {
+private func record(
+    _ id: String, _ json: String, url: URL = URL(filePath: "/tmp/a.txt"), plugin: String = "text",
+    fileModified: Date? = nil
+) throws -> RecoveryRecord {
     try RecoveryRecord(id: id, url: url, pluginID: plugin, fileModified: fileModified, edits: Data(json.utf8))
 }
 
@@ -50,7 +52,8 @@ private func text(of record: RecoveryRecord) -> String? {
     @Test func newestRecordComesFirst() throws {
         try store.write(try record("old", #"{"text":"old"}"#))
         try store.write(try record("r1", #"{"text":"new"}"#))
-        try FileManager.default.setAttributes([.modificationDate: Date.now.addingTimeInterval(-60)], ofItemAtPath: directory.appending(path: "old.json").path)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date.now.addingTimeInterval(-60)], ofItemAtPath: directory.appending(path: "old.json").path)
         #expect(store.all().map(\.id) == ["r1", "old"])
     }
 
@@ -77,12 +80,16 @@ private func text(of record: RecoveryRecord) -> String? {
     }
 
     @Test func nestedEditsRoundTrip() throws {
-        let edits = #"{"marks":{"list":[{"page":2,"rect":[[1.5,2],[3,4]],"color":{"red":1,"green":0.8,"blue":0,"alpha":1},"note":null,"bold":true}]}}"#
-        let pdf = try record("p1", edits, url: URL(filePath: "/tmp/a.pdf"), plugin: "pdf", fileModified: Date(timeIntervalSince1970: 1_700_000_000.123456789))
+        let edits =
+            #"{"marks":{"list":[{"page":2,"rect":[[1.5,2],[3,4]],"color":{"red":1,"green":0.8,"blue":0,"alpha":1},"note":null,"bold":true}]}}"#
+        let pdf = try record(
+            "p1", edits, url: URL(filePath: "/tmp/a.pdf"), plugin: "pdf", fileModified: Date(timeIntervalSince1970: 1_700_000_000.123456789))
         try store.write(pdf)
         let read = try #require(store.all().first)
         #expect(read == pdf)
-        #expect(try JSONSerialization.jsonObject(with: read.editsData) as? NSDictionary == JSONSerialization.jsonObject(with: Data(edits.utf8)) as? NSDictionary)
+        #expect(
+            try JSONSerialization.jsonObject(with: read.editsData) as? NSDictionary == JSONSerialization.jsonObject(with: Data(edits.utf8))
+                as? NSDictionary)
     }
 
     @Test func editsThatAreNotJSONAreRefused() {
@@ -114,7 +121,7 @@ private func text(of record: RecoveryRecord) -> String? {
 @Suite struct RecoveryClipboardTests {
     @Test func laterTextsJoinEarlierOnesAndRecordsGoOnlyOnceCopied() throws {
         let store = RecoveryStore(directory: FileManager.default.temporaryDirectory.appending(path: "peeker-recovery-\(UUID().uuidString)"))
-        let pasteboard = NSPasteboard(name: NSPasteboard.Name("peeker-test-\(UUID().uuidString)"))   // never the user's clipboard
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("peeker-test-\(UUID().uuidString)"))  // never the user's clipboard
         defer { pasteboard.releaseGlobally() }
         let clipboard = RecoveryClipboard(pasteboard: pasteboard, store: store, text: text(of:))
         let a = try record("a", #"{"text":"text of a"}"#, url: URL(filePath: "/tmp/a.txt"))
@@ -158,9 +165,11 @@ private func text(of record: RecoveryRecord) -> String? {
         try store.write(try record("gone", #"{"text":"lost text"}"#, url: missing.appending(path: "a.txt")))
         try store.write(try record("lost", "[]", url: missing.appending(path: "a.pdf"), plugin: "pdf"))
         var opened: [String] = [], told: [String] = []
-        RecoveryRestore(store: store, clipboard: RecoveryClipboard(pasteboard: pasteboard, store: store, text: text(of:)),
-                        canOpen: { $0.pluginID == "text" }, hasText: { text(of: $0) != nil },
-                        open: { opened.append($0.id) }, tell: { told.append($0) }).run()
+        RecoveryRestore(
+            store: store, clipboard: RecoveryClipboard(pasteboard: pasteboard, store: store, text: text(of:)),
+            canOpen: { $0.pluginID == "text" }, hasText: { text(of: $0) != nil },
+            open: { opened.append($0.id) }, tell: { told.append($0) }
+        ).run()
         #expect(opened == ["new"])
         #expect(pasteboard.string(forType: .string) == "lost text")
         #expect(told.count == 2, "\(told)")

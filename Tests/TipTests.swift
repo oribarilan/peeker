@@ -7,8 +7,9 @@ private enum Tipped: Plugin {
     static let name = "Tipped"
     static let defaultExtensions: [String] = []
     static let tools = [
-        ToolSpec(id: "mark", title: "Mark", symbol: "highlighter", shortcut: "m", isEditTool: true,
-                 tip: "Select text and press {key}, or drag while Mark is on."),
+        ToolSpec(
+            id: "mark", title: "Mark", symbol: "highlighter", shortcut: "m", isEditTool: true,
+            tip: "Select text and press {key}, or drag while Mark is on."),
         ToolSpec(id: "plain", title: "Plain", symbol: "trash", isEditTool: true),
         ToolSpec(id: "hidden", title: "Hidden", symbol: "eye", isEditTool: true, showsInToolbar: false, tip: "Not shown here."),
     ]

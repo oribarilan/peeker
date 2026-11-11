@@ -107,8 +107,11 @@ final class TextDocument: NSObject, Zooming, NSTextViewDelegate {
     /// The text as shown, unsaved edits included, in the current font, black and always wrapped.
     var printJob: ((NSPrintInfo) -> NSPrintOperation?)? {
         { [textView, coloring] info in
-            let attributes: [NSAttributedString.Key: Any] = [.font: textView.font ?? .monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: NSColor.black]
-            let text = coloring?.printed(textView.string, attributes: attributes) ?? NSAttributedString(string: textView.string, attributes: attributes)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: textView.font ?? .monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: NSColor.black,
+            ]
+            let text =
+                coloring?.printed(textView.string, attributes: attributes) ?? NSAttributedString(string: textView.string, attributes: attributes)
             return TextPrinting.job(for: text, info: info)
         }
     }
@@ -220,7 +223,9 @@ final class TextDocument: NSObject, Zooming, NSTextViewDelegate {
     }
 
     var zoomPercent: Double { shownFontSize / Self.defaultFontSize * 100 }
-    var zoomRange: ClosedRange<Double> { Self.fontSizes.lowerBound / Self.defaultFontSize * 100...Self.fontSizes.upperBound / Self.defaultFontSize * 100 }
+    var zoomRange: ClosedRange<Double> {
+        Self.fontSizes.lowerBound / Self.defaultFontSize * 100...Self.fontSizes.upperBound / Self.defaultFontSize * 100
+    }
 
     /// Any size to a hundredth of a point, for Cmd+scroll and pinch, drawn at a pace a large file keeps up with. The
     /// text reflows, so `point` isn't kept.

@@ -21,13 +21,15 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
     }
 
     private func mouse(_ type: NSEvent.EventType, _ point: CGPoint, in view: NSView) -> NSEvent {
-        NSEvent.mouseEvent(with: type, location: view.convert(point, to: nil), modifierFlags: [], timestamp: 0, windowNumber: view.window!.windowNumber,
-                           context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        NSEvent.mouseEvent(
+            with: type, location: view.convert(point, to: nil), modifierFlags: [], timestamp: 0, windowNumber: view.window!.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
     }
 
     private func key(_ characters: String, code: UInt16, window: NSWindow) -> NSEvent {
-        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil,
-                         characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
+        NSEvent.keyEvent(
+            with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil,
+            characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
     }
 
     @Test func cropIsOnCAndRotateAndResizeHasNoKey() {
@@ -41,7 +43,8 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         let fractions = CropOverlay.fractions(of: CGRect(x: 50, y: 75, width: 150, height: 75), in: image)
         #expect(fractions == CGRect(x: 0, y: 0, width: 0.5, height: 0.5), "the top left quarter")
         #expect(CropOverlay.rect(for: fractions, in: image) == CGRect(x: 50, y: 75, width: 150, height: 75))
-        #expect(CropOverlay.fractions(of: CGRect(x: 0, y: -50, width: 500, height: 500), in: image) == CGRect(x: 0, y: 0, width: 1, height: 1), "clamped")
+        #expect(
+            CropOverlay.fractions(of: CGRect(x: 0, y: -50, width: 500, height: 500), in: image) == CGRect(x: 0, y: 0, width: 1, height: 1), "clamped")
     }
 
     @Test func returnCropsToTheDraggedRectangle() async throws {
@@ -189,8 +192,10 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         var edits: [ImageEdit] = []
         let panel = TransformPanel(currentSize: { CGSize(width: 400, height: 200) }, onEdit: { edits.append($0) })
         for (code, letter) in [(UInt16(37), "l"), (15, "r"), (4, "h"), (9, "v")] {
-            let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0,
-                                                      context: nil, characters: letter, charactersIgnoringModifiers: letter, isARepeat: false, keyCode: code))
+            let event = try #require(
+                NSEvent.keyEvent(
+                    with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0,
+                    context: nil, characters: letter, charactersIgnoringModifiers: letter, isARepeat: false, keyCode: code))
             panel.view.keyDown(with: event)
         }
         #expect(edits == [.rotate(by: -90), .rotate(by: 90), .flip(horizontal: true), .flip(horizontal: false)])

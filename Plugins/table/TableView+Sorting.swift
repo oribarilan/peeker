@@ -37,13 +37,14 @@ extension TableView {
     /// The sorted column's arrow, and a dimmed one on the title under the pointer.
     func updateArrows() {
         for (index, column) in tableView.tableColumns.dropFirst().enumerated() {
-            let arrow: NSImage? = if let sort, sort.column == index {
-                NSImage(named: sort.ascending ? "NSAscendingSortIndicator" : "NSDescendingSortIndicator")
-            } else if header.hovered == index {
-                Self.hoverArrow
-            } else {
-                nil
-            }
+            let arrow: NSImage? =
+                if let sort, sort.column == index {
+                    NSImage(named: sort.ascending ? "NSAscendingSortIndicator" : "NSDescendingSortIndicator")
+                } else if header.hovered == index {
+                    Self.hoverArrow
+                } else {
+                    nil
+                }
             if tableView.indicatorImage(in: column) !== arrow { tableView.setIndicatorImage(arrow, in: column) }
         }
     }
@@ -56,12 +57,13 @@ extension TableView {
             return (row: row, text: text, number: CSVTable.number(text, locale: locale, formatter: formatter))
         }
         return keys.sorted { a, b in
-            let result: ComparisonResult = switch (a.number, b.number) {
-            case let (x?, y?): x < y ? .orderedAscending : x > y ? .orderedDescending : .orderedSame
-            case (_?, nil): .orderedAscending
-            case (nil, _?): .orderedDescending
-            default: a.text.localizedStandardCompare(b.text)
-            }
+            let result: ComparisonResult =
+                switch (a.number, b.number) {
+                case let (x?, y?): x < y ? .orderedAscending : x > y ? .orderedDescending : .orderedSame
+                case (_?, nil): .orderedAscending
+                case (nil, _?): .orderedDescending
+                default: a.text.localizedStandardCompare(b.text)
+                }
             if result == .orderedSame { return a.row < b.row }
             return (result == .orderedAscending) == ascending
         }.map(\.row)

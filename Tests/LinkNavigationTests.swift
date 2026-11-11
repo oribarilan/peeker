@@ -46,8 +46,11 @@ import Testing
         await controller.follow(URL(string: "#middle", relativeTo: file)!.absoluteURL)
         let textView = try #require(controller.editor?.focusView as? NSTextView)
         let layoutManager = try #require(textView.layoutManager)
-        let heading = layoutManager.lineFragmentRect(forGlyphAt: layoutManager.glyphIndexForCharacter(at: offset(of: "## Middle", in: text)),
-                                                     effectiveRange: nil).minY + textView.textContainerOrigin.y
+        let heading =
+            layoutManager.lineFragmentRect(
+                forGlyphAt: layoutManager.glyphIndexForCharacter(at: offset(of: "## Middle", in: text)),
+                effectiveRange: nil
+            ).minY + textView.textContainerOrigin.y
         let clip = try #require(controller.editor?.contentView as? NSScrollView).contentView
         #expect(abs(heading - (clip.bounds.minY + clip.contentInsets.top)) < 1)
     }
@@ -303,8 +306,9 @@ import Testing
         let record = try #require(store.all().first)
         #expect(record.url.path == files.other.path && store.all().count == 1)
         let entries = [PluginEntry(MarkdownPlugin.self), PluginEntry(TextPlugin.self)]
-        let recovered = DocumentWindowController(url: record.url, catalog: PluginCatalog(entries: entries, config: Config()), config: Config(),
-                                                 recovery: store, recoveryClipboard: nil, sidebarMemory: SidebarMemory(defaults: nil))
+        let recovered = DocumentWindowController(
+            url: record.url, catalog: PluginCatalog(entries: entries, config: Config()), config: Config(),
+            recovery: store, recoveryClipboard: nil, sidebarMemory: SidebarMemory(defaults: nil))
         defer { recovered.close() }
         recovered.show(with: entries[0], restoring: record)
         try await waitUntil(seconds: 2) { recovered.editor?.text == "# Edited other\n" }

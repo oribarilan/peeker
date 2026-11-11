@@ -84,8 +84,10 @@ final class DocumentViewController: NSSplitViewController {
     var onFollowLink: ((DocumentViewController, URL) -> Void)?
 
     /// `journalDelay` is how long after the last edit the recovery copy is written.
-    init(url: URL, entry: PluginEntry, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString,
-         journalDelay: TimeInterval = 2, sidebarMemory: SidebarMemory? = nil, preferences: UserDefaults? = nil) {
+    init(
+        url: URL, entry: PluginEntry, config: Config, allowsEditing: Bool, recovery: RecoveryStore?, recoveryID: String = UUID().uuidString,
+        journalDelay: TimeInterval = 2, sidebarMemory: SidebarMemory? = nil, preferences: UserDefaults? = nil
+    ) {
         self.url = url
         self.entry = entry
         self.config = config
@@ -94,9 +96,12 @@ final class DocumentViewController: NSSplitViewController {
         self.preferences = preferences
         super.init(nibName: nil, bundle: nil)
         if let sidebarMemory {
-            NotificationCenter.default.addObserver(self, selector: #selector(applySidebarMemory), name: SidebarMemory.didChange, object: sidebarMemory)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(applySidebarMemory), name: SidebarMemory.didChange, object: sidebarMemory)
         }
-        journal = recovery.map { RecoveryJournal(store: $0, id: recoveryID, url: url, pluginID: entry.id, delay: journalDelay) { [weak self] in self?.journalContents } }
+        journal = recovery.map {
+            RecoveryJournal(store: $0, id: recoveryID, url: url, pluginID: entry.id, delay: journalDelay) { [weak self] in self?.journalContents }
+        }
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -105,7 +110,8 @@ final class DocumentViewController: NSSplitViewController {
         super.viewDidLoad()
         addSplitViewItem(NSSplitViewItem(viewController: content))
         if sidebarMemory != nil {
-            NotificationCenter.default.addObserver(self, selector: #selector(sidebarResized), name: NSSplitView.didResizeSubviewsNotification, object: splitView)
+            NotificationCenter.default.addObserver(
+                self, selector: #selector(sidebarResized), name: NSSplitView.didResizeSubviewsNotification, object: splitView)
         }
     }
 
@@ -124,16 +130,19 @@ final class DocumentViewController: NSSplitViewController {
         opened = .now
         openTask?.cancel()
         let plugin = entry.plugin, url = url
-        let context = OpenContext(maxPixels: Self.maxPixels, allowsEditing: allowsEditing,
-                                  preferences: preferences.map { PluginPreferences(pluginID: entry.id, defaults: $0) })
+        let context = OpenContext(
+            maxPixels: Self.maxPixels, allowsEditing: allowsEditing,
+            preferences: preferences.map { PluginPreferences(pluginID: entry.id, defaults: $0) })
         // Read before the plugin reads the file, so a write in between shows as a change and reloads.
         let modified = Self.modificationDate(of: url)
         // A window with nothing to show yet gets a spinner once the open is slow; the Peek panel never does.
-        let spinner = allowsEditing && pluginDocument == nil ? Task { [weak self] in
-            try? await Task.sleep(for: Self.spinnerDelay)
-            guard let self, !Task.isCancelled, !isClosed, pluginDocument == nil else { return }
-            content.show(LoadingView())
-        } : nil
+        let spinner =
+            allowsEditing && pluginDocument == nil
+            ? Task { [weak self] in
+                try? await Task.sleep(for: Self.spinnerDelay)
+                guard let self, !Task.isCancelled, !isClosed, pluginDocument == nil else { return }
+                content.show(LoadingView())
+            } : nil
         // The result is shown inside the task, in the same main-actor turn the plugin returns in. Awaiting the task
         // and showing afterwards would take one more turn, which can land after a display pass and delay first paint.
         let task = Task.immediate { [weak self] in
@@ -249,10 +258,12 @@ final class DocumentViewController: NSSplitViewController {
                 guard let offer = error.offer, await prompts.confirm(offer, reason: error.message) else { return .cancelled }
                 try await document.save(edits, accepting: offer)
             }
-        } catch where error.code == .cancelled {
+        } catch  where error.code == .cancelled {
             return .cancelled
         } catch {
-            Self.log.error("\(self.entry.id, privacy: .public): saving \(self.url.lastPathComponent, privacy: .private) failed: \(error.message, privacy: .private)")
+            Self.log.error(
+                "\(self.entry.id, privacy: .public): saving \(self.url.lastPathComponent, privacy: .private) failed: \(error.message, privacy: .private)"
+            )
             return .failed(error.message)
         }
         knownModification = Self.modificationDate(of: url)
@@ -289,10 +300,12 @@ final class DocumentViewController: NSSplitViewController {
                 guard let offer = error.offer, await prompts.confirm(offer, reason: error.message) else { return .cancelled }
                 try await document.saveAs(edits, to: destination, accepting: offer)
             }
-        } catch where error.code == .cancelled {
+        } catch  where error.code == .cancelled {
             return .cancelled
         } catch {
-            Self.log.error("\(self.entry.id, privacy: .public): Save As of \(self.url.lastPathComponent, privacy: .private) failed: \(error.message, privacy: .private)")
+            Self.log.error(
+                "\(self.entry.id, privacy: .public): Save As of \(self.url.lastPathComponent, privacy: .private) failed: \(error.message, privacy: .private)"
+            )
             return .failed(error.message)
         }
         url = destination
@@ -549,7 +562,9 @@ final class DocumentViewController: NSSplitViewController {
     private func fail(_ message: String) {
         if isEdited, pluginDocument != nil {
             // A reload failed, but the edits on screen can still be saved.
-            Self.log.error("\(self.entry.id, privacy: .public): \(self.url.lastPathComponent, privacy: .private): \(message, privacy: .private); keeping unsaved edits")
+            Self.log.error(
+                "\(self.entry.id, privacy: .public): \(self.url.lastPathComponent, privacy: .private): \(message, privacy: .private); keeping unsaved edits"
+            )
             return
         }
         pluginDocument = nil
@@ -561,10 +576,11 @@ final class DocumentViewController: NSSplitViewController {
         zoomGestures?.stop()
         zoomGestures = nil
         zoomControl = nil
-        content.show(FailureView(message: message) { [weak self] in
-            guard let self else { return }
-            Task.immediate { await self.load() }
-        })
+        content.show(
+            FailureView(message: message) { [weak self] in
+                guard let self else { return }
+                Task.immediate { await self.load() }
+            })
         onFailure?(self, message)
     }
 }

@@ -17,28 +17,33 @@ public enum ImagePlugin: Plugin {
     ]
     /// Everything ImageIO decodes.
     public static let readableTypes = (CGImageSourceCopyTypeIdentifiers() as? [String] ?? []).compactMap { UTType($0) }
-    public static let tools = [
-        ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
-        ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
-        ToolSpec(id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", showsInToolbar: false),
-        ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
-        // Offered only for a multi-page TIFF.
-        ToolSpec(id: "previous-page", title: "Previous Page", symbol: "chevron.up", shortcut: "pageup", showsInToolbar: false),
-        ToolSpec(id: "next-page", title: "Next Page", symbol: "chevron.down", shortcut: "pagedown", showsInToolbar: false),
-        ToolSpec(id: "play-animation", title: "Play Animation", symbol: "play", showsInToolbar: false),
-        // A single key, kept for Crop alone: other letters stay free for markup tools.
-        ToolSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true, tip: "Drag a rectangle, then press Return."),
-        ToolSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", isEditTool: true),
-        ToolSpec(id: "markup", title: "Markup", symbol: "pencil.tip.crop.circle", shortcut: "m", isEditTool: true,
-                 tip: "Pick a tool, or press its key, then drag on the image. Hold Option for an ellipse or a text label."),
-    ] + MarkupTool.allCases.map(\.spec)
+    public static let tools =
+        [
+            ToolSpec(id: "zoom-in", title: "Zoom In", symbol: "plus.magnifyingglass", shortcut: "cmd+=", showsInToolbar: false),
+            ToolSpec(id: "zoom-out", title: "Zoom Out", symbol: "minus.magnifyingglass", shortcut: "cmd+-", showsInToolbar: false),
+            ToolSpec(
+                id: "zoom-fit", title: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", shortcut: "cmd+9", showsInToolbar: false
+            ),
+            ToolSpec(id: "zoom-actual", title: "Actual Size", symbol: "1.magnifyingglass", shortcut: "cmd+0", showsInToolbar: false),
+            // Offered only for a multi-page TIFF.
+            ToolSpec(id: "previous-page", title: "Previous Page", symbol: "chevron.up", shortcut: "pageup", showsInToolbar: false),
+            ToolSpec(id: "next-page", title: "Next Page", symbol: "chevron.down", shortcut: "pagedown", showsInToolbar: false),
+            ToolSpec(id: "play-animation", title: "Play Animation", symbol: "play", showsInToolbar: false),
+            // A single key, kept for Crop alone: other letters stay free for markup tools.
+            ToolSpec(id: "crop", title: "Crop", symbol: "crop", shortcut: "c", isEditTool: true, tip: "Drag a rectangle, then press Return."),
+            ToolSpec(id: "transform", title: "Rotate & Resize", symbol: "rotate.right", isEditTool: true),
+            ToolSpec(
+                id: "markup", title: "Markup", symbol: "pencil.tip.crop.circle", shortcut: "m", isEditTool: true,
+                tip: "Pick a tool, or press its key, then drag on the image. Hold Option for an ellipse or a text label."),
+        ] + MarkupTool.allCases.map(\.spec)
     /// Larger decodes would be refused by Core Animation anyway.
     nonisolated static let maxDimension = 16_384
 
     public static func open(_ url: URL, context: OpenContext) async throws(PluginError) -> any PluginDocument {
         let decoded = try await decode(url, maxPixels: context.maxPixels)
-        return ImageDocument(url: url, decoded: decoded, editable: context.allowsEditing, maxPixels: context.maxPixels,
-                             preferences: context.preferences)
+        return ImageDocument(
+            url: url, decoded: decoded, editable: context.allowsEditing, maxPixels: context.maxPixels,
+            preferences: context.preferences)
     }
 
     /// Formats ImageIO writes without losing what Peeker shows: no layers, no floating point, no camera RAW.
@@ -100,11 +105,13 @@ public enum ImagePlugin: Plugin {
         let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
         let type = CGImageSourceGetType(source).map { $0 as String } ?? ""
         let frames = CGImageSourceGetCount(source)
-        let reason = uneditableReason(type: type, frames: frames, pixels: width * height, isFloat: properties[kCGImagePropertyIsFloat] as? Bool ?? false)
-        return Decoded(image: image, pointsPerPixel: pointsPerPixel(properties),
-                       pixelSize: turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height),
-                       uneditableReason: reason, isAnimated: frames > 1 && animatedTypes.contains(type),
-                       pageCount: pageCount(source), info: info(properties, source, url, page: page))
+        let reason = uneditableReason(
+            type: type, frames: frames, pixels: width * height, isFloat: properties[kCGImagePropertyIsFloat] as? Bool ?? false)
+        return Decoded(
+            image: image, pointsPerPixel: pointsPerPixel(properties),
+            pixelSize: turned ? CGSize(width: height, height: width) : CGSize(width: width, height: height),
+            uneditableReason: reason, isAnimated: frames > 1 && animatedTypes.contains(type),
+            pageCount: pageCount(source), info: info(properties, source, url, page: page))
     }
 
     /// The image or page `pixelSize` large upright, decoded as `decode` does but at `fullSide(for:)`, for showing it
@@ -134,7 +141,9 @@ public enum ImagePlugin: Plugin {
             let width = CGFloat(properties[kCGImagePropertyPixelWidth] as? Int ?? image.width)
             let height = CGFloat(properties[kCGImagePropertyPixelHeight] as? Int ?? image.height)
             let turned = (5...8).contains(properties[kCGImagePropertyOrientation] as? Int ?? 1)
-            return PrintPage(image: image, size: turned ? CGSize(width: height * scale, height: width * scale) : CGSize(width: width * scale, height: height * scale))
+            return PrintPage(
+                image: image,
+                size: turned ? CGSize(width: height * scale, height: width * scale) : CGSize(width: width * scale, height: height * scale))
         }
     }
 
@@ -165,8 +174,12 @@ public enum ImagePlugin: Plugin {
         try source(.file(url), page: page)
     }
 
-    private nonisolated static func source(_ image: ImageSource, page: Int) throws(PluginError) -> (source: CGImageSource, properties: [CFString: Any]) {
-        guard let source = image.makeSource(), CGImageSourceGetCount(source) > page, page >= 0 else { throw PluginError("This file isn't a readable image.") }
+    private nonisolated static func source(_ image: ImageSource, page: Int) throws(PluginError) -> (
+        source: CGImageSource, properties: [CFString: Any]
+    ) {
+        guard let source = image.makeSource(), CGImageSourceGetCount(source) > page, page >= 0 else {
+            throw PluginError("This file isn't a readable image.")
+        }
         // Before the thumbnail: otherwise ImageIO ignores a PNG's orientation tag when the PNG has other EXIF too,
         // and the window would show it unturned while saving turns it.
         return (source, CGImageSourceCopyPropertiesAtIndex(source, page, nil) as? [CFString: Any] ?? [:])
@@ -201,8 +214,11 @@ public enum ImagePlugin: Plugin {
 
     private nonisolated static func displayReady(_ image: CGImage) throws(PluginError) -> CGImage {
         let info = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
-        guard let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0,
-                                      space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: info) else {
+        guard
+            let context = CGContext(
+                data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: info)
+        else {
             throw PluginError("This image couldn't be decoded.")
         }
         context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))

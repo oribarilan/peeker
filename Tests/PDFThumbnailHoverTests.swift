@@ -8,8 +8,9 @@ import Testing
 @MainActor private func mouse(_ type: NSEvent.EventType, over item: Int, in view: PageThumbnails, collection: NSCollectionView) -> NSEvent {
     let frame = collection.frameForItem(at: max(item, 0))
     let point = item < 0 ? NSPoint(x: -50, y: -50) : collection.convert(NSPoint(x: frame.midX, y: frame.midY), to: nil)
-    return NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0, windowNumber: view.window?.windowNumber ?? 0,
-                              context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!
+    return NSEvent.mouseEvent(
+        with: type, location: point, modifierFlags: [], timestamp: 0, windowNumber: view.window?.windowNumber ?? 0,
+        context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!
 }
 
 @Suite(.serialized) struct PDFThumbnailHover {
@@ -61,5 +62,3 @@ import Testing
         #expect(view.hoverFill?.isHovered == false)
     }
 }
-
-

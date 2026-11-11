@@ -18,8 +18,9 @@ func documentWindowVisible() -> Bool {
     let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
     return windows.contains { window in
         guard window[kCGWindowOwnerName as String] as? String == name,
-              window[kCGWindowLayer as String] as? Int == 0,
-              let bounds = window[kCGWindowBounds as String] as? [String: Double] else { return false }
+            window[kCGWindowLayer as String] as? Int == 0,
+            let bounds = window[kCGWindowBounds as String] as? [String: Double]
+        else { return false }
         return (bounds["Height"] ?? 0) > 200 && (bounds["Width"] ?? 0) > 200
     }
 }

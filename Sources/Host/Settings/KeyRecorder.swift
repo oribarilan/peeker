@@ -3,7 +3,9 @@ import SwiftUI
 
 /// What already uses `shortcut`, for a recorder of `command`: a fixed menu item, or another tool of the same plugin
 /// (with its shortcut as the config has it now). Nil when it's free.
-func shortcutConflict(_ shortcut: Shortcut, command: String, plugin: PluginEntry, config: Config, menu: [(title: String, shortcut: Shortcut)]) -> String? {
+func shortcutConflict(_ shortcut: Shortcut, command: String, plugin: PluginEntry, config: Config, menu: [(title: String, shortcut: Shortcut)])
+    -> String?
+{
     if let item = menu.first(where: { $0.shortcut == shortcut }) { return item.title }
     return plugin.tools.first { other in
         other.id != command && config.shortcut(for: other, of: plugin.id) == shortcut
@@ -30,8 +32,9 @@ final class RefusalNote {
     private(set) var text: String?
     /// Speaks the reason; tests replace it.
     @ObservationIgnored var announce: (String) -> Void = { reason in
-        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
-                             userInfo: [.announcement: reason, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        NSAccessibility.post(
+            element: NSApp as Any, notification: .announcementRequested,
+            userInfo: [.announcement: reason, .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
 
     func show(_ reason: String) {
@@ -59,7 +62,9 @@ struct KeyRecorder: View {
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 2) {
-            Button { isRecording ? stop() : start() } label: {
+            Button {
+                isRecording ? stop() : start()
+            } label: {
                 Text(isRecording ? "Type a shortcut…" : shortcut.map(\.displayText) ?? "None")
                     .frame(minWidth: 120)
             }

@@ -59,7 +59,8 @@ nonisolated struct ImageMark: Codable, Sendable, Equatable {
             let font = width * Self.textScale
             let longest = Double(lines.map(\.count).max() ?? 1)
             return CGRect(x: origin.x, y: origin.y, width: longest * font * 0.6 + font, height: Double(lines.count) * font * 1.3)
-        case .step(let center): return CGRect(x: center.x, y: center.y, width: 0, height: 0).insetBy(dx: -width * Self.stepScale, dy: -width * Self.stepScale)
+        case .step(let center):
+            return CGRect(x: center.x, y: center.y, width: 0, height: 0).insetBy(dx: -width * Self.stepScale, dy: -width * Self.stepScale)
         case .pen(let points), .marker(let points):
             let xs = points.map(\.x), ys = points.map(\.y)
             return CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!).insetBy(dx: -pad, dy: -pad)
@@ -175,7 +176,9 @@ extension CGRect {
     }
 
     /// Its corners, counterclockwise from the bottom left (the top left in image pixels).
-    nonisolated var corners: [CGPoint] { [CGPoint(x: minX, y: minY), CGPoint(x: maxX, y: minY), CGPoint(x: maxX, y: maxY), CGPoint(x: minX, y: maxY)] }
+    nonisolated var corners: [CGPoint] {
+        [CGPoint(x: minX, y: minY), CGPoint(x: maxX, y: minY), CGPoint(x: maxX, y: maxY), CGPoint(x: minX, y: maxY)]
+    }
 }
 
 nonisolated extension ImageMark.Kind {

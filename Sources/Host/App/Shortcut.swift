@@ -81,15 +81,16 @@ struct Shortcut: Equatable {
     /// The key typed in `event`, or nil for a key the config can't write (arrows, function keys).
     init?(event: NSEvent) {
         let code = Int64(event.keyCode)
-        let key: Key? = switch code {
-        case 49: .space
-        case 53: .escape
-        case 48: .tab
-        case 36: .enter
-        case 116: .pageUp
-        case 121: .pageDown
-        default: Self.ansiKeyCodes.first { $0.value == code }.map { .character($0.key) }
-        }
+        let key: Key? =
+            switch code {
+            case 49: .space
+            case 53: .escape
+            case 48: .tab
+            case 36: .enter
+            case 116: .pageUp
+            case 121: .pageDown
+            default: Self.ansiKeyCodes.first { $0.value == code }.map { .character($0.key) }
+            }
         guard let key else { return nil }
         self.init(key: key, modifiers: event.modifierFlags.intersection([.control, .option, .shift, .command]))
     }
@@ -97,15 +98,16 @@ struct Shortcut: Equatable {
     /// As written in the config, such as `ctrl+opt+shift+cmd+h`: modifiers in that order, then the key.
     var configText: String {
         let names: [(NSEvent.ModifierFlags, String)] = [(.control, "ctrl"), (.option, "opt"), (.shift, "shift"), (.command, "cmd")]
-        let keyName = switch key {
-        case .character(let c): String(c)
-        case .space: "space"
-        case .escape: "esc"
-        case .tab: "tab"
-        case .enter: "enter"
-        case .pageUp: "pageup"
-        case .pageDown: "pagedown"
-        }
+        let keyName =
+            switch key {
+            case .character(let c): String(c)
+            case .space: "space"
+            case .escape: "esc"
+            case .tab: "tab"
+            case .enter: "enter"
+            case .pageUp: "pageup"
+            case .pageDown: "pagedown"
+            }
         return (names.filter { modifiers.contains($0.0) }.map(\.1) + [keyName]).joined(separator: "+")
     }
 
@@ -117,15 +119,16 @@ struct Shortcut: Equatable {
 
     var displayText: String {
         let symbols: [(NSEvent.ModifierFlags, String)] = [(.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")]
-        let name = switch key {
-        case .character(let c): String(c).uppercased()
-        case .space: "Space"
-        case .escape: "Esc"
-        case .tab: "Tab"
-        case .enter: "Return"
-        case .pageUp: "Page Up"
-        case .pageDown: "Page Down"
-        }
+        let name =
+            switch key {
+            case .character(let c): String(c).uppercased()
+            case .space: "Space"
+            case .escape: "Esc"
+            case .tab: "Tab"
+            case .enter: "Return"
+            case .pageUp: "Page Up"
+            case .pageDown: "Page Down"
+            }
         return symbols.filter { modifiers.contains($0.0) }.map(\.1).joined() + name
     }
 

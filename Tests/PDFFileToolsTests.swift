@@ -18,8 +18,9 @@ import Testing
 
 /// A PNG of `width` by `height` pixels.
 private func png(width: Int, height: Int) throws -> URL {
-    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
-                               isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+    let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+        isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
     let url = try TempFile.make(try #require(rep.representation(using: .png, properties: [:])), name: "photo.png")
     return url
 }

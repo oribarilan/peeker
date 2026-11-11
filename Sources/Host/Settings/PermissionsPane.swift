@@ -11,8 +11,10 @@ struct PermissionsPane: View {
     var body: some View {
         Form {
             Section {
-                PermissionRow(title: "Accessibility", detail: "Lets Peeker see the Peek panel key while you're in Finder.",
-                              state: model.accessibility.isTrusted ? .granted : .notGranted) {
+                PermissionRow(
+                    title: "Accessibility", detail: "Lets Peeker see the Peek panel key while you're in Finder.",
+                    state: model.accessibility.isTrusted ? .granted : .notGranted
+                ) {
                     PermissionChecks.openPrivacySettings("Privacy_Accessibility")
                 }
                 PermissionRow(title: "Control Finder", detail: "Lets Peeker read which files are selected in Finder.", state: finder) {

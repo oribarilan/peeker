@@ -37,10 +37,11 @@ private func byteOffset(of needle: String, in text: String) -> Int {
     }
 
     @Test func entitiesAndCDATA() throws {
-        let root = try parse("""
-        <r><e>a &lt;b&gt; &amp; &quot;c&quot; &apos;d&apos; &#65;&#x42;&#x1F600; &custom; & x</e>\
-        <c><![CDATA[<raw> & stuff]]></c><m>x<!-- c -->y<![CDATA[z]]></m><t a="&amp;&#33;"/></r>
-        """)
+        let root = try parse(
+            """
+            <r><e>a &lt;b&gt; &amp; &quot;c&quot; &apos;d&apos; &#65;&#x42;&#x1F600; &custom; & x</e>\
+            <c><![CDATA[<raw> & stuff]]></c><m>x<!-- c -->y<![CDATA[z]]></m><t a="&amp;&#33;"/></r>
+            """)
         #expect(root.children[0].value == "a <b> & \"c\" 'd' AB😀 &custom; & x")
         #expect(root.children[1].value == "<raw> & stuff")
         #expect(root.children[2].value == "xyz")
@@ -49,23 +50,24 @@ private func byteOffset(of needle: String, in text: String) -> Int {
     }
 
     @Test func commentsInstructionsAndTheDoctypeAreSkipped() throws {
-        let root = try parse("""
-        \u{FEFF}<?xml version="1.0" encoding="UTF-8"?>
-        <!-- top -->
-        <!DOCTYPE note [
-          <!ENTITY writer "Some > one">
-          <!-- a ] comment > -->
-          <!ELEMENT note (to)>
-        ]>
-        <?pi stuff?>
-        <note>
-          <!-- inside -->
-          <to>Tove &writer;</to>
-          <?inner pi?>
-        </note>
-        <!-- after -->
+        let root = try parse(
+            """
+            \u{FEFF}<?xml version="1.0" encoding="UTF-8"?>
+            <!-- top -->
+            <!DOCTYPE note [
+              <!ENTITY writer "Some > one">
+              <!-- a ] comment > -->
+              <!ELEMENT note (to)>
+            ]>
+            <?pi stuff?>
+            <note>
+              <!-- inside -->
+              <to>Tove &writer;</to>
+              <?inner pi?>
+            </note>
+            <!-- after -->
 
-        """)
+            """)
         #expect(root.key == "note" && root.children.map(\.key) == ["to"] && root.children[0].value == "Tove &writer;")
         #expect(try parse(#"<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0//EN" "x.dtd"><html/>"#).key == "html")
     }
@@ -138,38 +140,38 @@ private func byteOffset(of needle: String, in text: String) -> Int {
 @Suite struct PlistTrees {
     @Test func anInfoPlist() throws {
         let text = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-        \t<key>CFBundleName</key>
-        \t<string>Peeker</string>
-        \t<key>Count</key>
-        \t<integer> 42 </integer>
-        \t<key>Ratio</key>
-        \t<real>1.5</real>
-        \t<key>On</key>
-        \t<true/>
-        \t<key>Off</key>
-        \t<false></false>
-        \t<key>When</key>
-        \t<date>2026-11-07T10:00:00Z</date>
-        \t<key>Blob</key>
-        \t<data>
-        \tAAEC
-        \tAwQ=
-        \t</data>
-        \t<key>Types</key>
-        \t<array>
-        \t\t<string>public.json</string>
-        \t\t<dict/>
-        \t\t<array/>
-        \t</array>
-        \t<key>Spaced</key>
-        \t<string>  a &amp; b  </string>
-        </dict>
-        </plist>
-        """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+            \t<key>CFBundleName</key>
+            \t<string>Peeker</string>
+            \t<key>Count</key>
+            \t<integer> 42 </integer>
+            \t<key>Ratio</key>
+            \t<real>1.5</real>
+            \t<key>On</key>
+            \t<true/>
+            \t<key>Off</key>
+            \t<false></false>
+            \t<key>When</key>
+            \t<date>2026-11-07T10:00:00Z</date>
+            \t<key>Blob</key>
+            \t<data>
+            \tAAEC
+            \tAwQ=
+            \t</data>
+            \t<key>Types</key>
+            \t<array>
+            \t\t<string>public.json</string>
+            \t\t<dict/>
+            \t\t<array/>
+            \t</array>
+            \t<key>Spaced</key>
+            \t<string>  a &amp; b  </string>
+            </dict>
+            </plist>
+            """
         let root = try parse(text)
         #expect(root.kind == .object && root.key == nil)
         #expect(root.children.map(\.key) == ["CFBundleName", "Count", "Ratio", "On", "Off", "When", "Blob", "Types", "Spaced"])

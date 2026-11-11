@@ -61,7 +61,7 @@ import UniformTypeIdentifiers
     }
 
     @Test func thePeekPanelReadsTheEncodingsPlainTextReads() async throws {
-        let file = try TempFile.make(Data([0x23, 0x20, 0x63, 0x61, 0x66, 0xE9, 0x0A]), name: "f.md")   // "# café\n" in Windows-1252
+        let file = try TempFile.make(Data([0x23, 0x20, 0x63, 0x61, 0x66, 0xE9, 0x0A]), name: "f.md")  // "# café\n" in Windows-1252
         let document = try await openDocument(file, with: MarkdownPlugin.self, as: MarkdownDocument.self, editing: false)
         #expect(document.renderedText.contains("café"))
     }
@@ -98,11 +98,12 @@ import UniformTypeIdentifiers
 @Suite(.serialized) struct MarkdownReloadIntegrationTests {
     @Test func aChangeOnDiskReloadsTheSameView() async throws {
         let file = try TempFile.make(Data("before\n".utf8), name: "f.md")
-        let document = DocumentViewController(url: file, entry: PluginEntry(MarkdownPlugin.self), config: Config(),
-                                              allowsEditing: true, recovery: nil)
+        let document = DocumentViewController(
+            url: file, entry: PluginEntry(MarkdownPlugin.self), config: Config(),
+            allowsEditing: true, recovery: nil)
         defer { document.close() }
         var ready = false
-        document.onReady = { _, _ in ready = true }   // the file watcher starts right after this
+        document.onReady = { _, _ in ready = true }  // the file watcher starts right after this
         document.loadViewIfNeeded()
         await document.load()
         try await waitUntil(seconds: 2) { ready }

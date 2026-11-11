@@ -26,7 +26,8 @@ struct DefaultAppSection: View {
 
     private func refresh() {
         let config = model.store.config
-        defaults = Dictionary(uniqueKeysWithValues: model.plugins.map { ($0.id, DefaultApps.check(config.effectiveExtensions(of: $0, among: model.plugins))) })
+        defaults = Dictionary(
+            uniqueKeysWithValues: model.plugins.map { ($0.id, DefaultApps.check(config.effectiveExtensions(of: $0, among: model.plugins))) })
     }
 
     private func makeDefault(_ types: [UTType]) {

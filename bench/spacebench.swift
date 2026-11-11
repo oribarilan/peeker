@@ -38,13 +38,15 @@ func windows() -> [Window] {
     let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
     return list.compactMap { info in
         guard let id = info[kCGWindowNumber as String] as? Int, let owner = info[kCGWindowOwnerName as String] as? String,
-              let bounds = info[kCGWindowBounds as String] as? [String: Double] else { return nil }
+            let bounds = info[kCGWindowBounds as String] as? [String: Double]
+        else { return nil }
         return (id, owner, (bounds["Width"] ?? 0) * (bounds["Height"] ?? 0))
     }
 }
 
 let escapedPath = file.path.replacingOccurrences(of: "\"", with: "\\\"")
-finder("""
+finder(
+    """
     tell application "Finder"
         activate
         reveal (POSIX file "\(escapedPath)" as alias)

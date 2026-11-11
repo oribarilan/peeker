@@ -31,9 +31,10 @@ final class FinderBridge {
 
     /// The AppleScript `get selection as alias list`, sent to Finder as one get-data event.
     private func selectionEvent() -> NSAppleEventDescriptor {
-        let event = NSAppleEventDescriptor(eventClass: kAECoreSuite, eventID: kAEGetData,
-                                           targetDescriptor: NSAppleEventDescriptor(bundleIdentifier: target),
-                                           returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
+        let event = NSAppleEventDescriptor(
+            eventClass: kAECoreSuite, eventID: kAEGetData,
+            targetDescriptor: NSAppleEventDescriptor(bundleIdentifier: target),
+            returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
         // An object specifier for the application's `selection` property.
         let selection = NSAppleEventDescriptor.record().coerce(toDescriptorType: typeObjectSpecifier) ?? .record()
         selection.setDescriptor(NSAppleEventDescriptor(typeCode: typeProperty), forKeyword: AEKeyword(keyAEDesiredClass))

@@ -30,9 +30,11 @@ public final class MarkupBar: NSView {
     public init(tools: [Tool], palette: [(name: String, color: RGBA)], moreColors: Bool, details: [NSView]) {
         toolList = tools
         // The key is drawn into the icon rather than set as a label, which Accessibility would read instead of the name.
-        self.tools = NSSegmentedControl(images: tools.map {
-            KeyedSymbolImage.make(symbol: $0.symbol, name: $0.title, key: $0.key.uppercased(), pointSize: 12, fontSize: NSFont.smallSystemFontSize) ?? NSImage()
-        }, trackingMode: .selectOne, target: nil, action: nil)
+        self.tools = NSSegmentedControl(
+            images: tools.map {
+                KeyedSymbolImage.make(
+                    symbol: $0.symbol, name: $0.title, key: $0.key.uppercased(), pointSize: 12, fontSize: NSFont.smallSystemFontSize) ?? NSImage()
+            }, trackingMode: .selectOne, target: nil, action: nil)
         super.init(frame: .zero)
         self.tools.target = self
         self.tools.action = #selector(toolChosen(_:))
@@ -50,8 +52,9 @@ public final class MarkupBar: NSView {
         }
         var colorViews: [NSView] = swatches
         if moreColors {
-            let more = NSButton(image: NSImage(systemSymbolName: "paintpalette", accessibilityDescription: "More colors") ?? NSImage(), target: self,
-                                action: #selector(showColors(_:)))
+            let more = NSButton(
+                image: NSImage(systemSymbolName: "paintpalette", accessibilityDescription: "More colors") ?? NSImage(), target: self,
+                action: #selector(showColors(_:)))
             more.bezelStyle = .accessoryBarAction
             more.controlSize = .small
             more.refusesFirstResponder = true

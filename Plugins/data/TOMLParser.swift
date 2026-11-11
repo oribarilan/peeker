@@ -15,7 +15,6 @@ nonisolated enum TOMLParser {
         }
     }
 
-
     /// A table while the file is read: a later `[a.b]` can still add to a table opened earlier, so nodes are made at
     /// the end.
     fileprivate final class Table {
@@ -42,7 +41,8 @@ nonisolated enum TOMLParser {
                 switch member {
                 case .value(let node): node
                 case .table(let table): table.node(key: name)
-                case .tables(let list): DataNode(kind: .array, key: name, value: nil, start: list.start, children: list.tables.map { $0.node(key: nil) })
+                case .tables(let list):
+                    DataNode(kind: .array, key: name, value: nil, start: list.start, children: list.tables.map { $0.node(key: nil) })
                 }
             }
             return DataNode(kind: .object, key: key, value: nil, start: start, children: children)
@@ -126,7 +126,9 @@ nonisolated enum TOMLParser {
             skipSpaces()
             let key = try self.key()
             skipSpaces()
-            guard peek() == 0x5D, !list || peek(1) == 0x5D else { throw ParseFailure(list ? "Expected ]] after the table name" : "Expected ] after the table name", at) }
+            guard peek() == 0x5D, !list || peek(1) == 0x5D else {
+                throw ParseFailure(list ? "Expected ]] after the table name" : "Expected ] after the table name", at)
+            }
             at += list ? 2 : 1
             let names = key.map(\.name)
             var table = root
@@ -233,7 +235,11 @@ nonisolated enum TOMLParser {
             while let byte = peek(), Reader.isToken(byte) {
                 at += 1
                 // The space form of a date-time: `1979-05-27 07:32:00`.
-                if at - begin == 10, peek() == 0x20, let next = peek(1), (0x30...0x39).contains(next), peek(3) == 0x3A, TOMLParser.isDateTime(bytes[begin..<at]) { at += 1 }
+                if at - begin == 10, peek() == 0x20, let next = peek(1), (0x30...0x39).contains(next), peek(3) == 0x3A,
+                    TOMLParser.isDateTime(bytes[begin..<at])
+                {
+                    at += 1
+                }
             }
             let token = bytes[begin..<at]
             guard let first = token.first else { throw ParseFailure("Expected a value", begin) }
@@ -399,12 +405,13 @@ nonisolated enum TOMLParser {
         let rest = token[at...]
         if rest.elementsEqual("inf".utf8) || rest.elementsEqual("nan".utf8) { return true }
         if !signed, rest.count > 2, token[at] == 0x30 {
-            let radix: ((UInt8) -> Bool)? = switch token[at + 1] {
-            case 0x78: { (0x30...0x39).contains($0) || (0x41...0x46).contains($0) || (0x61...0x66).contains($0) }
-            case 0x6F: { (0x30...0x37).contains($0) }
-            case 0x62: { $0 == 0x30 || $0 == 0x31 }
-            default: nil
-            }
+            let radix: ((UInt8) -> Bool)? =
+                switch token[at + 1] {
+                case 0x78: { (0x30...0x39).contains($0) || (0x41...0x46).contains($0) || (0x61...0x66).contains($0) }
+                case 0x6F: { (0x30...0x37).contains($0) }
+                case 0x62: { $0 == 0x30 || $0 == 0x31 }
+                default: nil
+                }
             if let radix {
                 at += 2
                 return run(radix) && at == end

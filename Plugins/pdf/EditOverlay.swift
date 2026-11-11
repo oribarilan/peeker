@@ -21,7 +21,10 @@ final class EditOverlay: NSView {
             let outline = NSBezierPath(rect: rect)
             outline.lineWidth = 1
             outline.stroke()
-            for corner in [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.minX, y: rect.maxY), CGPoint(x: rect.maxX, y: rect.maxY)] {
+            for corner in [
+                CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.minX, y: rect.maxY),
+                CGPoint(x: rect.maxX, y: rect.maxY),
+            ] {
                 let size = EditController.handleSize
                 let handle = NSBezierPath(rect: CGRect(x: corner.x - size / 2, y: corner.y - size / 2, width: size, height: size))
                 NSColor.white.setFill()
@@ -33,7 +36,10 @@ final class EditOverlay: NSView {
             let color = draft.drawing.color
             NSColor(srgbRed: color.red, green: color.green, blue: color.blue, alpha: 1).setStroke()
             let place = { (p: CGPoint) in
-                self.convert(view.convert(CGPoint(x: draft.rect.minX + p.x * draft.rect.width, y: draft.rect.minY + p.y * draft.rect.height), from: draft.page), from: view)
+                self.convert(
+                    view.convert(
+                        CGPoint(x: draft.rect.minX + p.x * draft.rect.width, y: draft.rect.minY + p.y * draft.rect.height), from: draft.page),
+                    from: view)
             }
             for stroke in draft.drawing.strokes {
                 guard let first = stroke.first else { continue }

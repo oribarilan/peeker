@@ -6,10 +6,12 @@ public enum KeyedSymbolImage {
     public static func make(symbol: String, name: String, key: String, pointSize: CGFloat, fontSize: CGFloat) -> NSImage? {
         guard let icon = NSImage(systemSymbolName: symbol, accessibilityDescription: name) else { return nil }
         let sized = icon.withSymbolConfiguration(.init(pointSize: pointSize, weight: .regular)) ?? icon
-        let text = NSAttributedString(string: key, attributes: [
-            .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
-            .foregroundColor: NSColor.black.withAlphaComponent(0.75),  // a template's alpha: a shade lighter than the icon
-        ])
+        let text = NSAttributedString(
+            string: key,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
+                .foregroundColor: NSColor.black.withAlphaComponent(0.75),  // a template's alpha: a shade lighter than the icon
+            ])
         let textSize = text.size()
         let gap = (pointSize * 0.4).rounded()
         let height = max(sized.size.height, ceil(textSize.height))

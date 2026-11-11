@@ -27,7 +27,11 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
     @Test func offersZoomAndTheEditTools() async throws {
         let document = try await open(try TempFile.makePDF(pages: 1))
         #expect(document.tools.map(\.id) == PDFPlugin.tools.map(\.id))
-        #expect(document.tools.filter(\.isEditTool).map(\.id) == ["markup", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split", "text-box", "markup-pen", "markup-line", "markup-arrow", "markup-box", "markup-x", "markup-check", "markup-circle", "markup-dot"])
+        #expect(
+            document.tools.filter(\.isEditTool).map(\.id) == [
+                "markup", "sign", "highlight", "rotate-left", "rotate-right", "delete-page", "insert-pages", "save-selected-pages", "split",
+                "text-box", "markup-pen", "markup-line", "markup-arrow", "markup-box", "markup-x", "markup-check", "markup-circle", "markup-dot",
+            ])
     }
 
     @Test func notAPDFSaysSo() async throws {
@@ -40,10 +44,11 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
 @Suite struct PDFZooming {
     @Test func actualSizeAndZoomToFitAreMenuOnlyWithTheImageKeys() {
         let tools = PDFPlugin.tools.filter { $0.id == "zoom-actual" || $0.id == "zoom-fit" }
-        #expect(tools.map { [$0.id, $0.symbol, $0.shortcut] } == [
-            ["zoom-fit", "arrow.up.left.and.down.right.magnifyingglass", "cmd+9"],
-            ["zoom-actual", "1.magnifyingglass", "cmd+0"],
-        ])
+        #expect(
+            tools.map { [$0.id, $0.symbol, $0.shortcut] } == [
+                ["zoom-fit", "arrow.up.left.and.down.right.magnifyingglass", "cmd+9"],
+                ["zoom-actual", "1.magnifyingglass", "cmd+0"],
+            ])
         #expect(tools.allSatisfy { !$0.showsInToolbar && !$0.isEditTool })
     }
 
@@ -117,7 +122,9 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         document.pdfView.setCurrentSelection(page.selection(for: page.bounds(for: .mediaBox)), animate: false)
         #expect(document.perform("highlight"))
         #expect(count == 1)
-        guard document.pendingEdits.count == 1, case .add(let mark) = document.pendingEdits[0] else { Issue.record("\(document.pendingEdits)"); return }
+        guard document.pendingEdits.count == 1, case .add(let mark) = document.pendingEdits[0] else {
+            Issue.record("\(document.pendingEdits)"); return
+        }
         #expect(mark.page == 0 && mark.kind == .highlight(yellow) && mark.id.hasPrefix("peeker-"))
         #expect(page.annotations.count == 1)
         #expect(PDFMarks.id(of: page.annotations[0]) == mark.id)
@@ -155,13 +162,14 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         let document = try await open(try TempFile.makePDF(pages: 1))
         var count = 0
         document.onEdit = { count += 1 }
-        let accepted = document.restore(encoded: try encoded([
-            highlight(page: 3),
-            highlight(rect: CGRect(x: 272, y: 614, width: -200, height: -14)),
-            highlight(rect: CGRect(x: 1000, y: 600, width: 200, height: 14)),
-            highlight(color: RGBA(red: 2, green: 0, blue: 0, alpha: 1)),
-            .setBounds(id: "peeker-gone", type: .signature, page: 0, rect: rect),
-        ]))
+        let accepted = document.restore(
+            encoded: try encoded([
+                highlight(page: 3),
+                highlight(rect: CGRect(x: 272, y: 614, width: -200, height: -14)),
+                highlight(rect: CGRect(x: 1000, y: 600, width: 200, height: 14)),
+                highlight(color: RGBA(red: 2, green: 0, blue: 0, alpha: 1)),
+                .setBounds(id: "peeker-gone", type: .signature, page: 0, rect: rect),
+            ]))
         #expect(!accepted)
         #expect(count == 0 && document.unsavedEdits() == nil)
         #expect(document.pdfView.document?.page(at: 0)?.annotations.isEmpty == true)
@@ -235,8 +243,9 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
     /// Select text in the Editor, press the shortcut, and it's highlighted.
     @Test func highlightInTheEditorHighlightsTheSelection() async throws {
         let file = try TempFile.makePDF(pages: 1)
-        let document = DocumentViewController(url: file, entry: PluginEntry(PDFPlugin.self), config: Config(),
-                                              allowsEditing: true, recovery: nil)
+        let document = DocumentViewController(
+            url: file, entry: PluginEntry(PDFPlugin.self), config: Config(),
+            allowsEditing: true, recovery: nil)
         defer { document.close() }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -262,7 +271,7 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
         #expect(!document.isEdited)
         #expect(pdf.unsavedEdits() == nil)
         #expect(highlights(in: file) == 1)
-        try await Task.sleep(for: .milliseconds(700))   // past the watcher's 200 ms coalescing
+        try await Task.sleep(for: .milliseconds(700))  // past the watcher's 200 ms coalescing
         #expect(document.pluginDocument === pdf, "our own save must not trigger a reload")
     }
 }
@@ -275,8 +284,10 @@ private func open(_ file: URL, editable: Bool = true) async throws -> PDFPluginD
     }
 
     private func escape() throws -> NSEvent {
-        try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
-                                      characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
+        try #require(
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+                characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
     }
 
     @Test func theNextSelectionIsHighlightedOnce() async throws {

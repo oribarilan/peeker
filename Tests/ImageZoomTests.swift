@@ -14,7 +14,8 @@ private func shown(width: Int = 400, height: Int = 200, in size: NSSize = NSSize
     @Test func actualSizeIs100Percent() async throws {
         let (document, window) = try await shown()
         defer { window.close() }
-        let actual = ImageDocument.actualMagnification(pixelWidth: 400, backingScale: window.backingScaleFactor, fittedWidth: document.canvas.imageRect.width)
+        let actual = ImageDocument.actualMagnification(
+            pixelWidth: 400, backingScale: window.backingScaleFactor, fittedWidth: document.canvas.imageRect.width)
         #expect(abs(document.zoomPercent - 100 / actual) < 0.01, "fitted")
         #expect(document.perform("zoom-actual"))
         #expect(abs(document.zoomPercent - 100) < 0.01)

@@ -56,7 +56,8 @@ final class FormFields: NSObject {
     @objc private func textChanged(_ note: Notification) {
         // A text box's editor is in the view too, but its text is the box's, not the field's.
         guard let text = note.object as? NSText, let view, text.isDescendant(of: view), !(text.delegate is TextBoxEditor),
-              let name = editing?.fieldName else { return }
+            let name = editing?.fieldName
+        else { return }
         report(name, text.string)
     }
 

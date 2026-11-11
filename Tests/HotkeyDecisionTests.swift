@@ -46,21 +46,27 @@ import Testing
         Case(name: "Cmd-O with the panel up opens the file", keyCode: o, flags: .maskCommand, panelVisible: true, want: .open),
         Case(name: "Cmd-R with the panel up shows it in Finder", keyCode: r, flags: .maskCommand, panelVisible: true, want: .showInFinder),
         Case(name: "Cmd-O without the panel reaches Finder", keyCode: o, flags: .maskCommand, want: .pass),
-        Case(name: "Cmd-O with the panel up in another app passes", keyCode: o, flags: .maskCommand, panelVisible: true, finderInFront: false, want: .pass),
-        Case(name: "a held Cmd-O with the panel up is swallowed", keyCode: o, flags: .maskCommand, isRepeat: true, panelVisible: true, want: .swallowRepeat),
+        Case(
+            name: "Cmd-O with the panel up in another app passes", keyCode: o, flags: .maskCommand, panelVisible: true, finderInFront: false,
+            want: .pass),
+        Case(
+            name: "a held Cmd-O with the panel up is swallowed", keyCode: o, flags: .maskCommand, isRepeat: true, panelVisible: true,
+            want: .swallowRepeat),
         Case(name: "O alone with the panel up passes", keyCode: o, panelVisible: true, want: .pass),
         Case(name: "Cmd-R with its key off passes", keyCode: r, flags: .maskCommand, panelVisible: true, showInFinderKey: nil, want: .pass),
         Case(name: "Cmd-O with the menu open goes to the menu", keyCode: o, flags: .maskCommand, panelVisible: true, menuOpen: true, want: .pass),
-        Case(name: "Option-Space opens the panel from any app", shortcut: Shortcut(key: .space, modifiers: .option), flags: .maskAlternate,
-             finderInFront: false, typing: true, want: .trigger),
+        Case(
+            name: "Option-Space opens the panel from any app", shortcut: Shortcut(key: .space, modifiers: .option), flags: .maskAlternate,
+            finderInFront: false, typing: true, want: .trigger),
     ]
 
     @Test func eachKeyIsSwallowedOrPassed() {
         for c in Self.cases {
             let key = HotkeyMonitor.KeyEvent(type: c.type, keyCode: c.keyCode, flags: c.flags, isRepeat: c.isRepeat, isOwn: c.isOwn)
-            let decision = HotkeyMonitor.decide(key, shortcut: c.shortcut, panelVisible: c.panelVisible, finderInFront: c.finderInFront,
-                                                menuOpen: c.menuOpen, openKey: c.openKey, showInFinderKey: c.showInFinderKey,
-                                                typing: { c.typing }, swallowedKeyUp: c.swallowedKeyUp)
+            let decision = HotkeyMonitor.decide(
+                key, shortcut: c.shortcut, panelVisible: c.panelVisible, finderInFront: c.finderInFront,
+                menuOpen: c.menuOpen, openKey: c.openKey, showInFinderKey: c.showInFinderKey,
+                typing: { c.typing }, swallowedKeyUp: c.swallowedKeyUp)
             #expect(decision == c.want, "\(c.name)")
         }
     }

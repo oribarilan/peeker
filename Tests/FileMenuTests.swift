@@ -8,8 +8,9 @@ import Testing
 /// A window showing `url` in the first of `plugins`, with a catalog of them all under `config`.
 @MainActor private func window(_ url: URL, plugins: [any Plugin.Type], config: Config = Config()) async throws -> DocumentWindowController {
     let entries = plugins.map { PluginEntry($0) }
-    let controller = DocumentWindowController(url: url, catalog: PluginCatalog(entries: entries, config: config), config: config,
-                                              recovery: nil, recoveryClipboard: nil, sidebarMemory: SidebarMemory(defaults: nil))
+    let controller = DocumentWindowController(
+        url: url, catalog: PluginCatalog(entries: entries, config: config), config: config,
+        recovery: nil, recoveryClipboard: nil, sidebarMemory: SidebarMemory(defaults: nil))
     controller.show(with: entries[0])
     try await waitUntil(seconds: 2) { controller.current?.pluginDocument != nil }
     return controller
@@ -123,7 +124,9 @@ import Testing
         let controller = try await documentWindow(for: TextPlugin.self, name: "f.txt")
         defer { controller.close() }
         var asked = 0
-        controller.confirmRevert = { _ in asked += 1; return true }
+        controller.confirmRevert = { _ in
+            asked += 1; return true
+        }
         let document = try #require(controller.current)
         try document.type("mine")
         await controller.revert()

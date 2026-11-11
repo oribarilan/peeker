@@ -6,8 +6,9 @@ import Testing
     private let laptop = NSRect(x: 0, y: 0, width: 1280, height: 800)
 
     private func centered(_ size: NSSize, on screen: NSRect) -> NSRect {
-        NSRect(x: (screen.midX - size.width / 2).rounded(.down), y: (screen.midY - size.height / 2).rounded(.down),
-               width: size.width, height: size.height)
+        NSRect(
+            x: (screen.midX - size.width / 2).rounded(.down), y: (screen.midY - size.height / 2).rounded(.down),
+            width: size.width, height: size.height)
     }
 
     @Test func withNothingSavedItOpensAtTheCappedDefaultCentered() {

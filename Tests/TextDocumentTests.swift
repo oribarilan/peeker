@@ -95,7 +95,7 @@ private func pending(_ document: TextDocument) -> String? {
         #expect(try restore("b", in: document))
         let saved = try #require(document.unsavedEdits())
         #expect(try restore("c", in: document))
-        _ = document.unsavedEdits()   // another reader, such as crash recovery
+        _ = document.unsavedEdits()  // another reader, such as crash recovery
         try await document.save(saved, accepting: nil)
         #expect(pending(document) == "c")
         #expect(try restore("b", in: document))

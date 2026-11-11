@@ -82,10 +82,12 @@ final class TableDocument: PluginDocument {
     var allowsFind: Bool { allowsEditing }
 
     static func info(_ table: CSVTable, format: TextFormat, byteCount: Int) -> [InfoRow] {
-        [InfoRow(label: "Rows", value: table.rowCount.formatted()),
-         InfoRow(label: "Columns", value: table.columnCount.formatted()),
-         InfoRow(label: "Encoding", value: String.localizedName(of: format.encoding) + (format.hasBOM ? " with BOM" : "")),
-         InfoRow(label: "Size", value: ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))]
+        [
+            InfoRow(label: "Rows", value: table.rowCount.formatted()),
+            InfoRow(label: "Columns", value: table.columnCount.formatted()),
+            InfoRow(label: "Encoding", value: String.localizedName(of: format.encoding) + (format.hasBOM ? " with BOM" : "")),
+            InfoRow(label: "Size", value: ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file)),
+        ]
     }
 
     /// The sidebar's counts again, after the table was read anew or saved.
@@ -401,7 +403,9 @@ final class TableDocument: PluginDocument {
 
 extension TableDocument: Zooming {
     var zoomPercent: Double { fontSize / Self.defaultFontSize * 100 }
-    var zoomRange: ClosedRange<Double> { Self.fontSizes.lowerBound / Self.defaultFontSize * 100...Self.fontSizes.upperBound / Self.defaultFontSize * 100 }
+    var zoomRange: ClosedRange<Double> {
+        Self.fontSizes.lowerBound / Self.defaultFontSize * 100...Self.fontSizes.upperBound / Self.defaultFontSize * 100
+    }
 
     func setZoom(_ percent: Double, around point: NSPoint?) {
         guard percent.isFinite else { return }

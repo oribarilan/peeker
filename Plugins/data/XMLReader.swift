@@ -17,7 +17,6 @@ nonisolated enum XMLReader {
         }
     }
 
-
     struct Tag {
         /// The offset of its `<`.
         let start: Int
@@ -67,7 +66,8 @@ nonisolated enum XMLReader {
     static func isNameByte(_ byte: UInt8) -> Bool {
         switch byte {
         case 0x20, 0x09, 0x0A, 0x0D, UInt8(ascii: "/"), UInt8(ascii: ">"), UInt8(ascii: "<"), UInt8(ascii: "="),
-             UInt8(ascii: "\""), UInt8(ascii: "'"), UInt8(ascii: "&"), UInt8(ascii: "!"), UInt8(ascii: "?"): false
+            UInt8(ascii: "\""), UInt8(ascii: "'"), UInt8(ascii: "&"), UInt8(ascii: "!"), UInt8(ascii: "?"):
+            false
         default: true
         }
     }
@@ -79,7 +79,9 @@ nonisolated enum XMLReader {
         mutating func document() throws(ParseFailure) -> DataNode {
             if bytes.starts(with: [0xEF, 0xBB, 0xBF]) { at = 3 }
             try skipProlog()
-            guard at + 1 < bytes.count, bytes[at] == UInt8(ascii: "<"), isNameByte(bytes[at + 1]) else { throw ParseFailure("Expected an element", at) }
+            guard at + 1 < bytes.count, bytes[at] == UInt8(ascii: "<"), isNameByte(bytes[at + 1]) else {
+                throw ParseFailure("Expected an element", at)
+            }
             let tag = try startTag()
             let root = tag.name == "plist" ? try plist(tag) : try element(tag, depth: 0)
             try skipProlog()
@@ -108,8 +110,10 @@ nonisolated enum XMLReader {
             guard depth < DataNode.maxDepth else { throw ParseFailure("Nested too deeply", tag.start) }
             var children: [DataNode] = []
             for attribute in tag.attributes {
-                children.append(DataNode(kind: .string, key: "@" + String(decoding: bytes[attribute.name], as: UTF8.self),
-                                         value: attributeValue(attribute), start: attribute.name.lowerBound))
+                children.append(
+                    DataNode(
+                        kind: .string, key: "@" + String(decoding: bytes[attribute.name], as: UTF8.self),
+                        value: attributeValue(attribute), start: attribute.name.lowerBound))
             }
             var run = Run(), hasElements = false
             if !tag.selfClosing {
@@ -335,7 +339,8 @@ nonisolated enum XMLReader {
                 } else if byte == 0x0D {
                     out.append(0x0A)
                     index += index + 1 < span.upperBound && bytes[index + 1] == 0x0A ? 2 : 1
-                } else if markup, byte == UInt8(ascii: "<"), starts(cdataOpen, at: index), let close = find(cdataClose, from: index + cdataOpen.count) {
+                } else if markup, byte == UInt8(ascii: "<"), starts(cdataOpen, at: index), let close = find(cdataClose, from: index + cdataOpen.count)
+                {
                     var inner = index + cdataOpen.count
                     while inner < close {
                         if bytes[inner] == 0x0D {
@@ -347,7 +352,9 @@ nonisolated enum XMLReader {
                         inner += 1
                     }
                     index = close + cdataClose.count
-                } else if markup, byte == UInt8(ascii: "<"), starts(commentOpen, at: index), let close = find(commentClose, from: index + commentOpen.count) {
+                } else if markup, byte == UInt8(ascii: "<"), starts(commentOpen, at: index),
+                    let close = find(commentClose, from: index + commentOpen.count)
+                {
                     index = close + commentClose.count
                 } else if markup, byte == UInt8(ascii: "<"), let close = find(piClose, from: index + 2) {
                     index = close + piClose.count
@@ -368,14 +375,15 @@ nonisolated enum XMLReader {
                 return index + 1
             }
             let body = bytes[index + 1..<semicolon]
-            let named: UInt8? = switch String(decoding: body, as: UTF8.self) {
-            case "lt": UInt8(ascii: "<")
-            case "gt": UInt8(ascii: ">")
-            case "amp": UInt8(ascii: "&")
-            case "quot": UInt8(ascii: "\"")
-            case "apos": UInt8(ascii: "'")
-            default: nil
-            }
+            let named: UInt8? =
+                switch String(decoding: body, as: UTF8.self) {
+                case "lt": UInt8(ascii: "<")
+                case "gt": UInt8(ascii: ">")
+                case "amp": UInt8(ascii: "&")
+                case "quot": UInt8(ascii: "\"")
+                case "apos": UInt8(ascii: "'")
+                default: nil
+                }
             if let named {
                 out.append(named)
                 return semicolon + 1
@@ -384,7 +392,8 @@ nonisolated enum XMLReader {
                 let digits = body.dropFirst()
                 let hex = digits.first == UInt8(ascii: "x")
                 if let code = UInt32(String(decoding: hex ? digits.dropFirst() : digits, as: UTF8.self), radix: hex ? 16 : 10),
-                   code != 0, let scalar = Unicode.Scalar(code) {
+                    code != 0, let scalar = Unicode.Scalar(code)
+                {
                     UTF8.encode(scalar) { out.append($0) }
                     return semicolon + 1
                 }

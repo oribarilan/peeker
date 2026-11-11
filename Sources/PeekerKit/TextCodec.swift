@@ -85,9 +85,14 @@ public nonisolated enum TextCodec {
         if let text = String(validating: data, as: UTF8.self) { return (text, .utf8, false) }
         let legacy: [String.Encoding] = [.windowsCP1252, .macOSRoman]
         var converted: NSString?
-        let detected = String.Encoding(rawValue: NSString.stringEncoding(for: data, encodingOptions: [.suggestedEncodingsKey: legacy.map(\.rawValue),
-                                                                                                    .useOnlySuggestedEncodingsKey: true, .allowLossyKey: false],
-                                                                         convertedString: &converted, usedLossyConversion: nil))
+        let detected = String.Encoding(
+            rawValue: NSString.stringEncoding(
+                for: data,
+                encodingOptions: [
+                    .suggestedEncodingsKey: legacy.map(\.rawValue),
+                    .useOnlySuggestedEncodingsKey: true, .allowLossyKey: false,
+                ],
+                convertedString: &converted, usedLossyConversion: nil))
         // Foundation can name Windows-1252 for bytes it leaves undefined (0x81, say), so its pick is only tried first.
         for encoding in [detected] + legacy where legacy.contains(encoding) {
             if let text = exactText(data, encoding) { return (text, encoding, false) }

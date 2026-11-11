@@ -15,8 +15,10 @@ final class PDFMarkupStrip: NSView {
     var swatches: [ColorSwatch] { bar.swatches }
     var tools: NSSegmentedControl { bar.tools }
     let sizes = MarkupBar.sizePicker()
-    let textMenu = StyleMenu(sections: [TextBoxStyle.Font.allCases.map { ($0.rawValue.capitalized, $0.rawValue) },
-                                        [("Bold", "bold"), ("Italic", "italic")], [("Plain", "plain"), ("Box", "box")]])
+    let textMenu = StyleMenu(sections: [
+        TextBoxStyle.Font.allCases.map { ($0.rawValue.capitalized, $0.rawValue) },
+        [("Bold", "bold"), ("Italic", "italic")], [("Plain", "plain"), ("Box", "box")],
+    ])
     private let pointSize = NSTextField(labelWithString: "")
     private let pointSizes: NSStackView
     private var style = TextBoxStyle.standard
@@ -26,7 +28,8 @@ final class PDFMarkupStrip: NSView {
     weak var pages: NSView?
 
     static let palette: [(name: String, color: RGBA)] = [
-        ("Black", rgb(0x000000)), ("Red", rgb(0xDB2626)), ("Orange", rgb(0xF28000)), ("Green", rgb(0x219940)), ("Blue", rgb(0x1A66E6)), ("Yellow", rgb(0xFFD60A)),
+        ("Black", rgb(0x000000)), ("Red", rgb(0xDB2626)), ("Orange", rgb(0xF28000)), ("Green", rgb(0x219940)), ("Blue", rgb(0x1A66E6)),
+        ("Yellow", rgb(0xFFD60A)),
     ]
 
     /// In whole 8-bit steps, as the file stores colors, so a color read back is the swatch's own.
@@ -39,8 +42,9 @@ final class PDFMarkupStrip: NSView {
         let larger = NSButton(title: "+", target: nil, action: nil)
         pointSizes = NSStackView(views: [smaller, pointSize, larger])
         pointSizes.spacing = 2
-        bar = MarkupBar(tools: PDFPlugin.markupTools.map { MarkupBar.Tool(id: $0.id, title: $0.title, symbol: $0.symbol, key: $0.key) },
-                        palette: Self.palette, moreColors: false, details: [sizes, textMenu, pointSizes])
+        bar = MarkupBar(
+            tools: PDFPlugin.markupTools.map { MarkupBar.Tool(id: $0.id, title: $0.title, symbol: $0.symbol, key: $0.key) },
+            palette: Self.palette, moreColors: false, details: [sizes, textMenu, pointSizes])
         super.init(frame: .zero)
         bar.onTool = { [weak self] in self?.onTool?($0) }
         bar.onColor = { [weak self] in self?.onColor?($0) }
@@ -89,7 +93,10 @@ final class PDFMarkupStrip: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         if let event = NSApp.currentEvent, event.type == .leftMouseDown, event.clickCount > 1,
-           Date().timeIntervalSince(shownAt) < NSEvent.doubleClickInterval { return nil }
+            Date().timeIntervalSince(shownAt) < NSEvent.doubleClickInterval
+        {
+            return nil
+        }
         return super.hitTest(point)
     }
 
@@ -99,7 +106,8 @@ final class PDFMarkupStrip: NSView {
         case .text(let style, let size):
             (self.style, fontSize) = (style, size)
             bar.show(tool: tool, color: style.color)
-            textMenu.check(Set([style.font.rawValue, style.boxed ? "box" : "plain"] + (style.bold ? ["bold"] : []) + (style.italic ? ["italic"] : [])))
+            textMenu.check(
+                Set([style.font.rawValue, style.boxed ? "box" : "plain"] + (style.bold ? ["bold"] : []) + (style.italic ? ["italic"] : [])))
             pointSize.stringValue = "\(Int(size)) pt"
         case .drawing(let color, let size):
             bar.show(tool: tool, color: color)

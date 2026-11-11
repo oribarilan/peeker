@@ -94,7 +94,13 @@ nonisolated struct CSVTable: Sendable {
         var merged: [CSVRow] = [], old = rows[...], new = newRows[...]
         merged.reserveCapacity(rows.count + newRows.count)
         while !old.isEmpty || !new.isEmpty {
-            if indexes.contains(merged.count), let next = new.popFirst() { merged.append(next) } else if let next = old.popFirst() { merged.append(next) } else { merged.append(new.removeFirst()) }
+            if indexes.contains(merged.count), let next = new.popFirst() {
+                merged.append(next)
+            } else if let next = old.popFirst() {
+                merged.append(next)
+            } else {
+                merged.append(new.removeFirst())
+            }
         }
         rows = merged
     }
@@ -168,7 +174,8 @@ nonisolated struct CSVTable: Sendable {
     }
 
     private func escaped(_ field: CSVField, separator: String) -> String {
-        let needs = field.quoted || field.text.contains(separator) || field.text.contains("\"")
+        let needs =
+            field.quoted || field.text.contains(separator) || field.text.contains("\"")
             || field.text.contains("\n") || field.text.contains("\r")
         return needs ? "\"" + field.text.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : field.text
     }
@@ -267,7 +274,9 @@ nonisolated struct CSVTable: Sendable {
             let counts = index(String(text.prefix(64 * 1024)), delimiter: delimiter.byte).0.prefix(20).map { $0.fieldCount - 1 }
             let common = Dictionary(grouping: counts.filter { $0 > 0 }, by: { $0 }).values.map(\.count).max() ?? 0
             // A tie goes to the earlier delimiter, except that semicolons beat commas: a semicolon file writes decimal commas.
-            if common > best.lines || (common == best.lines && common > 0 && delimiter == .semicolon && best.delimiter == .comma) { best = (delimiter, common) }
+            if common > best.lines || (common == best.lines && common > 0 && delimiter == .semicolon && best.delimiter == .comma) {
+                best = (delimiter, common)
+            }
         }
         return best.delimiter
     }

@@ -48,7 +48,7 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
     }
 
     @Test func unrepresentableTextOffersUTF8() async throws {
-        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))   // "café" in Windows-1252
+        let file = try TempFile.make(Data([0x63, 0x61, 0x66, 0xE9]))  // "café" in Windows-1252
         let document = try await open(file)
         let error = await failure { try await save("🙂", in: document) }
         #expect(error?.code == .cannotEncode && error?.offer == TextFile.saveAsUTF8)
@@ -61,7 +61,9 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         let file = try TempFile.make(bytes)
         try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file.path)
         let document = try await open(file)
-        #expect(await failure { try await save("edited\n", in: document) } == PluginError("You don't have permission to save “f.txt”.", code: .notWritable))
+        #expect(
+            await failure { try await save("edited\n", in: document) }
+                == PluginError("You don't have permission to save “f.txt”.", code: .notWritable))
         #expect(try Data(contentsOf: file) == bytes)
     }
 
@@ -99,7 +101,9 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
         let document = try await open(link)
         try FileManager.default.removeItem(at: target)
-        #expect(await failure { try await save("new\n", in: document) }?.message == "“link.txt” can't be saved because the file its link points to no longer exists.")
+        #expect(
+            await failure { try await save("new\n", in: document) }?.message
+                == "“link.txt” can't be saved because the file its link points to no longer exists.")
         #expect(try FileManager.default.attributesOfItem(atPath: link.path)[.type] as? FileAttributeType == .typeSymbolicLink)
     }
 
@@ -142,7 +146,7 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
 
 @Suite struct TextPluginLimits {
     @Test func largeFilesOpenReadOnly() async throws {
-        let file = try TempFile.make(Data((0...TextLimits.editableBytes).map { $0 % 100 == 99 ? 0x0A : 0x61 }))   // short lines
+        let file = try TempFile.make(Data((0...TextLimits.editableBytes).map { $0 % 100 == 99 ? 0x0A : 0x61 }))  // short lines
         defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
         let loaded = try await TextFile.load(file)
         #expect(!loaded.editable)
@@ -201,7 +205,8 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
         let loaded = try await TextFile.load(file)
         #expect(loaded.text.utf8.count == 1000 * shortLines.count)
         #expect(!loaded.editable)
-        #expect(loaded.note == "Showing the first 4 MB of \(ByteCountFormatter.string(fromByteCount: Int64(bytes.count), countStyle: .file)). Read-only.")
+        #expect(
+            loaded.note == "Showing the first 4 MB of \(ByteCountFormatter.string(fromByteCount: Int64(bytes.count), countStyle: .file)). Read-only.")
     }
 
     @Test func longLineFirstStillCutsAtTheLastBreakBeforeTheLimit() async throws {
@@ -228,6 +233,9 @@ private func failure(_ body: () async throws -> Void) async -> PluginError? {
 
     @Test func documentListsTheViewTools() async throws {
         let document = try await open(try TempFile.make(Data("a\n".utf8)))
-        #expect(document.tools.map { [$0.title, $0.shortcut] } == [["Zoom In", "cmd+="], ["Zoom Out", "cmd+-"], ["Actual Size", "cmd+0"], ["Wrap Lines", nil]])
+        #expect(
+            document.tools.map { [$0.title, $0.shortcut] } == [
+                ["Zoom In", "cmd+="], ["Zoom Out", "cmd+-"], ["Actual Size", "cmd+0"], ["Wrap Lines", nil],
+            ])
     }
 }

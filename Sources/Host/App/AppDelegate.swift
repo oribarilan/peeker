@@ -109,9 +109,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // The launch's Apple event arrives only now: in applicationWillFinishLaunching there's none yet.
         let launch = NSAppleEventManager.shared().currentAppleEvent
-        launchedAtLogin = launch?.eventID == kAEOpenApplication
+        launchedAtLogin =
+            launch?.eventID == kAEOpenApplication
             && launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
-        let files = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") && FileManager.default.fileExists(atPath: $0) }.map { URL(filePath: $0) }
+        let files = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") && FileManager.default.fileExists(atPath: $0) }.map {
+            URL(filePath: $0)
+        }
         if let bench = Bench.current {
             // Launched from a terminal the file is an argument; through LaunchServices it arrives in application(_:open:).
             if let file = files.first, !benchStarted {
@@ -278,10 +281,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         let defaults = UserDefaults.standard
         let lastRun = defaults.string(forKey: WhatsNew.lastRunKey)
         defaults.set(updater.version, forKey: WhatsNew.lastRunKey)
-        let timing = WhatsNew.timing(lastRun: lastRun, running: updater.version, enabled: config.showWhatsNew,
-                                     installedQuietly: installedQuietly, atLogin: launchedAtLogin)
+        let timing = WhatsNew.timing(
+            lastRun: lastRun, running: updater.version, enabled: config.showWhatsNew,
+            installedQuietly: installedQuietly, atLogin: launchedAtLogin)
         guard timing != .never, let lastRun, let url = Bundle.main.url(forResource: "CHANGELOG", withExtension: "md"),
-              let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+            let text = try? String(contentsOf: url, encoding: .utf8)
+        else { return nil }
         let releases = Changelog.releases(in: text, after: lastRun, upTo: updater.version)
         guard !releases.isEmpty else { return nil }
         if timing == .withFirstWindow { whatsNewForFirstWindow = releases; return nil }
@@ -410,8 +415,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             if alert.runModal() == .alertFirstButtonReturn { showSettings(pane: Self.settingsPane(forUnopenable: url, in: catalog)) }
             return nil
         }
-        let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: .shared, recoveryClipboard: recoveryClipboard,
-                                                  preferences: .standard)
+        let controller = DocumentWindowController(
+            url: url, catalog: catalog, config: config, recovery: .shared, recoveryClipboard: recoveryClipboard,
+            preferences: .standard)
         controller.onBecameKey = { [weak self] in self?.showCommands(of: $0) }
         controller.openInOwnTab = { [weak self] in self?.openInWindow($0, place: $1) }
         controller.otherWindow = { [weak self, weak controller] url in
@@ -456,10 +462,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private func restoreRecoveredDocuments() {
         guard !recoveryRestored else { return }
         recoveryRestored = true
-        RecoveryRestore(store: .shared, clipboard: recoveryClipboard,
-                        canOpen: { [self] in plugin(for: $0.url, restoring: $0) != nil },
-                        hasText: { [self] in catalog.recoveryText($0) != nil },
-                        open: { [self] in openInWindow($0.url, restoring: $0, place: nil) }).run()
+        RecoveryRestore(
+            store: .shared, clipboard: recoveryClipboard,
+            canOpen: { [self] in plugin(for: $0.url, restoring: $0) != nil },
+            hasText: { [self] in catalog.recoveryText($0) != nil },
+            open: { [self] in openInWindow($0.url, restoring: $0, place: nil) }
+        ).run()
     }
 
     private func startBench(_ bench: Bench, url: URL) {

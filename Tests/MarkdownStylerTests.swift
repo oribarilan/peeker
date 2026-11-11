@@ -75,7 +75,9 @@ private func covered(_ source: String, _ kind: StyleKind) -> [String] {
 
 @Suite struct MarkdownWordCount {
     @Test func countsRunsOfNonWhitespaceAsCharacterSplittingDid() {
-        for text in ["", "one", "  two words  ", "tabs\tand\nlines\r\nhere", "café naïve", "a\u{00A0}b c\u{3000}d", "emoji 👩‍👩‍👧 count", "\u{0B}x\u{0C}y"] {
+        for text in [
+            "", "one", "  two words  ", "tabs\tand\nlines\r\nhere", "café naïve", "a\u{00A0}b c\u{3000}d", "emoji 👩‍👩‍👧 count", "\u{0B}x\u{0C}y",
+        ] {
             #expect(MarkdownStyler.wordCount(text) == text.split { $0.isWhitespace }.count, "\(text.debugDescription)")
         }
     }

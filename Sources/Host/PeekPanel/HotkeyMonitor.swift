@@ -50,15 +50,19 @@ final class HotkeyMonitor {
             guard let refcon else { return Unmanaged.passUnretained(event) }
             let monitor = Unmanaged<HotkeyMonitor>.fromOpaque(refcon).takeUnretainedValue()
             // The tap's run loop source is on the main run loop. Only plain values cross into the actor.
-            let key = KeyEvent(type: type, keyCode: event.getIntegerValueField(.keyboardEventKeycode), flags: event.flags,
-                               isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
-                               isOwn: event.getIntegerValueField(.eventSourceUserData) == HotkeyMonitor.ownEventMarker)
+            let key = KeyEvent(
+                type: type, keyCode: event.getIntegerValueField(.keyboardEventKeycode), flags: event.flags,
+                isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
+                isOwn: event.getIntegerValueField(.eventSourceUserData) == HotkeyMonitor.ownEventMarker)
             let swallow = MainActor.assumeIsolated { monitor.shouldSwallow(key) }
             return swallow ? nil : Unmanaged.passUnretained(event)
         }
-        guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
-                                          eventsOfInterest: CGEventMask(mask), callback: callback,
-                                          userInfo: Unmanaged.passUnretained(self).toOpaque()) else { return false }
+        guard
+            let tap = CGEvent.tapCreate(
+                tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
+                eventsOfInterest: CGEventMask(mask), callback: callback,
+                userInfo: Unmanaged.passUnretained(self).toOpaque())
+        else { return false }
         self.tap = tap
         CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, tap, 0), .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
@@ -104,8 +108,10 @@ final class HotkeyMonitor {
 
     /// The decision for `key`, given what's on screen. `typing` is asked only when a bare key could open the panel,
     /// since it costs an Accessibility call. While the panel's button menu is open, every key goes to the menu.
-    static func decide(_ key: KeyEvent, shortcut: Shortcut, panelVisible: Bool, finderInFront: Bool, menuOpen: Bool,
-                       openKey: Shortcut?, showInFinderKey: Shortcut?, typing: () -> Bool, swallowedKeyUp: Int64?) -> Decision {
+    static func decide(
+        _ key: KeyEvent, shortcut: Shortcut, panelVisible: Bool, finderInFront: Bool, menuOpen: Bool,
+        openKey: Shortcut?, showInFinderKey: Shortcut?, typing: () -> Bool, swallowedKeyUp: Int64?
+    ) -> Decision {
         guard !key.isOwn else { return .pass }
         if key.type == .keyUp { return key.keyCode == swallowedKeyUp ? .swallowKeyUp : .pass }
         if menuOpen { return .pass }
@@ -131,10 +137,11 @@ final class HotkeyMonitor {
             return false
         }
         let keys = panelKeys()
-        let decision = Self.decide(key, shortcut: shortcut, panelVisible: isPanelVisible(),
-                                   finderInFront: NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder",
-                                   menuOpen: isMenuOpen(), openKey: keys.open, showInFinderKey: keys.showInFinder,
-                                   typing: Self.isTextInputFocused, swallowedKeyUp: swallowedKeyUp)
+        let decision = Self.decide(
+            key, shortcut: shortcut, panelVisible: isPanelVisible(),
+            finderInFront: NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder",
+            menuOpen: isMenuOpen(), openKey: keys.open, showInFinderKey: keys.showInFinder,
+            typing: Self.isTextInputFocused, swallowedKeyUp: swallowedKeyUp)
         switch decision {
         case .pass:
             return false
@@ -148,12 +155,13 @@ final class HotkeyMonitor {
             return true
         case .trigger, .dismiss, .open, .showInFinder:
             swallowedKeyUp = key.keyCode
-            let action = switch decision {
-            case .trigger: onTrigger
-            case .open: onOpen
-            case .showInFinder: onShowInFinder
-            default: onDismiss
-            }
+            let action =
+                switch decision {
+                case .trigger: onTrigger
+                case .open: onOpen
+                case .showInFinder: onShowInFinder
+                default: onDismiss
+                }
             DispatchQueue.main.async { action?() }
             return true
         }
@@ -177,7 +185,8 @@ final class HotkeyMonitor {
         AXUIElementSetMessagingTimeout(system, 0.1)
         var focused: CFTypeRef?
         guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-              let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() else { return false }
+            let focused, CFGetTypeID(focused) == AXUIElementGetTypeID()
+        else { return false }
         var role: CFTypeRef?
         AXUIElementCopyAttributeValue(focused as! AXUIElement, kAXRoleAttribute as CFString, &role)
         return ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role as? String ?? "")

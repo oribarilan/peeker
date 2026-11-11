@@ -25,15 +25,15 @@ private func outline(_ text: String) throws -> String { outline(try parse(text))
 @Suite struct TOMLTables {
     @Test func aCargoManifest() throws {
         let text = """
-        # A crate
-        [package]
-        name = "peeker"
-        edition = 2021
+            # A crate
+            [package]
+            name = "peeker"
+            edition = 2021
 
-        [dependencies]
-        serde = { version = "1.0", features = ["derive"] }
-        anyhow = "1"
-        """
+            [dependencies]
+            serde = { version = "1.0", features = ["derive"] }
+            anyhow = "1"
+            """
         let root = try parse(text)
         #expect(root.kind == .object && root.key == nil && root.children.map(\.key) == ["package", "dependencies"])
         let package = root.children[0], serde = root.children[1].children[0]
@@ -46,8 +46,9 @@ private func outline(_ text: String) throws -> String { outline(try parse(text))
     }
 
     @Test func dottedKeysMakeNestedTables() throws {
-        #expect(try outline("a.b.c = 1\na.b.d = 2\na . \"x y\" . 'z' = 3\nsite.\"google.com\" = true")
-            == "{a={b={c=1,d=2},x y={z=3}},site={google.com=true}}")
+        #expect(
+            try outline("a.b.c = 1\na.b.d = 2\na . \"x y\" . 'z' = 3\nsite.\"google.com\" = true")
+                == "{a={b={c=1,d=2},x y={z=3}},site={google.com=true}}")
         let root = try parse("x = 0\na.b = 1")
         #expect(root.children[1].start == 6 && root.children[1].children[0].start == 8)
     }
@@ -61,27 +62,29 @@ private func outline(_ text: String) throws -> String { outline(try parse(text))
 
     @Test func arraysOfTablesWithSubTables() throws {
         let text = """
-        [[fruit]]
-        name = "apple"
-        [fruit.physical]
-        color = "red"
-        [[fruit.variety]]
-        name = "red delicious"
-        [[fruit.variety]]
-        name = "granny smith"
-        [[fruit]]
-        name = "banana"
-        """
+            [[fruit]]
+            name = "apple"
+            [fruit.physical]
+            color = "red"
+            [[fruit.variety]]
+            name = "red delicious"
+            [[fruit.variety]]
+            name = "granny smith"
+            [[fruit]]
+            name = "banana"
+            """
         let root = try parse(text)
-        #expect(outline(root) == "{fruit=[{name='apple',physical={color='red'},variety=[{name='red delicious'},{name='granny smith'}]},{name='banana'}]}")
+        #expect(
+            outline(root) == "{fruit=[{name='apple',physical={color='red'},variety=[{name='red delicious'},{name='granny smith'}]},{name='banana'}]}")
         let list = root.children[0]
         #expect(list.kind == .array && list.start == 0 && list.children[0].key == nil)
         #expect(list.children[1].start == byteOffset(of: "[[fruit]]\nname = \"banana\"", in: text))
     }
 
     @Test func inlineTablesOverLines() throws {
-        #expect(try outline("p = { a = 1, b.c = 2, b.d = 3 }\nq = {}\nr = {\n  x = 1, # comment\n  y = 2,\n}")
-            == "{p={a=1,b={c=2,d=3}},q={},r={x=1,y=2}}")
+        #expect(
+            try outline("p = { a = 1, b.c = 2, b.d = 3 }\nq = {}\nr = {\n  x = 1, # comment\n  y = 2,\n}")
+                == "{p={a=1,b={c=2,d=3}},q={},r={x=1,y=2}}")
     }
 
     @Test func commentsCRLFAndABOM() throws {
@@ -93,8 +96,9 @@ private func outline(_ text: String) throws -> String { outline(try parse(text))
 
 @Suite struct TOMLValues {
     @Test func basicStringEscapes() throws {
-        #expect(try outline(#"s = "tab\tquote\" back\\ \u00E9 \U0001F600 \e\x41 \b\f\r\n""#)
-            == "{s='tab\tquote\" back\\ é 😀 \u{1B}A \u{8}\u{C}\r\n'}")
+        #expect(
+            try outline(#"s = "tab\tquote\" back\\ \u00E9 \U0001F600 \e\x41 \b\f\r\n""#)
+                == "{s='tab\tquote\" back\\ é 😀 \u{1B}A \u{8}\u{C}\r\n'}")
         #expect(try outline("\"\" = 1\n'a b' = 2\n\"a\\tb\" = 3") == "{=1,a b=2,a\tb=3}")
     }
 
@@ -112,24 +116,29 @@ private func outline(_ text: String) throws -> String { outline(try parse(text))
     }
 
     @Test func numbersAsWritten() throws {
-        let numbers = ["+99", "-17", "1_000", "0xDEAD_beef", "0o755", "0b1101", "3.1415", "-0.01", "5e+22", "6.626e-34",
-                       "224_617.445_991", "inf", "-nan", "+inf", "0", "-0.0", "1E2"]
+        let numbers = [
+            "+99", "-17", "1_000", "0xDEAD_beef", "0o755", "0b1101", "3.1415", "-0.01", "5e+22", "6.626e-34",
+            "224_617.445_991", "inf", "-nan", "+inf", "0", "-0.0", "1E2",
+        ]
         let root = try parse(numbers.enumerated().map { "n\($0) = \($1)" }.joined(separator: "\n"))
         #expect(root.children.map(\.value) == numbers && root.children.allSatisfy { $0.kind == .number })
         #expect(try parse("b = true\nc = false").children.map(\.kind) == [.bool, .bool])
     }
 
     @Test func datesAndTimesAsWritten() throws {
-        let dates = ["1979-05-27T07:32:00Z", "1979-05-27T00:32:00.999999-07:00", "1979-05-27 07:32:00", "1979-05-27", "07:32:00",
-                     "00:32:00.999999", "1979-05-27t07:32"]
+        let dates = [
+            "1979-05-27T07:32:00Z", "1979-05-27T00:32:00.999999-07:00", "1979-05-27 07:32:00", "1979-05-27", "07:32:00",
+            "00:32:00.999999", "1979-05-27t07:32",
+        ]
         let root = try parse(dates.enumerated().map { "d\($0) = \($1)" }.joined(separator: "\n"))
         #expect(root.children.map(\.value) == dates && root.children.allSatisfy { $0.kind == .string })
         #expect(try outline("h = [1979-05-27 07:32:00Z, 07:32] # times") == "{h=['1979-05-27 07:32:00Z','07:32']}")
     }
 
     @Test func arraysOverLinesWithCommentsAndATrailingComma() throws {
-        #expect(try outline("a = [\n  1, # one\n  # alone\n  2,\n]\nb = []\nc = [[1, 2], ['x', {k = 1}]]")
-            == "{a=[1,2],b=[],c=[[1,2],['x',{k=1}]]}")
+        #expect(
+            try outline("a = [\n  1, # one\n  # alone\n  2,\n]\nb = []\nc = [[1, 2], ['x', {k = 1}]]")
+                == "{a=[1,2],b=[],c=[[1,2],['x',{k=1}]]}")
     }
 }
 
@@ -200,8 +209,10 @@ private func outline(_ text: String) throws -> String { outline(try parse(text))
     }
 
     @Test func badNumbersAndDates() {
-        for bad in ["01", "1__0", "1_", "1.", "1e", "0x", "+0x1", "0xG", "1.2.3", "--1", "0o8", "1979-05-2", "1979-05-27T", "07:3",
-                    "07:32Z", "1979-05-27T07:32:00+7"] {
+        for bad in [
+            "01", "1__0", "1_", "1.", "1e", "0x", "+0x1", "0xG", "1.2.3", "--1", "0o8", "1979-05-2", "1979-05-27T", "07:3",
+            "07:32Z", "1979-05-27T07:32:00+7",
+        ] {
             #expect(error("a = \(bad)")?.message == "This isn't a number or a date", "\(bad)")
         }
     }

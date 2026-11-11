@@ -6,8 +6,9 @@ import UniformTypeIdentifiers
 
 /// An editable white image in a window, with a pasteboard of its own and, when given, preferences of their own.
 @MainActor private func shown(preferences: PluginPreferences? = nil) async throws -> (ImageDocument, NSWindow) {
-    let context = CGContext(data: nil, width: 400, height: 200, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    let context = CGContext(
+        data: nil, width: 400, height: 200, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
     context.setFillColor(CGColor(gray: 1, alpha: 1))
     context.fill(CGRect(x: 0, y: 0, width: 400, height: 200))
     let url = try imageFile(context.makeImage()!, type: .png)
@@ -19,9 +20,12 @@ import UniformTypeIdentifiers
     return (document, window)
 }
 
-@MainActor private func mouse(_ type: NSEvent.EventType, at pixel: CGPoint, in overlay: MarkupOverlay, option: Bool = false, clicks: Int = 1) -> NSEvent {
-    NSEvent.mouseEvent(with: type, location: overlay.convert(overlay.viewPoint(pixel), to: nil), modifierFlags: option ? .option : [], timestamp: 0,
-                       windowNumber: overlay.window!.windowNumber, context: nil, eventNumber: 0, clickCount: clicks, pressure: 1)!
+@MainActor private func mouse(_ type: NSEvent.EventType, at pixel: CGPoint, in overlay: MarkupOverlay, option: Bool = false, clicks: Int = 1)
+    -> NSEvent
+{
+    NSEvent.mouseEvent(
+        with: type, location: overlay.convert(overlay.viewPoint(pixel), to: nil), modifierFlags: option ? .option : [], timestamp: 0,
+        windowNumber: overlay.window!.windowNumber, context: nil, eventNumber: 0, clickCount: clicks, pressure: 1)!
 }
 
 @MainActor private func drag(_ overlay: MarkupOverlay, from a: CGPoint, to b: CGPoint, option: Bool = false) {
@@ -32,8 +36,9 @@ import UniformTypeIdentifiers
 }
 
 @MainActor private func key(_ code: UInt16, in window: NSWindow) -> NSEvent {
-    NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil,
-                     characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: code)!
+    NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil,
+        characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: code)!
 }
 
 @Suite(.serialized) struct ImageMarkupTools {
@@ -104,11 +109,16 @@ import UniformTypeIdentifiers
         overlay.mouseDown(with: mouse(.leftMouseDown, at: CGPoint(x: 40, y: 40), in: overlay))
         overlay.mouseDragged(with: mouse(.leftMouseDragged, at: CGPoint(x: 120, y: 90), in: overlay))
         #expect(document.marksView.shownMarks.count == 1, "the marks view dims around the spotlight being drawn")
-        let context = CGContext(data: nil, width: 40, height: 40, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        let draft = ImageMark(id: "d", kind: .spotlight(CGRect(x: 0, y: 0, width: 1, height: 1), ellipse: false), color: markupPalette[0].color, size: .medium, width: 2)
-        MarkRenderer.drawDraft(draft, number: nil, imageSize: CGSize(width: 40, height: 40), in: CGRect(x: 0, y: 0, width: 40, height: 40), context: context)
-        #expect(context.makeImage().flatMap { $0.dataProvider?.data as Data? }?.allSatisfy { $0 == 0 } == true, "and the overlay draws nothing for it")
+        let context = CGContext(
+            data: nil, width: 40, height: 40, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        let draft = ImageMark(
+            id: "d", kind: .spotlight(CGRect(x: 0, y: 0, width: 1, height: 1), ellipse: false), color: markupPalette[0].color, size: .medium, width: 2
+        )
+        MarkRenderer.drawDraft(
+            draft, number: nil, imageSize: CGSize(width: 40, height: 40), in: CGRect(x: 0, y: 0, width: 40, height: 40), context: context)
+        #expect(
+            context.makeImage().flatMap { $0.dataProvider?.data as Data? }?.allSatisfy { $0 == 0 } == true, "and the overlay draws nothing for it")
         overlay.mouseUp(with: mouse(.leftMouseUp, at: CGPoint(x: 120, y: 90), in: overlay))
         #expect(document.marks.count == 1 && document.marksView.shownMarks.count == 1)
     }
@@ -217,8 +227,10 @@ import UniformTypeIdentifiers
     @Test func copyWithNothingSelectedCopiesTheMarkedImage() async throws {
         let (document, window) = try await shown()
         defer { window.close() }
-        document.put(ImageMark(id: ImageMark.newID(), kind: .box(CGRect(x: 100, y: 50, width: 200, height: 100), ellipse: false),
-                               color: markupPalette[0].color, size: .medium, width: 6))
+        document.put(
+            ImageMark(
+                id: ImageMark.newID(), kind: .box(CGRect(x: 100, y: 50, width: 200, height: 100), ellipse: false),
+                color: markupPalette[0].color, size: .medium, width: 6))
         document.copy()
         try await waitUntil(seconds: 3) { document.pasteboard.data(forType: .png) != nil }
         let png = try #require(document.pasteboard.data(forType: .png))

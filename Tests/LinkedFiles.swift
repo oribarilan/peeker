@@ -40,11 +40,14 @@ struct LinkedFiles {
 }
 
 /// An off-screen Editor window on `file`, Markdown and Plain Text enabled, its effects recorded rather than shown.
-@MainActor func linkedWindow(_ file: URL, effects: LinkEffects, config: Config = Config(),
-                             recovery: RecoveryStore? = nil) async throws -> DocumentWindowController {
+@MainActor func linkedWindow(
+    _ file: URL, effects: LinkEffects, config: Config = Config(),
+    recovery: RecoveryStore? = nil
+) async throws -> DocumentWindowController {
     let entries = [PluginEntry(MarkdownPlugin.self), PluginEntry(TextPlugin.self)]
-    let controller = DocumentWindowController(url: file, catalog: PluginCatalog(entries: entries, config: config), config: config,
-                                              recovery: recovery, recoveryClipboard: nil, sidebarMemory: SidebarMemory(defaults: nil))
+    let controller = DocumentWindowController(
+        url: file, catalog: PluginCatalog(entries: entries, config: config), config: config,
+        recovery: recovery, recoveryClipboard: nil, sidebarMemory: SidebarMemory(defaults: nil))
     controller.beep = { effects.beeps += 1 }
     controller.openInOwnTab = { effects.ownTabs.append(($0, $1)) }
     controller.confirmOpenElsewhere = { _, url in

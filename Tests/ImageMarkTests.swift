@@ -12,10 +12,14 @@ private func mark(_ kind: ImageMark.Kind, width: Double = 4) -> ImageMark {
 
 @Suite struct ImageMarkModel {
     @Test func marksRoundTripThroughRecovery() throws {
-        let marks = [mark(.arrow(from: .zero, to: CGPoint(x: 10, y: 20))), mark(.line(from: .zero, to: CGPoint(x: 5, y: 9))), mark(.box(CGRect(x: 1, y: 2, width: 3, height: 4), ellipse: true)),
-                     mark(.text(origin: CGPoint(x: 5, y: 5), string: "Hi", style: TextStyle(font: .system, bold: true, italic: false, effect: .label))), mark(.pixelate(CGRect(x: 0, y: 0, width: 9, height: 9), strength: MarkStyle.defaultStrength)),
-                     mark(.step(center: CGPoint(x: 3, y: 3))), mark(.pen([.zero, CGPoint(x: 1, y: 1)])), mark(.marker([.zero])),
-                     mark(.spotlight(CGRect(x: 2, y: 2, width: 5, height: 5), ellipse: false))]
+        let marks = [
+            mark(.arrow(from: .zero, to: CGPoint(x: 10, y: 20))), mark(.line(from: .zero, to: CGPoint(x: 5, y: 9))),
+            mark(.box(CGRect(x: 1, y: 2, width: 3, height: 4), ellipse: true)),
+            mark(.text(origin: CGPoint(x: 5, y: 5), string: "Hi", style: TextStyle(font: .system, bold: true, italic: false, effect: .label))),
+            mark(.pixelate(CGRect(x: 0, y: 0, width: 9, height: 9), strength: MarkStyle.defaultStrength)),
+            mark(.step(center: CGPoint(x: 3, y: 3))), mark(.pen([.zero, CGPoint(x: 1, y: 1)])), mark(.marker([.zero])),
+            mark(.spotlight(CGRect(x: 2, y: 2, width: 5, height: 5), ellipse: false)),
+        ]
         let decoded = try JSONDecoder().decode([ImageMark].self, from: try JSONEncoder().encode(marks))
         #expect(decoded == marks && decoded.allSatisfy(\.isValid))
     }
@@ -85,23 +89,27 @@ private func mark(_ kind: ImageMark.Kind, width: Double = 4) -> ImageMark {
 
 /// A white RGB image, or one with a black-and-white checkerboard of `cell` pixels, to draw on.
 private func canvas(width: Int = 200, height: Int = 100, checker cell: Int = 0) -> CGImage {
-    let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-                            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    let context = CGContext(
+        data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
     context.setFillColor(CGColor(gray: 1, alpha: 1))
     context.fill(CGRect(x: 0, y: 0, width: width, height: height))
     if cell > 0 {
         context.setFillColor(CGColor(gray: 0, alpha: 1))
-        for x in stride(from: 0, to: width, by: cell) { for y in stride(from: 0, to: height, by: cell) where (x / cell + y / cell) % 2 == 0 {
-            context.fill(CGRect(x: x, y: y, width: cell, height: cell))
-        } }
+        for x in stride(from: 0, to: width, by: cell) {
+            for y in stride(from: 0, to: height, by: cell) where (x / cell + y / cell) % 2 == 0 {
+                context.fill(CGRect(x: x, y: y, width: cell, height: cell))
+            }
+        }
     }
     return context.makeImage()!
 }
 
 /// The sRGB components at (x, y) from the top left, 0 to 255.
 private func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: Int) {
-    let context = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    let context = CGContext(
+        data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
     context.draw(image, in: CGRect(x: -x, y: y - image.height + 1, width: image.width, height: image.height))
     let p = context.data!.assumingMemoryBound(to: UInt8.self)
     return (Int(p[0]), Int(p[1]), Int(p[2]))
@@ -111,8 +119,12 @@ private func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: 
     private let size = CGSize(width: 200, height: 100)
 
     @Test func anArrowAndABoxAreDrawnInTheirColor() throws {
-        let image = try #require(MarkRenderer.render([mark(.arrow(from: CGPoint(x: 10, y: 50), to: CGPoint(x: 190, y: 50))),
-                                                      mark(.box(CGRect(x: 20, y: 10, width: 40, height: 20), ellipse: false))], on: canvas(), imageSize: size))
+        let image = try #require(
+            MarkRenderer.render(
+                [
+                    mark(.arrow(from: CGPoint(x: 10, y: 50), to: CGPoint(x: 190, y: 50))),
+                    mark(.box(CGRect(x: 20, y: 10, width: 40, height: 20), ellipse: false)),
+                ], on: canvas(), imageSize: size))
         #expect(pixel(image, 100, 50) == (255, 0, 0), "on the arrow's shaft")
         #expect(pixel(image, 40, 10) == (255, 0, 0), "on the box's top edge")
         #expect(pixel(image, 40, 20) == (255, 255, 255), "inside the box")
@@ -120,13 +132,18 @@ private func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: 
     }
 
     @Test func marksScaleToASmallerDecode() throws {
-        let image = try #require(MarkRenderer.render([mark(.box(CGRect(x: 20, y: 10, width: 40, height: 20), ellipse: false), width: 8)],
-                                                     on: canvas(width: 100, height: 50), imageSize: size))
+        let image = try #require(
+            MarkRenderer.render(
+                [mark(.box(CGRect(x: 20, y: 10, width: 40, height: 20), ellipse: false), width: 8)],
+                on: canvas(width: 100, height: 50), imageSize: size))
         #expect(pixel(image, 20, 5) == (255, 0, 0), "the top edge at half scale")
     }
 
     @Test func pixelateLeavesUniformBlocks() throws {
-        let image = try #require(MarkRenderer.render([mark(.pixelate(CGRect(x: 0, y: 0, width: 64, height: 64), strength: MarkStyle.defaultStrength))], on: canvas(checker: 2), imageSize: size))
+        let image = try #require(
+            MarkRenderer.render(
+                [mark(.pixelate(CGRect(x: 0, y: 0, width: 64, height: 64), strength: MarkStyle.defaultStrength))], on: canvas(checker: 2),
+                imageSize: size))
         // Blocks are at least 8 pixels, so a 2-pixel checkerboard averages to one gray in each.
         let a = pixel(image, 1, 1), b = pixel(image, 2, 1), c = pixel(image, 6, 6)
         #expect(a == b && b == c && a.r > 60 && a.r < 200)
@@ -134,16 +151,27 @@ private func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: 
     }
 
     @Test func spotlightDimsOutsideItsBoxes() throws {
-        let image = try #require(MarkRenderer.render([mark(.spotlight(CGRect(x: 10, y: 10, width: 30, height: 30), ellipse: false)),
-                                                      mark(.spotlight(CGRect(x: 100, y: 10, width: 30, height: 30), ellipse: false))], on: canvas(), imageSize: size))
+        let image = try #require(
+            MarkRenderer.render(
+                [
+                    mark(.spotlight(CGRect(x: 10, y: 10, width: 30, height: 30), ellipse: false)),
+                    mark(.spotlight(CGRect(x: 100, y: 10, width: 30, height: 30), ellipse: false)),
+                ], on: canvas(), imageSize: size))
         #expect(pixel(image, 20, 20) == (255, 255, 255) && pixel(image, 110, 20) == (255, 255, 255), "inside both")
         #expect(pixel(image, 70, 80).r < 140, "dimmed outside")
     }
 
     @Test func aLabelFillsItsBoxAndPlainTextDoesNot() throws {
-        let labeled = try #require(MarkRenderer.render([mark(.text(origin: CGPoint(x: 10, y: 10), string: "Hi", style: TextStyle(font: .system, bold: true, italic: false, effect: .label)))], on: canvas(), imageSize: size))
+        let labeled = try #require(
+            MarkRenderer.render(
+                [
+                    mark(
+                        .text(origin: CGPoint(x: 10, y: 10), string: "Hi", style: TextStyle(font: .system, bold: true, italic: false, effect: .label))
+                    )
+                ], on: canvas(), imageSize: size))
         #expect(pixel(labeled, 12, 26) == (255, 0, 0), "the label's fill left of its text")
-        let plain = try #require(MarkRenderer.render([mark(.text(origin: CGPoint(x: 10, y: 10), string: "Hi", style: .standard))], on: canvas(), imageSize: size))
+        let plain = try #require(
+            MarkRenderer.render([mark(.text(origin: CGPoint(x: 10, y: 10), string: "Hi", style: .standard))], on: canvas(), imageSize: size))
         #expect(pixel(plain, 12, 12) == (255, 255, 255), "no box behind plain text")
     }
 
@@ -244,8 +272,9 @@ private func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: 
         #expect(relaunched.restore(encoded: record))
         #expect(relaunched.pixelSize == CGSize(width: 200, height: 200), "the crop from the original, as before the crash")
         relaunched.revertEdits()
-        #expect(relaunched.pixelSize == CGSize(width: 200, height: 200) && relaunched.marks.isEmpty && relaunched.unsavedEdits() == nil,
-                "the saved, cropped file, with nothing pending")
+        #expect(
+            relaunched.pixelSize == CGSize(width: 200, height: 200) && relaunched.marks.isEmpty && relaunched.unsavedEdits() == nil,
+            "the saved, cropped file, with nothing pending")
     }
 }
 

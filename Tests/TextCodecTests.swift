@@ -6,10 +6,12 @@ import Testing
 @Suite struct TextCodecTests {
     @Test func detectsEncodingsAndBOMs() throws {
         #expect(try TextCodec.decode(Data("héllo\n".utf8)).format == TextFormat(encoding: .utf8, hasBOM: false, lineEnding: .lf))
-        #expect(try TextCodec.decode(Data([0xEF, 0xBB, 0xBF]) + Data("a\r\nb\r\n".utf8)).format == TextFormat(encoding: .utf8, hasBOM: true, lineEnding: .crlf))
+        #expect(
+            try TextCodec.decode(Data([0xEF, 0xBB, 0xBF]) + Data("a\r\nb\r\n".utf8)).format
+                == TextFormat(encoding: .utf8, hasBOM: true, lineEnding: .crlf))
         #expect(try TextCodec.decode(Data([0xFF, 0xFE, 0x61, 0x00])).format.encoding == .utf16LittleEndian)
         #expect(try TextCodec.decode(Data([0xFE, 0xFF, 0x00, 0x61])).format.encoding == .utf16BigEndian)
-        #expect(try TextCodec.decode(Data([0x63, 0x61, 0x66, 0xE9])).format.encoding == .windowsCP1252)   // "café" in Windows-1252
+        #expect(try TextCodec.decode(Data([0x63, 0x61, 0x66, 0xE9])).format.encoding == .windowsCP1252)  // "café" in Windows-1252
     }
 
     @Test(arguments: [
@@ -27,7 +29,9 @@ import Testing
     }
 
     @Test func nulBytesMeanNotText() {
-        #expect(throws: PluginError("This doesn't look like a text file.", code: .notText)) { try TextCodec.decode(Data([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00])) }
+        #expect(throws: PluginError("This doesn't look like a text file.", code: .notText)) {
+            try TextCodec.decode(Data([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00]))
+        }
     }
 
     @Test func uniformFilesRoundTripByteForByte() throws {
@@ -43,7 +47,7 @@ import Testing
     }
 
     @Test func invalidUTF8FallsBackAndRoundTrips() throws {
-        let bytes = Data("2024-01-01 user ".utf8) + Data([0x4A, 0xF6, 0x72, 0x67]) + Data(" logged in\n".utf8)   // "Jörg" in Latin-1
+        let bytes = Data("2024-01-01 user ".utf8) + Data([0x4A, 0xF6, 0x72, 0x67]) + Data(" logged in\n".utf8)  // "Jörg" in Latin-1
         let decoded = try TextCodec.decode(bytes)
         #expect(decoded.text.contains("Jörg"))
         #expect(try TextCodec.encode(decoded.text, as: decoded.format) == bytes)

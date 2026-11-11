@@ -101,8 +101,10 @@ import Testing
 }
 
 /// A Markdown file named `name` holding `text`, opened in the Editor or, with `editing` false, the Peek panel.
-private func openMarkdown<Document>(_ text: String, name: String = "README.md", as type: Document.Type,
-                                    editing: Bool = true) async throws -> (URL, Document) {
+private func openMarkdown<Document>(
+    _ text: String, name: String = "README.md", as type: Document.Type,
+    editing: Bool = true
+) async throws -> (URL, Document) {
     let file = try TempFile.make(Data(text.utf8), name: name)
     return (file, try await openDocument(file, with: MarkdownPlugin.self, as: type, editing: editing))
 }

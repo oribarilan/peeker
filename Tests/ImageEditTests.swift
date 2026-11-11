@@ -67,7 +67,9 @@ import UniformTypeIdentifiers
         #expect(!ImageEdit.crop(CGRect(x: 0, y: 0, width: 0, height: 1)).isValid)
         #expect(ImageEdit.resize(width: 1, height: 1).isValid && !ImageEdit.resize(width: 0, height: 5).isValid)
         #expect(!ImageEdit.resize(width: 100_000, height: 5).isValid)
-        let edits: [ImageEdit] = [.rotate(by: -90), .flip(horizontal: true), .crop(CGRect(x: 0, y: 0, width: 1, height: 1)), .resize(width: 3, height: 4)]
+        let edits: [ImageEdit] = [
+            .rotate(by: -90), .flip(horizontal: true), .crop(CGRect(x: 0, y: 0, width: 1, height: 1)), .resize(width: 3, height: 4),
+        ]
         #expect(try JSONDecoder().decode([ImageEdit].self, from: JSONEncoder().encode(edits)) == edits)
     }
 
@@ -80,7 +82,9 @@ import UniformTypeIdentifiers
     @Test func enlargingStaysWithinTheEditablePixels() {
         #expect(!ImageEdit.resize(width: 20_000, height: 10_000).isValid)
         #expect(ImageEdit.resize(width: 10_000, height: 10_000).isValid)
-        #expect(TransformPanel.targetSize(width: 800, height: 800, unit: .percent, lock: true, edited: .width, current: CGSize(width: 4000, height: 3000)) == nil)
+        #expect(
+            TransformPanel.targetSize(width: 800, height: 800, unit: .percent, lock: true, edited: .width, current: CGSize(width: 4000, height: 3000))
+                == nil)
     }
 }
 
@@ -141,14 +145,16 @@ import UniformTypeIdentifiers
     private func hdrFile() throws -> URL {
         let space = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!
         let info = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.floatComponents.rawValue | CGBitmapInfo.byteOrder16Little.rawValue
-        let context = try #require(CGContext(data: nil, width: 400, height: 300, bitsPerComponent: 16, bytesPerRow: 0, space: space, bitmapInfo: info))
+        let context = try #require(
+            CGContext(data: nil, width: 400, height: 300, bitsPerComponent: 16, bytesPerRow: 0, space: space, bitmapInfo: info))
         for x in 0..<400 {
             let v = CGFloat(x) / 399 * 4
             context.setFillColor(CGColor(colorSpace: space, components: [v, v * 0.9, v * 0.8, 1])!)
             context.fill(CGRect(x: x, y: 0, width: 1, height: 300))
         }
-        return try imageFile(try #require(context.makeImage()), type: .heic,
-                             properties: [kCGImageDestinationEncodeRequest: kCGImageDestinationEncodeToISOGainmap, kCGImageDestinationLossyCompressionQuality: 0.9])
+        return try imageFile(
+            try #require(context.makeImage()), type: .heic,
+            properties: [kCGImageDestinationEncodeRequest: kCGImageDestinationEncodeToISOGainmap, kCGImageDestinationLossyCompressionQuality: 0.9])
     }
 
     private func hasGainMap(_ url: URL) throws -> Bool {

@@ -87,8 +87,10 @@ final class TableHeaderView: NSTableHeaderView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         trackingAreas.filter { $0.owner === self }.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-                                       owner: self))
+        addTrackingArea(
+            NSTrackingArea(
+                rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                owner: self))
     }
 
     override func mouseMoved(with event: NSEvent) { hovered = dataColumn(at: event) }

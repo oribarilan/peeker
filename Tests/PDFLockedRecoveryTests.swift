@@ -28,7 +28,9 @@ private let box = PDFMark(id: "peeker-box", page: 0, rect: CGRect(x: 100, y: 400
         #expect(locked.restore(encoded: record))
         let held = try JSONDecoder().decode(SealedEdits.self, from: try #require(locked.unsavedEdits()).encoded())
         #expect(try held == JSONDecoder().decode(SealedEdits.self, from: record), "kept as it was until unlocked")
-        await #expect(throws: PluginError(LockedPDFDocument.unlockToSave)) { try await locked.save(try #require(locked.unsavedEdits()), accepting: nil) }
+        await #expect(throws: PluginError(LockedPDFDocument.unlockToSave)) {
+            try await locked.save(try #require(locked.unsavedEdits()), accepting: nil)
+        }
         var replaced: (any PluginDocument)?
         locked.onReplace = { replaced = $0 }
         #expect(locked.unlock(with: LockedPDF.open))

@@ -10,7 +10,8 @@ nonisolated struct Signature: Equatable, Sendable {
         let strokes = raw.filter { !$0.isEmpty }
         let points = strokes.joined()
         guard let minX = points.map(\.x).min(), let maxX = points.map(\.x).max(),
-              let minY = points.map(\.y).min(), let maxY = points.map(\.y).max() else { return nil }
+            let minY = points.map(\.y).min(), let maxY = points.map(\.y).max()
+        else { return nil }
         let width = max(maxX - minX, 1), height = max(maxY - minY, 1)
         self.strokes = strokes.map { $0.map { CGPoint(x: ($0.x - minX) / width, y: ($0.y - minY) / height) } }
         aspect = min(max(height / width, 0.05), 1.5)

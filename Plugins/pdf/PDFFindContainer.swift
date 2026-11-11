@@ -106,19 +106,21 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
     @discardableResult
     func showStrip(_ shown: Bool) -> PDFMarkupStrip? {
         guard shown || strip != nil else { return nil }
-        let strip = strip ?? {
-            let made = PDFMarkupStrip()
-            made.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(made)
-            NSLayoutConstraint.activate([
-                made.leadingAnchor.constraint(equalTo: leadingAnchor),
-                made.trailingAnchor.constraint(equalTo: trailingAnchor),
-            ])
-            stripAtTop = made.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor)
-            stripBelowBar = bar.map { made.topAnchor.constraint(equalTo: $0.bottomAnchor) }
-            self.strip = made
-            return made
-        }()
+        let strip =
+            strip
+            ?? {
+                let made = PDFMarkupStrip()
+                made.translatesAutoresizingMaskIntoConstraints = false
+                addSubview(made)
+                NSLayoutConstraint.activate([
+                    made.leadingAnchor.constraint(equalTo: leadingAnchor),
+                    made.trailingAnchor.constraint(equalTo: trailingAnchor),
+                ])
+                stripAtTop = made.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor)
+                stripBelowBar = bar.map { made.topAnchor.constraint(equalTo: $0.bottomAnchor) }
+                self.strip = made
+                return made
+            }()
         strip.isHidden = !shown
         placeStrip()
         return shown ? strip : nil

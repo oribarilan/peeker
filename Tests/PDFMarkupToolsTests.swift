@@ -17,16 +17,21 @@ private func open(_ file: URL) async throws -> (PDFPluginDocument, NSWindow) {
 }
 
 /// A mouse event at `point` in page 0's space.
-private func mouse(_ type: NSEvent.EventType, at point: CGPoint, in document: PDFPluginDocument, window: NSWindow,
-                   flags: NSEvent.ModifierFlags = []) -> NSEvent {
+private func mouse(
+    _ type: NSEvent.EventType, at point: CGPoint, in document: PDFPluginDocument, window: NSWindow,
+    flags: NSEvent.ModifierFlags = []
+) -> NSEvent {
     let page = document.pdfView.document!.page(at: 0)!
     let location = document.pdfView.convert(document.pdfView.convert(point, from: page), to: nil)
-    return NSEvent.mouseEvent(with: type, location: location, modifierFlags: flags, timestamp: 0, windowNumber: window.windowNumber,
-                              context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+    return NSEvent.mouseEvent(
+        with: type, location: location, modifierFlags: flags, timestamp: 0, windowNumber: window.windowNumber,
+        context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
 }
 
 /// A press at `start`, moves through `through`, and a release at the last point, all in page 0's space.
-private func drag(_ document: PDFPluginDocument, _ window: NSWindow, from start: CGPoint, through points: [CGPoint], flags: NSEvent.ModifierFlags = []) throws {
+private func drag(
+    _ document: PDFPluginDocument, _ window: NSWindow, from start: CGPoint, through points: [CGPoint], flags: NSEvent.ModifierFlags = []
+) throws {
     let tools = try #require(document.prepareEditing())
     let page = try #require(document.pdfView.document?.page(at: 0))
     #expect(tools.mouseDown(with: mouse(.leftMouseDown, at: start, in: document, window: window), at: document.pdfView.convert(start, from: page)))
@@ -170,7 +175,9 @@ private func drawings(_ document: PDFPluginDocument) -> [PDFDrawing] {
         let (document, window) = try await shown()
         defer { window.close() }
         let tools = try #require(document.prepareEditing())
-        let made = try #require(PDFDrawing.make(.box, from: CGPoint(x: 100, y: 300), to: CGPoint(x: 200, y: 360), points: [], color: PDFMarkupStrip.palette[0].color, width: 2))
+        let made = try #require(
+            PDFDrawing.make(
+                .box, from: CGPoint(x: 100, y: 300), to: CGPoint(x: 200, y: 360), points: [], color: PDFMarkupStrip.palette[0].color, width: 2))
         let mark = PDFMark(id: PDFEdit.newID(), page: 0, rect: made.rect, kind: .drawing(made.drawing))
         #expect(document.change(.add(mark)))
         tools.select(mark.id, page: 0)
@@ -198,8 +205,10 @@ private func drawings(_ document: PDFPluginDocument) -> [PDFDrawing] {
         return (document, offscreenWindow(holding: document.contentView))
     }
 
-    private func add(_ shape: PDFDrawing.Shape, color: RGBA, to document: PDFPluginDocument, from: CGPoint = CGPoint(x: 100, y: 300),
-                     to: CGPoint = CGPoint(x: 160, y: 360)) throws -> PDFMark {
+    private func add(
+        _ shape: PDFDrawing.Shape, color: RGBA, to document: PDFPluginDocument, from: CGPoint = CGPoint(x: 100, y: 300),
+        to: CGPoint = CGPoint(x: 160, y: 360)
+    ) throws -> PDFMark {
         let made = try #require(PDFDrawing.make(shape, from: from, to: to, points: [from, to], color: color, width: 2))
         let mark = PDFMark(id: PDFEdit.newID(), page: 0, rect: made.rect, kind: .drawing(made.drawing))
         #expect(document.change(.add(mark)))
@@ -227,8 +236,9 @@ private func drawings(_ document: PDFPluginDocument) -> [PDFDrawing] {
         let page = try #require(document.pdfView.document?.page(at: 0))
         let points = [CGPoint(x: 100, y: 300), CGPoint(x: 140, y: 300), CGPoint(x: 140, y: 340), CGPoint(x: 101, y: 301)]
         let event = { (type: NSEvent.EventType, point: CGPoint) in
-            NSEvent.mouseEvent(with: type, location: document.pdfView.convert(document.pdfView.convert(point, from: page), to: nil), modifierFlags: [],
-                               timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+            NSEvent.mouseEvent(
+                with: type, location: document.pdfView.convert(document.pdfView.convert(point, from: page), to: nil), modifierFlags: [],
+                timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
         }
         #expect(tools.mouseDown(with: event(.leftMouseDown, points[0]), at: document.pdfView.convert(points[0], from: page)))
         for point in points.dropFirst() { _ = tools.mouseDragged(with: event(.leftMouseDragged, point)) }
@@ -257,8 +267,12 @@ private func drawings(_ document: PDFPluginDocument) -> [PDFDrawing] {
 
     @Test func aReopenedColorIsTheSwatchsOwn() throws {
         let file = try TempFile.makePDF(pages: 1)
-        let made = try #require(PDFDrawing.make(.box, from: CGPoint(x: 100, y: 300), to: CGPoint(x: 160, y: 360), points: [], color: PDFMarkupStrip.palette[1].color, width: 2))
-        let saved = try #require(PDFDocument(data: try PDFPlugin.edited([.add(PDFMark(id: "peeker-b", page: 0, rect: made.rect, kind: .drawing(made.drawing)))], from: file.path)))
+        let made = try #require(
+            PDFDrawing.make(
+                .box, from: CGPoint(x: 100, y: 300), to: CGPoint(x: 160, y: 360), points: [], color: PDFMarkupStrip.palette[1].color, width: 2))
+        let saved = try #require(
+            PDFDocument(
+                data: try PDFPlugin.edited([.add(PDFMark(id: "peeker-b", page: 0, rect: made.rect, kind: .drawing(made.drawing)))], from: file.path)))
         let annotation = try #require(saved.page(at: 0)?.annotations.first)
         #expect(PDFMarks.drawing(of: annotation)?.color == PDFMarkupStrip.palette[1].color)
     }
@@ -289,7 +303,8 @@ private func drawings(_ document: PDFPluginDocument) -> [PDFDrawing] {
     @Test func drawingsAndLooksComeBackFromARecoveryRecord() async throws {
         let (document, window) = try await shown()
         defer { window.close() }
-        let made = try #require(PDFDrawing.make(.arrow, from: CGPoint(x: 100, y: 300), to: CGPoint(x: 200, y: 340), points: [], color: blue, width: 2))
+        let made = try #require(
+            PDFDrawing.make(.arrow, from: CGPoint(x: 100, y: 300), to: CGPoint(x: 200, y: 340), points: [], color: blue, width: 2))
         let mark = PDFMark(id: "peeker-r", page: 0, rect: made.rect, kind: .drawing(made.drawing))
         let record = try JSONEncoder().encode([PDFEdit.add(mark), .setLook(id: mark.id, page: 0, color: PDFMarkupStrip.palette[1].color, width: 3.5)])
         #expect(document.restore(encoded: record))

@@ -25,14 +25,18 @@ nonisolated final class MarkdownImageAttachment: NSTextAttachment {
     }
 
     /// TextKit 2, as in the Peek panel. The proposed line leaves out the padding but not a list's or quote's indent.
-    override func attachmentBounds(for attributes: [NSAttributedString.Key: Any], location: any NSTextLocation, textContainer: NSTextContainer?,
-                                   proposedLineFragment: CGRect, position: CGPoint) -> CGRect {
+    override func attachmentBounds(
+        for attributes: [NSAttributedString.Key: Any], location: any NSTextLocation, textContainer: NSTextContainer?,
+        proposedLineFragment: CGRect, position: CGPoint
+    ) -> CGRect {
         bounds(fitting: proposedLineFragment.width - Self.indent(attributes[.paragraphStyle]))
     }
 
     /// TextKit 1, as in printing. The proposed line includes the padding on both sides, and the indent.
-    override func attachmentBounds(for textContainer: NSTextContainer?, proposedLineFragment lineFrag: NSRect, glyphPosition position: NSPoint,
-                                   characterIndex charIndex: Int) -> NSRect {
+    override func attachmentBounds(
+        for textContainer: NSTextContainer?, proposedLineFragment lineFrag: NSRect, glyphPosition position: NSPoint,
+        characterIndex charIndex: Int
+    ) -> NSRect {
         let storage = textContainer?.layoutManager?.textStorage
         let style = charIndex < storage?.length ?? 0 ? storage?.attribute(.paragraphStyle, at: charIndex, effectiveRange: nil) : nil
         return bounds(fitting: lineFrag.width - 2 * (textContainer?.lineFragmentPadding ?? 0) - Self.indent(style))

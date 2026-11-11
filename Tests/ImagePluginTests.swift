@@ -10,9 +10,11 @@ import UniformTypeIdentifiers
 @Suite struct ImagePluginTests {
     /// A `width`×`height` image written as `type`, with an optional EXIF orientation.
     private func image(width: Int, height: Int, type: UTType, orientation: Int? = nil, dpi: Double? = nil) throws -> URL {
-        let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-                                             space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        let context = try #require(
+            CGContext(
+                data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
         context.setFillColor(red: 1, green: 0, blue: 0, alpha: 1)
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         let url = try TempFile.make(Data(), name: "f." + (type.preferredFilenameExtension ?? "img"))
@@ -69,8 +71,10 @@ import UniformTypeIdentifiers
     }
 
     @Test func printStartsInTheImagesOrientation() async throws {
-        let wide = try await ImagePlugin.open(try image(width: 400, height: 200, type: .png), context: OpenContext(maxPixels: 100, allowsEditing: true))
-        let tall = try await ImagePlugin.open(try image(width: 200, height: 400, type: .png), context: OpenContext(maxPixels: 100, allowsEditing: true))
+        let wide = try await ImagePlugin.open(
+            try image(width: 400, height: 200, type: .png), context: OpenContext(maxPixels: 100, allowsEditing: true))
+        let tall = try await ImagePlugin.open(
+            try image(width: 200, height: 400, type: .png), context: OpenContext(maxPixels: 100, allowsEditing: true))
         let wideJob = try #require(wide.printJob), tallJob = try #require(tall.printJob)
         #expect(wideJob(NSPrintInfo())?.printInfo.orientation == .landscape)
         #expect(tallJob(NSPrintInfo())?.printInfo.orientation == .portrait)
@@ -79,12 +83,15 @@ import UniformTypeIdentifiers
     /// Fit pagination shrinks a view that's too big for the page and never enlarges one.
     @Test func aSmallImagePrintsAtItsOwnSizeAndALargeOneFitsThePage() async throws {
         func redArea(width: Int, height: Int) async throws -> (pixels: Int, page: CGSize) {
-            let document = try await ImagePlugin.open(try image(width: width, height: height, type: .png), context: OpenContext(maxPixels: 100, allowsEditing: true))
+            let document = try await ImagePlugin.open(
+                try image(width: width, height: height, type: .png), context: OpenContext(maxPixels: 100, allowsEditing: true))
             let job = try #require(document.printJob)
             let page = try #require(try printed(job, title: "f.png").page(at: 0))
             let size = page.bounds(for: .mediaBox).size
-            let context = try #require(CGContext(data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
-                                                 space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            let context = try #require(
+                CGContext(
+                    data: nil, width: Int(size.width), height: Int(size.height), bitsPerComponent: 8, bytesPerRow: 0,
+                    space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
             context.setFillColor(gray: 1, alpha: 1)
             context.fill(CGRect(origin: .zero, size: size))
             page.draw(with: .mediaBox, to: context)
@@ -131,7 +138,9 @@ import UniformTypeIdentifiers
 
     /// The same PNG quirk as the screen decode: the properties must be read before the thumbnail.
     @Test func decodesInFullUprightLikeTheScreenDecode() async throws {
-        let exif: [CFString: Any] = [kCGImagePropertyOrientation: 6, kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: "2026:10:31 09:00:00"]]
+        let exif: [CFString: Any] = [
+            kCGImagePropertyOrientation: 6, kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: "2026:10:31 09:00:00"],
+        ]
         let url = try imageFile(try cornerImage(), type: .png, properties: exif)
         let screen = try await ImagePlugin.decode(url, maxPixels: 1000)
         let full = try await ImagePlugin.decodeFull(url, pixelSize: screen.pixelSize)

@@ -111,7 +111,7 @@ import Testing
         document.onRecovery = { results.append($1) }
         document.restore(record)
         #expect(results == [.rejected(record)])
-        let edited = document.isEdited   // a failing #expect on the document itself would describe its 10 MB text view
+        let edited = document.isEdited  // a failing #expect on the document itself would describe its 10 MB text view
         #expect(!edited)
         document.close()
         #expect(store.all() == [record])
@@ -154,7 +154,8 @@ import Testing
         let store = RecoveryStore.temporary()
         let record = RecoveryRecord(id: UUID().uuidString, url: file, pluginID: "text", fileModified: nil, text: "recovered\n")
         try store.write(record)
-        let document = DocumentViewController(url: file, entry: PluginEntry(TextPlugin.self), config: Config(), allowsEditing: true, recovery: store, recoveryID: record.id)
+        let document = DocumentViewController(
+            url: file, entry: PluginEntry(TextPlugin.self), config: Config(), allowsEditing: true, recovery: store, recoveryID: record.id)
         document.loadViewIfNeeded()
         document.restore(record)
         document.close()

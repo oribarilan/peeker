@@ -15,11 +15,12 @@ import PeekerKit
             guard let self, let document, let view, event.window === view.window, view.window != nil else { return event }
             let point = view.convert(event.locationInWindow, from: nil)
             let inside = view.bounds.contains(point)
-            let zooms = switch event.type {
-            case .scrollWheel: scrollZooms(event, inside: inside)
-            case .magnify: inside && !document.pinchesNatively
-            default: false
-            }
+            let zooms =
+                switch event.type {
+                case .scrollWheel: scrollZooms(event, inside: inside)
+                case .magnify: inside && !document.pinchesNatively
+                default: false
+                }
             guard zooms else { return event }
             // A zooming gesture's momentum and its empty start and end are swallowed; only real movement zooms.
             if event.momentumPhase.isEmpty, let factor = Self.factor(for: event) {
@@ -52,8 +53,10 @@ import PeekerKit
     /// throws on reading a scroll's magnification, which would end the monitor and let the event through unzoomed.
     static func factor(for event: NSEvent) -> Double? {
         switch event.type {
-        case .scrollWheel: factor(type: .scrollWheel, command: true, deltaY: event.scrollingDeltaY, precise: event.hasPreciseScrollingDeltas,
-                                  magnification: 0, pinchesNatively: false)
+        case .scrollWheel:
+            factor(
+                type: .scrollWheel, command: true, deltaY: event.scrollingDeltaY, precise: event.hasPreciseScrollingDeltas,
+                magnification: 0, pinchesNatively: false)
         case .magnify: factor(type: .magnify, command: false, deltaY: 0, precise: false, magnification: event.magnification, pinchesNatively: false)
         default: nil
         }
@@ -62,12 +65,15 @@ import PeekerKit
     /// How much an event zooms, or nil when it isn't a zoom gesture. Scrolling up zooms in; a trackpad's fine deltas
     /// zoom gently and a wheel's notches in steps of about 5%. One event never zooms by more than a quarter, so a fast
     /// accelerated wheel doesn't leap.
-    static func factor(type: NSEvent.EventType, command: Bool, deltaY: CGFloat, precise: Bool, magnification: CGFloat, pinchesNatively: Bool) -> Double? {
-        let raw: Double? = switch type {
-        case .scrollWheel where command && deltaY != 0: exp(Double(deltaY) * (precise ? 0.005 : 0.05))
-        case .magnify where !pinchesNatively && magnification != 0: 1 + Double(magnification)
-        default: nil
-        }
+    static func factor(type: NSEvent.EventType, command: Bool, deltaY: CGFloat, precise: Bool, magnification: CGFloat, pinchesNatively: Bool)
+        -> Double?
+    {
+        let raw: Double? =
+            switch type {
+            case .scrollWheel where command && deltaY != 0: exp(Double(deltaY) * (precise ? 0.005 : 0.05))
+            case .magnify where !pinchesNatively && magnification != 0: 1 + Double(magnification)
+            default: nil
+            }
         return raw.map { min(max($0, 0.8), 1.25) }
     }
 

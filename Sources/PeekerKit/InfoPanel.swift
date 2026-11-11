@@ -25,7 +25,9 @@ public enum InfoPanel {
         let text = NSMutableAttributedString()
         for (index, row) in rows.enumerated() {
             text.append(NSAttributedString(string: "\t" + row.label, attributes: [.font: font, .foregroundColor: NSColor.secondaryLabelColor]))
-            text.append(NSAttributedString(string: "\t" + row.value + (index < rows.count - 1 ? "\n" : ""), attributes: [.font: font, .foregroundColor: NSColor.labelColor]))
+            text.append(
+                NSAttributedString(
+                    string: "\t" + row.value + (index < rows.count - 1 ? "\n" : ""), attributes: [.font: font, .foregroundColor: NSColor.labelColor]))
         }
         text.addAttribute(.paragraphStyle, value: style, range: NSRange(location: 0, length: text.length))
         let field = NSTextField(wrappingLabelWithString: "")

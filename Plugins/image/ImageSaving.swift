@@ -13,9 +13,13 @@ nonisolated enum ImageSaving {
 
     /// Applies `edits` and then draws `marks` on the file at `from` (by default `path`) and writes the result to `path`,
     /// in the source's format. Writes nothing on failure.
-    @concurrent static func save(_ edits: [ImageEdit], marks: [ImageMark] = [], from original: ImageSource? = nil, to path: String) async throws(PluginError) {
+    @concurrent static func save(_ edits: [ImageEdit], marks: [ImageMark] = [], from original: ImageSource? = nil, to path: String)
+        async throws(PluginError)
+    {
         let name = URL(filePath: path).lastPathComponent
-        guard let source = (original ?? .file(URL(filePath: path))).makeSource(), let type = CGImageSourceGetType(source), CGImageSourceGetCount(source) > 0 else {
+        guard let source = (original ?? .file(URL(filePath: path))).makeSource(), let type = CGImageSourceGetType(source),
+            CGImageSourceGetCount(source) > 0
+        else {
             throw PluginError("“\(name)” is no longer a readable image.")
         }
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
@@ -33,7 +37,9 @@ nonisolated enum ImageSaving {
 
     /// The full image at `path`, upright, with `edits` applied and `marks` drawn: what a save would write, for Copy.
     @concurrent static func image(_ edits: [ImageEdit], marks: [ImageMark], from original: ImageSource) async -> CGImage? {
-        guard let source = original.makeSource(), CGImageSourceGetCount(source) > 0, let full = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        guard let source = original.makeSource(), CGImageSourceGetCount(source) > 0, let full = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            return nil
+        }
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] ?? [:]
         let orientation = (properties[kCGImagePropertyOrientation] as? UInt32).flatMap(CGImagePropertyOrientation.init(rawValue:)) ?? .up
         guard let edited = ImageEditing.apply(orientation.uprightEdits + edits, to: full) else { return nil }
@@ -50,15 +56,20 @@ nonisolated enum ImageSaving {
 
     /// The full image turned upright, edited, and written with its metadata, orientation 1 and its new size.
     /// With marks, an HDR photo is saved in standard range: they're drawn in an ordinary bitmap.
-    private static func redrawn(_ source: CGImageSource, type: CFString, properties: [CFString: Any], edits: [ImageEdit], marks: [ImageMark]) -> Data? {
+    private static func redrawn(_ source: CGImageSource, type: CFString, properties: [CFString: Any], edits: [ImageEdit], marks: [ImageMark]) -> Data?
+    {
         // An HDR photo's gain map would be lost with the plain decode, which gives only the SDR base image. Decoded
         // to HDR, edited, then redrawn in extended linear sRGB at its headroom, it's written with a new ISO gain map.
-        let hdr = marks.isEmpty && (CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil
-            || CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil)
+        let hdr =
+            marks.isEmpty
+            && (CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) != nil
+                || CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil)
         let decode = hdr ? [kCGImageSourceDecodeRequest: kCGImageSourceDecodeToHDR] as CFDictionary : nil
         guard let full = CGImageSourceCreateImageAtIndex(source, 0, decode), var edited = ImageEditing.apply(edits, to: full) else { return nil }
         if !marks.isEmpty {
-            guard let marked = MarkRenderer.render(marks, on: edited, imageSize: CGSize(width: edited.width, height: edited.height)) else { return nil }
+            guard let marked = MarkRenderer.render(marks, on: edited, imageSize: CGSize(width: edited.width, height: edited.height)) else {
+                return nil
+            }
             edited = marked
         }
         guard let image = hdr ? extendedRange(edited) : edited else { return nil }
@@ -89,8 +100,11 @@ nonisolated extension ImageSaving {
     /// Encoding the HDR decode directly after an edit gives wrong values.
     static func extendedRange(_ image: CGImage) -> CGImage? {
         let info = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.floatComponents.rawValue | CGBitmapInfo.byteOrder16Little.rawValue
-        guard let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 16, bytesPerRow: 0,
-                                      space: CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!, bitmapInfo: info) else { return nil }
+        guard
+            let context = CGContext(
+                data: nil, width: image.width, height: image.height, bitsPerComponent: 16, bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!, bitmapInfo: info)
+        else { return nil }
         context.setEDRTargetHeadroom(image.contentHeadroom)
         context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         return context.makeImage()
@@ -117,11 +131,12 @@ nonisolated extension CGImagePropertyOrientation {
 
     /// The orientation after `edit` turns or mirrors the image as shown.
     func then(_ edit: ImageEdit) -> CGImagePropertyOrientation {
-        let e: (Int, Int, Int, Int) = switch edit {
-        case .rotate(let by): by > 0 ? Self.right.matrix : Self.left.matrix
-        case .flip(let horizontal): horizontal ? Self.upMirrored.matrix : Self.downMirrored.matrix
-        case .crop, .resize: Self.up.matrix
-        }
+        let e: (Int, Int, Int, Int) =
+            switch edit {
+            case .rotate(let by): by > 0 ? Self.right.matrix : Self.left.matrix
+            case .flip(let horizontal): horizontal ? Self.upMirrored.matrix : Self.downMirrored.matrix
+            case .crop, .resize: Self.up.matrix
+            }
         let m = matrix
         let product = (e.0 * m.0 + e.1 * m.2, e.0 * m.1 + e.1 * m.3, e.2 * m.0 + e.3 * m.2, e.2 * m.1 + e.3 * m.3)
         return Self.all.first { $0.matrix == product } ?? .up

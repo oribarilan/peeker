@@ -63,7 +63,8 @@ public enum TablePlugin: Plugin {
         text.makeContiguousUTF8()  // a legacy encoding decodes to a bridged string, many times slower to index
         let table = CSVTable(text: text, delimiter: delimiter ?? CSVTable.guessDelimiter(in: text))
         let hasHeader = header ?? table.guessHeader()
-        return Loaded(table: table, header: hasHeader, columns: ColumnSample.sample(table, hasHeader: hasHeader),
-                      format: format, byteCount: data.count)
+        return Loaded(
+            table: table, header: hasHeader, columns: ColumnSample.sample(table, hasHeader: hasHeader),
+            format: format, byteCount: data.count)
     }
 }

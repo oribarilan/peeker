@@ -10,8 +10,10 @@ open class HoverTableScrollView: NSScrollView {
     public override init(frame: NSRect) {
         super.init(frame: frame)
         documentView = table
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-                                       owner: self))
+        addTrackingArea(
+            NSTrackingArea(
+                rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+                owner: self))
     }
 
     public required init?(coder: NSCoder) { nil }

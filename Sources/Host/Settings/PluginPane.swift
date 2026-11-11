@@ -14,9 +14,11 @@ struct PluginPane: View {
             ConfigLockedSection(store: store)
             Group {
                 Section {
-                    Toggle("Open files with \(plugin.name)", isOn: Binding(
-                        get: { !store.config.disabled.contains(plugin.id) },
-                        set: { on in model.save { if on { $0.disabled.remove(plugin.id) } else { $0.disabled.insert(plugin.id) } } }))
+                    Toggle(
+                        "Open files with \(plugin.name)",
+                        isOn: Binding(
+                            get: { !store.config.disabled.contains(plugin.id) },
+                            set: { on in model.save { if on { $0.disabled.remove(plugin.id) } else { $0.disabled.insert(plugin.id) } } }))
                 } footer: {
                     Text("Off, \(plugin.name) opens nothing: its files go to Finder's Quick Look on Space, and no other plugin takes them.")
                         .foregroundStyle(.secondary)
@@ -46,16 +48,21 @@ struct PluginPane: View {
         let current = store.config.shortcut(for: command, of: plugin.id)
         return LabeledContent(command.title) {
             HStack(alignment: .firstTextBaseline) {
-                KeyRecorder(shortcut: current, rules: command.isEditTool ? .editTool : .viewTool,
-                            conflict: { shortcutConflict($0, command: command.id, plugin: plugin, config: store.config, menu: MainMenu.fixedShortcuts) },
-                            listening: $model.recorder, id: key,
-                            onRecord: { shortcut in model.save { $0.recordShortcut(shortcut, for: key) } })
+                KeyRecorder(
+                    shortcut: current, rules: command.isEditTool ? .editTool : .viewTool,
+                    conflict: { shortcutConflict($0, command: command.id, plugin: plugin, config: store.config, menu: MainMenu.fixedShortcuts) },
+                    listening: $model.recorder, id: key,
+                    onRecord: { shortcut in model.save { $0.recordShortcut(shortcut, for: key) } })
                 if current != nil {
-                    Button { model.save { $0.clearShortcut(for: key) } } label: { Image(systemName: "xmark.circle.fill") }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(.secondary)
-                        .help("No shortcut")
-                        .accessibilityLabel("Clear the shortcut for \(command.title)")
+                    Button {
+                        model.save { $0.clearShortcut(for: key) }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("No shortcut")
+                    .accessibilityLabel("Clear the shortcut for \(command.title)")
                 }
                 Button("Reset") { model.save { $0.resetShortcut(for: key) } }
                     .disabled(current == defaultShortcut)

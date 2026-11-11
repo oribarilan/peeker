@@ -26,8 +26,9 @@ private func inWindow(_ document: PDFPluginDocument) -> NSWindow {
 private func mouse(_ type: NSEvent.EventType, at point: CGPoint, in document: PDFPluginDocument, window: NSWindow) -> NSEvent {
     let page = document.pdfView.document!.page(at: 0)!
     let location = document.pdfView.convert(document.pdfView.convert(point, from: page), to: nil)
-    return NSEvent.mouseEvent(with: type, location: location, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-                              context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+    return NSEvent.mouseEvent(
+        with: type, location: location, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
+        context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
 }
 
 /// Drags the mark under `start` to `end` (page 0's space) with the mouse, through the tools as the view hands them
@@ -72,7 +73,8 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
     }
 
     @Test func resizingMovesOnlyTheDraggedCorner() {
-        #expect(EditController.resized(place, corner: .bottomRight, by: CGSize(width: 20, height: -10)) == CGRect(x: 100, y: 290, width: 200, height: 70))
+        #expect(
+            EditController.resized(place, corner: .bottomRight, by: CGSize(width: 20, height: -10)) == CGRect(x: 100, y: 290, width: 200, height: 70))
         #expect(EditController.resized(place, corner: .topLeft, by: CGSize(width: -10, height: 5)) == CGRect(x: 90, y: 300, width: 190, height: 65))
     }
 
@@ -106,7 +108,8 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
 
     @Test func movingASavedMarkIsAnEditThatKeepsItsName() async throws {
         let file = try TempFile.makePDF(pages: 1)
-        try await PDFPlugin.write([.add(PDFMark(id: "peeker-s", page: 0, rect: place, kind: .signature(strokes: [[.zero, CGPoint(x: 1, y: 1)]])))], to: file.path)
+        try await PDFPlugin.write(
+            [.add(PDFMark(id: "peeker-s", page: 0, rect: place, kind: .signature(strokes: [[.zero, CGPoint(x: 1, y: 1)]])))], to: file.path)
         let document = try await open(file)
         let window = inWindow(document)
         var edits = 0
@@ -225,7 +228,9 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         tools.commitTextBox(id: nil, page: 0, topLeft: CGPoint(x: 100, y: 500), text: "a", fontSize: 12)
         let id = try #require(document.pendingEdits.first?.markID)
         tools.commitTextBox(id: id, page: 0, topLeft: CGPoint(x: 100, y: 500), text: "abc", fontSize: 20)
-        guard document.pendingEdits.count == 1, case .add(let mark) = document.pendingEdits[0] else { Issue.record("\(document.pendingEdits)"); return }
+        guard document.pendingEdits.count == 1, case .add(let mark) = document.pendingEdits[0] else {
+            Issue.record("\(document.pendingEdits)"); return
+        }
         #expect(mark.kind == .textBox(text: "abc", fontSize: 20))
     }
 
@@ -235,7 +240,9 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         let window = offscreenWindow(holding: document.pdfView, width: 600, height: 800)
         let page = try #require(document.pdfView.document?.page(at: 0))
         var ended: (String, Double)?
-        let editor = TextBoxEditor(view: document.pdfView, page: page, topLeft: CGPoint(x: 100, y: 500), text: "", fontSize: 12, style: .standard, hiding: nil) { text, size, _ in ended = (text, size) }
+        let editor = TextBoxEditor(
+            view: document.pdfView, page: page, topLeft: CGPoint(x: 100, y: 500), text: "", fontSize: 12, style: .standard, hiding: nil
+        ) { text, size, _ in ended = (text, size) }
         let textView = try #require(window.firstResponder as? NSTextView)
         textView.string = "Typed"
         window.makeFirstResponder(nil)
@@ -247,7 +254,9 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         let document = try await open(try TempFile.makePDF(pages: 1))
         let window = inWindow(document)
         let page = try #require(document.pdfView.document?.page(at: 0))
-        let editor = TextBoxEditor(view: document.pdfView, page: page, topLeft: CGPoint(x: 100, y: 500), text: "", fontSize: 12, style: .standard, hiding: nil) { _, _, _ in }
+        let editor = TextBoxEditor(
+            view: document.pdfView, page: page, topLeft: CGPoint(x: 100, y: 500), text: "", fontSize: 12, style: .standard, hiding: nil
+        ) { _, _, _ in }
         let textView = try #require(window.firstResponder as? NSTextView)
         #expect(textView.undoManager != nil && textView.undoManager !== document.undoManager)
         editor.end()
@@ -349,7 +358,9 @@ private func drag(in document: PDFPluginDocument, window: NSWindow, from start: 
         // The darkest pixel within a point of (x, y), with y measured from the bottom as the view draws.
         func brightness(_ x: CGFloat, _ y: CGFloat) -> CGFloat {
             let column = Int(x * scale), row = bitmap.pixelsHigh - 1 - Int(y * scale)
-            return (row - Int(scale)...row + Int(scale)).compactMap { bitmap.colorAt(x: column, y: $0)?.usingColorSpace(.deviceRGB)?.brightnessComponent }.min() ?? -1
+            return (row - Int(scale)...row + Int(scale)).compactMap {
+                bitmap.colorAt(x: column, y: $0)?.usingColorSpace(.deviceRGB)?.brightnessComponent
+            }.min() ?? -1
         }
         return Pixels(line: brightness(220, 36), edge: brightness(0, 75), paper: brightness(220, 100))
     }

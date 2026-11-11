@@ -102,12 +102,23 @@ private final class ZoomingDocument: Zooming {
     }
 
     @Test func cmdScrollAndPinchBecomeZoomSteps() {
-        #expect(ZoomGestures.factor(type: .scrollWheel, command: true, deltaY: 10, precise: true, magnification: 0, pinchesNatively: false).map { $0 > 1 } == true)
-        #expect(ZoomGestures.factor(type: .scrollWheel, command: true, deltaY: -10, precise: true, magnification: 0, pinchesNatively: false).map { $0 < 1 } == true)
-        #expect(ZoomGestures.factor(type: .scrollWheel, command: false, deltaY: 10, precise: true, magnification: 0, pinchesNatively: false) == nil, "a plain scroll scrolls")
+        #expect(
+            ZoomGestures.factor(type: .scrollWheel, command: true, deltaY: 10, precise: true, magnification: 0, pinchesNatively: false).map { $0 > 1 }
+                == true)
+        #expect(
+            ZoomGestures.factor(type: .scrollWheel, command: true, deltaY: -10, precise: true, magnification: 0, pinchesNatively: false).map {
+                $0 < 1
+            } == true)
+        #expect(
+            ZoomGestures.factor(type: .scrollWheel, command: false, deltaY: 10, precise: true, magnification: 0, pinchesNatively: false) == nil,
+            "a plain scroll scrolls")
         #expect(ZoomGestures.factor(type: .magnify, command: false, deltaY: 0, precise: true, magnification: 0.1, pinchesNatively: false) == 1.1)
-        #expect(ZoomGestures.factor(type: .magnify, command: false, deltaY: 0, precise: true, magnification: 0.1, pinchesNatively: true) == nil, "left to the view")
-        #expect(ZoomGestures.factor(type: .scrollWheel, command: true, deltaY: 400, precise: true, magnification: 0, pinchesNatively: false) == 1.25, "one event zooms at most a quarter")
+        #expect(
+            ZoomGestures.factor(type: .magnify, command: false, deltaY: 0, precise: true, magnification: 0.1, pinchesNatively: true) == nil,
+            "left to the view")
+        #expect(
+            ZoomGestures.factor(type: .scrollWheel, command: true, deltaY: 400, precise: true, magnification: 0, pinchesNatively: false) == 1.25,
+            "one event zooms at most a quarter")
     }
 
     @Test func aGestureZoomsAroundThePointer() async throws {
@@ -119,11 +130,11 @@ private final class ZoomingDocument: Zooming {
 }
 
 extension ZoomControlling {
-/// Found on screen: reading a scroll event's magnification threw, so Cmd+scroll never zoomed.
-@Test func aRealScrollEventIsReadWithoutTouchingMagnification() throws {
-    let scroll = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: 1, wheel2: 0, wheel3: 0))
-    scroll.flags = .maskCommand
-    let event = try #require(NSEvent(cgEvent: scroll))
-    #expect(ZoomGestures.factor(for: event).map { $0 > 1 } == true)
-}
+    /// Found on screen: reading a scroll event's magnification threw, so Cmd+scroll never zoomed.
+    @Test func aRealScrollEventIsReadWithoutTouchingMagnification() throws {
+        let scroll = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: 1, wheel2: 0, wheel3: 0))
+        scroll.flags = .maskCommand
+        let event = try #require(NSEvent(cgEvent: scroll))
+        #expect(ZoomGestures.factor(for: event).map { $0 > 1 } == true)
+    }
 }

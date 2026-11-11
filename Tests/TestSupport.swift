@@ -41,9 +41,12 @@ enum TempFile {
 // MARK: Setup
 
 /// What `plugin` opens for `url`, as `type`. `editing` is false for the Peek panel's view-only documents.
-func openDocument<Document>(_ url: URL, with plugin: any Plugin.Type, as type: Document.Type, editing: Bool = true,
-                            maxPixels: Int = 0, preferences: PluginPreferences? = nil) async throws -> Document {
-    try #require(try await plugin.open(url, context: OpenContext(maxPixels: maxPixels, allowsEditing: editing, preferences: preferences)) as? Document)
+func openDocument<Document>(
+    _ url: URL, with plugin: any Plugin.Type, as type: Document.Type, editing: Bool = true,
+    maxPixels: Int = 0, preferences: PluginPreferences? = nil
+) async throws -> Document {
+    try #require(
+        try await plugin.open(url, context: OpenContext(maxPixels: maxPixels, allowsEditing: editing, preferences: preferences)) as? Document)
 }
 
 /// Preferences of their own, so a test never reads or writes the app's; `close()` throws them away.
@@ -67,8 +70,9 @@ func offscreenWindow(holding view: NSView, width: CGFloat = 700, height: CGFloat
 /// An off-screen window shaped like an Editor window: content runs under a unified toolbar, whose strip
 /// `contentLayoutRect` leaves out.
 func toolbarWindow(holding view: NSView, width: CGFloat = 700, height: CGFloat = 900) -> NSWindow {
-    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: height), styleMask: [.titled, .fullSizeContentView],
-                          backing: .buffered, defer: false)
+    let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: width, height: height), styleMask: [.titled, .fullSizeContentView],
+        backing: .buffered, defer: false)
     window.isReleasedWhenClosed = false
     window.toolbar = NSToolbar(identifier: "test-\(UUID().uuidString)")
     window.toolbarStyle = .unified
@@ -80,10 +84,13 @@ func toolbarWindow(holding view: NSView, width: CGFloat = 700, height: CGFloat =
 }
 
 /// A document view controller on `url`, opened through `plugin`, with its content (or the failure view) showing.
-func loadedDocument(_ url: URL, with plugin: any Plugin.Type, allowsEditing: Bool = true, recovery: RecoveryStore? = nil,
-                    recoveryID: String = UUID().uuidString, journalDelay: TimeInterval = 2) async -> DocumentViewController {
-    let document = DocumentViewController(url: url, entry: PluginEntry(plugin), config: Config(), allowsEditing: allowsEditing,
-                                          recovery: recovery, recoveryID: recoveryID, journalDelay: journalDelay)
+func loadedDocument(
+    _ url: URL, with plugin: any Plugin.Type, allowsEditing: Bool = true, recovery: RecoveryStore? = nil,
+    recoveryID: String = UUID().uuidString, journalDelay: TimeInterval = 2
+) async -> DocumentViewController {
+    let document = DocumentViewController(
+        url: url, entry: PluginEntry(plugin), config: Config(), allowsEditing: allowsEditing,
+        recovery: recovery, recoveryID: recoveryID, journalDelay: journalDelay)
     document.loadViewIfNeeded()
     await document.load()
     return document
@@ -92,13 +99,17 @@ func loadedDocument(_ url: URL, with plugin: any Plugin.Type, allowsEditing: Boo
 /// An Editor window on a new file named `name`, shown with `plugin`. Waits for the document to open unless `waiting`
 /// is false. `others` join its catalog, so Open With has plugins to switch to.
 /// The window's sidebar choice is remembered only in `sidebar`, never in the test run's preferences.
-func documentWindow(for plugin: any Plugin.Type, name: String = "f.bin", file: URL? = nil, others: [any Plugin.Type] = [], config: Config = Config(), tips: TipStore = TipStore(defaults: nil),
-                    waiting: Bool = true, sidebar: SidebarMemory = SidebarMemory(defaults: nil)) async throws -> DocumentWindowController {
+func documentWindow(
+    for plugin: any Plugin.Type, name: String = "f.bin", file: URL? = nil, others: [any Plugin.Type] = [], config: Config = Config(),
+    tips: TipStore = TipStore(defaults: nil),
+    waiting: Bool = true, sidebar: SidebarMemory = SidebarMemory(defaults: nil)
+) async throws -> DocumentWindowController {
     let url = try file ?? TempFile.make(Data("x".utf8), name: name)
     let entry = PluginEntry(plugin)
     let catalog = PluginCatalog(entries: [entry] + others.map { PluginEntry($0) }, config: config)
-    let controller = DocumentWindowController(url: url, catalog: catalog, config: config, recovery: nil,
-                                              recoveryClipboard: nil, sidebarMemory: sidebar, tips: tips)
+    let controller = DocumentWindowController(
+        url: url, catalog: catalog, config: config, recovery: nil,
+        recoveryClipboard: nil, sidebarMemory: sidebar, tips: tips)
     controller.show(with: entry)
     // Until the content has shown, the toolbar has no tool buttons yet.
     if waiting { try await waitUntil(seconds: 2) { controller.current?.hasShownContent == true } }
@@ -111,8 +122,9 @@ struct TimedOut: Error {}
 /// throws `TimedOut`.
 /// A key press in `window`, as the window's key monitor sees it.
 func key(_ character: String, code: UInt16, in window: NSWindow, modifiers: NSEvent.ModifierFlags = []) -> NSEvent {
-    NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber,
-                     context: nil, characters: character, charactersIgnoringModifiers: character, isARepeat: false, keyCode: code)!
+    NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber,
+        context: nil, characters: character, charactersIgnoringModifiers: character, isARepeat: false, keyCode: code)!
 }
 
 func waitUntil(seconds: Double, sourceLocation: SourceLocation = #_sourceLocation, _ condition: () -> Bool) async throws {

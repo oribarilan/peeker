@@ -81,8 +81,12 @@ private func apply(_ change: TextChange, to text: String) -> String {
     @Test func addingAfterASiblingFollowsTheIndentation() throws {
         let text = "{\n    \"a\": 1,\n    \"b\": 2\n}"
         let root = try parse(text)
-        #expect(apply(JSONEdits.insert(after: root.children[0], key: "new", in: text), to: text) == "{\n    \"a\": 1,\n    \"new\": null,\n    \"b\": 2\n}")
-        #expect(apply(JSONEdits.insert(after: root.children[1], key: "new", in: text), to: text) == "{\n    \"a\": 1,\n    \"b\": 2,\n    \"new\": null\n}")
+        #expect(
+            apply(JSONEdits.insert(after: root.children[0], key: "new", in: text), to: text)
+                == "{\n    \"a\": 1,\n    \"new\": null,\n    \"b\": 2\n}")
+        #expect(
+            apply(JSONEdits.insert(after: root.children[1], key: "new", in: text), to: text)
+                == "{\n    \"a\": 1,\n    \"b\": 2,\n    \"new\": null\n}")
         let compact = #"[1, 2]"#
         #expect(apply(JSONEdits.insert(after: try parse(compact).children[0], key: nil, in: compact), to: compact) == "[1, null, 2]")
     }
@@ -91,9 +95,13 @@ private func apply(_ change: TextChange, to text: String) -> String {
         let empty = #"{"a": {}}"#
         #expect(apply(JSONEdits.addChild(to: try parse(empty).children[0], key: "k", in: empty), to: empty) == #"{"a": {"k": null}}"#)
         let lines = "{\n  \"list\": [\n    1\n  ]\n}"
-        #expect(apply(JSONEdits.addChild(to: try parse(lines).children[0], key: nil, in: lines), to: lines) == "{\n  \"list\": [\n    1,\n    null\n  ]\n}")
+        #expect(
+            apply(JSONEdits.addChild(to: try parse(lines).children[0], key: nil, in: lines), to: lines)
+                == "{\n  \"list\": [\n    1,\n    null\n  ]\n}")
         let emptyLines = "{\n  \"o\": {\n  }\n}"
-        #expect(apply(JSONEdits.addChild(to: try parse(emptyLines).children[0], key: "k", in: emptyLines), to: emptyLines) == "{\n  \"o\": {\n    \"k\": null\n  }\n}")
+        #expect(
+            apply(JSONEdits.addChild(to: try parse(emptyLines).children[0], key: "k", in: emptyLines), to: emptyLines)
+                == "{\n  \"o\": {\n    \"k\": null\n  }\n}")
     }
 
     @Test func movingKeepsTheSeparatorsInPlace() throws {

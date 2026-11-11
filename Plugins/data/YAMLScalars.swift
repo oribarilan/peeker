@@ -37,7 +37,8 @@ nonisolated extension YAMLParser.Reader {
         try endLine()
         try skipToContent()
         if multiline { return DataNode(kind: .string, key: key, value: fold(first..<end), start: start) }
-        return DataNode(kind: asString ? .string : kind(first..<end), key: key, value: String(decoding: bytes[first..<end], as: UTF8.self), start: start)
+        return DataNode(
+            kind: asString ? .string : kind(first..<end), key: key, value: String(decoding: bytes[first..<end], as: UTF8.self), start: start)
     }
 
     /// One line of a plain scalar from the cursor: where its text ends, where reading stopped, and whether a comment
@@ -317,7 +318,9 @@ nonisolated extension YAMLParser.Reader {
         if position < end, text[position] == UInt8(ascii: "."), end - position == 4 {
             let word = text[(position + 1)...]
             if word.elementsEqual("inf".utf8) || word.elementsEqual("Inf".utf8) || word.elementsEqual("INF".utf8) { return true }
-            if position == text.startIndex, word.elementsEqual("nan".utf8) || word.elementsEqual("NaN".utf8) || word.elementsEqual("NAN".utf8) { return true }
+            if position == text.startIndex, word.elementsEqual("nan".utf8) || word.elementsEqual("NaN".utf8) || word.elementsEqual("NAN".utf8) {
+                return true
+            }
         }
         let whole = position
         while position < end, isDigit(text[position]) { position += 1 }

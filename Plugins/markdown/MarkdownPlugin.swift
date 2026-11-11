@@ -63,8 +63,9 @@ public enum MarkdownPlugin: Plugin {
         let source = try TextCodec.decode(try PluginError.catching { try Data(contentsOf: url, options: .alwaysMapped) }).text
         let blocks = MarkdownTree.blocks(from: source)
         let info = info(words: source.split { $0.isWhitespace }.count, tasks: MarkdownTree.taskCounts(in: blocks))
-        return Parsed(blocks: blocks, outline: MarkdownTree.outline(of: blocks), info: info,
-                      images: MarkdownImages.find(in: blocks, folder: url.deletingLastPathComponent()))
+        return Parsed(
+            blocks: blocks, outline: MarkdownTree.outline(of: blocks), info: info,
+            images: MarkdownImages.find(in: blocks, folder: url.deletingLastPathComponent()))
     }
 }
 

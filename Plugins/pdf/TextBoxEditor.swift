@@ -35,8 +35,10 @@ final class TextBoxEditor: NSObject, NSTextViewDelegate {
         return CGRect(x: topLeft.x, y: topLeft.y - size.height, width: size.width, height: size.height)
     }
 
-    init(view: PDFView, page: PDFPage, topLeft: CGPoint, text: String, fontSize: Double, style: TextBoxStyle, hiding annotation: PDFAnnotation?,
-         onEnd: @escaping (String, Double, TextBoxStyle) -> Void) {
+    init(
+        view: PDFView, page: PDFPage, topLeft: CGPoint, text: String, fontSize: Double, style: TextBoxStyle, hiding annotation: PDFAnnotation?,
+        onEnd: @escaping (String, Double, TextBoxStyle) -> Void
+    ) {
         self.view = view
         self.page = page
         self.topLeft = topLeft

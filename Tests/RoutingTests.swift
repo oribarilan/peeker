@@ -135,4 +135,3 @@ private enum RoutedPlugin: Plugin {
         #expect(choices("/tmp/photo.png", showing: "text", config: #"{"plugins": {"text": {"enabled": false}}}"#) == ["image"])
     }
 }
-

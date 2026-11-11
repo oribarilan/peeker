@@ -21,7 +21,8 @@ private func recorded(_ document: PDFPluginDocument) throws -> [PDFEdit] {
         let file = try TempFile.makePDF(pages: 1)
         let document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
         _ = document.prepareEditing()
-        let box = PDFMark(id: PDFEdit.newID(), page: 0, rect: CGRect(x: 100, y: 500, width: 80, height: 20), kind: .textBox(text: "Seen", fontSize: 14))
+        let box = PDFMark(
+            id: PDFEdit.newID(), page: 0, rect: CGRect(x: 100, y: 500, width: 80, height: 20), kind: .textBox(text: "Seen", fontSize: 14))
         let placed = signature()
         #expect(document.change(.add(placed)) && document.change(.add(box)))
         #expect(document.change(.setBounds(id: placed.id, type: .signature, page: 0, rect: placed.rect.offsetBy(dx: 20, dy: 0))))
@@ -57,7 +58,8 @@ private func recorded(_ document: PDFPluginDocument) throws -> [PDFEdit] {
         let file = try TempFile.makePDF(pages: 1)
         let document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
         _ = document.prepareEditing()
-        let box = PDFMark(id: PDFEdit.newID(), page: 0, rect: CGRect(x: 100, y: 500, width: 80, height: 20), kind: .textBox(text: "Seen", fontSize: 14))
+        let box = PDFMark(
+            id: PDFEdit.newID(), page: 0, rect: CGRect(x: 100, y: 500, width: 80, height: 20), kind: .textBox(text: "Seen", fontSize: 14))
         #expect(document.change(.add(signature())) && document.change(.add(box)))
         let record = try #require(document.unsavedEdits()).encoded()
         let relaunched = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
@@ -84,7 +86,8 @@ private func recorded(_ document: PDFPluginDocument) throws -> [PDFEdit] {
     @Test func aSavedDeletionPutBackKeepsNoCopyOfTheSignature() async throws {
         let file = try TempFile.makePDF(pages: 2)
         let placed = signature()
-        let box = PDFMark(id: PDFEdit.newID(), page: 0, rect: CGRect(x: 100, y: 500, width: 80, height: 20), kind: .textBox(text: "Seen", fontSize: 14))
+        let box = PDFMark(
+            id: PDFEdit.newID(), page: 0, rect: CGRect(x: 100, y: 500, width: 80, height: 20), kind: .textBox(text: "Seen", fontSize: 14))
         try await PDFPlugin.write([.add(placed), .add(box)], to: file.path)
         let document = try await openDocument(file, with: PDFPlugin.self, as: PDFPluginDocument.self)
         document.undoManager.groupsByEvent = false

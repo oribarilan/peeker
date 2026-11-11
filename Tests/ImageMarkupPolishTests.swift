@@ -5,8 +5,9 @@ import Testing
 
 /// An editable white 400 × 200 image in a window.
 @MainActor private func shown(preferences: PluginPreferences? = nil) async throws -> (ImageDocument, NSWindow) {
-    let context = CGContext(data: nil, width: 400, height: 200, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    let context = CGContext(
+        data: nil, width: 400, height: 200, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
     context.setFillColor(CGColor(gray: 1, alpha: 1))
     context.fill(CGRect(x: 0, y: 0, width: 400, height: 200))
     let url = try imageFile(context.makeImage()!, type: .png)
@@ -18,8 +19,9 @@ import Testing
 }
 
 private func white(width: Int = 200, height: Int = 100) -> CGImage {
-    let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    let context = CGContext(
+        data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
     context.setFillColor(CGColor(gray: 1, alpha: 1))
     context.fill(CGRect(x: 0, y: 0, width: width, height: height))
     return context.makeImage()!
@@ -27,8 +29,9 @@ private func white(width: Int = 200, height: Int = 100) -> CGImage {
 
 /// The red channel at `x`, `y` from the top left.
 private func red(_ image: CGImage, _ x: Int, _ y: Int) -> Int {
-    let context = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+    let context = CGContext(
+        data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
     context.draw(image, in: CGRect(x: -x, y: y - image.height + 1, width: image.width, height: image.height))
     return Int(context.data!.load(as: UInt8.self))
 }
@@ -61,8 +64,10 @@ private func mark(_ kind: ImageMark.Kind) -> ImageMark {
     }
 
     @Test func anOvalSpotlightDimsItsCorners() throws {
-        let image = try #require(MarkRenderer.render([mark(.spotlight(CGRect(x: 40, y: 20, width: 120, height: 60), ellipse: true))], on: white(),
-                                                     imageSize: CGSize(width: 200, height: 100)))
+        let image = try #require(
+            MarkRenderer.render(
+                [mark(.spotlight(CGRect(x: 40, y: 20, width: 120, height: 60), ellipse: true))], on: white(),
+                imageSize: CGSize(width: 200, height: 100)))
         #expect(red(image, 100, 50) == 255, "the middle is lit")
         #expect(red(image, 42, 22) < 140, "a corner of its box is dimmed")
     }
@@ -134,8 +139,9 @@ private func mark(_ kind: ImageMark.Kind) -> ImageMark {
         let (document, window) = try await shown()
         defer { window.close() }
         // On a black image the saved file keeps the marker's stroke black; on screen it must look the same.
-        let context = CGContext(data: nil, width: 400, height: 200, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+        let context = CGContext(
+            data: nil, width: 400, height: 200, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
         context.setFillColor(CGColor(gray: 0, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: 400, height: 200))
         document.canvas.image = context.makeImage()!
@@ -146,7 +152,8 @@ private func mark(_ kind: ImageMark.Kind) -> ImageMark {
         let rep = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
         view.cacheDisplay(in: view.bounds, to: rep)
         let middle = view.convert(document.canvas.imageRect, from: document.canvas)
-        let x = Int(CGFloat(rep.pixelsWide) * middle.midX / view.bounds.width), y = Int(CGFloat(rep.pixelsHigh) * (1 - middle.midY / view.bounds.height))
+        let x = Int(CGFloat(rep.pixelsWide) * middle.midX / view.bounds.width),
+            y = Int(CGFloat(rep.pixelsHigh) * (1 - middle.midY / view.bounds.height))
         let color = try #require(rep.colorAt(x: x, y: y))
         #expect(color.redComponent < 0.15 && color.alphaComponent > 0.9, "multiplied with black, not a pale yellow")
     }

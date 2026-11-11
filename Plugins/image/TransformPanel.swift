@@ -23,7 +23,9 @@ final class TransformPanel: NSObject, NSTextFieldDelegate {
         super.init()
         var buttons: [NSView] = []
         for (index, turn) in Self.turns.enumerated() {
-            let button = NSButton(image: NSImage(systemSymbolName: turn.symbol, accessibilityDescription: turn.title) ?? NSImage(), target: self, action: #selector(pressed(_:)))
+            let button = NSButton(
+                image: NSImage(systemSymbolName: turn.symbol, accessibilityDescription: turn.title) ?? NSImage(), target: self,
+                action: #selector(pressed(_:)))
             button.tag = index
             button.toolTip = turn.title
             button.bezelStyle = .smallSquare
@@ -108,17 +110,23 @@ final class TransformPanel: NSObject, NSTextFieldDelegate {
     @objc private func unitChanged(_ sender: Any?) { fillSize() }
 
     @objc func applySize(_ sender: Any?) {
-        guard let size = Self.targetSize(width: width.doubleValue, height: height.doubleValue, unit: Unit(rawValue: unit.indexOfSelectedItem) ?? .pixels,
-                                         lock: lock.state == .on, edited: lastEdited, current: currentSize()) else { return NSSound.beep() }
+        guard
+            let size = Self.targetSize(
+                width: width.doubleValue, height: height.doubleValue, unit: Unit(rawValue: unit.indexOfSelectedItem) ?? .pixels,
+                lock: lock.state == .on, edited: lastEdited, current: currentSize())
+        else { return NSSound.beep() }
         if CGSize(width: size.width, height: size.height) != currentSize() { onEdit(.resize(width: size.width, height: size.height)) }
         fillSize()
     }
 
     func controlTextDidChange(_ notification: Notification) {
         lastEdited = (notification.object as? NSTextField) === height ? .height : .width
-        guard lock.state == .on, let size = Self.targetSize(width: width.doubleValue, height: height.doubleValue,
-                                                            unit: Unit(rawValue: unit.indexOfSelectedItem) ?? .pixels, lock: true,
-                                                            edited: lastEdited, current: currentSize()) else { return }
+        guard lock.state == .on,
+            let size = Self.targetSize(
+                width: width.doubleValue, height: height.doubleValue,
+                unit: Unit(rawValue: unit.indexOfSelectedItem) ?? .pixels, lock: true,
+                edited: lastEdited, current: currentSize())
+        else { return }
         let percent = unit.indexOfSelectedItem == Unit.percent.rawValue
         let current = currentSize()
         if lastEdited == .width {
@@ -151,7 +159,8 @@ final class TransformView: NSView {
 
     override func keyDown(with event: NSEvent) {
         guard event.modifierFlags.intersection([.command, .option, .control]).isEmpty,
-              let character = event.charactersIgnoringModifiers?.lowercased().first, let action = keys[character] else {
+            let character = event.charactersIgnoringModifiers?.lowercased().first, let action = keys[character]
+        else {
             return super.keyDown(with: event)
         }
         action()

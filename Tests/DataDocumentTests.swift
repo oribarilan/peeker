@@ -3,8 +3,10 @@ import PeekerKit
 @testable import PeekerData
 import Testing
 
-@MainActor private func open(_ text: String, name: String = "d.json", editing: Bool = true, preferences: PluginPreferences? = nil,
-                             encoding: String.Encoding = .utf8) async throws -> (DataDocument, URL, NSWindow) {
+@MainActor private func open(
+    _ text: String, name: String = "d.json", editing: Bool = true, preferences: PluginPreferences? = nil,
+    encoding: String.Encoding = .utf8
+) async throws -> (DataDocument, URL, NSWindow) {
     let url = try TempFile.make(try #require(text.data(using: encoding)), name: name)
     let document = try await openDocument(url, with: DataPlugin.self, as: DataDocument.self, editing: editing, preferences: preferences)
     let window = offscreenWindow(holding: document.contentView)

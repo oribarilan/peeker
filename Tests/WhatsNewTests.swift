@@ -53,7 +53,8 @@ private let changelog = """
 }
 
 @Suite struct WhatsNewTiming {
-    private func timing(last: String?, running: String = "0.4.0", enabled: Bool = true, quiet: Bool = false, atLogin: Bool = false) -> WhatsNew.Timing {
+    private func timing(last: String?, running: String = "0.4.0", enabled: Bool = true, quiet: Bool = false, atLogin: Bool = false) -> WhatsNew.Timing
+    {
         WhatsNew.timing(lastRun: last, running: running, enabled: enabled, installedQuietly: quiet, atLogin: atLogin)
     }
 
@@ -88,7 +89,9 @@ private let changelog = """
 }
 
 @Suite @MainActor struct WhatsNewWindow {
-    private let releases = [Changelog.Release(version: "0.4.0", notes: ["Four."]), Changelog.Release(version: "0.3.0", notes: ["Three, with `code`."])]
+    private let releases = [
+        Changelog.Release(version: "0.4.0", notes: ["Four."]), Changelog.Release(version: "0.3.0", notes: ["Three, with `code`."]),
+    ]
 
     @Test func isTitledWithTheVersionAndListsTheReleasesInOrder() throws {
         let controller = WhatsNewWindowController(version: "0.4.0", releases: releases)

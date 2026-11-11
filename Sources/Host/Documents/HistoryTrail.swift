@@ -25,8 +25,10 @@ final class HistoryTrail: NSView {
             stack.centerYAnchor.constraint(equalTo: centerYAnchor),
             heightAnchor.constraint(equalToConstant: 24),
         ])
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-                                       owner: self))
+        addTrackingArea(
+            NSTrackingArea(
+                rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+                owner: self))
     }
 
     required init?(coder: NSCoder) { fatalError("not used") }
@@ -48,10 +50,12 @@ final class HistoryTrail: NSView {
         let button = NSButton(title: entry.label, target: self, action: #selector(select(_:)))
         button.isBordered = false
         button.tag = index
-        button.attributedTitle = NSAttributedString(string: entry.label, attributes: [
-            .font: NSFont.systemFont(ofSize: 11, weight: current ? .semibold : .regular),
-            .foregroundColor: current ? NSColor.labelColor : NSColor.secondaryLabelColor,
-        ])
+        button.attributedTitle = NSAttributedString(
+            string: entry.label,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: current ? .semibold : .regular),
+                .foregroundColor: current ? NSColor.labelColor : NSColor.secondaryLabelColor,
+            ])
         button.lineBreakMode = .byTruncatingTail
         // Later crumbs hold their width longer, so the oldest truncate first.
         button.setContentCompressionResistancePriority(NSLayoutConstraint.Priority(250 + Float(min(index, 400))), for: .horizontal)

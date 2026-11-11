@@ -89,9 +89,11 @@ func windows(owner: String? = nil) -> [Window] {
     let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
     return list.compactMap { info in
         guard let id = info[kCGWindowNumber as String] as? Int, let name = info[kCGWindowOwnerName as String] as? String,
-              owner == nil || name == owner, let bounds = info[kCGWindowBounds as String] as? [String: Double] else { return nil }
-        return Window(id: id, owner: name, layer: info[kCGWindowLayer as String] as? Int ?? 0, width: Int(bounds["Width"] ?? 0),
-                      height: Int(bounds["Height"] ?? 0), title: info[kCGWindowName as String] as? String ?? "")
+            owner == nil || name == owner, let bounds = info[kCGWindowBounds as String] as? [String: Double]
+        else { return nil }
+        return Window(
+            id: id, owner: name, layer: info[kCGWindowLayer as String] as? Int ?? 0, width: Int(bounds["Width"] ?? 0),
+            height: Int(bounds["Height"] ?? 0), title: info[kCGWindowName as String] as? String ?? "")
     }
 }
 
@@ -114,26 +116,28 @@ func press(_ keyCode: CGKeyCode) {
 }
 
 func selectInFinder(_ path: String) {
-    let escaped = URL(filePath: path).standardizedFileURL.path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+    let escaped = URL(filePath: path).standardizedFileURL.path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(
+        of: "\"", with: "\\\"")
     var error: NSDictionary?
-    NSAppleScript(source: """
-        tell application "Finder"
-            activate
-            set picked to (POSIX file "\(escaped)" as alias)
-            -- Reuse the front window when it already shows the folder, rather than opening one per file. A window
-            -- showing Recents or another search has no folder to compare, so it errors and the file is revealed.
-            set reuse to false
-            try
-                set reuse to ((target of front Finder window) as alias) is ((container of picked) as alias)
-            end try
-            if reuse then
-                select picked
-            else
-                reveal picked
-                select picked
-            end if
-        end tell
-        """)?.executeAndReturnError(&error)
+    NSAppleScript(
+        source: """
+            tell application "Finder"
+                activate
+                set picked to (POSIX file "\(escaped)" as alias)
+                -- Reuse the front window when it already shows the folder, rather than opening one per file. A window
+                -- showing Recents or another search has no folder to compare, so it errors and the file is revealed.
+                set reuse to false
+                try
+                    set reuse to ((target of front Finder window) as alias) is ((container of picked) as alias)
+                end try
+                if reuse then
+                    select picked
+                else
+                    reveal picked
+                    select picked
+                end if
+            end tell
+            """)?.executeAndReturnError(&error)
     if let error { fail("finder: \(error[NSAppleScript.errorMessage] ?? error)") }
 }
 
@@ -177,10 +181,14 @@ func drag(through points: [CGPoint]) {
 
 /// ANSI key codes for the keys a combo can name.
 let comboKeys: [String: CGKeyCode] = {
-    var keys: [String: CGKeyCode] = ["space": 49, "return": 36, "tab": 48, "escape": 53, "delete": 51,
-                                     "left": 123, "right": 124, "down": 125, "up": 126, "pageup": 116, "pagedown": 121]
+    var keys: [String: CGKeyCode] = [
+        "space": 49, "return": 36, "tab": 48, "escape": 53, "delete": 51,
+        "left": 123, "right": 124, "down": 125, "up": 126, "pageup": 116, "pagedown": 121,
+    ]
     for (key, code) in zip("asdfhgzxcv", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) { keys[String(key)] = CGKeyCode(code) }
-    for (key, code) in zip("bqweryt123465=97-80]ou[ip", [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]) { keys[String(key)] = CGKeyCode(code) }
+    for (key, code) in zip(
+        "bqweryt123465=97-80]ou[ip", [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35])
+    { keys[String(key)] = CGKeyCode(code) }
     for (key, code) in zip("lj'k;\\,/nm.", [37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]) { keys[String(key)] = CGKeyCode(code) }
     return keys
 }()
@@ -348,10 +356,12 @@ func control(_ process: String, _ title: String, within container: String? = nil
     return axWindows(application(process)).lazy.compactMap { window in
         // "AXRadioGroup=Text appearance" narrows it to the element with that role and label, or labeled by the text
         // just before it, as SwiftUI lays out a picker in a grouped Form.
-        guard let root = container.map({ wanted in
-            let parts = wanted.split(separator: "=", maxSplits: 1).map(String.init)
-            return find(window, where: { role($0) == parts[0] && (parts.count == 1 || label($0) == parts[1] || textBefore($0) == parts[1]) })
-        }) ?? window else { return nil }
+        guard
+            let root = container.map({ wanted in
+                let parts = wanted.split(separator: "=", maxSplits: 1).map(String.init)
+                return find(window, where: { role($0) == parts[0] && (parts.count == 1 || label($0) == parts[1] || textBefore($0) == parts[1]) })
+            }) ?? window
+        else { return nil }
         return find(root, where: { isControl($0) && label($0) == title }) ?? controlAfterText(title, in: root, isControl: isControl)
     }.first
 }
@@ -360,7 +370,9 @@ func control(_ process: String, _ title: String, within container: String? = nil
 func textBefore(_ element: AXUIElement) -> String? {
     guard let parent: AXUIElement = attr(element, kAXParentAttribute) else { return nil }
     let siblings = children(parent)
-    guard let index = siblings.firstIndex(where: { CFEqual($0, element) }), index > 0, role(siblings[index - 1]) == kAXStaticTextRole else { return nil }
+    guard let index = siblings.firstIndex(where: { CFEqual($0, element) }), index > 0, role(siblings[index - 1]) == kAXStaticTextRole else {
+        return nil
+    }
     return attr(siblings[index - 1], kAXValueAttribute)
 }
 
@@ -368,7 +380,8 @@ func textBefore(_ element: AXUIElement) -> String? {
 /// control after the text in the same parent.
 func controlAfterText(_ title: String, in root: AXUIElement, isControl: (AXUIElement) -> Bool) -> AXUIElement? {
     guard let text = find(root, where: { role($0) == kAXStaticTextRole && (attr($0, kAXValueAttribute) as String?) == title }),
-          let parent: AXUIElement = attr(text, kAXParentAttribute) else { return nil }
+        let parent: AXUIElement = attr(text, kAXParentAttribute)
+    else { return nil }
     let siblings = children(parent)
     guard let index = siblings.firstIndex(where: { CFEqual($0, text) }) else { return nil }
     return siblings[(index + 1)...].first(where: isControl)
@@ -401,15 +414,19 @@ case "tree":
 case "choose":
     let isPopUp = { (element: AXUIElement) in role(element) == kAXPopUpButtonRole }
     let appWindows = axWindows(application(arg(1)))
-    let popup = args.count > 3
-        ? appWindows.lazy.compactMap { find($0, where: { isPopUp($0) && label($0) == arg(3) }) ?? controlAfterText(arg(3), in: $0, isControl: isPopUp) }.first
+    let popup =
+        args.count > 3
+        ? appWindows.lazy.compactMap {
+            find($0, where: { isPopUp($0) && label($0) == arg(3) }) ?? controlAfterText(arg(3), in: $0, isControl: isPopUp)
+        }.first
         : appWindows.first.flatMap { find($0, where: isPopUp) }
     guard let popup else { fail(args.count > 3 ? "no pop-up “\(arg(3))”" : "no pop-up in the front window") }
     pick(in: popup, item: args.count > 2 ? args[2] : nil)
 case "menu":
     guard let bar: AXUIElement = attr(application(arg(1)), kAXMenuBarAttribute),
-          let menu = children(bar).first(where: { label($0) == arg(2) }),
-          let item = menuItem(in: menu, path: arg(3)) else { fail("no menu item \(arg(2)) > \(arg(3))") }
+        let menu = children(bar).first(where: { label($0) == arg(2) }),
+        let item = menuItem(in: menu, path: arg(3))
+    else { fail("no menu item \(arg(2)) > \(arg(3))") }
     press(item)
     // The menu can stay drawn for a moment after the press, and a click or key sent meanwhile would land on it.
     // Open menus are windows at the pop-up menu level (101).
@@ -479,10 +496,11 @@ case "placeholders":
     }
 case "fill":
     let isField = { (element: AXUIElement) in role(element) == kAXTextFieldRole }
-    guard let field = axWindows(application(arg(1))).lazy.compactMap({ window in
-        find(window, where: { isField($0) && ((attr($0, kAXPlaceholderValueAttribute) as String?) == arg(2) || label($0) == arg(2)) })
-            ?? controlAfterText(arg(2), in: window, isControl: isField)
-    }).first
+    guard
+        let field = axWindows(application(arg(1))).lazy.compactMap({ window in
+            find(window, where: { isField($0) && ((attr($0, kAXPlaceholderValueAttribute) as String?) == arg(2) || label($0) == arg(2)) })
+                ?? controlAfterText(arg(2), in: window, isControl: isField)
+        }).first
     else { fail("no field “\(arg(2))”") }
     // Sets the text only: a Return key would go to whichever app is in front, which may not be this one.
     AXUIElementSetAttributeValue(field, kAXFocusedAttribute as CFString, kCFBooleanTrue)
@@ -493,13 +511,19 @@ case "enabled":
 case "frame":
     let wanted = args.count > 3 ? args[3] : nil
     // Every window, front first: a panel or another document may be in front of the one wanted.
-    guard let element = axWindows(application(arg(1))).lazy.compactMap({ window in
-        find(window, where: { element in
-            role(element) == arg(2) && (wanted.map { want in
-                label(element).contains(want) || (attr(element, kAXValueAttribute) as String?)?.trimmingCharacters(in: .whitespaces) == want
-            } ?? true)
-        })
-    }).first else { fail("no \(arg(2)) \(wanted ?? "")") }
+    guard
+        let element = axWindows(application(arg(1))).lazy.compactMap({ window in
+            find(
+                window,
+                where: { element in
+                    role(element) == arg(2)
+                        && (wanted.map { want in
+                            label(element).contains(want)
+                                || (attr(element, kAXValueAttribute) as String?)?.trimmingCharacters(in: .whitespaces) == want
+                        } ?? true)
+                })
+        }).first
+    else { fail("no \(arg(2)) \(wanted ?? "")") }
     var origin = CGPoint.zero, size = CGSize.zero
     if let value: AXValue = attr(element, kAXPositionAttribute) { AXValueGetValue(value, .cgPoint, &origin) }
     if let value: AXValue = attr(element, kAXSizeAttribute) { AXValueGetValue(value, .cgSize, &size) }
@@ -540,8 +564,9 @@ case "move":
     guard let x = Double(arg(2)), let y = Double(arg(3)) else { fail("move needs numbers") }
     // Two steps, as a real pointer arrives: AppKit sometimes drops a lone jump, and the hover never starts.
     for (dx, pause) in [(-2.0, 50_000 as useconds_t), (0, 0)] {
-        CGEvent(mouseEventSource: CGEventSource(stateID: .hidSystemState), mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: x + dx, y: y),
-                mouseButton: .left)?.post(tap: .cghidEventTap)
+        CGEvent(
+            mouseEventSource: CGEventSource(stateID: .hidSystemState), mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: x + dx, y: y),
+            mouseButton: .left)?.post(tap: .cghidEventTap)
         usleep(pause)
     }
 case "scroll":
@@ -581,13 +606,14 @@ case "wait":
     }
     let process = arg(1), kind = arg(2), wanted = rest.first
     // Document windows and panels; not the menu bar icon (layer 25) or open menus (101).
-    let present: () -> Bool = switch kind {
-    case "window": { windows(owner: process).contains { $0.layer < 25 && (wanted.map($0.title.contains) ?? true) } }
-    case "menu": { windows(owner: process).contains { $0.layer == 101 } }
-    case "sheet": { axWindows(application(process)).contains { window in find(window, where: { role($0) == "AXSheet" }) != nil } }
-    case "control": { control(process, wanted ?? "") != nil }
-    default: fail("wait for a window, sheet, menu or control")
-    }
+    let present: () -> Bool =
+        switch kind {
+        case "window": { windows(owner: process).contains { $0.layer < 25 && (wanted.map($0.title.contains) ?? true) } }
+        case "menu": { windows(owner: process).contains { $0.layer == 101 } }
+        case "sheet": { axWindows(application(process)).contains { window in find(window, where: { role($0) == "AXSheet" }) != nil } }
+        case "control": { control(process, wanted ?? "") != nil }
+        default: fail("wait for a window, sheet, menu or control")
+        }
     let deadline = Date().addingTimeInterval(timeout)
     while present() == gone {
         guard Date() < deadline else {
@@ -596,15 +622,17 @@ case "wait":
         usleep(50_000)
     }
 case "loginlaunch":
-    let event = NSAppleEventDescriptor(eventClass: kCoreEventClass, eventID: kAEOpenApplication, targetDescriptor: nil,
-                                       returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
+    let event = NSAppleEventDescriptor(
+        eventClass: kCoreEventClass, eventID: kAEOpenApplication, targetDescriptor: nil,
+        returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
     event.setParam(NSAppleEventDescriptor(enumCode: OSType(keyAELaunchedAsLogInItem)), forKeyword: keyAEPropData)
     let configuration = NSWorkspace.OpenConfiguration()
     configuration.appleEvent = event
     configuration.activates = false
-    configuration.environment = Dictionary(uniqueKeysWithValues: args.dropFirst(2).compactMap { pair in
-        pair.firstIndex(of: "=").map { (String(pair[..<$0]), String(pair[pair.index(after: $0)...])) }
-    })
+    configuration.environment = Dictionary(
+        uniqueKeysWithValues: args.dropFirst(2).compactMap { pair in
+            pair.firstIndex(of: "=").map { (String(pair[..<$0]), String(pair[pair.index(after: $0)...])) }
+        })
     var launched: Error?? = nil
     NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: arg(1)), configuration: configuration) { _, error in launched = .some(error) }
     while launched == nil { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
@@ -620,19 +648,23 @@ case "pixel":
     guard let x = Double(arg(2)), let y = Double(arg(3)), (0...1).contains(x), (0...1).contains(y) else { fail("pixel needs fractions from 0 to 1") }
     // Screenshots are in the display's color space; converting gives the sRGB values the app drew with.
     guard let data = try? Data(contentsOf: URL(filePath: arg(1))),
-          let image = NSBitmapImageRep(data: data)?.converting(to: .sRGB, renderingIntent: .default) else { fail("can't read \(arg(1))") }
-    let color = image.colorAt(x: min(Int(x * Double(image.pixelsWide)), image.pixelsWide - 1),
-                              y: min(Int(y * Double(image.pixelsHigh)), image.pixelsHigh - 1))
+        let image = NSBitmapImageRep(data: data)?.converting(to: .sRGB, renderingIntent: .default)
+    else { fail("can't read \(arg(1))") }
+    let color = image.colorAt(
+        x: min(Int(x * Double(image.pixelsWide)), image.pixelsWide - 1),
+        y: min(Int(y * Double(image.pixelsHigh)), image.pixelsHigh - 1))
     guard let color else { fail("no color there") }
     print([color.redComponent, color.greenComponent, color.blueComponent].map { String(format: "%02X", Int(($0 * 255).rounded())) }.joined())
 case "closest":
     // The pixel in a screen capture nearest a color, inside a rectangle given in screen points: antialiased text never
     // draws its exact color, but its darkest or most saturated pixels come close.
     guard let x = Double(arg(2)), let y = Double(arg(3)), let w = Double(arg(4)), let h = Double(arg(5)),
-          let wanted = UInt32(arg(6), radix: 16) else { fail("closest needs x y width height in points and RRGGBB") }
+        let wanted = UInt32(arg(6), radix: 16)
+    else { fail("closest needs x y width height in points and RRGGBB") }
     guard let data = try? Data(contentsOf: URL(filePath: arg(1))),
-          let image = NSBitmapImageRep(data: data)?.converting(to: .sRGB, renderingIntent: .default),
-          let screen = NSScreen.screens.first?.frame else { fail("can't read \(arg(1))") }
+        let image = NSBitmapImageRep(data: data)?.converting(to: .sRGB, renderingIntent: .default),
+        let screen = NSScreen.screens.first?.frame
+    else { fail("can't read \(arg(1))") }
     let scale = Double(image.pixelsWide) / screen.width
     let target = [Int(wanted >> 16 & 0xFF), Int(wanted >> 8 & 0xFF), Int(wanted & 0xFF)]
     var best = (distance: 256, hex: "")
@@ -647,17 +679,21 @@ case "closest":
     print(best.distance, best.hex)
 case "stripes":
     guard let width = Int(arg(2)), let height = Int(arg(3)), width > 0, height > 0,
-          let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
-                                  space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue) else { fail("stripes needs a width and height") }
+        let context = CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
+            space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue)
+    else { fail("stripes needs a width and height") }
     context.setFillColor(gray: 1, alpha: 1)
     for x in stride(from: 1, to: width, by: 2) { context.fill(CGRect(x: x, y: 0, width: 1, height: height)) }
-    guard let image = context.makeImage(), let destination = CGImageDestinationCreateWithURL(URL(filePath: arg(1)) as CFURL, "public.png" as CFString, 1, nil)
+    guard let image = context.makeImage(),
+        let destination = CGImageDestinationCreateWithURL(URL(filePath: arg(1)) as CFURL, "public.png" as CFString, 1, nil)
     else { fail("can't write \(arg(1))") }
     CGImageDestinationAddImage(destination, image, nil)
     guard CGImageDestinationFinalize(destination) else { fail("can't write \(arg(1))") }
 case "contrast":
     guard let data = try? Data(contentsOf: URL(filePath: arg(1))),
-          let image = NSBitmapImageRep(data: data)?.converting(to: .genericGray, renderingIntent: .default) else { fail("can't read \(arg(1))") }
+        let image = NSBitmapImageRep(data: data)?.converting(to: .genericGray, renderingIntent: .default)
+    else { fail("can't read \(arg(1))") }
     let side = min(200, image.pixelsWide - 1, image.pixelsHigh)
     let left = (image.pixelsWide - side) / 2, top = (image.pixelsHigh - side) / 2
     var total = 0.0
@@ -669,16 +705,20 @@ case "contrast":
     print(Int((total / Double(side * side) * 255).rounded()))
 case "diff":
     guard let first = try? Data(contentsOf: URL(filePath: arg(1))), let second = try? Data(contentsOf: URL(filePath: arg(2))),
-          let a = NSBitmapImageRep(data: first), let b = NSBitmapImageRep(data: second) else { fail("can't read \(arg(1)) or \(arg(2))") }
+        let a = NSBitmapImageRep(data: first), let b = NSBitmapImageRep(data: second)
+    else { fail("can't read \(arg(1)) or \(arg(2))") }
     guard a.pixelsWide == b.pixelsWide, a.pixelsHigh == b.pixelsHigh else { print(255); break }
     var largest = 0.0
     for y in 0..<a.pixelsHigh {
         for x in 0..<a.pixelsWide {
             guard let p = a.colorAt(x: x, y: y), let q = b.colorAt(x: x, y: y) else { continue }
-            largest = max(largest, abs(p.redComponent - q.redComponent), abs(p.greenComponent - q.greenComponent), abs(p.blueComponent - q.blueComponent))
+            largest = max(
+                largest, abs(p.redComponent - q.redComponent), abs(p.greenComponent - q.greenComponent), abs(p.blueComponent - q.blueComponent))
         }
     }
     print(Int((largest * 255).rounded()))
 default:
-    fail("usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|menuextraclick|row|press|fill|enabled|frame|value|textframe|selection|click|move|type|keys|drag|wait|loginlaunch|focus|pixel|closest|stripes|contrast|diff ...; see the top of drive.swift")
+    fail(
+        "usage: drive locked|windows|shot|select|tree|choose|menu|menuextra|menuextraclick|row|press|fill|enabled|frame|value|textframe|selection|click|move|type|keys|drag|wait|loginlaunch|focus|pixel|closest|stripes|contrast|diff ...; see the top of drive.swift"
+    )
 }

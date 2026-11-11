@@ -7,8 +7,10 @@ import Testing
 nonisolated private let red = RGBA(red: 0xDB / 255, green: 0x26 / 255, blue: 0x26 / 255, alpha: 1)
 nonisolated private let blue = RGBA(red: 0x1A / 255, green: 0x66 / 255, blue: 0xE6 / 255, alpha: 1)
 
-private func drawing(_ shape: PDFDrawing.Shape, from: CGPoint = CGPoint(x: 100, y: 300), to: CGPoint = CGPoint(x: 200, y: 340),
-                     width: Double = 2, id: String = "peeker-d") throws -> PDFMark {
+private func drawing(
+    _ shape: PDFDrawing.Shape, from: CGPoint = CGPoint(x: 100, y: 300), to: CGPoint = CGPoint(x: 200, y: 340),
+    width: Double = 2, id: String = "peeker-d"
+) throws -> PDFMark {
     let made = try #require(PDFDrawing.make(shape, from: from, to: to, points: [from, to], color: red, width: width))
     return PDFMark(id: id, page: 0, rect: made.rect, kind: .drawing(made.drawing))
 }
@@ -36,7 +38,9 @@ private func headLength(_ drawing: PDFDrawing, in size: CGSize) -> Double {
     @Test func aLineRunsBetweenTheDragsEnds() throws {
         let mark = try drawing(.line, from: CGPoint(x: 100, y: 300), to: CGPoint(x: 200, y: 300))
         guard case .drawing(let line) = mark.kind else { Issue.record("\(mark)"); return }
-        let ends = try #require(line.strokes.first).map { CGPoint(x: mark.rect.minX + $0.x * mark.rect.width, y: mark.rect.minY + $0.y * mark.rect.height) }
+        let ends = try #require(line.strokes.first).map {
+            CGPoint(x: mark.rect.minX + $0.x * mark.rect.width, y: mark.rect.minY + $0.y * mark.rect.height)
+        }
         #expect(abs(ends[0].x - 100) < 0.01 && abs(ends[1].x - 200) < 0.01 && abs(ends[0].y - 300) < 0.01)
         #expect(line.strokes.count == 1, "no head")
     }
@@ -76,8 +80,10 @@ private func headLength(_ drawing: PDFDrawing, in size: CGSize) -> Double {
     }
 
     @Test func inkWithoutAShapeIsStillASignature() {
-        let signature = PDFMarks.annotation(for: PDFMark(id: "peeker-s", page: 0, rect: CGRect(x: 10, y: 10, width: 100, height: 40),
-                                                         kind: .signature(strokes: [[.zero, CGPoint(x: 1, y: 1)]])))
+        let signature = PDFMarks.annotation(
+            for: PDFMark(
+                id: "peeker-s", page: 0, rect: CGRect(x: 10, y: 10, width: 100, height: 40),
+                kind: .signature(strokes: [[.zero, CGPoint(x: 1, y: 1)]])))
         #expect(PDFMarks.type(of: signature) == .signature)
     }
 
@@ -113,20 +119,29 @@ private func headLength(_ drawing: PDFDrawing, in size: CGSize) -> Double {
         var blueX = made
         blueX.color = blue
         blueX.width = 1
-        #expect(folded == [.add(PDFMark(id: mark.id, page: 0, rect: mark.rect, kind: .drawing(blueX.rebuilt(in: mark.rect.size))))], "kept inside its rect at the new width")
-        let saved = PDFEdit.folded([.setLook(id: "peeker-old", page: 0, color: blue, width: 1), .setLook(id: "peeker-old", page: 0, color: red, width: 2)])
+        #expect(
+            folded == [.add(PDFMark(id: mark.id, page: 0, rect: mark.rect, kind: .drawing(blueX.rebuilt(in: mark.rect.size))))],
+            "kept inside its rect at the new width")
+        let saved = PDFEdit.folded([
+            .setLook(id: "peeker-old", page: 0, color: blue, width: 1), .setLook(id: "peeker-old", page: 0, color: red, width: 2),
+        ])
         #expect(saved == [.setLook(id: "peeker-old", page: 0, color: red, width: 2)])
     }
 
     @Test func drawingsSurviveSavingAndReopening() throws {
         let file = try TempFile.makePDF(pages: 1)
         let edits: [PDFEdit] = try PDFDrawing.Shape.allCases.enumerated().map { index, shape in
-            .add(try drawing(shape, from: CGPoint(x: 60, y: 60 + Double(index) * 60), to: CGPoint(x: 110, y: 100 + Double(index) * 60), id: "peeker-\(shape)"))
+            .add(
+                try drawing(
+                    shape, from: CGPoint(x: 60, y: 60 + Double(index) * 60), to: CGPoint(x: 110, y: 100 + Double(index) * 60), id: "peeker-\(shape)"))
         }
         let saved = try #require(PDFDocument(data: try PDFPlugin.edited(edits, from: file.path))?.page(at: 0))
         let shapes = saved.annotations.compactMap(drawingOf).map(\.shape)
         #expect(Set(shapes) == Set(PDFDrawing.Shape.allCases))
-        #expect(saved.annotations.allSatisfy { PDFMarks.id(of: $0) != nil && $0.color.usingColorSpace(.sRGB).map { abs($0.redComponent - red.red) < 0.01 } == true })
+        #expect(
+            saved.annotations.allSatisfy {
+                PDFMarks.id(of: $0) != nil && $0.color.usingColorSpace(.sRGB).map { abs($0.redComponent - red.red) < 0.01 } == true
+            })
     }
 
     /// PDFKit writes a moved page's annotations from scratch, dropping keys it doesn't know.
@@ -161,7 +176,8 @@ private func headLength(_ drawing: PDFDrawing, in size: CGSize) -> Double {
         let mark = try drawing(.circle)
         let document = try #require(PDFDocument(data: try PDFPlugin.edited([.add(mark)], from: file.path)))
         #expect(throws: PluginError.self) {
-            try PDFEditing.apply(.setLook(id: mark.id, page: 0, color: RGBA(red: 1, green: 0, blue: 0, alpha: 0.5), width: 1), to: document, fileName: "t.pdf")
+            try PDFEditing.apply(
+                .setLook(id: mark.id, page: 0, color: RGBA(red: 1, green: 0, blue: 0, alpha: 0.5), width: 1), to: document, fileName: "t.pdf")
         }
     }
 }

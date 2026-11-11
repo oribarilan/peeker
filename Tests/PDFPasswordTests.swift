@@ -12,7 +12,8 @@ private func lockedPDF() throws -> URL {
     let info = [kCGPDFContextUserPassword: "secret", kCGPDFContextOwnerPassword: "owner", kCGPDFContextTitle: "Payslip"] as CFDictionary
     let context = try #require(CGContext(file as CFURL, mediaBox: &box, info))
     context.beginPDFPage(nil)
-    let line = CTLineCreateWithAttributedString(NSAttributedString(string: "Secret page", attributes: [.font: CTFontCreateWithName("Helvetica" as CFString, 24, nil)]))
+    let line = CTLineCreateWithAttributedString(
+        NSAttributedString(string: "Secret page", attributes: [.font: CTFontCreateWithName("Helvetica" as CFString, 24, nil)]))
     context.textPosition = CGPoint(x: 72, y: 700)
     CTLineDraw(line, context)
     context.endPDFPage()
@@ -67,7 +68,9 @@ private func lockedPDF() throws -> URL {
     @Test func theFilesPermissionsStillApply() async throws {
         let form = try #require(PDFDocument(url: try FormPDF.make()))
         // PDFKit's bits for everything but changes, commenting and form filling.
-        let options: [PDFDocumentWriteOption: Any] = [.userPasswordOption: "secret", .ownerPasswordOption: "owner", .accessPermissionsOption: UInt(27)]
+        let options: [PDFDocumentWriteOption: Any] = [
+            .userPasswordOption: "secret", .ownerPasswordOption: "owner", .accessPermissionsOption: UInt(27),
+        ]
         let file = try TempFile.make(try #require(form.dataRepresentation(options: options)), name: "limited.pdf")
         let locked = try await open(file)
         var replaced: (any PluginDocument)?

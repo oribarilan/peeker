@@ -4,8 +4,9 @@ import PeekerKit
 import Testing
 
 @MainActor private func open(_ scratch: ScratchDefaults, name: String = "a.txt") async throws -> TextDocument {
-    try await openDocument(try TempFile.make(Data("a\n".utf8), name: name), with: TextPlugin.self, as: TextDocument.self,
-                           preferences: scratch.preferences("text"))
+    try await openDocument(
+        try TempFile.make(Data("a\n".utf8), name: name), with: TextPlugin.self, as: TextDocument.self,
+        preferences: scratch.preferences("text"))
 }
 
 @MainActor private func pointSize(_ document: TextDocument) -> CGFloat? { (document.focusView as? NSTextView)?.font?.pointSize }

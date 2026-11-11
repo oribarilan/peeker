@@ -18,8 +18,9 @@ import Testing
     @Test func onlyAMultiPageTIFFHasPageTools() async throws {
         let document = try await pages()
         #expect(document.tools.map(\.id).contains("next-page") && document.tools.map(\.id).contains("previous-page"))
-        let single = try await openDocument(try imageFile(try cornerImage(), type: .tiff), with: ImagePlugin.self, as: ImageDocument.self,
-                                            editing: true, maxPixels: 1000)
+        let single = try await openDocument(
+            try imageFile(try cornerImage(), type: .tiff), with: ImagePlugin.self, as: ImageDocument.self,
+            editing: true, maxPixels: 1000)
         #expect(!single.tools.map(\.id).contains("next-page"))
     }
 
@@ -93,8 +94,10 @@ import Testing
         func move(over row: Int) {
             let rect = list.table.rect(ofRow: row)
             let point = list.table.convert(NSPoint(x: rect.midX, y: rect.midY), to: nil)
-            list.mouseMoved(with: NSEvent.mouseEvent(with: .mouseMoved, location: point, modifierFlags: [], timestamp: 0,
-                                                     windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!)
+            list.mouseMoved(
+                with: NSEvent.mouseEvent(
+                    with: .mouseMoved, location: point, modifierFlags: [], timestamp: 0,
+                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!)
         }
         func fill(_ row: Int) -> Bool? { (list.table.rowView(atRow: row, makeIfNecessary: false) as? HoverRowView)?.hoverFill.isHovered }
         move(over: 1)
@@ -122,8 +125,9 @@ import Testing
         let sidebar = document.makeSidebar()
         #expect(sidebar.count == 2 && sidebar.first?.view === document.pageList && sidebar.first?.sizing == .fill)
         #expect(document.makeSidebar().first?.view === sidebar.first?.view, "the same list each time, so it keeps its place")
-        let single = try await openDocument(try imageFile(try cornerImage(), type: .tiff), with: ImagePlugin.self, as: ImageDocument.self,
-                                            editing: true, maxPixels: 1000)
+        let single = try await openDocument(
+            try imageFile(try cornerImage(), type: .tiff), with: ImagePlugin.self, as: ImageDocument.self,
+            editing: true, maxPixels: 1000)
         #expect(single.pageList == nil && single.makeSidebar().count == 1)
     }
 
@@ -160,9 +164,9 @@ import Testing
     }
 
     @Test func aSingleImagePrintsAsBefore() async throws {
-        let document = try await openDocument(try imageFile(try cornerImage(), type: .png), with: ImagePlugin.self, as: ImageDocument.self,
-                                              editing: true, maxPixels: 1000)
+        let document = try await openDocument(
+            try imageFile(try cornerImage(), type: .png), with: ImagePlugin.self, as: ImageDocument.self,
+            editing: true, maxPixels: 1000)
         #expect(document.printJob?(NSPrintInfo())?.view is NSImageView)
     }
 }
-

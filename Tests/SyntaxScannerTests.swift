@@ -17,24 +17,26 @@ func role(of piece: String, in text: String, _ language: SyntaxLanguage) -> Synt
 @Suite struct SyntaxScannerBasics {
     @Test func swift() {
         let code = """
-        // count words
-        func count(_ text: String) -> Int { /* nested /* still */ comment */
-            let name = "say \\"hi\\" // not a comment"
-            return text.split(separator: " ").count + 0x1F + 1_000 + 2.5e3
-        }
-        let shown = "\\(items.joined(separator: ", ")) done"
-        let empty: String? = nil
-        """
+            // count words
+            func count(_ text: String) -> Int { /* nested /* still */ comment */
+                let name = "say \\"hi\\" // not a comment"
+                return text.split(separator: " ").count + 0x1F + 1_000 + 2.5e3
+            }
+            let shown = "\\(items.joined(separator: ", ")) done"
+            let empty: String? = nil
+            """
         #expect(role(of: "// count words", in: code, .swift) == .comment)
         #expect(role(of: "func", in: code, .swift) == .keyword)
         #expect(role(of: "count(", in: code, .swift) == .function)
         #expect(role(of: "String", in: code, .swift) == .type)
         #expect(colored(code, .swift).contains("comment:/* nested /* still */ comment */"))
         #expect(colored(code, .swift).contains("string:\"say \\\"hi\\\" // not a comment\""))
-        #expect(colored(code, .swift).contains("number:0x1F") && colored(code, .swift).contains("number:1_000")
+        #expect(
+            colored(code, .swift).contains("number:0x1F") && colored(code, .swift).contains("number:1_000")
                 && colored(code, .swift).contains("number:2.5e3"))
-        #expect(colored(code, .swift).contains("string:\"\\(items.joined(separator: \", \")) done\""),
-                "quotes inside an interpolation stay part of the string")
+        #expect(
+            colored(code, .swift).contains("string:\"\\(items.joined(separator: \", \")) done\""),
+            "quotes inside an interpolation stay part of the string")
         #expect(role(of: "nil", in: code, .swift) == .number, "constants share the number color")
     }
 
@@ -46,16 +48,16 @@ func role(of piece: String, in text: String, _ language: SyntaxLanguage) -> Synt
 
     @Test func python() {
         let code = """
-        # report
-        import os
-        LIMIT = 100
-        def words(path: str) -> int:
-            with open(path, "utf-8") as f:
-                return len(f.read().split()) if True else None
-        doc = '''a "quoted"
-        line'''
-        name = f"{LIMIT} words"
-        """
+            # report
+            import os
+            LIMIT = 100
+            def words(path: str) -> int:
+                with open(path, "utf-8") as f:
+                    return len(f.read().split()) if True else None
+            doc = '''a "quoted"
+            line'''
+            name = f"{LIMIT} words"
+            """
         #expect(role(of: "# report", in: code, .python) == .comment)
         #expect(role(of: "import", in: code, .python) == .keyword)
         #expect(role(of: "LIMIT", in: code, .python) == .number, "ALL_CAPS is a constant, not a type")
@@ -67,12 +69,12 @@ func role(of piece: String, in text: String, _ language: SyntaxLanguage) -> Synt
 
     @Test func shell() {
         let code = """
-        #!/bin/bash
-        # build it
-        if [ -n "$1" ]; then echo "$(date "+%F") done"; fi
-        count=${#items[@]} # not this one: ${#
-        echo a#b 'single $x'
-        """
+            #!/bin/bash
+            # build it
+            if [ -n "$1" ]; then echo "$(date "+%F") done"; fi
+            count=${#items[@]} # not this one: ${#
+            echo a#b 'single $x'
+            """
         #expect(role(of: "#!/bin/bash", in: code, .shell) == .comment)
         #expect(role(of: "if", in: code, .shell) == .keyword && role(of: "fi", in: code, .shell) == .keyword)
         #expect(colored(code, .shell).contains("string:\"$(date \"+%F\") done\""), "quotes inside $( ) stay part of the string")
@@ -83,8 +85,11 @@ func role(of piece: String, in text: String, _ language: SyntaxLanguage) -> Synt
 
     @Test func json() {
         let code = "{\"name\": \"Peeker\", \"size\": 12.5, \"tags\": [true, null], \"n\": -3e2} // note"
-        #expect(colored(code, .json) == ["string:\"name\"", "string:\"Peeker\"", "string:\"size\"", "number:12.5", "string:\"tags\"",
-                                         "number:true", "number:null", "string:\"n\"", "number:3e2", "comment:// note"])
+        #expect(
+            colored(code, .json) == [
+                "string:\"name\"", "string:\"Peeker\"", "string:\"size\"", "number:12.5", "string:\"tags\"",
+                "number:true", "number:null", "string:\"n\"", "number:3e2", "comment:// note",
+            ])
     }
 
     @Test func offsetsCountUTF16() {

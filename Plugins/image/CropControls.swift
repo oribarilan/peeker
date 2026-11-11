@@ -41,7 +41,8 @@ final class CropControls: NSView {
         let below = selection.minY - gap - size.height
         let y = below >= visible.minY ? below : selection.minY + gap
         let x = selection.maxX - size.width
-        return CGRect(x: min(max(x, visible.minX), visible.maxX - size.width),
-                      y: min(max(y, visible.minY), visible.maxY - size.height), width: size.width, height: size.height)
+        return CGRect(
+            x: min(max(x, visible.minX), visible.maxX - size.width),
+            y: min(max(y, visible.minY), visible.maxY - size.height), width: size.width, height: size.height)
     }
 }

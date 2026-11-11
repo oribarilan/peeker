@@ -103,7 +103,8 @@ nonisolated final class RecoveryStore: Sendable {
     private func allNow() -> [RecoveryRecord] {
         let files: [URL]
         do {
-            files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.contentModificationDateKey], options: .skipsHiddenFiles)
+            files = try FileManager.default.contentsOfDirectory(
+                at: directory, includingPropertiesForKeys: [.contentModificationDateKey], options: .skipsHiddenFiles)
         } catch CocoaError.fileReadNoSuchFile {
             return []
         } catch {
@@ -119,7 +120,8 @@ nonisolated final class RecoveryStore: Sendable {
                 guard file.lastPathComponent == "\(record.id).json", record.url.isFileURL else { throw CocoaError(.fileReadCorruptFile) }
                 records.append((record, try file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate ?? .distantPast))
             } catch {
-                Self.log.error("skipped unreadable recovery record \(file.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                Self.log.error(
+                    "skipped unreadable recovery record \(file.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
         return records.sorted { $0.written > $1.written }.map(\.record)

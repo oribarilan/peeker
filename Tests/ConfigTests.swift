@@ -40,7 +40,8 @@ private func config(_ json: String) throws -> Config {
 
 @Suite struct ConfigParsing {
     @Test func everySectionApplies() throws {
-        let config = try config("""
+        let config = try config(
+            """
             {
               "$schema": "schema.json",
               "peekPanel": { "key": "opt+space" },
@@ -305,7 +306,8 @@ private func config(_ json: String) throws -> Config {
     }
 
     @Test func readingTheRenderingGivesBackTheSameSettings() throws {
-        let original = try config("""
+        let original = try config(
+            """
             {"peekPanel": {"key": "off"}, "updates": {"automatic": "off", "showWhatsNew": false},
              "plugins": {"text": {"enabled": false, "extensions": ["txt", "log"]},
                          "pdf": {"tools": {"highlight": {"shortcut": "cmd+shift+h"}}}}}
@@ -445,22 +447,24 @@ private func config(_ json: String) throws -> Config {
     }
 }
 
-extension ThemeState { @Suite struct ConfigLooks {
-    @Test func theConfigSetsTheAppAndTextAppearancesAndTheTheme() throws {
-        defer { Config().applyLooks() }
-        try config(#"{"appearance": "dark", "textAppearance": "light", "textTheme": "ink"}"#).applyLooks()
-        #expect(NSApplication.shared.appearance?.name == .darkAqua)
-        #expect(TextTheme.appearance?.name == .aqua)
-        #expect(TextTheme.current.id == "ink")
-        try config(#"{"appearance": "light", "textAppearance": "dark"}"#).applyLooks()
-        #expect(NSApplication.shared.appearance?.name == .aqua)
-        #expect(TextTheme.appearance?.name == .darkAqua)
-        Config().applyLooks()
-        #expect(NSApplication.shared.appearance == nil, "system follows the Mac")
-        #expect(TextTheme.appearance == nil, "app matches the app")
-        #expect(TextTheme.current.id == "system")
+extension ThemeState {
+    @Suite struct ConfigLooks {
+        @Test func theConfigSetsTheAppAndTextAppearancesAndTheTheme() throws {
+            defer { Config().applyLooks() }
+            try config(#"{"appearance": "dark", "textAppearance": "light", "textTheme": "ink"}"#).applyLooks()
+            #expect(NSApplication.shared.appearance?.name == .darkAqua)
+            #expect(TextTheme.appearance?.name == .aqua)
+            #expect(TextTheme.current.id == "ink")
+            try config(#"{"appearance": "light", "textAppearance": "dark"}"#).applyLooks()
+            #expect(NSApplication.shared.appearance?.name == .aqua)
+            #expect(TextTheme.appearance?.name == .darkAqua)
+            Config().applyLooks()
+            #expect(NSApplication.shared.appearance == nil, "system follows the Mac")
+            #expect(TextTheme.appearance == nil, "app matches the app")
+            #expect(TextTheme.current.id == "system")
+        }
     }
-}}
+}
 
 @Suite struct PeekPanelOpenWithConfig {
     @Test func extensionsAreNormalizedAndMapToBundleIDs() throws {
@@ -473,9 +477,14 @@ extension ThemeState { @Suite struct ConfigLooks {
     }
 
     @Test func eachBadEntryIsAProblemAndTheRestApply() throws {
-        let reading = read(#"{"peekPanel": {"openWith": {"swift": "com.apple.dt.Xcode", "md": 3, "noExtension": "com.apple.TextEdit", "a b": "x", "log": "has space"}}}"#)
+        let reading = read(
+            #"{"peekPanel": {"openWith": {"swift": "com.apple.dt.Xcode", "md": 3, "noExtension": "com.apple.TextEdit", "a b": "x", "log": "has space"}}}"#
+        )
         #expect(try #require(reading.config).peekPanelOpenWith == ["swift": "com.apple.dt.Xcode"])
-        #expect(Set(reading.problems.map(\.path)) == ["peekPanel.openWith.md", "peekPanel.openWith.noExtension", "peekPanel.openWith.a b", "peekPanel.openWith.log"])
+        #expect(
+            Set(reading.problems.map(\.path)) == [
+                "peekPanel.openWith.md", "peekPanel.openWith.noExtension", "peekPanel.openWith.a b", "peekPanel.openWith.log",
+            ])
         let md = try #require(reading.problems.first { $0.path == "peekPanel.openWith.md" })
         #expect(md.message.contains("bundle ID"))
     }

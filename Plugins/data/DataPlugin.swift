@@ -49,13 +49,15 @@ public enum DataPlugin: Plugin {
         let file = try await TextFile.load(url)
         let format = DataFormat(fileExtension: url.pathExtension, text: file.text)
         // One that doesn't read as OpenStep either, such as an empty file, shows its text with the error.
-        if format == .plist, !file.isPartial, !DataFormat.startsWithTag(file.text), let converted = try? convertedPropertyList(url, kind: "OpenStep") {
+        if format == .plist, !file.isPartial, !DataFormat.startsWithTag(file.text), let converted = try? convertedPropertyList(url, kind: "OpenStep")
+        {
             return converted
         }
-        return Loaded(text: file.text, textFormat: file.format, format: format,
-                      readOnlyReason: file.editable ? nil : file.note ?? TextFile.readOnlyNote, isPartial: file.isPartial,
-                      info: info(file), parsed: file.isPartial ? nil : format.parse(file.text),
-                      colors: await CodeColoring.scan(url, text: file.text))
+        return Loaded(
+            text: file.text, textFormat: file.format, format: format,
+            readOnlyReason: file.editable ? nil : file.note ?? TextFile.readOnlyNote, isPartial: file.isPartial,
+            info: info(file), parsed: file.isPartial ? nil : format.parse(file.text),
+            colors: await CodeColoring.scan(url, text: file.text))
     }
 
     /// Whether a property list's XML stays within `budget` bytes, counted roughly before it's written. A binary list can
@@ -78,9 +80,11 @@ public enum DataPlugin: Plugin {
     }
 
     nonisolated static func info(_ file: TextFile.Loaded) -> [InfoRow] {
-        [InfoRow(label: "Lines", value: file.lineCount.formatted()),
-         InfoRow(label: "Encoding", value: String.localizedName(of: file.format.encoding) + (file.format.hasBOM ? " with BOM" : "")),
-         InfoRow(label: "Size", value: ByteCountFormatter.string(fromByteCount: Int64(file.byteCount), countStyle: .file))]
+        [
+            InfoRow(label: "Lines", value: file.lineCount.formatted()),
+            InfoRow(label: "Encoding", value: String.localizedName(of: file.format.encoding) + (file.format.hasBOM ? " with BOM" : "")),
+            InfoRow(label: "Size", value: ByteCountFormatter.string(fromByteCount: Int64(file.byteCount), countStyle: .file)),
+        ]
     }
 
     private nonisolated static func startsLikeBinaryPropertyList(_ url: URL) throws(PluginError) -> Bool {
@@ -95,7 +99,9 @@ public enum DataPlugin: Plugin {
         let data = try PluginError.catching { try Data(contentsOf: url, options: .alwaysMapped) }
         let tooLarge = PluginError("This property list is too large to show.")
         guard data.count <= TextLimits.displayBytes else { throw tooLarge }
-        guard let list = try? PropertyListSerialization.propertyList(from: data, format: nil) else { throw PluginError("This property list can't be read.") }
+        guard let list = try? PropertyListSerialization.propertyList(from: data, format: nil) else {
+            throw PluginError("This property list can't be read.")
+        }
         var budget = TextLimits.displayBytes
         guard fitsAsXML(list, within: &budget) else { throw tooLarge }
         guard let xml = try? PropertyListSerialization.data(fromPropertyList: list, format: .xml, options: 0) else {
@@ -103,10 +109,13 @@ public enum DataPlugin: Plugin {
         }
         guard xml.count <= TextLimits.displayBytes else { throw tooLarge }
         let text = String(decoding: xml, as: UTF8.self)
-        return Loaded(text: text, textFormat: TextFormat(encoding: .utf8, hasBOM: false, lineEnding: .lf), format: .plist,
-                      readOnlyReason: "\(kind) property lists show as XML, read-only.", isPartial: false,
-                      info: [InfoRow(label: "Format", value: "\(kind) property list"),
-                             InfoRow(label: "Size", value: ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file))],
-                      parsed: XMLReader.parse(text), colors: nil)
+        return Loaded(
+            text: text, textFormat: TextFormat(encoding: .utf8, hasBOM: false, lineEnding: .lf), format: .plist,
+            readOnlyReason: "\(kind) property lists show as XML, read-only.", isPartial: false,
+            info: [
+                InfoRow(label: "Format", value: "\(kind) property list"),
+                InfoRow(label: "Size", value: ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)),
+            ],
+            parsed: XMLReader.parse(text), colors: nil)
     }
 }

@@ -21,7 +21,9 @@ import PeekerKit
         self.run = run
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
-        for (button, symbol, label, action) in [(zoomOutButton, "minus", "Zoom Out", #selector(zoomOut)), (zoomInButton, "plus", "Zoom In", #selector(zoomIn))] {
+        for (button, symbol, label, action) in [
+            (zoomOutButton, "minus", "Zoom Out", #selector(zoomOut)), (zoomInButton, "plus", "Zoom In", #selector(zoomIn)),
+        ] {
             button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
             button.toolTip = label
             button.target = self

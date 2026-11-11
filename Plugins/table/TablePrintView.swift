@@ -104,8 +104,9 @@ final class TablePrintView: NSView {
     /// Lays out the pages for the paper and margins the print panel has now.
     func paginate() {
         let info = NSPrintOperation.current?.printInfo ?? printInfo
-        let page = CGSize(width: info.paperSize.width - info.leftMargin - info.rightMargin,
-                          height: info.paperSize.height - info.topMargin - info.bottomMargin)
+        let page = CGSize(
+            width: info.paperSize.width - info.leftMargin - info.rightMargin,
+            height: info.paperSize.height - info.topMargin - info.bottomMargin)
         columns = content.printedColumns(choices)
         let widths = (choices.showsRowNumbers ? [numberWidth] : []) + columns.map { naturalWidths[$0] }
         layout = TablePrintLayout(widths: widths, page: page, rowCount: content.rows.count, repeatsHeader: content.repeatsHeader)
@@ -159,7 +160,8 @@ final class TablePrintView: NSView {
             for (column, text) in line.texts.enumerated() {
                 let width = layout.widths[column]
                 let rect = NSRect(x: x, y: CGFloat(row) * height, width: width, height: height)
-                let style: [NSAttributedString.Key: Any] = numbered && column == 0 ? Self.numberStyle : line.isHeader ? Self.headerStyle : Self.cellStyle
+                let style: [NSAttributedString.Key: Any] =
+                    numbered && column == 0 ? Self.numberStyle : line.isHeader ? Self.headerStyle : Self.cellStyle
                 text.draw(in: rect.insetBy(dx: Self.padding / 2, dy: 2), withAttributes: style)
                 x += width
             }
@@ -211,8 +213,10 @@ final class TablePrintView: NSView {
 
 @MainActor enum TablePrinting {
     /// The print job, with the Table section in the print panel. `onChoicesChange` gets every change made there.
-    static func job(_ content: TablePrintContent, choices: TablePrintChoices, info: NSPrintInfo,
-                    onChoicesChange: @escaping (TablePrintChoices) -> Void) -> NSPrintOperation {
+    static func job(
+        _ content: TablePrintContent, choices: TablePrintChoices, info: NSPrintInfo,
+        onChoicesChange: @escaping (TablePrintChoices) -> Void
+    ) -> NSPrintOperation {
         info.isHorizontallyCentered = false
         info.isVerticallyCentered = false
         info.dictionary()[NSPrintInfo.AttributeKey.headerAndFooter] = true

@@ -19,7 +19,7 @@ struct RecoveryRestore {
     func run() {
         var restored: Set<URL> = []
         var missingText: [RecoveryRecord] = [], unopenableText: [RecoveryRecord] = []
-        for record in store.all() {   // newest first, so a file's newest record wins
+        for record in store.all() {  // newest first, so a file's newest record wins
             guard restored.insert(record.url.standardizedFileURL).inserted else {
                 store.remove(id: record.id)
                 continue
@@ -36,8 +36,10 @@ struct RecoveryRestore {
             } else {
                 store.remove(id: record.id)
                 let name = "“\(record.url.lastPathComponent)”"
-                tell(exists ? "No enabled plugin opens \(name). Its unsaved changes couldn't be restored."
-                            : "\(name) no longer exists. Its unsaved changes couldn't be restored.")
+                tell(
+                    exists
+                        ? "No enabled plugin opens \(name). Its unsaved changes couldn't be restored."
+                        : "\(name) no longer exists. Its unsaved changes couldn't be restored.")
             }
         }
         copyToClipboard(missingText) { names, count in "\(names) \(count == 1 ? "no longer exists" : "no longer exist")." }

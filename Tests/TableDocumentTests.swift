@@ -3,8 +3,10 @@ import PeekerKit
 @testable import PeekerTable
 import Testing
 
-@MainActor private func open(_ text: String, name: String = "t.csv", editing: Bool = true, preferences: PluginPreferences? = nil,
-                             encoding: String.Encoding = .utf8) async throws -> (TableDocument, URL) {
+@MainActor private func open(
+    _ text: String, name: String = "t.csv", editing: Bool = true, preferences: PluginPreferences? = nil,
+    encoding: String.Encoding = .utf8
+) async throws -> (TableDocument, URL) {
     let url = try TempFile.make(try #require(text.data(using: encoding)), name: name)
     return (try await openDocument(url, with: TablePlugin.self, as: TableDocument.self, editing: editing, preferences: preferences), url)
 }

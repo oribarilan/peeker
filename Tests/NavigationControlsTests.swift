@@ -153,9 +153,12 @@ import Testing
         trail.show(history)
         trail.layoutSubtreeIfNeeded()
         func move(over crumb: Int?) {
-            let point = crumb.map { trail.convert(NSPoint(x: trail.crumbs[$0].frame.midX, y: trail.crumbs[$0].frame.midY), from: trail.crumbs[$0].superview) }
-            let event = NSEvent.mouseEvent(with: .mouseMoved, location: trail.convert(point ?? NSPoint(x: -50, y: -50), to: nil), modifierFlags: [],
-                                           timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!
+            let point = crumb.map {
+                trail.convert(NSPoint(x: trail.crumbs[$0].frame.midX, y: trail.crumbs[$0].frame.midY), from: trail.crumbs[$0].superview)
+            }
+            let event = NSEvent.mouseEvent(
+                with: .mouseMoved, location: trail.convert(point ?? NSPoint(x: -50, y: -50), to: nil), modifierFlags: [],
+                timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0)!
             crumb == nil ? trail.mouseExited(with: event) : trail.mouseMoved(with: event)
         }
         move(over: 1)

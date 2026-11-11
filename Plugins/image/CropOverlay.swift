@@ -37,8 +37,10 @@ final class CropOverlay: NSView {
         controls.onCancel = { [weak self] in self?.finish(nil) }
         scrollView.addSubview(controls)
         // Scrolling and zooming move the rectangle on screen; the buttons follow.
-        scrollObserver = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: scrollView.contentView,
-                                                                queue: .main) { [weak self] _ in
+        scrollObserver = NotificationCenter.default.addObserver(
+            forName: NSView.boundsDidChangeNotification, object: scrollView.contentView,
+            queue: .main
+        ) { [weak self] _ in
             MainActor.assumeIsolated { self?.placeControls() }
         }
     }
@@ -53,8 +55,9 @@ final class CropOverlay: NSView {
         guard let scrollView else { return }
         guard let rect = shownRect else { return controls.isHidden = true }
         let visible = scrollView.contentView.frame.intersection(scrollView.safeAreaRect)
-        controls.frame = CropControls.frame(size: controls.frame.size, selection: convert(rect, to: scrollView), visible: visible,
-                                          flipped: scrollView.isFlipped)
+        controls.frame = CropControls.frame(
+            size: controls.frame.size, selection: convert(rect, to: scrollView), visible: visible,
+            flipped: scrollView.isFlipped)
         controls.isHidden = false
     }
 
@@ -69,14 +72,16 @@ final class CropOverlay: NSView {
         guard image.width > 0, image.height > 0 else { return .zero }
         let clamped = rect.intersection(image)
         guard !clamped.isNull else { return .zero }
-        return CGRect(x: (clamped.minX - image.minX) / image.width, y: (image.maxY - clamped.maxY) / image.height,
-                      width: clamped.width / image.width, height: clamped.height / image.height)
+        return CGRect(
+            x: (clamped.minX - image.minX) / image.width, y: (image.maxY - clamped.maxY) / image.height,
+            width: clamped.width / image.width, height: clamped.height / image.height)
     }
 
     /// The inverse of `fractions(of:in:)`.
     static func rect(for fractions: CGRect, in image: CGRect) -> CGRect {
-        CGRect(x: image.minX + fractions.minX * image.width, y: image.maxY - fractions.maxY * image.height,
-               width: fractions.width * image.width, height: fractions.height * image.height)
+        CGRect(
+            x: image.minX + fractions.minX * image.width, y: image.maxY - fractions.maxY * image.height,
+            width: fractions.width * image.width, height: fractions.height * image.height)
     }
 
     private var shownRect: CGRect? { selection.map { Self.rect(for: $0, in: imageRect) } }
@@ -184,7 +189,9 @@ final class CropOverlay: NSView {
         guard let selection else { return }
         let pixels = ImageEditing.cropRect(selection, in: pixelSize).size
         let label = "\(Int(pixels.width)) × \(Int(pixels.height))" as NSString
-        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor.white]
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor.white,
+        ]
         let size = label.size(withAttributes: attributes)
         let box = NSRect(x: rect.minX, y: min(rect.maxY + 4, bounds.maxY - size.height - 6), width: size.width + 10, height: size.height + 4)
         NSColor.black.withAlphaComponent(0.7).setFill()
