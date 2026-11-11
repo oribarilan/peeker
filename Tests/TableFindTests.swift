@@ -177,3 +177,15 @@ private func findItem(_ action: NSFindPanelAction) -> NSMenuItem {
         #expect(again.choices == TablePrintChoices(showsRowNumbers: true, hiddenColumns: [1]))
     }
 }
+
+@Suite struct TableFindTint {
+    @Test func theCurrentMatchIsBlackOnItsSolidTintAndOthersKeepTheirColor() {
+        let cell = CellView(identifier: NSUserInterfaceItemIdentifier("c"), isNumber: false)
+        cell.mark = .current
+        #expect(cell.textColor == .black)
+        cell.mark = .match
+        #expect(cell.textColor == .labelColor)
+        let number = CellView(identifier: NSUserInterfaceItemIdentifier("n"), isNumber: true)
+        #expect(number.textColor == .secondaryLabelColor)
+    }
+}

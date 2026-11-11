@@ -428,6 +428,11 @@ final class CellView: NSView {
         didSet { if mark != oldValue { needsDisplay = true } }
     }
 
+    /// Black on the current match's solid yellow, which white text in dark mode can't be read on.
+    var textColor: NSColor {
+        mark == .current ? .black : isNumber ? .secondaryLabelColor : .labelColor
+    }
+
     init(identifier: NSUserInterfaceItemIdentifier, isNumber: Bool) {
         self.isNumber = isNumber
         font = isNumber ? Self.numberFont : Self.font
@@ -446,7 +451,7 @@ final class CellView: NSView {
         }
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: isNumber ? NSColor.secondaryLabelColor : NSColor.labelColor,
+            .foregroundColor: textColor,
             .paragraphStyle: isNumber ? Self.numberParagraph : Self.paragraph,
         ]
         let line = text.replacingOccurrences(of: "\n", with: " ")  // one line per cell, as a spreadsheet shows it
