@@ -60,6 +60,10 @@ try write("large.md", "# Large\n\n" + (1...4_000).map { String(format: section, 
 
 try write("small.csv", "name,city,score\n" + (0..<100).map { "person \($0),city \($0 % 13),\($0 * 37 % 101)" }.joined(separator: "\n"))
 try write("large.csv", "id,name,city,score,notes\n" + (0..<50_000).map { "\($0),person \($0),city \($0 % 13),\($0 * 37 % 101),\"note, with comma \($0)\"" }.joined(separator: "\n"))
+// Tables at scale: 500,000 rows (about 30 MB, under the 50 MB editing limit) and 200 columns.
+try write("huge.csv", "id,name,city,score,notes\n" + (0..<500_000).map { "\($0),person \($0),city \($0 % 13),\($0 * 37 % 101),\"note, with comma \($0)\"" }.joined(separator: "\n"))
+try write("wide.csv", (0..<200).map { "column \($0)" }.joined(separator: ",") + "\n"
+    + (0..<2_000).map { row in (0..<200).map { "\(row * 200 + $0)" }.joined(separator: ",") }.joined(separator: "\n"))
 
 func json(items: Int) -> String {
     "{\n  \"name\": \"fixture\",\n  \"items\": [\n" + (0..<items).map { "    {\"id\": \($0), \"name\": \"item \($0)\", \"tags\": [\"a\", \"b\"], \"score\": \($0 * 37 % 101).5, \"active\": \($0 % 2 == 0)}" }.joined(separator: ",\n") + "\n  ]\n}\n"
