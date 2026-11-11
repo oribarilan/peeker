@@ -1,7 +1,9 @@
 #!/bin/bash
 # The table editing flow on screen: Space on a CSV file in Finder shows it as a table in the Peek panel; in the Editor,
-# a double-click on a cell, typing and Return change it, and Cmd+S writes exactly that change to the file; a click on a
-# column title sorts the table without counting as an edit (closing asks nothing); View > Header Row turns the header
+# a double-click on a cell, typing and Return change it, Return leaves no cell being edited, and Cmd+S writes exactly
+# that change to the file; typing over the current cell replaces it, Shift-Up selects two cells and Delete clears them;
+# a click on a column title selects it without sorting, and a click on the title's arrow sorts the table without
+# counting as an edit (closing asks nothing); View > Header Row turns the header
 # off and on again, its checkmark following; and Tools > Add Row Below is an unsaved edit (closing asks to save, and
 # Don't Save leaves the file as saved). Writes screenshots and results.txt (one ok/FAIL line per check) to its evidence
 # folder, plus a screen recording with SCREEN_RECORD=1.
@@ -17,6 +19,7 @@ source "$(dirname "$0")/common.sh" "$@"
 FILE="$OUT/prices.csv"
 printf 'name,price\nTea,3.50\nCake,4\nBread,2\n' > "$FILE"
 printf 'name,price\nTea,3.50\nCake,9\nBread,2\n' > "$OUT/expected-edited.csv"
+printf 'name,price\nTea,\nCake,\nBread,7\n' > "$OUT/expected-cleared.csv"
 front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.5; }
 # The screen frame of the first element with that role and label or value: x y width height. A failed lookup gives
 # 0 0 0 0, and the click it was for is skipped rather than sent to the screen's corner.
@@ -42,6 +45,7 @@ for _ in $(seq 30); do "$DRIVE" tree Peeker 30 2>/dev/null | grep -q 'AXStaticTe
 "$DRIVE" tree Peeker 30 > "$OUT/peek-panel-tree.txt" 2>&1
 check "The Peek panel shows a table" "$(grep -q '^ *AXTable' "$OUT/peek-panel-tree.txt" && echo yes)" yes
 check "The Peek panel shows the cell Cake" "$(grep -q 'AXStaticText.* = Cake$' "$OUT/peek-panel-tree.txt" && echo yes)" yes
+# Fitted columns and the right-aligned price column show only in the picture; unit tests check both.
 "$DRIVE" shot Peeker "$OUT/1-peek-panel.png"
 "$DRIVE" keys Finder escape  # the panel never takes focus, so Finder stays in front
 "$DRIVE" wait Peeker window prices.csv --gone
@@ -63,25 +67,48 @@ read -r px _ pw _ <<< "$(frame AXStaticText 3.50)"
 sleep 0.3
 "$DRIVE" keys Peeker cmd+a  # editing starts with the field's text selected; this makes sure
 "$DRIVE" type Peeker 9
-"$DRIVE" keys Peeker return  # commits and starts editing the cell below
-"$DRIVE" keys Peeker escape  # which this leaves unchanged
+"$DRIVE" keys Peeker return  # commits, and makes the cell below current without editing it
+sleep 0.3
+check "Return leaves no cell being edited" "$("$DRIVE" focus Peeker | grep -cE 'AXText(Area|Field)')" 0
 "$DRIVE" shot Peeker "$OUT/3-edited.png" prices.csv
 "$DRIVE" keys Peeker cmd+s
 for _ in $(seq 50); do cmp -s "$FILE" "$OUT/expected-edited.csv" && break; sleep 0.1; done
 check "Cmd+S writes the edited cell and nothing else" "$(cmp -s "$FILE" "$OUT/expected-edited.csv" && echo same || echo different)" same
 
-# A click on a column title sorts the table, which isn't an edit: closing asks nothing.
-read -r x y w h <<< "$(frame AXButton price)"
-[ "$w" -gt 0 ] && "$DRIVE" click Peeker $((x + w / 2)) $((y + h / 2))
+# Bread's price is current now: typing replaces it. Then Up, Shift-Up selects Cake's and Tea's prices, and Delete
+# clears both.
+"$DRIVE" type Peeker 7
+"$DRIVE" keys Peeker return
+"$DRIVE" keys Peeker up
+"$DRIVE" keys Peeker shift+up
 sleep 0.3
-# Bread's 2 is the smallest number whatever the locale; 3.50 may read as text where the decimal mark is a comma.
-check "Clicking price sorts Bread to the top" "$(top_row)" Bread
+"$DRIVE" shot Peeker "$OUT/3b-two-selected.png" prices.csv
+"$DRIVE" keys Peeker delete
+"$DRIVE" keys Peeker cmd+s
+for _ in $(seq 50); do cmp -s "$FILE" "$OUT/expected-cleared.csv" && break; sleep 0.1; done
+check "Typing replaces a cell and Delete clears the selection" "$(cmp -s "$FILE" "$OUT/expected-cleared.csv" && echo same || echo different)" same
+
+# A click on a title away from its arrow selects the column and doesn't sort.
+read -r x y w h <<< "$(frame AXButton price)"
+[ "$w" -gt 0 ] && "$DRIVE" click Peeker $((x + 12)) $((y + h / 2))
+sleep 0.3
+check "Clicking the price title doesn't sort" "$(top_row)" Tea
+"$DRIVE" shot Peeker "$OUT/3c-column-selected.png" prices.csv
+# The arrow shows on the title under the pointer, at its right end; a click on it sorts, which isn't an edit:
+# closing asks nothing.
+[ "$w" -gt 0 ] && "$DRIVE" move Peeker $((x + w - 10)) $((y + h / 2))
+sleep 0.4
+"$DRIVE" shot Peeker "$OUT/3d-sort-arrow.png" prices.csv
+[ "$w" -gt 0 ] && "$DRIVE" click Peeker $((x + w - 10)) $((y + h / 2))
+sleep 0.3
+# Bread's 7 is the only number left, and numbers sort before text.
+check "Clicking price's arrow sorts Bread to the top" "$(top_row)" Bread
 "$DRIVE" shot Peeker "$OUT/4-sorted.png" prices.csv
 "$DRIVE" keys Peeker cmd+w
 closed=$("$DRIVE" wait Peeker window prices.csv --gone --timeout 3 2>/dev/null && echo closed)
 check "Closing after a sort asks nothing" "$closed" closed
 [ -n "$closed" ] || { "$DRIVE" press Peeker "Don't Save"; "$DRIVE" wait Peeker window prices.csv --gone; }
-check "The sort leaves the file as saved" "$(cmp -s "$FILE" "$OUT/expected-edited.csv" && echo same || echo different)" same
+check "The sort leaves the file as saved" "$(cmp -s "$FILE" "$OUT/expected-cleared.csv" && echo same || echo different)" same
 
 # View > Header Row turns the header off and on, its checkmark following. The choice is kept per file in the
 # preferences, so it's put back on before the next step.
@@ -136,6 +163,6 @@ sleep 0.3
 check "An added row is an unsaved edit: closing asks to save" "$("$DRIVE" wait Peeker sheet --timeout 3 2>/dev/null && echo asked)" asked
 "$DRIVE" press Peeker "Don't Save"
 "$DRIVE" wait Peeker window prices.csv --gone
-check "Don't Save leaves the file as saved" "$(cmp -s "$FILE" "$OUT/expected-edited.csv" && echo same || echo different)" same
+check "Don't Save leaves the file as saved" "$(cmp -s "$FILE" "$OUT/expected-cleared.csv" && echo same || echo different)" same
 
 finish

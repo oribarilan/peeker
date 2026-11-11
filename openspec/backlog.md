@@ -18,6 +18,7 @@ Ideas not yet started, one line each. Details live in [docs/design-review-2026-1
 - Editing YAML, TOML, XML and property lists in the tree, as JSON edits (their trees are read-only since 2026-11-07).
 - Add, change or remove a PDF's password with File > Password… (decided 2026-11-09; after editable password-protected PDFs).
 - Replace in CSV/TSV tables, next to Find.
+- Table: sort and column edits off the main thread, so a 500,000-row file stays responsive.
 - Other apps in the Editor's File > Open With, as the Peek panel's button lists them.
 - Peek panel: a long file name runs under the title bar's buttons instead of being cut short.
 - Peek panel: app icons in the button's menu (they're set but don't show).

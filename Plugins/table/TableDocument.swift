@@ -14,6 +14,10 @@ final class TableDocument: PluginDocument {
     private(set) var table: CSVTable
     private(set) var delimiter: Delimiter
     private(set) var hasHeader: Bool
+    /// Each column's sample for its width and alignment, and a number that changes when the widths should be
+    /// fitted again: after the delimiter, the header row or the columns change.
+    private(set) var columns: [ColumnSample]
+    private(set) var columnsVersion = 0
     private(set) var info: [InfoRow]
     private var byteCount: Int
     /// Each state of the table has its own number; Undo and Redo go back to earlier ones. The document is edited
@@ -45,6 +49,7 @@ final class TableDocument: PluginDocument {
         table = loaded.table
         delimiter = loaded.table.delimiter
         hasHeader = loaded.header
+        columns = loaded.columns
         byteCount = loaded.byteCount
         info = Self.info(loaded.table, format: loaded.format, byteCount: loaded.byteCount)
         undoManager.groupsByEvent = false
@@ -109,21 +114,27 @@ final class TableDocument: PluginDocument {
         case "header-row":
             hasHeader.toggle()
             remember()
+            resampleColumns()
             view.reloadAll()
         case let id where id.hasPrefix("delimiter-"):
             guard let choice = Delimiter.allCases.first(where: { "delimiter-\($0)" == id }) else { return false }
             setDelimiter(choice)
         case "add-row-above" where isEditable: insertRows(above: true)
         case "add-row-below" where isEditable: insertRows(above: false)
-        case "add-column-before" where isEditable: insertColumn(at: view.currentColumn ?? 0)
-        case "add-column-after" where isEditable: insertColumn(at: (view.currentColumn ?? table.columnCount - 1) + 1)
+        case "add-column-before" where isEditable: insertColumn(at: view.selection.columns.first ?? 0)
+        case "add-column-after" where isEditable: insertColumn(at: (view.selection.columns.last ?? table.columnCount - 1) + 1)
         case "delete-rows" where isEditable:
             let rows = view.selectedFileRows
             guard !rows.isEmpty else { return false }
             removeRows(rows)
         case "delete-columns" where isEditable:
-            guard let column = view.currentColumn, column < table.columnCount else { return false }
-            removeColumn(column)
+            let columns = view.selection.columns
+            guard !columns.isEmpty else { return false }
+            removeColumns(columns)
+        case "sort-ascending", "sort-descending":
+            guard table.columnCount > 0 else { return false }
+            view.sortBy(column: view.selection.current.column, ascending: id == "sort-ascending")
+        case "sort-none": view.sortBy(column: nil)
         default: return false
         }
         return true
@@ -132,7 +143,7 @@ final class TableDocument: PluginDocument {
     func unavailableReason(for tool: String) -> String? {
         switch tool {
         case "delete-rows" where view.selectedFileRows.isEmpty: "Select the rows to delete."
-        case "delete-columns" where view.currentColumn == nil: "Click a cell in the column to delete."
+        case "delete-columns" where view.selection.columns.isEmpty: "Select the columns to delete."
         default: nil
         }
     }
@@ -165,8 +176,14 @@ final class TableDocument: PluginDocument {
         table = CSVTable(text: text, delimiter: choice)
         undoManager.removeAllActions()
         remember()
+        resampleColumns()
         view.reloadAll()
         refreshInfo()
+    }
+
+    private func resampleColumns() {
+        columns = ColumnSample.sample(table, hasHeader: hasHeader)
+        columnsVersion += 1
     }
 
     private func remember() {
@@ -178,7 +195,8 @@ final class TableDocument: PluginDocument {
     /// What brings the table back, applied by Undo; each returns its own inverse for Redo.
     private enum Inverse {
         case row(Int, CSVRow)
-        case rows([CSVRow])
+        /// Every row, and whether the columns changed with them, so their widths are fitted again.
+        case rows([CSVRow], reshaped: Bool)
         case insert([CSVRow], IndexSet)
         case remove(IndexSet)
     }
@@ -189,6 +207,28 @@ final class TableDocument: PluginDocument {
         table.setCell(value, row: row, column: column)
         record(.row(row, before))
         view.reloadRows(IndexSet(integer: row))
+    }
+
+    /// Empties the cells at `rows` (file rows) and `columns`, as one edit; nothing happens when they're all empty.
+    func clearCells(rows: IndexSet, columns: IndexSet) {
+        guard isEditable else { return }
+        let before = table.rows
+        var changed = IndexSet()
+        for row in rows where row < table.rowCount {
+            let fields = table.fields(ofRow: row)
+            let filled = columns.filter { $0 < fields.count && !fields[$0].text.isEmpty }
+            guard !filled.isEmpty else { continue }
+            for column in filled { table.setCell("", row: row, column: column) }
+            changed.insert(row)
+        }
+        guard let first = changed.first else { return }
+        if changed.count == 1 {
+            record(.row(first, before[first]))
+            view.reloadRows(changed)
+        } else {
+            record(.rows(before, reshaped: false))
+            view.reloadAll()
+        }
     }
 
     func insertRows(_ rows: [CSVRow], at indexes: IndexSet) {
@@ -208,21 +248,23 @@ final class TableDocument: PluginDocument {
         if let first = indexes.first, let last = indexes.last, last - first + 1 == indexes.count, (first...last + 1).contains(destination) { return }
         let before = table.rows
         table.moveRows(from: indexes, to: destination)
-        record(.rows(before))
+        record(.rows(before, reshaped: false))
         view.reloadAll()
     }
 
     func insertColumn(at index: Int) {
         let before = table.rows
         table.insertColumn(at: index)
-        record(.rows(before))
+        record(.rows(before, reshaped: true))
+        resampleColumns()
         view.reloadAll()
     }
 
-    func removeColumn(_ index: Int) {
+    func removeColumns(_ indexes: IndexSet) {
         let before = table.rows
-        table.removeColumn(at: index)
-        record(.rows(before))
+        table.removeColumns(at: indexes)
+        record(.rows(before, reshaped: true))
+        resampleColumns()
         view.reloadAll()
     }
 
@@ -231,7 +273,8 @@ final class TableDocument: PluginDocument {
         guard source != destination else { return }
         let before = table.rows
         table.moveColumn(from: source, to: destination)
-        record(.rows(before))
+        record(.rows(before, reshaped: true))
+        columns.insert(columns.remove(at: source), at: destination)  // the column kept its width as it moved
         view.reloadCells()
         view.tableDidChange()
     }
@@ -258,9 +301,10 @@ final class TableDocument: PluginDocument {
         case .row(let index, let row):
             redo = .row(index, table.rows[index])
             table.rows[index] = row
-        case .rows(let rows):
-            redo = .rows(table.rows)
+        case .rows(let rows, let reshaped):
+            redo = .rows(table.rows, reshaped: reshaped)
             table.rows = rows
+            if reshaped { resampleColumns() }
         case .insert(let rows, let indexes):
             table.insertRows(rows, at: indexes)
             redo = .remove(indexes)
@@ -296,6 +340,7 @@ final class TableDocument: PluginDocument {
         newestState += 1
         state = newestState
         onEdit?()
+        resampleColumns()
         view.reloadAll()
         refreshInfo()
         return true
@@ -332,6 +377,7 @@ final class TableDocument: PluginDocument {
         table = CSVTable(text: savedText, delimiter: delimiter)
         undoManager.removeAllActions()
         state = savedState
+        resampleColumns()
         view.reloadAll()
         refreshInfo()
     }
@@ -344,6 +390,8 @@ final class TableDocument: PluginDocument {
         savedText = loaded.table.text
         table = loaded.table
         tooLarge = loaded.byteCount > TablePlugin.editableBytes
+        columns = loaded.columns
+        columnsVersion += 1
         undoManager.removeAllActions()
         view.reloadAll()
         refreshInfo(byteCount: loaded.byteCount)

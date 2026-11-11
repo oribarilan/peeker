@@ -38,7 +38,8 @@ import Testing
         #expect(TextPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "toggle-wrap"])
         #expect(MarkdownPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual"])
         #expect(TablePlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "header-row", "delimiter-comma", "delimiter-semicolon", "delimiter-tab", "delimiter-pipe",
-                                                "add-row-above", "add-row-below", "add-column-before", "add-column-after", "delete-rows", "delete-columns"])
+                                                "add-row-above", "add-row-below", "add-column-before", "add-column-after", "delete-rows", "delete-columns",
+                                                "sort-ascending", "sort-descending", "sort-none"])
         #expect(DataPlugin.tools.map(\.id) == ["zoom-in", "zoom-out", "zoom-actual", "show-text", "add-item", "add-child", "delete-item"])
     }
 

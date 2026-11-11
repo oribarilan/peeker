@@ -116,7 +116,7 @@ private func cells(_ table: CSVTable) -> [[String]] {
         var t = table("a,b,c\n1,2,3\n")
         t.insertColumn(at: 1)
         #expect(cells(t) == [["a", "", "b", "c"], ["1", "", "2", "3"]])
-        t.removeColumn(at: 0)
+        t.removeColumns(at: [0])
         #expect(t.serialized(lineEnding: "\n") == ",b,c\n,2,3\n")
         t.moveColumn(from: 2, to: 0)
         #expect(cells(t)[0] == ["c", "", "b"])
@@ -131,7 +131,7 @@ private func cells(_ table: CSVTable) -> [[String]] {
     @Test func allRowsSwapForUndo() {
         var t = table("a,b\n1,2\n")
         let before = t.rows
-        t.removeColumn(at: 0)
+        t.removeColumns(at: [0])
         t.rows = before
         #expect(t.serialized(lineEnding: "\n") == "a,b\n1,2\n")
     }

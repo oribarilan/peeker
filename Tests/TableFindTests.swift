@@ -70,9 +70,9 @@ private func findItem(_ action: NSFindPanelAction) -> NSMenuItem {
         #expect(view.findBar?.status == "1 of 3")
         #expect(view.marks == [CellRef(row: 1, column: 0), CellRef(row: 2, column: 1), CellRef(row: 4, column: 0)])
         #expect(view.currentMark == CellRef(row: 1, column: 0))
-        #expect(view.fileRow(view.tableView.selectedRow) == 1)
+        #expect(view.fileRow(view.selection.current.row) == 1)
         view.performFindPanelAction(findItem(.next))
-        #expect(view.findBar?.status == "2 of 3" && view.fileRow(view.tableView.selectedRow) == 2)
+        #expect(view.findBar?.status == "2 of 3" && view.fileRow(view.selection.current.row) == 2)
         view.performFindPanelAction(findItem(.previous))
         view.performFindPanelAction(findItem(.previous))
         #expect(view.findBar?.status == "3 of 3", "previous wraps around")
@@ -180,12 +180,12 @@ private func findItem(_ action: NSFindPanelAction) -> NSMenuItem {
 
 @Suite struct TableFindTint {
     @Test func theCurrentMatchIsBlackOnItsSolidTintAndOthersKeepTheirColor() {
-        let cell = CellView(identifier: NSUserInterfaceItemIdentifier("c"), isNumber: false)
+        let cell = CellView(identifier: NSUserInterfaceItemIdentifier("c"), isRowNumber: false)
         cell.mark = .current
         #expect(cell.textColor == .black)
         cell.mark = .match
         #expect(cell.textColor == .labelColor)
-        let number = CellView(identifier: NSUserInterfaceItemIdentifier("n"), isNumber: true)
+        let number = CellView(identifier: NSUserInterfaceItemIdentifier("n"), isRowNumber: true)
         #expect(number.textColor == .secondaryLabelColor)
     }
 }

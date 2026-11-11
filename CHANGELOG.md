@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- CSV and TSV tables work more like a spreadsheet. Columns open sized to their content, and number columns line up on the right. A current cell moves with the arrow keys and Tab, Return edits it, and typing replaces it. Click a column title or row number to select it, Shift-click or drag for a block, Cmd+A for everything, and Delete clears what's selected. Sorting moves to an arrow on the column title, shown when the pointer is over it, and to Sort Ascending, Sort Descending and Original Order in Tools and the title's right-click menu.
 - The Peek panel's buttons have keys: Cmd+O opens the file as the main button does, and Cmd+R shows it in Finder, while the panel is up over Finder. Each button shows its key, and Settings > General changes or clears them (`peekPanel.openKey` and `peekPanel.showInFinderKey` in the config).
 - Show in Finder opens a Finder window with the file selected: File > Show in Finder and a folder button in the toolbar in Editor windows, and in the Peek panel a folder button beside Open in Peeker and an item at the end of its menu.
 - CSV and TSV tables get Find and Print. Cmd+F shows the find bar PDFs have; cells containing the search, ignoring case and accents, are tinted, and Cmd+G steps through them in the order shown. Cmd+P prints the table as shown, unsaved edits included, shrunk to the page width with the header row on every page; a Table section in the print panel adds row numbers and picks the columns.

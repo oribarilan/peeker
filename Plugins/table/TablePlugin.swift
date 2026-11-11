@@ -24,6 +24,9 @@ public enum TablePlugin: Plugin {
         ToolSpec(id: "add-column-after", title: "Add Column After", symbol: "plus.rectangle.portrait", isEditTool: true),
         ToolSpec(id: "delete-rows", title: "Delete Rows", isEditTool: true, showsInToolbar: false),
         ToolSpec(id: "delete-columns", title: "Delete Columns", isEditTool: true, showsInToolbar: false),
+        ToolSpec(id: "sort-ascending", title: "Sort Ascending", showsInToolbar: false, menu: .tools),
+        ToolSpec(id: "sort-descending", title: "Sort Descending", showsInToolbar: false, menu: .tools),
+        ToolSpec(id: "sort-none", title: "Original Order", showsInToolbar: false, menu: .tools),
     ]
 
     /// Files over this open as a read-only table.
@@ -46,6 +49,8 @@ public enum TablePlugin: Plugin {
     struct Loaded: Sendable {
         let table: CSVTable
         let header: Bool
+        /// Each column's sample for its width and alignment, taken here so the main thread needn't.
+        let columns: [ColumnSample]
         let format: TextFormat
         let byteCount: Int
     }
@@ -57,6 +62,8 @@ public enum TablePlugin: Plugin {
         var (text, format) = try TextCodec.decode(data)
         text.makeContiguousUTF8()  // a legacy encoding decodes to a bridged string, many times slower to index
         let table = CSVTable(text: text, delimiter: delimiter ?? CSVTable.guessDelimiter(in: text))
-        return Loaded(table: table, header: header ?? table.guessHeader(), format: format, byteCount: data.count)
+        let hasHeader = header ?? table.guessHeader()
+        return Loaded(table: table, header: hasHeader, columns: ColumnSample.sample(table, hasHeader: hasHeader),
+                      format: format, byteCount: data.count)
     }
 }

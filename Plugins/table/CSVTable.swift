@@ -117,11 +117,11 @@ nonisolated struct CSVTable: Sendable {
         }
     }
 
-    mutating func removeColumn(at index: Int) {
+    /// Removes the columns at `indexes` from every row, in one pass.
+    mutating func removeColumns(at indexes: IndexSet) {
         rows = (0..<rowCount).map { row in
-            var fields = fields(ofRow: row)
-            if index < fields.count { fields.remove(at: index) }
-            return CSVRow(storage: .edited(fields))
+            let fields = fields(ofRow: row)
+            return CSVRow(storage: .edited(fields.indices.filter { !indexes.contains($0) }.map { fields[$0] }))
         }
     }
 

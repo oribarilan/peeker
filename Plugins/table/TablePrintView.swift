@@ -76,7 +76,6 @@ final class TablePrintView: NSView {
     private static let headerFont = NSFont.boldSystemFont(ofSize: 10)
     private static let numberFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
     private static let padding: CGFloat = 8
-    private static let measuredRows = 1_000
 
     let content: TablePrintContent
     var choices: TablePrintChoices {
@@ -197,17 +196,8 @@ final class TablePrintView: NSView {
 
     /// Column widths from the header row and the first rows to print, 30 to 300 points with padding.
     private static func measure(_ content: TablePrintContent) -> ([CGFloat], CGFloat) {
-        let table = content.table
-        var widths = [CGFloat](repeating: 0, count: table.columnCount)
-        func fit(_ fields: [CSVField], font: NSFont) {
-            for (column, field) in fields.enumerated() where !field.text.isEmpty && column < widths.count {
-                // 200 characters are wider than the 300-point cap in any font this size, so the rest needn't be measured.
-                let text = singleLine(String(field.text.prefix(200)))
-                widths[column] = max(widths[column], (text as NSString).size(withAttributes: [.font: font]).width)
-            }
-        }
-        if content.repeatsHeader { fit(table.fields(ofRow: 0), font: headerFont) }
-        for row in content.rows.prefix(measuredRows) { fit(table.fields(ofRow: row), font: font) }
+        let samples = ColumnSample.sample(content.table, hasHeader: content.repeatsHeader, rows: content.rows)
+        let widths = samples.map { max($0.cellsWidth(font: font), $0.titleWidth(font: headerFont)) }
         let widest = "\(content.rows.map(content.rowNumber).max() ?? 0)" as NSString
         return (widths.map(clamped), clamped(widest.size(withAttributes: [.font: numberFont]).width))
     }

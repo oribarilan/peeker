@@ -2,15 +2,17 @@ import AppKit
 import PeekerKit
 
 /// The table on screen: a row-number column, then one column per CSV column. It shows the document's `CSVTable`
-/// through `order`, which is file order or a sort, and turns clicks, typing and drags into the document's edits.
+/// through `order`, which is file order or a sort, keeps a spreadsheet's selection (`TableSelection`), and turns
+/// clicks, typing and drags into the document's edits. Columns open fitted to the document's column samples.
 final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate, NSMenuDelegate {
     /// Weak: AppKit can still ask the table for rows while its window closes, after the document has gone.
     private(set) weak var document: TableDocument?
     /// The document's table, or none once the document has gone.
-    private var table: CSVTable { document?.table ?? CSVTable(text: "", delimiter: .comma) }
+    var table: CSVTable { document?.table ?? CSVTable(text: "", delimiter: .comma) }
     private var isEditable: Bool { document?.isEditable == true }
     var canEdit: Bool { isEditable }
     let tableView = GridView()
+    let header = TableHeaderView()
     let scrollView = NSScrollView()
     /// Find, from the first Cmd+F (TableFind.swift): the bar, its finder, the matches tinted and the current one.
     var findBar: FindBar?
@@ -23,15 +25,20 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
     /// No find in the Peek panel.
     var allowsFind: Bool { document?.allowsFind == true }
     /// File rows in the order shown while sorted; nil in file order.
-    private(set) var order: [Int]?
-    private var sort: (column: Int, ascending: Bool)?
-    /// The column of the cell last clicked or edited, in the file's columns.
-    var currentColumn: Int?
+    /// Set by sorting (TableView+Sorting.swift).
+    var order: [Int]?
+    var sort: (column: Int, ascending: Bool)?
+    /// The current cell and what's selected, in shown rows.
+    var selection = TableSelection()
+    /// In the Peek panel the selection shows from the first click; in the Editor from the start.
+    var showsSelection: Bool
     /// The cell being typed in: the row shown, and the file row, fixed when editing starts.
-    private var editing: (row: Int, fileRow: Int, column: Int)?
+    private(set) var editing: (row: Int, fileRow: Int, column: Int)?
     private static let rowPasteboardType = NSPasteboard.PasteboardType("dev.peeker.table-rows")
     /// The last row's fields, while AppKit asks for its cells.
     private var rowCache: (row: Int, fields: [CSVField])?
+    /// The document's `columnsVersion` the widths were last fitted for.
+    private var fittedVersion = -1
     /// The cells' text size, from the document's zoom. Rows, the header and columns follow it.
     var fontSize = TableDocument.defaultFontSize {
         didSet {
@@ -42,9 +49,20 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
     }
     private var scale: CGFloat { fontSize / TableDocument.defaultFontSize }
     private var cellFont = CellView.font, numberFont = CellView.numberFont
+    /// Number columns use digits of one width, so their decimals line up.
+    private var digitsFont = NSFont.monospacedDigitSystemFont(ofSize: TableDocument.defaultFontSize, weight: .regular)
+    private var headerFont: NSFont { NSFont(descriptor: baseHeaderFont.fontDescriptor, size: baseHeaderFont.pointSize * scale) ?? baseHeaderFont }
     /// The table's own row height and header at the default size.
     private var baseRowHeight: CGFloat = 0, baseHeaderHeight: CGFloat = 0
     private var baseHeaderFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+    /// The widest a column opens, at the default size; a dimmed arrow for the title under the pointer.
+    private static let widestFitted: CGFloat = 320
+    static let hoverArrow: NSImage? = NSImage(named: "NSAscendingSortIndicator").map { arrow in
+        NSImage(size: arrow.size, flipped: false) { rect in
+            arrow.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 0.35)
+            return true
+        }
+    }
     /// The text field shown over the cell being edited.
     private(set) lazy var editor: NSTextField = {
         let field = NSTextField(string: "")
@@ -57,28 +75,34 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
 
     init(document: TableDocument) {
         self.document = document
+        showsSelection = document.allowsFind
         super.init(frame: .zero)
         tableView.owner = self
+        header.owner = self
+        header.frame.size.height = tableView.headerView?.frame.height ?? 28
+        tableView.headerView = header
         tableView.dataSource = self
         tableView.delegate = self
         tableView.usesAlternatingRowBackgroundColors = true
         tableView.allowsMultipleSelection = true
+        tableView.allowsColumnSelection = false
+        tableView.selectionHighlightStyle = .none
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.gridStyleMask = [.solidVerticalGridLineMask]
         tableView.style = .plain
         baseRowHeight = tableView.rowHeight
-        baseHeaderHeight = tableView.headerView?.frame.height ?? 0
+        baseHeaderHeight = header.frame.height
         baseHeaderFont = NSTableColumn().headerCell.font ?? baseHeaderFont
         fontSize = document.fontSize
-        tableView.target = self
-        tableView.action = #selector(clicked)
-        tableView.doubleAction = #selector(doubleClicked)
         tableView.registerForDraggedTypes([Self.rowPasteboardType])
         let rowMenu = NSMenu(), columnMenu = NSMenu()
-        for (menu, ids) in [(rowMenu, ["add-row-above", "add-row-below", "delete-rows"]), (columnMenu, ["add-column-before", "add-column-after", "delete-columns"])] {
+        let menus = [(rowMenu, ["add-row-above", "add-row-below", "delete-rows"]),
+                     (columnMenu, ["add-column-before", "add-column-after", "delete-columns", "", "sort-ascending", "sort-descending", "sort-none"])]
+        for (menu, ids) in menus {
             menu.delegate = self
             menu.autoenablesItems = false  // enabled by `menuNeedsUpdate`
             for id in ids {
+                guard !id.isEmpty else { menu.addItem(.separator()); continue }
                 let item = NSMenuItem(title: TablePlugin.tools.first { $0.id == id }?.title ?? id, action: #selector(runTool(_:)), keyEquivalent: "")
                 item.target = self
                 item.representedObject = id
@@ -86,7 +110,7 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
             }
         }
         tableView.menu = rowMenu
-        tableView.headerView?.menu = columnMenu
+        header.menu = columnMenu
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
@@ -104,20 +128,36 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    private var headerOffset: Int { document?.hasHeader == true && table.rowCount > 0 ? 1 : 0 }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        NotificationCenter.default.removeObserver(self)
+        guard let window else { return }
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(keyWindowChanged), name: name, object: window)
+        }
+    }
+
+    @objc private func keyWindowChanged() { selectionChanged(scrolling: false) }
+
+    var headerOffset: Int { document?.hasHeader == true && table.rowCount > 0 ? 1 : 0 }
     /// Whether file row 0 shows as the column titles.
     var headerIsShown: Bool { headerOffset == 1 }
 
     /// The file row shown at `row`.
     func fileRow(_ row: Int) -> Int { order?[row] ?? row + headerOffset }
 
-    /// The selected rows, as file rows.
-    var selectedFileRows: IndexSet { IndexSet(tableView.selectedRowIndexes.map(fileRow)) }
+    /// The rows the selection covers, as file rows.
+    var selectedFileRows: IndexSet {
+        var rows = selection.rows
+        guard order == nil else { return IndexSet(rows.map(fileRow)) }
+        rows.shift(startingAt: 0, by: headerOffset)
+        return rows
+    }
 
     // MARK: Reloading
 
     /// Titles, sort and rows again, after any change to the table's shape. Columns are made again only when their
-    /// number changes, keeping the widths of those that stay.
+    /// number changes, keeping the widths of those that stay, and fitted again when the document's samples change.
     func reloadAll() {
         if let sort { order = sorted(by: sort.column, ascending: sort.ascending) }
         tableView.allowsColumnReordering = isEditable && order == nil
@@ -132,40 +172,46 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         while tableView.numberOfColumns > wanted { tableView.removeTableColumn(tableView.tableColumns[tableView.numberOfColumns - 1]) }
         while tableView.numberOfColumns < wanted {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("\(tableView.numberOfColumns - 1)"))
+            column.headerCell = TableHeaderCell(textCell: "")
             column.width = 120 * scale
             column.minWidth = 30
             tableView.addTableColumn(column)
         }
+        if let document, fittedVersion != document.columnsVersion { fitColumns() }
+        selection.resize(rows: numberOfRows(in: tableView), columns: table.columnCount)
         reloadCells()
+        syncRowSelection()
         tableDidChange()
     }
 
-    /// Titles, sort arrows and cells for the columns there are, numbered by position: a column the user dragged has
-    /// already moved in the table, so only the numbers and titles change.
+    /// Titles, sort arrows, alignment and cells for the columns there are, numbered by position: a column the user
+    /// dragged has already moved in the table, so only the numbers and titles change.
     func reloadCells() {
         rowCache = nil
         for (index, column) in tableView.tableColumns.dropFirst().enumerated() {
             column.identifier = NSUserInterfaceItemIdentifier("\(index)")
             column.title = title(of: index)
-            column.headerCell.font = NSFont(descriptor: baseHeaderFont.fontDescriptor, size: baseHeaderFont.pointSize * scale)
-            let arrow = sort?.column == index ? NSImage(named: sort!.ascending ? "NSAscendingSortIndicator" : "NSDescendingSortIndicator") : nil
-            tableView.setIndicatorImage(arrow, in: column)
+            column.headerCell.font = headerFont
+            column.headerCell.alignment = isNumeric(index) ? .right : .natural
         }
+        updateArrows()
         if !marks.isEmpty { markTitles() }
         tableView.reloadData()
+        updateTitleTints()
     }
 
     /// Fonts, row height and header height for the font size; a cell being typed in keeps going at the new size.
     private func applyScale() {
         cellFont = .systemFont(ofSize: fontSize)
+        digitsFont = .monospacedDigitSystemFont(ofSize: fontSize, weight: .regular)
         numberFont = .monospacedDigitSystemFont(ofSize: CellView.numberFont.pointSize * scale, weight: .regular)
         tableView.rowHeight = ceil(baseRowHeight * scale)
-        if let header = tableView.headerView, baseHeaderHeight > 0 {
+        if baseHeaderHeight > 0 {
             header.frame.size.height = ceil(baseHeaderHeight * scale)
             scrollView.tile()
         }
         if let editing {
-            editor.font = cellFont
+            editor.font = font(forColumn: editing.column)
             editor.frame = tableView.frameOfCell(atColumn: editing.column + 1, row: editing.row)
         }
         reloadCells()
@@ -202,27 +248,68 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         return name
     }
 
+    // MARK: Widths and alignment
+
+    func isNumeric(_ column: Int) -> Bool {
+        guard let columns = document?.columns, column < columns.count else { return false }
+        return columns[column].isNumeric
+    }
+
+    private func font(forColumn column: Int) -> NSFont { isNumeric(column) ? digitsFont : cellFont }
+
+    /// Every column as wide as its title and its sampled cells, within the limits.
+    private func fitColumns() {
+        guard let document else { return }
+        fittedVersion = document.columnsVersion
+        for (index, column) in tableView.tableColumns.dropFirst().enumerated() where index < document.columns.count {
+            column.width = fittedWidth(index, sample: document.columns[index], widest: Self.widestFitted * scale)
+        }
+    }
+
+    /// The width for the sample's cells and the column's title with room for its sort arrow, at least a few
+    /// characters and at most `widest`.
+    func fittedWidth(_ column: Int, sample: ColumnSample, widest: CGFloat) -> CGFloat {
+        let cells = sample.cellsWidth(font: font(forColumn: column)) + 10 * scale
+        let title = (title(of: column) as NSString).size(withAttributes: [.font: headerFont]).width + 26 * scale
+        let narrowest = ("0000" as NSString).size(withAttributes: [.font: cellFont]).width + 10 * scale
+        return min(max(cells, title, narrowest), max(widest, narrowest)).rounded(.up)
+    }
+
+    /// Double-clicking a divider: the column fits its sample and the rows on screen, at most the visible width.
+    func tableView(_ tableView: NSTableView, sizeToFitWidthOfColumn column: Int) -> CGFloat {
+        guard column > 0, let columns = document?.columns, column - 1 < columns.count else { return tableView.tableColumns[column].width }
+        var sample = columns[column - 1]
+        let visible = tableView.rows(in: tableView.visibleRect)
+        for row in visible.location..<visible.location + visible.length {
+            sample.keep(String(table.cell(row: fileRow(row), column: column - 1).prefix(200)))
+        }
+        return fittedWidth(column - 1, sample: sample, widest: scrollView.contentView.bounds.width)
+    }
+
     // MARK: Data
 
     func numberOfRows(in tableView: NSTableView) -> Int { order?.count ?? max(table.rowCount - headerOffset, 0) }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard let identifier = tableColumn?.identifier else { return nil }
-        let isNumber = identifier.rawValue == "row"
-        let reuse = NSUserInterfaceItemIdentifier(isNumber ? "number" : "cell")
-        let cell = tableView.makeView(withIdentifier: reuse, owner: self) as? CellView ?? CellView(identifier: reuse, isNumber: isNumber)
-        cell.font = isNumber ? numberFont : cellFont
+        let isRowNumber = identifier.rawValue == "row"
+        let reuse = NSUserInterfaceItemIdentifier(isRowNumber ? "number" : "cell")
+        let cell = tableView.makeView(withIdentifier: reuse, owner: self) as? CellView ?? CellView(identifier: reuse, isRowNumber: isRowNumber)
         let file = fileRow(row)
-        if isNumber {
+        if isRowNumber {
+            cell.font = numberFont
             cell.mark = .none
             cell.text = "\(file - headerOffset + 1)"
         } else if let column = Int(identifier.rawValue) {
             // AppKit asks for a row's cells one after another, so the row is parsed once for all of them.
             if rowCache?.row != file { rowCache = (file, table.fields(ofRow: file)) }
             let fields = rowCache?.fields ?? []
+            cell.font = font(forColumn: column)
+            cell.alignsRight = isNumeric(column)
             cell.text = column < fields.count ? fields[column].text : ""
             cell.mark = marks.isEmpty ? .none : mark(row: file, column: column)
         }
+        showSelection(in: cell, row: row, column: isRowNumber ? nil : Int(identifier.rawValue))
         return cell
     }
 
@@ -239,34 +326,31 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
 
     // MARK: Editing
 
-    @objc private func clicked() {
-        if tableView.clickedColumn > 0 { currentColumn = tableView.clickedColumn - 1 }
+    /// Return on the table edits the current cell.
+    func editCurrent() {
+        edit(row: selection.current.row, column: selection.current.column)
     }
 
-    @objc private func doubleClicked() {
-        guard tableView.clickedRow >= 0, tableView.clickedColumn > 0 else { return }
-        edit(row: tableView.clickedRow, column: tableView.clickedColumn - 1)
+    /// A typed key replaces the current cell: editing starts empty, and the field editor gets the key, so input
+    /// methods and dead keys work as in any text field.
+    func typeOver(_ event: NSEvent) {
+        edit(row: selection.current.row, column: selection.current.column, text: "")
+        guard editing != nil else { return }
+        (window?.firstResponder as? NSTextView)?.keyDown(with: event)
     }
 
-    /// Return on the table edits the selected row's current cell.
-    func editSelection() {
-        guard tableView.selectedRow >= 0 else { return }
-        edit(row: tableView.selectedRow, column: currentColumn ?? 0)
-    }
-
-    func edit(row: Int, column: Int) {
+    func edit(row: Int, column: Int, text: String? = nil) {
         guard isEditable, row < numberOfRows(in: tableView), column < table.columnCount else { return }
-        tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-        tableView.scrollRowToVisible(row)
-        tableView.scrollColumnToVisible(column + 1)
+        showsSelection = true
+        select(CellPosition(row: row, column: column))
         // A text field over the cell while it's edited; cells only draw their text, which keeps the table fast.
         let frame = tableView.frameOfCell(atColumn: column + 1, row: row)
         guard !frame.isEmpty else { return }
-        currentColumn = column
         editing = (row, fileRow(row), column)
         editor.frame = frame
-        editor.font = cellFont
-        editor.stringValue = table.cell(row: fileRow(row), column: column)
+        editor.font = font(forColumn: column)
+        editor.alignment = isNumeric(column) ? .right : .natural
+        editor.stringValue = text ?? table.cell(row: fileRow(row), column: column)
         tableView.addSubview(editor)
         window?.makeFirstResponder(editor)
     }
@@ -280,33 +364,43 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         return true
     }
 
+    /// Saves the text; Return then makes the cell below current and Tab the one to the right, without editing it.
     func controlTextDidEndEditing(_ notification: Notification) {
         guard let editing, notification.object as? NSTextField === editor else { return }
         self.editing = nil
         let value = editor.stringValue
         editor.removeFromSuperview()
         document?.setCell(value, row: editing.fileRow, column: editing.column)
-        // The next cell starts on the next pass: AppKit makes the table first responder once this returns.
-        let next: (row: Int, column: Int)? = switch notification.userInfo?["NSTextMovement"] as? Int {
-        case NSTextMovement.return.rawValue: (editing.row + 1, editing.column)
-        case NSTextMovement.tab.rawValue: (editing.row, editing.column + 1)
-        default: nil
+        switch notification.userInfo?["NSTextMovement"] as? Int {
+        case NSTextMovement.return.rawValue: select(CellPosition(row: editing.row + 1, column: editing.column))
+        case NSTextMovement.tab.rawValue: select(CellPosition(row: editing.row, column: editing.column + 1))
+        case NSTextMovement.backtab.rawValue: select(CellPosition(row: editing.row, column: editing.column - 1))
+        default: selectionChanged(scrolling: false)
         }
-        if let next { DispatchQueue.main.async { [weak self] in self?.edit(row: next.row, column: next.column) } }
+    }
+
+    /// Delete: the selected cells emptied, as one edit.
+    func clearSelection() {
+        guard isEditable else { return }
+        document?.clearCells(rows: selectedFileRows, columns: selection.columns)
     }
 
     @objc private func runTool(_ sender: NSMenuItem) {
         guard let id = sender.representedObject as? String, document?.perform(id) == true else { return NSSound.beep() }
     }
 
-    /// A right-click picks the row or column it's on.
+    /// A right-click on a row or title outside the selection selects it first.
     func menuNeedsUpdate(_ menu: NSMenu) {
-        if menu === tableView.headerView?.menu, tableView.clickedColumn > 0 { currentColumn = tableView.clickedColumn - 1 }
-        if menu === tableView.menu, tableView.clickedRow >= 0, !tableView.selectedRowIndexes.contains(tableView.clickedRow) {
-            tableView.selectRowIndexes(IndexSet(integer: tableView.clickedRow), byExtendingSelection: false)
+        if menu === header.menu, tableView.clickedColumn > 0, !selection.columns.contains(tableView.clickedColumn - 1) {
+            clickColumn(tableView.clickedColumn - 1, extending: false, toggling: false)
+        }
+        if menu === tableView.menu, tableView.clickedRow >= 0, !selection.rows.contains(tableView.clickedRow) {
+            clickRow(tableView.clickedRow, extending: false, toggling: false)
         }
         for item in menu.items {
-            item.isEnabled = isEditable && (item.representedObject as? String).map { document?.unavailableReason(for: $0) == nil } == true
+            guard let id = item.representedObject as? String else { continue }
+            let isSort = id.hasPrefix("sort-")
+            item.isEnabled = (isSort || isEditable) && document?.unavailableReason(for: id) == nil
         }
     }
 
@@ -343,125 +437,4 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         document?.moveColumn(from: old - 1, to: new - 1)
     }
 
-    // MARK: Sorting
-
-    /// Ascending, descending, then file order again.
-    func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) {
-        guard let column = Int(tableColumn.identifier.rawValue) else { return }
-        commitEditing()
-        switch sort {
-        case (column, true)?: sort = (column, false)
-        case (column, false)?: sort = nil; order = nil
-        default: sort = (column, true)
-        }
-        reloadAll()
-    }
-
-    func sortBy(column: Int?, ascending: Bool = true) {
-        commitEditing()
-        sort = column.map { ($0, ascending) }
-        if column == nil { order = nil }
-        reloadAll()
-    }
-
-    /// File rows sorted by a column: numbers by value before text, text as Finder sorts names; ties keep file order.
-    private func sorted(by column: Int, ascending: Bool) -> [Int] {
-        let table = table, locale = Locale.current, formatter = CSVTable.numberFormatter(locale)
-        let keys = (headerOffset..<table.rowCount).map { row in
-            let text = table.cell(row: row, column: column)
-            return (row: row, text: text, number: CSVTable.number(text, locale: locale, formatter: formatter))
-        }
-        return keys.sorted { a, b in
-            let result: ComparisonResult = switch (a.number, b.number) {
-            case let (x?, y?): x < y ? .orderedAscending : x > y ? .orderedDescending : .orderedSame
-            case (_?, nil): .orderedAscending
-            case (nil, _?): .orderedDescending
-            default: a.text.localizedStandardCompare(b.text)
-            }
-            if result == .orderedSame { return a.row < b.row }
-            return (result == .orderedAscending) == ascending
-        }.map(\.row)
-    }
-}
-
-/// The table view: Return edits the selected cell, and Undo is the document's.
-final class GridView: NSTableView {
-    weak var owner: TableView?
-    var documentUndoManager: UndoManager?
-
-    override var undoManager: UndoManager? { documentUndoManager ?? super.undoManager }
-
-    override func keyDown(with event: NSEvent) {
-        let plain = event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
-        if plain, event.keyCode == 36 || event.keyCode == 76, let owner, owner.canEdit { return owner.editSelection() }
-        super.keyDown(with: event)
-    }
-}
-
-/// A cell that draws its text and nothing else: much cheaper than a text field per cell, which made opening a table
-/// slower than opening the same file as plain text.
-final class CellView: NSView {
-    /// The fonts at the default size.
-    static let font = NSFont.systemFont(ofSize: TableDocument.defaultFontSize)
-    static let numberFont = NSFont.monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
-    private static let paragraph: NSParagraphStyle = {
-        let style = NSMutableParagraphStyle()
-        style.lineBreakMode = .byTruncatingTail
-        return style
-    }()
-    private static let numberParagraph: NSParagraphStyle = {
-        let style = NSMutableParagraphStyle()
-        style.lineBreakMode = .byClipping
-        style.alignment = .right
-        return style
-    }()
-    private let isNumber: Bool
-    var text = "" {
-        didSet { if text != oldValue { needsDisplay = true } }
-    }
-    var font: NSFont {
-        didSet { if font != oldValue { needsDisplay = true } }
-    }
-    enum Mark { case none, match, current }
-    /// A find match is tinted; the current one more strongly.
-    var mark = Mark.none {
-        didSet { if mark != oldValue { needsDisplay = true } }
-    }
-
-    /// Black on the current match's solid yellow, which white text in dark mode can't be read on.
-    var textColor: NSColor {
-        mark == .current ? .black : isNumber ? .secondaryLabelColor : .labelColor
-    }
-
-    init(identifier: NSUserInterfaceItemIdentifier, isNumber: Bool) {
-        self.isNumber = isNumber
-        font = isNumber ? Self.numberFont : Self.font
-        super.init(frame: .zero)
-        self.identifier = identifier
-    }
-
-    required init?(coder: NSCoder) { fatalError("not used") }
-
-    override var isOpaque: Bool { false }
-
-    override func draw(_ dirtyRect: NSRect) {
-        if mark != .none {
-            NSColor.findHighlightColor.withAlphaComponent(mark == .current ? 1 : 0.4).setFill()
-            NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 3, yRadius: 3).fill()
-        }
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: textColor,
-            .paragraphStyle: isNumber ? Self.numberParagraph : Self.paragraph,
-        ]
-        let line = text.replacingOccurrences(of: "\n", with: " ")  // one line per cell, as a spreadsheet shows it
-        let height = font.boundingRectForFont.height
-        let box = NSRect(x: 2, y: (bounds.height - height) / 2, width: bounds.width - 4, height: height)
-        (line as NSString).draw(with: box, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: attributes)
-    }
-
-    // A cell reads as static text, as the text field it replaces did.
-    override func isAccessibilityElement() -> Bool { true }
-    override func accessibilityRole() -> NSAccessibility.Role? { .staticText }
-    override func accessibilityValue() -> Any? { text }
 }

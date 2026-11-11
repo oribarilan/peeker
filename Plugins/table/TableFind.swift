@@ -226,15 +226,15 @@ extension TableView: NSMenuItemValidation {
         return ref == currentMark ? .current : marks.contains(ref) ? .match : .none
     }
 
-    /// Selects the match's row and scrolls its cell into view; a header match scrolls its column into view.
+    /// Makes the match the current cell and scrolls it into view; a header match moves the current cell to its column.
     private func reveal(_ match: CellRef) {
-        tableView.scrollColumnToVisible(match.column + 1)
-        currentColumn = match.column
-        guard !(headerIsShown && match.row == 0) else { return }
+        guard !(headerIsShown && match.row == 0) else {
+            tableView.scrollColumnToVisible(match.column + 1)
+            return select(CellPosition(row: selection.current.row, column: match.column))
+        }
         let row = order?.firstIndex(of: match.row) ?? match.row - (headerIsShown ? 1 : 0)
         guard row >= 0, row < tableView.numberOfRows else { return }
-        tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-        tableView.scrollRowToVisible(row)
+        select(CellPosition(row: row, column: match.column))
     }
 
     /// After the table's cells, rows or order changed: searches again while the bar shows.

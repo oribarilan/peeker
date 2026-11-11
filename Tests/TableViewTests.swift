@@ -23,15 +23,14 @@ import Testing
         #expect(TableView.letters(25) == "Z" && TableView.letters(26) == "AA" && TableView.letters(701) == "ZZ")
     }
 
-    @Test func clickingATitleCyclesTheSort() async throws {
+    @Test func theTitlesArrowCyclesTheSort() async throws {
         let (document, view, window) = try await shown("n\n3\n1\n2\n")
         defer { window.close() }
-        let column = view.tableView.tableColumns[1]
-        view.tableView(view.tableView, didClick: column)
+        view.cycleSort(0)
         #expect((0..<3).map(view.fileRow) == [2, 3, 1])
-        view.tableView(view.tableView, didClick: column)
+        view.cycleSort(0)
         #expect((0..<3).map(view.fileRow) == [1, 3, 2])
-        view.tableView(view.tableView, didClick: column)
+        view.cycleSort(0)
         #expect(view.order == nil && (0..<3).map(view.fileRow) == [1, 2, 3])
         withExtendedLifetime(document) {}
     }
