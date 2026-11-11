@@ -40,7 +40,7 @@ echo "ShellCheck"
 if command -v shellcheck >/dev/null; then
     # ShellCheck reads sh and bash, not zsh.
     bash_scripts=()
-    while IFS= read -r file; do head -1 "$file" | grep -q zsh || bash_scripts+=("$file"); done < <(git ls-files '*.sh')
+    while IFS= read -r file; do head -1 "$file" | grep -q zsh || bash_scripts+=("$file"); done < <(git ls-files '*.sh' '.githooks/*')
     shellcheck "${bash_scripts[@]}" || failed=1
 else
     echo "ShellCheck isn't installed: brew install shellcheck"

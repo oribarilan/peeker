@@ -1,0 +1,6 @@
+#!/bin/bash
+# Runs scripts/lint.sh before each commit. Turn it on once per clone with
+# git config core.hooksPath .githooks
+scripts/lint.sh && exit 0
+echo "Commit stopped. scripts/format.sh fixes the formatting; git commit --no-verify skips this check."
+exit 1
