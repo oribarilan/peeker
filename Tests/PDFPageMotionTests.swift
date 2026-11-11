@@ -50,6 +50,19 @@ import Testing
         #expect(motion(in: document) != nil)
     }
 
+    @Test func undoingADeleteShowsThePageWhenItWasOutOfView() async throws {
+        let (document, window) = try await shown(pages: 3)
+        defer { window.close() }
+        let first = try #require(document.pdfView.document?.page(at: 0))
+        #expect(document.perform("delete-page"))
+        try await waitUntil(seconds: 2) { motion(in: document) == nil }
+        document.pdfView.go(to: try #require(document.pdfView.document?.page(at: 1)))
+        #expect(PageMotion.frame(of: first, in: document.pdfView) == nil)
+        document.undoManager.undo()
+        #expect(PageMotion.frame(of: first, in: document.pdfView) != nil)
+        #expect(motion(in: document) != nil)
+    }
+
     @Test func reduceMotionAppliesTheEditWithoutAnimating() async throws {
         PageMotion.reducesMotion = { true }
         defer { PageMotion.reducesMotion = { false } }

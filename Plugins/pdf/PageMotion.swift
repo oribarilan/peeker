@@ -97,7 +97,8 @@ import PDFKit
     }
 
     /// The page's frame in the view, when any of it is on screen.
-    private static func frame(of page: PDFPage, in view: PDFView) -> NSRect? {
+    /// Where `page` sits in `view`, or nil when none of it is in view.
+    static func frame(of page: PDFPage, in view: PDFView) -> NSRect? {
         let frame = view.convert(page.bounds(for: view.displayBox), from: page)
         return frame.intersects(view.bounds) ? frame : nil
     }

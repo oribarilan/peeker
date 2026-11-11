@@ -361,7 +361,7 @@ final class PDFPluginDocument: PluginDocument, Zooming {
             DispatchQueue.main.async { [pdfView] in withExtendedLifetime(pdfView) {} }
         }
         if edit.isPageEdit {
-            pagesChanged()
+            pagesChanged(showing: edit)
             thumbnails?.reselect(selected)
         }
         motion?.play()
