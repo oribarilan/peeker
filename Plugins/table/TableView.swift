@@ -263,18 +263,24 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
     private func fitColumns() {
         guard let document else { return }
         fittedVersion = document.columnsVersion
+        let fonts = fitFonts()
         for (index, column) in tableView.tableColumns.dropFirst().enumerated() where index < document.columns.count {
-            column.width = fittedWidth(index, sample: document.columns[index], widest: Self.widestFitted * scale)
+            column.width = fittedWidth(index, sample: document.columns[index], widest: Self.widestFitted * scale, fonts: fonts)
         }
+    }
+
+    /// The title font and the narrowest width, made once for all the columns a fit measures.
+    private func fitFonts() -> (header: NSFont, narrowest: CGFloat) {
+        (headerFont, ("0000" as NSString).size(withAttributes: [.font: cellFont]).width + 10 * scale)
     }
 
     /// The width for the sample's cells and the column's title with room for its sort arrow, at least a few
     /// characters and at most `widest`.
-    func fittedWidth(_ column: Int, sample: ColumnSample, widest: CGFloat) -> CGFloat {
+    func fittedWidth(_ column: Int, sample: ColumnSample, widest: CGFloat, fonts: (header: NSFont, narrowest: CGFloat)? = nil) -> CGFloat {
+        let fonts = fonts ?? fitFonts()
         let cells = sample.cellsWidth(font: font(forColumn: column)) + 10 * scale
-        let title = (title(of: column) as NSString).size(withAttributes: [.font: headerFont]).width + 26 * scale
-        let narrowest = ("0000" as NSString).size(withAttributes: [.font: cellFont]).width + 10 * scale
-        return min(max(cells, title, narrowest), max(widest, narrowest)).rounded(.up)
+        let title = (title(of: column) as NSString).size(withAttributes: [.font: fonts.header]).width + 26 * scale
+        return min(max(cells, title, fonts.narrowest), max(widest, fonts.narrowest)).rounded(.up)
     }
 
     /// Double-clicking a divider: the column fits its sample and the rows on screen, at most the visible width.

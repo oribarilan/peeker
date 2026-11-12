@@ -3,7 +3,7 @@
 ## 1. Benchmark files
 
 - [x] 1.1 `bench/make-fixtures.swift` writes `huge.csv` (500,000 rows, five columns, under 50 MB) and `wide.csv` (200 columns by 2,000 rows); `bench/ppbench.py` lists and labels both. Verify: running the fixture script makes both files, and `huge.csv` opens editable in the Release build.
-- [ ] 1.2 Record a baseline: `scripts/bench-ab.sh main` with only the new files, so later runs compare against the same fixtures (needs the maintainer's go, since it takes over the machine).
+- [x] 1.2 Record a baseline: `scripts/bench-ab.sh main` with only the new files, so later runs compare against the same fixtures (needs the maintainer's go, since it takes over the machine).
 
 ## 2. Fitting and alignment
 
@@ -34,9 +34,9 @@
 ## 6. Checks and docs
 
 - [x] 6.1 `scripts/build.sh test` passes with no warnings.
-- [ ] 6.2 `scripts/screen/table-edit-flow.sh`: sort through the title's arrow instead of a title click; the edit step's Return leaves no editor showing; new steps for typing over a cell, Shift-Down selecting, Delete clearing and saving, and a title click selecting a column; Space on a CSV takes a screenshot of the panel, since Accessibility gives a cell's frame but not where its text sits; unit tests check the alignment. Run with the maintainer's go.
+- [x] 6.2 `scripts/screen/table-edit-flow.sh`: sort through the title's arrow instead of a title click; the edit step's Return leaves no editor showing; new steps for typing over a cell, Shift-Down selecting, Delete clearing and saving, and a title click selecting a column; Space on a CSV takes a screenshot of the panel, since Accessibility gives a cell's frame but not where its text sits; unit tests check the alignment. Run with the maintainer's go.
 - [ ] 6.3 On screen, by hand: the hover arrow and the selection tint and ring in light and dark; dragging a block; typing with an input method (queued in `.local/screen-queue.md` if the screen isn't free).
-- [ ] 6.4 `scripts/bench-ab.sh main` shows no regression on `huge.csv`, `wide.csv` or the existing CSV files (with the maintainer's go).
+- [x] 6.4 `scripts/bench-ab.sh main` shows no regression on `huge.csv`, `wide.csv` or the existing CSV files (with the maintainer's go).
 - [x] 6.5 CHANGELOG line under Unreleased; backlog: add "Table: sort and column edits off the main thread"; `openspec validate --all` passes.
 
 ## Workflow follow-up

@@ -32,7 +32,7 @@ nonisolated struct ColumnSample: Equatable, Sendable {
             for (column, field) in table.fields(ofRow: row).enumerated() where column < samples.count && !field.text.isEmpty {
                 filled[column] += 1
                 if CSVTable.isNumber(field.text, locale: locale, formatter: formatter) { numbers[column] += 1 }
-                samples[column].keep(oneLine(field.text))
+                if samples[column].keeps(length: field.text.utf16.count) { samples[column].keep(oneLine(field.text)) }
             }
         }
         for column in samples.indices {
@@ -57,11 +57,14 @@ nonisolated struct ColumnSample: Equatable, Sendable {
     /// Keeps `text` when it's among the longest seen.
     mutating func keep(_ text: String) {
         let length = text.utf16.count
-        guard longest.count < Self.kept || length > longest[longest.count - 1].utf16.count else { return }
+        guard keeps(length: length) else { return }
         let at = longest.firstIndex { $0.utf16.count < length } ?? longest.count
         longest.insert(text, at: at)
         if longest.count > Self.kept { longest.removeLast() }
     }
+
+    /// Whether a cell this many UTF-16 units long would be among the longest kept.
+    func keeps(length: Int) -> Bool { longest.count < Self.kept || length > longest[longest.count - 1].utf16.count }
 
     /// A cell's text on one line, as a table draws it, cut to the most that's measured.
     private static func oneLine(_ text: String) -> String {

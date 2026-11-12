@@ -152,6 +152,14 @@ private func cells(_ table: CSVTable) -> [[String]] {
         #expect(CSVTable.number("inf", locale: Locale(identifier: "en_US")) == nil)
     }
 
+    @Test func localeNumbersParseAndTextWithDigitsDoesnt() {
+        #expect(CSVTable.number("1.234,5", locale: Locale(identifier: "de_DE")) == 1234.5)
+        #expect(CSVTable.number("1,234,567", locale: Locale(identifier: "en_US")) == 1_234_567)
+        #expect(CSVTable.number("1e3", locale: Locale(identifier: "en_US")) == 1000)
+        #expect(CSVTable.number("person 12", locale: Locale(identifier: "en_US")) == nil)
+        #expect(CSVTable.number("12 kg", locale: Locale(identifier: "en_US")) == nil)
+    }
+
     @Test func aSemicolonTieWithCommasGoesToSemicolons() {
         #expect(CSVTable.guessDelimiter(in: "Tea;3,50\nCake;4,20\n") == .semicolon)
     }

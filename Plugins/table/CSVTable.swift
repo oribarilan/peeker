@@ -302,11 +302,15 @@ nonisolated struct CSVTable: Sendable {
     }
 
     static func number(_ text: String, locale: Locale, formatter: NumberFormatter? = nil) -> Double? {
+        if let plain = Double(text) { return plain.isFinite ? plain : nil }  // most cells; trimming costs more
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return nil }
         let value: Double?
         if let plain = Double(trimmed) {
             value = plain
+        } else if trimmed.contains(where: \.isLetter) {
+            // A decimal number has no letters; skipping the formatter keeps sampling text columns cheap.
+            return nil
         } else if trimmed.filter({ $0 == "," }).count == 1, !trimmed.contains(".") {
             // A decimal comma, as semicolon-separated files write numbers, whatever the Mac's own locale.
             value = Double(trimmed.replacingOccurrences(of: ",", with: "."))
