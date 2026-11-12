@@ -152,6 +152,7 @@ private let down = (character: String(UnicodeScalar(NSDownArrowFunctionKey)!), c
         press(view, "\r", code: 36, in: window)
         #expect(document.table.cell(row: 1, column: 0) == "Cake")
         #expect(view.selection.current == CellPosition(row: 1, column: 0) && view.editor.superview == nil)
+        #expect(window.firstResponder === view.tableView, "the next arrow key reaches the table")
         #expect(document.isEdited)
     }
 

@@ -373,12 +373,17 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         let value = editor.stringValue
         editor.removeFromSuperview()
         document?.setCell(value, row: editing.fileRow, column: editing.column)
-        switch notification.userInfo?["NSTextMovement"] as? Int {
-        case NSTextMovement.return.rawValue: select(CellPosition(row: editing.row + 1, column: editing.column))
-        case NSTextMovement.tab.rawValue: select(CellPosition(row: editing.row, column: editing.column + 1))
-        case NSTextMovement.backtab.rawValue: select(CellPosition(row: editing.row, column: editing.column - 1))
-        default: selectionChanged(scrolling: false)
-        }
+        let next: CellPosition? =
+            switch notification.userInfo?["NSTextMovement"] as? Int {
+            case NSTextMovement.return.rawValue: CellPosition(row: editing.row + 1, column: editing.column)
+            case NSTextMovement.tab.rawValue: CellPosition(row: editing.row, column: editing.column + 1)
+            case NSTextMovement.backtab.rawValue: CellPosition(row: editing.row, column: editing.column - 1)
+            default: nil
+            }
+        // A click elsewhere keeps the focus it moved; after Return or Tab the next key goes to the table.
+        guard let next else { return selectionChanged(scrolling: false) }
+        window?.makeFirstResponder(tableView)
+        select(next)
     }
 
     /// Delete: the selected cells emptied, as one edit.
