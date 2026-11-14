@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- File > Open With in Editor windows lists the other apps that open the file, with their icons, and Other… for any app, below Peeker's own plugins. If the file has unsaved changes, Peeker asks first whether to save them, open the file as last saved, or cancel; the window stays open either way.
 - The Peek panel cuts a long file name in the middle, as Finder does, instead of running it under its buttons. On macOS 27, the apps in its Open With menu and the files in File > Open Recent show their icons again.
 - Undoing a page delete in a PDF, or inserting pages from a file, scrolls to those pages when they'd land out of view, as they could on macOS 26.
 - On macOS 26, Peeker no longer quits when a text or Markdown file's text changes while the find bar shows a match, as Revert to Saved can do.

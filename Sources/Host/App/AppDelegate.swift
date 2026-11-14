@@ -94,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard let viewMenu, let toolsMenu, let openWithMenu else { return }
         MainMenu.rebuildTools(view: viewMenu, tools: toolsMenu, file: fileMenu, for: controller)
         if let controller { controller.fillOpenWith(openWithMenu) } else { openWithMenu.removeAllItems() }
+        openWithMenu.delegate = controller  // adds the apps as the submenu opens
     }
 
     @objc func showHelp(_ sender: Any?) {

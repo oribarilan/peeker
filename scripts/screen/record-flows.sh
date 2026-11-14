@@ -151,7 +151,8 @@ check "and Peeker comes to the front" "$(osascript -e 'tell application "System 
 
 # Open With in an Editor window: Markdown, then Plain Text from the File menu, then back to Markdown from the toolbar,
 # which lists only the plugins that read the file. In Plain Text, an edit and Revert to Saved… bring the file's text
-# back. A photo's window has no Open With, since only Image reads it.
+# back. A photo's window has no Open With control, since only Image reads it. File > Open With still lists other
+# apps; unit tests cover that, since a submenu opened through Accessibility leaves the app tracking it.
 open -a "$APP" "$F/notes.md"
 "$DRIVE" wait Peeker window notes.md
 "$DRIVE" shot Peeker "$OUT/5-window-markdown.png" notes.md
@@ -184,7 +185,7 @@ check "Open With switches back to Markdown" "$(openwith)" "Markdown"
 open -a "$APP" "$F/pixel.png"
 "$DRIVE" wait Peeker window pixel.png
 "$DRIVE" shot Peeker "$OUT/7b-window-photo.png" pixel.png
-check "A photo's window has no Open With" "$("$DRIVE" tree Peeker 20 | grep -c AXPopUpButton)" 0
+check "A photo's window has no Open With control" "$("$DRIVE" tree Peeker 20 | grep -c AXPopUpButton)" 0
 "$DRIVE" menu Peeker File Close
 "$DRIVE" wait Peeker window pixel.png --gone
 

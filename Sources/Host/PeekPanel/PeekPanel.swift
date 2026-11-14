@@ -20,12 +20,8 @@ final class PeekPanel: NSPanel {
     var onSetDefault: ((String, String?) -> Void)?
     /// Tests replace these four.
     var appFor: (String) -> AppChoice? = AppChoice.installed(bundleID:)
-    var listApps: (URL) -> [AppChoice] = { NSWorkspace.shared.urlsForApplications(toOpen: $0).compactMap(AppChoice.init(url:)) }
-    var openInApp: (URL, URL) -> Void = { file, app in
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = true
-        NSWorkspace.shared.open([file], withApplicationAt: app, configuration: configuration)
-    }
+    var listApps: (URL) -> [AppChoice] = AppChoices.list(for:)
+    var openInApp: (URL, URL) -> Void = AppChoices.open(_:in:)
     var revealInFinder: (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
     /// Its name is what tells the panel apart from Quick Look, whose button opens Preview. Its arrow lists other apps.
     let openButton = NSComboButton(title: "Open in Peeker", menu: NSMenu(), target: nil, action: nil)

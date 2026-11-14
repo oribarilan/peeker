@@ -3,6 +3,6 @@
 Plugins/markdown/MarkdownEditor.swift 530
 Plugins/pdf/PDFPluginDocument.swift 536
 Sources/Host/Documents/DocumentViewController.swift 586
-Sources/Host/Documents/DocumentWindowController.swift 655
+Sources/Host/Documents/DocumentWindowController.swift 645
 Tests/ConfigTests.swift 546
 scripts/screen/drive.swift 724

@@ -1,29 +1,4 @@
 import AppKit
-import UniformTypeIdentifiers
-
-/// An installed app the Peek panel can open a file with.
-nonisolated struct AppChoice: Equatable, Sendable {
-    let bundleID: String
-    let name: String
-    let url: URL
-
-    init(bundleID: String, name: String, url: URL) {
-        self.bundleID = bundleID
-        self.name = name
-        self.url = url
-    }
-
-    /// The app at `url`; nil when it has no bundle ID.
-    init?(url: URL) {
-        guard let id = Bundle(url: url)?.bundleIdentifier else { return nil }
-        let name = FileManager.default.displayName(atPath: url.path)
-        self.init(bundleID: id, name: name.hasSuffix(".app") ? String(name.dropLast(4)) : name, url: url)
-    }
-
-    static func installed(bundleID: String) -> AppChoice? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID).flatMap(AppChoice.init(url:))
-    }
-}
 
 /// One entry in the menu of the Peek panel's button.
 enum OpenWithItem: Equatable {
@@ -40,13 +15,8 @@ enum PeekOpenWithMenu {
     /// button's own app or a second copy of one), then Peeker and Always Open in Peeker while another app is the
     /// default, then Other…, then Show in Finder.
     static func items(apps: [AppChoice], systemDefault: String?, buttonApp: String?, hasDefault: Bool, peekerID: String) -> [OpenWithItem] {
-        var seen: Set<String> = [peekerID]
-        if let buttonApp { seen.insert(buttonApp) }
-        let unique = apps.filter { seen.insert($0.bundleID).inserted }
-        let sorted = unique.sorted { a, b in
-            if (a.bundleID == systemDefault) != (b.bundleID == systemDefault) { return a.bundleID == systemDefault }
-            return a.name.localizedStandardCompare(b.name) == .orderedAscending
-        }
+        let excluded: Set<String> = buttonApp.map { [peekerID, $0] } ?? [peekerID]
+        let sorted = AppChoices.sorted(apps, systemDefault: systemDefault, excluding: excluded)
         var groups: [[OpenWithItem]] = [sorted.map(OpenWithItem.app)]
         groups.append((buttonApp != nil ? [.peeker] : []) + (hasDefault ? [.alwaysPeeker] : []))
         groups.append([.other])
@@ -109,7 +79,7 @@ extension PeekPanel: NSMenuDelegate {
         guard let url else { return }
         let apps = listApps(url)
         let items = PeekOpenWithMenu.items(
-            apps: apps, systemDefault: NSWorkspace.shared.urlForApplication(toOpen: url).flatMap { Bundle(url: $0)?.bundleIdentifier },
+            apps: apps, systemDefault: AppChoices.systemDefault(for: url),
             buttonApp: buttonApp(for: url)?.bundleID, hasDefault: openWith[url.pathExtension.lowercased()] != nil,
             peekerID: Bundle.main.bundleIdentifier ?? "")
         for item in items {
@@ -154,32 +124,15 @@ extension PeekPanel: NSMenuDelegate {
     /// on Cancel so the arrow keys keep browsing.
     private func chooseOtherApp(for url: URL) {
         guard attachedSheet == nil else { return }
-        let picker = NSOpenPanel()
-        picker.directoryURL = URL(filePath: "/Applications", directoryHint: .isDirectory)
-        picker.allowedContentTypes = [.application]
-        picker.treatsFilePackagesAsDirectories = false
-        picker.message = "Choose an app to open “\(url.lastPathComponent)”."
-        picker.prompt = "Open"
-        var always: NSButton?
-        if let title = PeekOpenWithMenu.alwaysTitle(for: url) {
-            let box = NSButton(checkboxWithTitle: title, target: nil, action: nil)
-            box.sizeToFit()
-            let holder = NSView(frame: NSRect(x: 0, y: 0, width: box.frame.width + 40, height: box.frame.height + 16))
-            box.frame.origin = NSPoint(x: 20, y: 8)
-            holder.addSubview(box)
-            picker.accessoryView = holder
-            picker.isAccessoryViewDisclosed = true
-            always = box
-        }
         NSApp.activate()
         makeKey()
-        picker.beginSheetModal(for: self) { [weak self] response in
+        AppChoices.pickOther(for: url, on: self, always: PeekOpenWithMenu.alwaysTitle(for: url)) { [weak self] app, always in
             guard let self else { return }
-            guard response == .OK, let app = picker.url else {
+            guard let app else {
                 NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first?.activate()
                 return
             }
-            if always?.state == .on, let id = Bundle(url: app)?.bundleIdentifier { onSetDefault?(url.pathExtension.lowercased(), id) }
+            if always, let id = Bundle(url: app)?.bundleIdentifier { onSetDefault?(url.pathExtension.lowercased(), id) }
             open(url, in: app)
         }
     }

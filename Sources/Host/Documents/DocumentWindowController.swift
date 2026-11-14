@@ -18,7 +18,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     private let preferences: UserDefaults?
     private(set) var current: DocumentViewController?
     /// What Open With lists for the file shown, owner first.
-    private var openWithChoices: [PluginEntry] = []
+    private(set) var openWithChoices: [PluginEntry] = []
     /// Called for every new document view controller (first open and "Open With" switches).
     var onDocument: ((DocumentViewController) -> Void)?
     var onBecameKey: ((DocumentWindowController) -> Void)?
@@ -27,6 +27,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     enum UnsavedChoice { case save, discard, cancel }
     /// Asks Save, Don't Save or Cancel about unsaved edits, as a sheet on the window. Tests answer directly.
     var askToSave: (DocumentWindowController) async -> UnsavedChoice = { await $0.askToSaveInSheet() }
+    /// File > Open With's apps, the Mac's default first, and how a file opens in one; tests replace them.
+    var listApps: (URL) -> [AppChoice] = { url in
+        AppChoices.sorted(
+            AppChoices.list(for: url), systemDefault: AppChoices.systemDefault(for: url), excluding: [Bundle.main.bundleIdentifier ?? ""])
+    }
+    var openInApp: (URL, URL) -> Void = AppChoices.open(_:in:)
+    /// With unsaved edits, before opening the file in the app named.
+    var askBeforeOpeningInApp: (DocumentWindowController, String) async -> AppOpenChoice = { await $0.askBeforeOpeningInAppSheet($1) }
     /// Shows a notice with a short title and its reason, as a sheet. Tests read it instead.
     var present: (DocumentWindowController, _ title: String, _ detail: String) async -> Void = { await $0.showInSheet($1, $2) }
     /// Asks whether to drop the unsaved edits for Revert to Saved, as a sheet. Tests answer directly.
@@ -284,13 +292,6 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         }
     }
 
-    /// File > Open With: the submenu's items, by their tag in the choices. The submenu itself is filled as it's checked.
-    @objc func reopenWithMenu(_ sender: NSMenuItem) {
-        let candidates = openWithChoices
-        guard sender.submenu == nil, candidates.indices.contains(sender.tag) else { return }
-        Task { await reopen(with: candidates[sender.tag]) }
-    }
-
     /// File > Show in Finder: a Finder window with the tab's file selected.
     @objc func showInFinder(_ sender: Any?) {
         revealInFinder(url)
@@ -302,17 +303,6 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         pendingArrival = nil
         show(with: entry)
         return true
-    }
-
-    /// Lists the plugins in File > Open With's submenu; the check on the current one comes with each menu check.
-    func fillOpenWith(_ menu: NSMenu) {
-        menu.removeAllItems()
-        for (index, entry) in openWithChoices.enumerated() {
-            let item = NSMenuItem(title: entry.name, action: #selector(reopenWithMenu(_:)), keyEquivalent: "")
-            item.tag = index
-            item.target = self
-            menu.addItem(item)
-        }
     }
 
     // MARK: Saving
@@ -403,7 +393,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
 
     /// Ends typing in progress, such as in a PDF text box or form field, so it counts as an edit before a save or the
     /// unsaved-changes question. Only for documents with edit tools: a text document's own view keeps its focus.
-    private func finishTyping() {
+    func finishTyping() {
         guard let window, let document = current, document.tools.contains(where: \.spec.isEditTool) else { return }
         window.makeFirstResponder(nil)
         if let plugin = document.pluginDocument {
@@ -430,7 +420,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
         case #selector(printDocument(_:)):
             return current?.pluginDocument?.printJob != nil
         case #selector(reopenWithMenu(_:)):
-            if let submenu = menuItem.submenu { fillOpenWith(submenu); return current != nil && openWithChoices.count > 1 }
+            if let submenu = menuItem.submenu { fillOpenWith(submenu); return current != nil }
             let candidates = openWithChoices
             menuItem.state = candidates.indices.contains(menuItem.tag) && candidates[menuItem.tag].id == current?.entry.id ? .on : .off
             return true
@@ -497,7 +487,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSTo
     }
 
     /// Saves, showing an alert if the save fails. True once the edits are on disk.
-    private func save(_ document: DocumentViewController) async -> Bool {
+    func save(_ document: DocumentViewController) async -> Bool {
         switch await document.save(prompts: self) {
         case .saved: return true
         case .cancelled: return false

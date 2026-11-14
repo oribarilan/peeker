@@ -68,7 +68,7 @@ import Testing
         #expect(AppDelegate.window(showing: files.readme, in: [controller]) == nil)
         let openWith = NSMenu()
         controller.fillOpenWith(openWith)
-        #expect(openWith.items.map(\.title) == ["Markdown", "Plain Text"])
+        #expect(openWith.items.prefix(2).map(\.title) == ["Markdown", "Plain Text"], "the plugins, before Other…")
     }
 
     @Test func aLinkToAHeadingInAnotherFileLandsOnIt() async throws {
