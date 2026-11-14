@@ -31,11 +31,11 @@ final class PeekPanel: NSPanel {
     let openButton = NSComboButton(title: "Open in Peeker", menu: NSMenu(), target: nil, action: nil)
     /// While the button's menu is open, the key monitor leaves every key to it.
     var isMenuOpen = false
-    /// The buttons' keys, shown as captions while `showsKeys` (the Show shortcuts setting) is on; the app sets them.
+    /// The keys for the button and for Show in Finder; the button shows its key as a caption while `showsKeys` (the
+    /// Show shortcuts setting) is on, and the menu shows Show in Finder's. The app sets them.
     var openKey: Shortcut?
     var showInFinderKey: Shortcut?
     var showsKeys = false
-    let finderButton = NSButton(image: NSImage(systemSymbolName: "folder", accessibilityDescription: "Show in Finder")!, target: nil, action: nil)
     /// Where the frame the user last gave the panel is kept, as `NSStringFromRect`.
     static let frameKey = "peekPanelFrame"
     private let defaults: UserDefaults
@@ -67,25 +67,18 @@ final class PeekPanel: NSPanel {
         openButton.menu.delegate = self
         // NSComboButton won't open an empty menu; menuNeedsUpdate replaces this as it opens.
         openButton.menu.addItem(withTitle: "Other…", action: nil, keyEquivalent: "")
-        finderButton.target = self
-        finderButton.action = #selector(showFileInFinder(_:))
-        finderButton.controlSize = .small
-        finderButton.toolTip = "Show in Finder"
         let accessory = NSTitlebarAccessoryViewController()
         accessory.view = NSView(frame: NSRect(x: 0, y: 0, width: 0, height: 28))
-        accessory.view.addSubview(finderButton)
         accessory.view.addSubview(openButton)
         layOutTitlebarButtons()
         accessory.layoutAttribute = .trailing
         addTitlebarAccessoryViewController(accessory)
     }
 
-    /// The folder button, then Open in Peeker, sized to their titles.
+    /// Open in Peeker, sized to its title.
     func layOutTitlebarButtons() {
-        finderButton.sizeToFit()
         openButton.sizeToFit()
-        finderButton.frame.origin = NSPoint(x: 4, y: ((28 - finderButton.frame.height) / 2).rounded())
-        openButton.frame.origin = NSPoint(x: finderButton.frame.maxX + 6, y: ((28 - openButton.frame.height) / 2).rounded())
+        openButton.frame.origin = NSPoint(x: 4, y: ((28 - openButton.frame.height) / 2).rounded())
         openButton.superview?.frame.size.width = openButton.frame.maxX + 6
     }
 

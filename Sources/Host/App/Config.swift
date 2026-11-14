@@ -26,7 +26,7 @@ struct Config: Equatable {
     /// `keyID(plugin:tool:)` of each tool the config leaves without a shortcut (`"off"`).
     var noShortcut: Set<String> = []
     var peekPanelKey: Shortcut? = Shortcut(key: .space)
-    /// The keys for the Peek panel's main button and its folder button, caught while it's up; nil is none.
+    /// The keys for the Peek panel's main button and its Show in Finder, caught while it's up; nil is none.
     var peekPanelOpenKey: Shortcut? = Config.defaultOpenKey
     var peekPanelShowInFinderKey: Shortcut? = Config.defaultShowInFinderKey
     static let defaultOpenKey = Shortcut(key: .character("o"), modifiers: .command)

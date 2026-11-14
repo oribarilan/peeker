@@ -11,36 +11,33 @@ import Testing
         #expect(panel.openButton.title == "Open in Peeker")
     }
 
-    @Test func bothButtonsShowTheirKeysWhileCaptionsAreOn() {
+    @Test func theButtonShowsItsKeyWhileCaptionsAreOn() {
         let (defaults, name) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: name) }
         let panel = PeekPanel(defaults: defaults)
         defer { panel.close() }
         let file = URL(filePath: "/tmp/notes.md")
         panel.openKey = Shortcut(key: .character("o"), modifiers: .command)
-        panel.showInFinderKey = Shortcut(key: .character("r"), modifiers: .command)
-        let plainWidth = panel.finderButton.frame.width
         panel.showsKeys = true
         panel.updateOpenButton(for: file)
         #expect(panel.openButton.title == "Open in Peeker  ⌘O")
-        #expect(panel.openButton.toolTip == "Open in Peeker (⌘O)" && panel.finderButton.toolTip == "Show in Finder (⌘R)")
-        #expect(panel.finderButton.frame.width > plainWidth, "the key beside the icon")
-        #expect(panel.finderButton.frame.maxX < panel.openButton.frame.minX)
+        #expect(panel.openButton.toolTip == "Open in Peeker (⌘O)")
         panel.showsKeys = false
         panel.updateOpenButton(for: file)
-        #expect(panel.openButton.title == "Open in Peeker" && panel.finderButton.frame.width == plainWidth)
+        #expect(panel.openButton.title == "Open in Peeker")
         #expect(panel.openButton.toolTip == "Open in Peeker (⌘O)", "the tooltip names the key either way")
     }
 
-    @Test func aFolderButtonBesideItShowsTheFileInFinder() {
+    /// Finder already shows the file the panel came from, so Show in Finder lives only in the button's menu.
+    @Test func showInFinderIsInTheMenuWithItsKeyAndHasNoButton() {
         let (defaults, name) = scratchDefaults()
         defer { defaults.removePersistentDomain(forName: name) }
         let panel = PeekPanel(defaults: defaults)
         defer { panel.close() }
-        let button = panel.finderButton
-        #expect(button.toolTip == "Show in Finder" && button.superview === panel.openButton.superview)
-        #expect(button.target === panel && button.action == #selector(PeekPanel.showFileInFinder(_:)))
-        #expect(button.frame.maxX < panel.openButton.frame.minX, "left of Open in Peeker")
+        #expect(panel.openButton.superview?.subviews.contains { $0 is NSButton } == false, "no folder button beside it")
+        let item = PeekPanel.showInFinderItem(key: Shortcut(key: .character("r"), modifiers: .command))
+        #expect(item.title == "Show in Finder" && item.keyEquivalent == "r" && item.keyEquivalentModifierMask == .command)
+        #expect(PeekPanel.showInFinderItem(key: nil).keyEquivalent == "", "a key turned off shows none")
     }
 }
 

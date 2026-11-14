@@ -102,7 +102,7 @@ check "After Reset the panel opens at its first size again" "$(panel size)" "$fi
 "$DRIVE" keys Finder escape && sleep 1
 
 # The panel's button: its arrow lists other apps, then Other… and Show in Finder; a default app in the config names
-# the button; and the folder button beside it closes the panel and shows the file in Finder.
+# the button.
 # Clicks the middle of the panel's control; frames can have fractions, which shell arithmetic can't take.
 click_middle() { read -r x y w h <<< "$("$DRIVE" frame Peeker "$1" "$2" || echo "0 0 0 0")"; x=${x%.*} y=${y%.*} w=${w%.*} h=${h%.*}; [ "$w" -gt 0 ] && "$DRIVE" click Finder $((x + w / 2)) $((y + h / 2)); }
 arrow() { click_middle AXMenuButton "$1"; sleep 0.8; }
@@ -122,12 +122,8 @@ check "A default app in the config names the button" "$("$DRIVE" tree Peeker 3 |
 "$DRIVE" keys Finder escape && sleep 1
 echo '{}' > "$CONFIG"
 sleep 1.5
-peek
-click_middle AXButton "Show in Finder"
-check "The panel's folder button closes it" "$("$DRIVE" wait Peeker window notes.md --gone --timeout 3 2>/dev/null && echo closed)" closed
-check "and leaves the file selected in Finder" "$(osascript -e 'tell application "Finder" to get name of item 1 of (get selection)' 2>/dev/null)" notes.md
 
-# The buttons' keys: captions on both, Cmd+R closes the panel and shows the file, Cmd+O opens it in the Editor.
+# The keys: the button's caption, Cmd+R closes the panel and shows the file, Cmd+O opens it in the Editor.
 peek
 check "The main button shows its key" "$("$DRIVE" tree Peeker 3 | grep -c 'AXButton “Open in Peeker  ⌘O”')" 1
 "$DRIVE" shot Peeker "$OUT/4d-panel-keys.png" notes.md

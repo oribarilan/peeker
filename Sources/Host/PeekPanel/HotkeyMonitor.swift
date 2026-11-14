@@ -102,7 +102,7 @@ final class HotkeyMonitor {
         case dismiss
         /// The panel's main button, by its key.
         case open
-        /// The panel's folder button, by its key.
+        /// The panel's Show in Finder, by its key.
         case showInFinder
     }
 

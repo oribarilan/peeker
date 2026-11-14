@@ -67,13 +67,11 @@ extension PeekPanel: NSMenuDelegate {
         openWith[url.pathExtension.lowercased()].flatMap(appFor)
     }
 
-    /// The main button's title and the folder button's image, each with its key while captions are on.
+    /// The main button's title, with its key while captions are on.
     func updateOpenButton(for url: URL) {
         let title = "Open in \(buttonApp(for: url)?.name ?? "Peeker")"
         openButton.title = showsKeys ? openKey.map { "\(title)  \($0.displayText)" } ?? title : title
         openButton.toolTip = Shortcut.tooltip(title: title, shortcut: openKey)
-        finderButton.image = ToolbarImage.make(symbol: "folder", name: "Show in Finder", key: showInFinderKey, showsKey: showsKeys)
-        finderButton.toolTip = Shortcut.tooltip(title: "Show in Finder", shortcut: showInFinderKey)
         layOutTitlebarButtons()
     }
 
@@ -126,12 +124,19 @@ extension PeekPanel: NSMenuDelegate {
             case .peeker: menuItem = NSMenuItem(title: "Peeker", action: #selector(menuChoice(_:)), keyEquivalent: "")
             case .alwaysPeeker: menuItem = NSMenuItem(title: "Always Open in Peeker", action: #selector(menuChoice(_:)), keyEquivalent: "")
             case .other: menuItem = NSMenuItem(title: "Other…", action: #selector(menuChoice(_:)), keyEquivalent: "")
-            case .showInFinder: menuItem = NSMenuItem(title: "Show in Finder", action: #selector(menuChoice(_:)), keyEquivalent: "")
+            case .showInFinder: menuItem = Self.showInFinderItem(key: showInFinderKey)
             }
             menuItem.target = self
             menuItem.representedObject = MenuChoice(item)
             menu.addItem(menuItem)
         }
+    }
+
+    /// Show in Finder in the button's menu, showing its key, since no button in the title bar does.
+    static func showInFinderItem(key: Shortcut?) -> NSMenuItem {
+        let item = NSMenuItem(title: "Show in Finder", action: #selector(menuChoice(_:)), keyEquivalent: key?.keyEquivalent ?? "")
+        item.keyEquivalentModifierMask = key?.modifiers ?? []
+        return item
     }
 
     func menuWillOpen(_ menu: NSMenu) { isMenuOpen = true }
