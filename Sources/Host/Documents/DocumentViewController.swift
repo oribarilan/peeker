@@ -115,7 +115,7 @@ final class DocumentViewController: NSSplitViewController {
         }
     }
 
-    /// How long an open runs before its window shows a spinner; quicker opens never draw one.
+    /// How long an open runs before its window or the Peek panel shows a spinner; quicker opens never draw one.
     private static let spinnerDelay: Duration = .milliseconds(500)
 
     /// Pixel size the image plugin should decode to: the largest screen, so fit-to-window stays sharp.
@@ -135,9 +135,9 @@ final class DocumentViewController: NSSplitViewController {
             preferences: preferences.map { PluginPreferences(pluginID: entry.id, defaults: $0) })
         // Read before the plugin reads the file, so a write in between shows as a change and reloads.
         let modified = Self.modificationDate(of: url)
-        // A window with nothing to show yet gets a spinner once the open is slow; the Peek panel never does.
+        // A window or the Peek panel with nothing to show yet gets a spinner once the open is slow.
         let spinner =
-            allowsEditing && pluginDocument == nil
+            pluginDocument == nil
             ? Task { [weak self] in
                 try? await Task.sleep(for: Self.spinnerDelay)
                 guard let self, !Task.isCancelled, !isClosed, pluginDocument == nil else { return }

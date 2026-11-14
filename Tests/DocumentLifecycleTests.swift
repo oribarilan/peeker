@@ -231,14 +231,15 @@ private final class StubDocument: PluginDocument {
         #expect(Self.spinner(in: document.view) == nil)
     }
 
-    @Test func theSpacePanelShowsNone() async throws {
+    @Test func thePeekPanelShowsOneToo() async throws {
         Stub.reset()
         Stub.openTime = .milliseconds(900)
         let (document, window, loading) = startLoading(try TempFile.make(Data("text".utf8), name: "f.stub"), allowsEditing: false)
         defer { document.close(); window.close() }
         try await Task.sleep(for: .milliseconds(700))
-        #expect(Self.spinner(in: document.view) == nil)
+        #expect(Self.spinner(in: document.view) != nil)
         await loading.value
+        #expect(Self.spinner(in: document.view) == nil)
     }
 }
 

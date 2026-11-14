@@ -6,6 +6,7 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
+- The Peek panel shows a spinner while a slow file opens, as Editor windows do, instead of staying empty.
 - Images fit below the title bar in the Peek panel and below the toolbar in Editor windows; a photo or GIF used to run under the file name and the buttons.
 - CSV and TSV tables copy. Cmd+C, Edit > Copy or Copy in the right-click menu copies one selected cell at once; for more, a sheet previews the text and offers Tabs, Commas, Semicolons or a Markdown table, with or without the header row, and remembers the choice so Return copies the same way next time. Copies follow the table's sort. In the Peek panel, Cmd+C copies the cells you clicked or dragged over, or text you selected, instead of Finder copying the file.
 - File > Open With in Editor windows lists the other apps that open the file, with their icons, and Other… for any app, below Peeker's own plugins. If the file has unsaved changes, Peeker asks first whether to save them, open the file as last saved, or cancel; the window stays open either way.
