@@ -423,3 +423,19 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(try await open(url).animation == nil)
     }
 }
+
+/// The image fits below the title bar, so in the Peek panel it never runs under the file name and the buttons.
+@Suite(.serialized) struct ImageBelowTheTitleBar {
+    @Test func inThePeekPanelTheImageStartsBelowTheTitleBar() async throws {
+        let (defaults, name) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let document = try await open(try imageFile(cornerImage(width: 300, height: 400), type: .png), editing: false)
+        let panel = PeekPanel(defaults: defaults)
+        defer { panel.close() }
+        panel.contentView = document.contentView
+        document.contentView.layoutSubtreeIfNeeded()
+        let top = document.contentView.safeAreaInsets.top
+        #expect(top > 0, "the panel's title bar overlaps its content")
+        #expect(document.contentScrollView.frame.minY >= top)
+    }
+}

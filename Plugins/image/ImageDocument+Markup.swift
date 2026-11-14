@@ -1,8 +1,8 @@
 import AppKit
 import PeekerKit
 
-/// The image's scroll view filling the content area, and the markup strip, when it shows, under the toolbar with the
-/// image below it. Laid out with frames, so a resize applies at once.
+/// The image's scroll view below the toolbar or title bar, so a fitted image never runs under them, and the markup
+/// strip, when it shows, between the two. Laid out with frames, so a resize applies at once.
 final class MarkupContainer: NSView {
     var image: NSView? {
         didSet {
@@ -22,12 +22,9 @@ final class MarkupContainer: NSView {
     override var isFlipped: Bool { true }
 
     override func resizeSubviews(withOldSize oldSize: NSSize) {
-        guard let strip, !strip.isHidden else {
-            image?.frame = bounds
-            return
-        }
-        let top = safeAreaInsets.top, height = strip.fittingSize.height
-        strip.frame = NSRect(x: 0, y: top, width: bounds.width, height: height)
+        let top = safeAreaInsets.top
+        let height = strip.flatMap { $0.isHidden ? nil : $0.fittingSize.height } ?? 0
+        strip?.frame = NSRect(x: 0, y: top, width: bounds.width, height: height)
         image?.frame = NSRect(x: 0, y: top + height, width: bounds.width, height: max(bounds.height - top - height, 0))
     }
 
