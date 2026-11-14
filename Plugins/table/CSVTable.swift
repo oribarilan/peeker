@@ -174,10 +174,22 @@ nonisolated struct CSVTable: Sendable {
     }
 
     private func escaped(_ field: CSVField, separator: String) -> String {
-        let needs =
-            field.quoted || field.text.contains(separator) || field.text.contains("\"")
-            || field.text.contains("\n") || field.text.contains("\r")
-        return needs ? "\"" + field.text.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : field.text
+        Self.quoted(field.text, separator: separator, always: field.quoted)
+    }
+
+    /// `text` as a field: in quotes, with its quotes doubled, when it holds the separator, a quote or a line break,
+    /// or `always`.
+    static func quoted(_ text: String, separator: String, always: Bool = false) -> String {
+        let needs: Bool
+        if always {
+            needs = true
+        } else if separator.utf8.count == 1, let byte = separator.utf8.first {
+            // One pass over the bytes: a copy of a whole large table quotes millions of fields.
+            needs = text.utf8.contains { $0 == byte || $0 == quote || $0 == newline || $0 == carriageReturn }
+        } else {
+            needs = text.contains(separator) || text.contains("\"") || text.contains("\n") || text.contains("\r")
+        }
+        return needs ? "\"" + text.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : text
     }
 
     // MARK: Reading

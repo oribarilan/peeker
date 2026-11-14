@@ -201,10 +201,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard let shortcut = config.peekPanelKey else { return }
         let monitor = HotkeyMonitor(shortcut: shortcut)
         monitor.isPanelVisible = { [weak self] in self?.panel.isVisible == true }
-        monitor.isMenuOpen = { [weak self] in self?.panel.isMenuOpen == true }
+        monitor.isMenuOpen = { [weak self] in self?.panel.isMenuOpen == true || self?.panel.attachedSheet != nil }
         monitor.panelKeys = { [weak self] in (self?.config.peekPanelOpenKey, self?.config.peekPanelShowInFinderKey) }
         monitor.onOpen = { [weak self] in if let panel = self?.panel, let url = panel.url { panel.openDefault(url) } }
         monitor.onShowInFinder = { [weak self] in self?.panel.showFileInFinder(nil) }
+        monitor.canCopy = { [weak self] in self?.panel.canCopy == true }
+        monitor.onCopy = { [weak self] in self?.panel.copySelection() }
         monitor.onTrigger = { [weak self] in self?.peekFinderSelection() }
         monitor.onDismiss = { [weak self] in self?.panel.dismiss() }
         monitor.onSelectionMayHaveChanged = { [weak self] in self?.followFinderSelection() }

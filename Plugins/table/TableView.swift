@@ -13,6 +13,8 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
     var canEdit: Bool { isEditable }
     let tableView = GridView()
     let header = TableHeaderView()
+    /// Where Copy puts the cells; tests replace it.
+    var pasteboard = NSPasteboard.general
     let scrollView = NSScrollView()
     /// Find, from the first Cmd+F (TableFind.swift): the bar, its finder, the matches tinted and the current one.
     var findBar: FindBar?
@@ -103,6 +105,10 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
         for (menu, ids) in menus {
             menu.delegate = self
             menu.autoenablesItems = false  // enabled by `menuNeedsUpdate`
+            let copy = NSMenuItem(title: "Copy", action: #selector(GridView.copy(_:)), keyEquivalent: "")
+            copy.target = tableView
+            menu.addItem(copy)
+            menu.addItem(.separator())
             for id in ids {
                 guard !id.isEmpty else { menu.addItem(.separator()); continue }
                 let item = NSMenuItem(title: TablePlugin.tools.first { $0.id == id }?.title ?? id, action: #selector(runTool(_:)), keyEquivalent: "")
@@ -411,6 +417,7 @@ final class TableView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTex
             clickRow(tableView.clickedRow, extending: false, toggling: false)
         }
         for item in menu.items {
+            if item.action == #selector(GridView.copy(_:)) { item.isEnabled = canCopy }
             guard let id = item.representedObject as? String else { continue }
             let isSort = id.hasPrefix("sort-")
             item.isEnabled = (isSort || isEditable) && document?.unavailableReason(for: id) == nil

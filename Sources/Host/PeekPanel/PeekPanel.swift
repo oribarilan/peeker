@@ -23,6 +23,17 @@ final class PeekPanel: NSPanel {
     var listApps: (URL) -> [AppChoice] = AppChoices.list(for:)
     var openInApp: (URL, URL) -> Void = AppChoices.open(_:in:)
     var revealInFinder: (URL) -> Void = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
+    /// The focus a sheet on the panel needs; tests replace these.
+    /// Hands the focus back to Finder. Peeker may be the active app by then (a sheet makes it so), and macOS lets the
+    /// active app pass the focus on only by yielding it first.
+    var activateFinder: () -> Void = {
+        guard let finder = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first else { return }
+        NSApp.yieldActivation(to: finder)
+        finder.activate(from: .current)
+    }
+    var isShowing: (PeekPanel) -> Bool = { $0.isVisible }
+    /// Set while a sheet on the panel has the keyboard.
+    var tookKeyboardForSheet = false
     /// Its name is what tells the panel apart from Quick Look, whose button opens Preview. Its arrow lists other apps.
     let openButton = NSComboButton(title: "Open in Peeker", menu: NSMenu(), target: nil, action: nil)
     /// While the button's menu is open, the key monitor leaves every key to it.
@@ -63,6 +74,8 @@ final class PeekPanel: NSPanel {
         titleLabel.maximumNumberOfLines = 1
         NotificationCenter.default.addObserver(
             self, selector: #selector(sidebarResized), name: NSSplitView.didResizeSubviewsNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(sheetWillBegin), name: NSWindow.willBeginSheetNotification, object: self)
+        NotificationCenter.default.addObserver(self, selector: #selector(sheetDidEnd), name: NSWindow.didEndSheetNotification, object: self)
 
         openButton.target = self
         openButton.action = #selector(openFromButton)

@@ -1,6 +1,8 @@
 #!/bin/bash
-# The table editing flow on screen: Space on a CSV file in Finder shows it as a table in the Peek panel; in the Editor,
-# a double-click on a cell, typing and Return change it, Return leaves no cell being edited, and Cmd+S writes exactly
+# The table editing flow on screen: Space on a CSV file in Finder shows it as a table in the Peek panel, where Cmd+C on
+# two dragged-over cells shows the copy sheet, which takes the keyboard, and Escape cancels it and gives Finder the
+# keyboard back; in the Editor, Cmd+C on two cells shows the copy sheet too (the run never copies, leaving the
+# clipboard alone); a double-click on a cell, typing and Return change it, Return leaves no cell being edited, and Cmd+S writes exactly
 # that change to the file; typing over the current cell replaces it, Shift-Up selects two cells and Delete clears them;
 # a click on a column title selects it without sorting, and a click on the title's arrow sorts the table without
 # counting as an edit (closing asks nothing); View > Header Row turns the header
@@ -47,6 +49,21 @@ check "The Peek panel shows a table" "$(grep -q '^ *AXTable' "$OUT/peek-panel-tr
 check "The Peek panel shows the cell Cake" "$(grep -q 'AXStaticText.* = Cake$' "$OUT/peek-panel-tree.txt" && echo yes)" yes
 # Fitted columns and the right-aligned price column show only in the picture; unit tests check both.
 "$DRIVE" shot Peeker "$OUT/1-peek-panel.png"
+# Copy in the panel: a drag from Tea to its price selects two cells, and Cmd+C shows the copy sheet, which takes the
+# keyboard: Escape cancels it and leaves the panel up, with Finder in front. Nothing is copied: the run leaves the
+# clipboard alone, and unit tests check what's copied.
+front_app() { osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null; }
+read -r tx ty tw th <<< "$(frame AXStaticText Tea)"
+read -r px _ pw _ <<< "$(frame AXStaticText 3.50)"
+[ "$tw" -gt 0 ] && [ "$pw" -gt 0 ] && "$DRIVE" drag Finder $((tx + tw / 2)) $((ty + th / 2)) $((px + pw / 2)) $((ty + th / 2)) $((px + pw / 2)) $((ty + th / 2))
+"$DRIVE" keys Finder cmd+c
+check "Cmd+C on two cells in the panel shows the copy sheet" "$("$DRIVE" wait Peeker sheet --timeout 3 2>/dev/null && echo shown)" shown
+"$DRIVE" shot Peeker "$OUT/1b-panel-copy-sheet.png"
+"$DRIVE" keys Peeker escape
+check "Escape reaches the sheet and cancels it" "$("$DRIVE" wait Peeker sheet --gone --timeout 3 2>/dev/null && echo cancelled)" cancelled
+sleep 0.5
+check "Finder has the keyboard back" "$(front_app)" Finder
+check "and the panel stays up" "$("$DRIVE" windows Peeker | grep -c ' prices\.csv$')" 1
 "$DRIVE" keys Finder escape  # the panel never takes focus, so Finder stays in front
 "$DRIVE" wait Peeker window prices.csv --gone
 
@@ -58,6 +75,15 @@ front
 # The header's titles are buttons named after the columns.
 check "The Editor shows name and price as column titles" "$("$DRIVE" tree Peeker 30 | grep -oE 'AXButton “(name|price)”' | sort -u | paste -sd ' ' -)" "AXButton “name” AXButton “price”"
 check "The Editor shows the rows in file order" "$(top_row)" Tea
+# Two cells selected by a drag: Cmd+C asks through the copy sheet, and Cancel copies nothing.
+read -r tx ty tw th <<< "$(frame AXStaticText Tea)"
+read -r px _ pw _ <<< "$(frame AXStaticText 3.50)"
+[ "$tw" -gt 0 ] && [ "$pw" -gt 0 ] && "$DRIVE" drag Peeker $((tx + tw / 2)) $((ty + th / 2)) $((px + pw / 2)) $((ty + th / 2)) $((px + pw / 2)) $((ty + th / 2))
+"$DRIVE" keys Peeker cmd+c
+check "Cmd+C on two cells shows the copy sheet" "$("$DRIVE" wait Peeker sheet --timeout 3 2>/dev/null && echo shown)" shown
+"$DRIVE" shot Peeker "$OUT/2b-copy-sheet.png" prices.csv
+"$DRIVE" press Peeker Cancel
+"$DRIVE" wait Peeker sheet --gone --timeout 3
 "$DRIVE" shot Peeker "$OUT/2-editor.png" prices.csv
 # Cake's price cell: its row from the cell Cake, its column from Tea's 3.50. Not the text "4" itself, which the info
 # panel's Rows count also shows.

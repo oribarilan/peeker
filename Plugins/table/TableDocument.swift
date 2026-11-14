@@ -5,7 +5,7 @@ import PeekerKit
 final class TableDocument: PluginDocument {
     private(set) var url: URL
     private let allowsEditing: Bool
-    private let preferences: PluginPreferences?
+    let preferences: PluginPreferences?
     private var tooLarge: Bool
     /// How the file stores its text, so a save writes it back the same way.
     private var format: TextFormat

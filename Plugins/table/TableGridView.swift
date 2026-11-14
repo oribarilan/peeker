@@ -64,6 +64,18 @@ final class GridView: NSTableView {
 
     override func selectAll(_ sender: Any?) { owner?.selectAll() }
 
+    @objc func copy(_ sender: Any?) { owner?.copySelection() }
+
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        item.action == #selector(copy(_:)) ? owner?.canCopy == true : super.validateUserInterfaceItem(item)
+    }
+
+    /// A table in the Peek panel otherwise refuses focus, which Copy needs there. Focus in the panel doesn't take
+    /// the keyboard from Finder: Peeker stays in the background.
+    override var acceptsFirstResponder: Bool { true }
+    /// A click in the Peek panel selects cells without taking the keyboard from Finder, so the arrow keys keep browsing.
+    override var needsPanelToBecomeKey: Bool { false }
+
     override func becomeFirstResponder() -> Bool {
         defer { owner?.selectionChanged(scrolling: false) }
         return super.becomeFirstResponder()

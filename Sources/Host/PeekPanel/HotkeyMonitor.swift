@@ -32,6 +32,9 @@ final class HotkeyMonitor {
     var panelKeys: () -> (open: Shortcut?, showInFinder: Shortcut?) = { (nil, nil) }
     var onOpen: (() -> Void)?
     var onShowInFinder: (() -> Void)?
+    /// Cmd-C over the panel: whether something in it is selected to copy, asked on the main thread, and copying it.
+    var canCopy: () -> Bool = { false }
+    var onCopy: (() -> Void)?
 
     init(shortcut: Shortcut) {
         self.shortcut = shortcut
@@ -104,13 +107,15 @@ final class HotkeyMonitor {
         case open
         /// The panel's Show in Finder, by its key.
         case showInFinder
+        /// Cmd-C while something in the panel is selected: the panel copies it, not Finder the file.
+        case copy
     }
 
     /// The decision for `key`, given what's on screen. `typing` is asked only when a bare key could open the panel,
     /// since it costs an Accessibility call. While the panel's button menu is open, every key goes to the menu.
     static func decide(
         _ key: KeyEvent, shortcut: Shortcut, panelVisible: Bool, finderInFront: Bool, menuOpen: Bool,
-        openKey: Shortcut?, showInFinderKey: Shortcut?, typing: () -> Bool, swallowedKeyUp: Int64?
+        openKey: Shortcut?, showInFinderKey: Shortcut?, typing: () -> Bool, canCopy: () -> Bool = { false }, swallowedKeyUp: Int64?
     ) -> Decision {
         guard !key.isOwn else { return .pass }
         if key.type == .keyUp { return key.keyCode == swallowedKeyUp ? .swallowKeyUp : .pass }
@@ -120,6 +125,7 @@ final class HotkeyMonitor {
             let matches = { (wanted: Shortcut?) in wanted.map { key.keyCode == $0.keyCode && modifiers == cgFlags($0.modifiers) } ?? false }
             if matches(openKey) { return key.isRepeat ? .swallowRepeat : .open }
             if matches(showInFinderKey) { return key.isRepeat ? .swallowRepeat : .showInFinder }
+            if key.keyCode == 8, modifiers == .maskCommand, canCopy() { return key.isRepeat ? .swallowRepeat : .copy }  // C
         }
         if panelVisible, finderInFront, modifiers.isEmpty {
             if key.keyCode == 53 { return .dismiss }  // Escape
@@ -141,7 +147,7 @@ final class HotkeyMonitor {
             key, shortcut: shortcut, panelVisible: isPanelVisible(),
             finderInFront: NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder",
             menuOpen: isMenuOpen(), openKey: keys.open, showInFinderKey: keys.showInFinder,
-            typing: Self.isTextInputFocused, swallowedKeyUp: swallowedKeyUp)
+            typing: Self.isTextInputFocused, canCopy: canCopy, swallowedKeyUp: swallowedKeyUp)
         switch decision {
         case .pass:
             return false
@@ -153,13 +159,14 @@ final class HotkeyMonitor {
             return true
         case .swallowRepeat:
             return true
-        case .trigger, .dismiss, .open, .showInFinder:
+        case .trigger, .dismiss, .open, .showInFinder, .copy:
             swallowedKeyUp = key.keyCode
             let action =
                 switch decision {
                 case .trigger: onTrigger
                 case .open: onOpen
                 case .showInFinder: onShowInFinder
+                case .copy: onCopy
                 default: onDismiss
                 }
             DispatchQueue.main.async { action?() }
