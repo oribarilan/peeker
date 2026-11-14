@@ -41,6 +41,56 @@ import Testing
     }
 }
 
+@Suite(.serialized) struct PeekPanelTitle {
+    private let long = "Quarterly report for the board meeting, final draft with comments from everyone in finance and legal, version 12.pdf"
+
+    /// The label and the button share the accessory view, so their frames compare directly.
+    private func endsBeforeTheButtons(_ panel: PeekPanel) -> Bool {
+        panel.titleLabel.frame.maxX <= panel.openButton.frame.minX && panel.titleLabel.frame.width > 0
+    }
+
+    @Test func aLongNameIsCutInTheMiddleBeforeTheButtons() {
+        let (defaults, name) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let panel = PeekPanel(defaults: defaults)
+        defer { panel.close() }
+        panel.showTitle(long)
+        #expect(panel.title == long, "VoiceOver and the Window menu get the full name")
+        #expect(panel.titleVisibility == .hidden && panel.titleLabel.stringValue == long)
+        #expect(panel.titleLabel.lineBreakMode == .byTruncatingMiddle)
+        #expect(panel.titleLabel.superview === panel.openButton.superview)
+        #expect(endsBeforeTheButtons(panel))
+        #expect(panel.titleLabel.fittingSize.width > panel.titleLabel.frame.width, "too long to fit, so it's cut")
+    }
+
+    @Test func aShortNameShowsWhole() {
+        let (defaults, name) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let panel = PeekPanel(defaults: defaults)
+        defer { panel.close() }
+        panel.showTitle("notes.md")
+        #expect(panel.titleLabel.fittingSize.width <= panel.titleLabel.frame.width)
+        #expect(endsBeforeTheButtons(panel))
+    }
+
+    @Test func theNameStaysClearWhenTheButtonGrowsOrThePanelNarrows() {
+        let (defaults, name) = scratchDefaults()
+        defer { defaults.removePersistentDomain(forName: name) }
+        let panel = PeekPanel(defaults: defaults)
+        defer { panel.close() }
+        panel.showTitle(long)
+        panel.showsKeys = true
+        panel.openKey = Shortcut(key: .character("o"), modifiers: .command)
+        panel.updateOpenButton(for: URL(filePath: "/tmp/\(long)"))
+        #expect(endsBeforeTheButtons(panel))
+        let wide = panel.titleLabel.frame.width
+        panel.setFrame(
+            NSRect(origin: panel.frame.origin, size: NSSize(width: PanelPlacement.minimumSize.width, height: panel.frame.height)), display: false)
+        #expect(endsBeforeTheButtons(panel))
+        #expect(panel.titleLabel.frame.width < wide)
+    }
+}
+
 @Suite(.serialized) struct PeekPanelFrame {
     @Test func itCantBeMadeSmallerThan400By300() {
         let (defaults, name) = scratchDefaults()
@@ -155,6 +205,12 @@ private func app(_ id: String, _ name: String) -> AppChoice {
         #expect(panel.openButton.title == "Open in Xcode")
         panel.updateOpenButton(for: URL(filePath: "/tmp/notes.txt"))
         #expect(panel.openButton.title == "Open in Peeker")
+    }
+
+    @Test func appsInTheMenuShowTheirIcons() {
+        let item = PeekPanel.appMenuItem(xcode)
+        #expect(item.title == "Xcode" && item.image != nil)
+        #expect(asksToShowImage(item))
     }
 
     @Test func aMissingAppFallsBackToPeeker() {

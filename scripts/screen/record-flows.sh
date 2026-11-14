@@ -123,6 +123,17 @@ check "A default app in the config names the button" "$("$DRIVE" tree Peeker 3 |
 echo '{}' > "$CONFIG"
 sleep 1.5
 
+# A long name ends before the button, cut in the middle (the screenshot shows the ellipsis and the extension).
+long="Quarterly report for the board meeting, final draft with comments from everyone in finance and legal, version 12.md"
+printf '# Report\n' > "$F/$long"
+"$DRIVE" select "$F/$long" && sleep 2.5 && "$DRIVE" keys Finder space && "$DRIVE" wait Peeker window "$long" --timeout 5 >/dev/null
+sleep 0.5
+read -r lx _ lw _ <<< "$("$DRIVE" frame Peeker AXStaticText "$long" || echo "0 0 0 0")"
+read -r bx _ _ _ <<< "$("$DRIVE" frame Peeker AXMenuButton "Open in Peeker" || echo "0 0 0 0")"
+check "A long name ends before the button" "$(awk -v l="$lx" -v w="$lw" -v b="$bx" 'BEGIN { print (w > 0 && l + w <= b) ? "yes" : "no" }')" yes
+"$DRIVE" shot Peeker "$OUT/4e-panel-long-name.png" "$long"
+"$DRIVE" keys Finder escape && sleep 1
+
 # The keys: the button's caption, Cmd+R closes the panel and shows the file, Cmd+O opens it in the Editor.
 peek
 check "The main button shows its key" "$("$DRIVE" tree Peeker 3 | grep -c 'AXButton “Open in Peeker  ⌘O”')" 1

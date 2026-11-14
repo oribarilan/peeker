@@ -116,11 +116,7 @@ extension PeekPanel: NSMenuDelegate {
             let menuItem: NSMenuItem
             switch item {
             case .separator: menu.addItem(.separator()); continue
-            case .app(let app):
-                menuItem = NSMenuItem(title: app.name, action: #selector(menuChoice(_:)), keyEquivalent: "")
-                let icon = NSWorkspace.shared.icon(forFile: app.url.path)
-                icon.size = NSSize(width: 16, height: 16)
-                menuItem.image = icon
+            case .app(let app): menuItem = Self.appMenuItem(app)
             case .peeker: menuItem = NSMenuItem(title: "Peeker", action: #selector(menuChoice(_:)), keyEquivalent: "")
             case .alwaysPeeker: menuItem = NSMenuItem(title: "Always Open in Peeker", action: #selector(menuChoice(_:)), keyEquivalent: "")
             case .other: menuItem = NSMenuItem(title: "Other…", action: #selector(menuChoice(_:)), keyEquivalent: "")
@@ -136,6 +132,13 @@ extension PeekPanel: NSMenuDelegate {
     static func showInFinderItem(key: Shortcut?) -> NSMenuItem {
         let item = NSMenuItem(title: "Show in Finder", action: #selector(menuChoice(_:)), keyEquivalent: key?.keyEquivalent ?? "")
         item.keyEquivalentModifierMask = key?.modifiers ?? []
+        return item
+    }
+
+    /// An app in the button's menu, with its icon; the panel sets its target and choice.
+    static func appMenuItem(_ app: AppChoice) -> NSMenuItem {
+        let item = NSMenuItem(title: app.name, action: #selector(menuChoice(_:)), keyEquivalent: "")
+        item.showIcon(ofFileAt: app.url)
         return item
     }
 

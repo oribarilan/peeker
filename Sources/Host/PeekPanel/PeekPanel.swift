@@ -36,6 +36,8 @@ final class PeekPanel: NSPanel {
     var openKey: Shortcut?
     var showInFinderKey: Shortcut?
     var showsKeys = false
+    /// The file's name, in place of AppKit's title, which would run under the button and can only be cut at its end.
+    let titleLabel = NSTextField(labelWithString: "")
     /// Where the frame the user last gave the panel is kept, as `NSStringFromRect`.
     static let frameKey = "peekPanelFrame"
     private let defaults: UserDefaults
@@ -59,6 +61,12 @@ final class PeekPanel: NSPanel {
         isReleasedWhenClosed = false
         collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         titlebarAppearsTransparent = true
+        titleVisibility = .hidden
+        titleLabel.font = .titleBarFont(ofSize: 0)
+        titleLabel.lineBreakMode = .byTruncatingMiddle
+        titleLabel.maximumNumberOfLines = 1
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(sidebarResized), name: NSSplitView.didResizeSubviewsNotification, object: nil)
 
         openButton.target = self
         openButton.action = #selector(openFromButton)
@@ -69,17 +77,42 @@ final class PeekPanel: NSPanel {
         openButton.menu.addItem(withTitle: "Other…", action: nil, keyEquivalent: "")
         let accessory = NSTitlebarAccessoryViewController()
         accessory.view = NSView(frame: NSRect(x: 0, y: 0, width: 0, height: 28))
+        accessory.view.addSubview(titleLabel)
         accessory.view.addSubview(openButton)
         layOutTitlebarButtons()
         accessory.layoutAttribute = .trailing
         addTitlebarAccessoryViewController(accessory)
     }
 
-    /// Open in Peeker, sized to its title.
+    /// The name, then Open in Peeker, sized to its title. The title-bar accessory reaches from where the name starts to
+    /// the trailing edge, and the name gets what the button leaves.
     func layOutTitlebarButtons() {
         openButton.sizeToFit()
-        openButton.frame.origin = NSPoint(x: 4, y: ((28 - openButton.frame.height) / 2).rounded())
-        openButton.superview?.frame.size.width = openButton.frame.maxX + 6
+        let button = 4 + openButton.frame.width + 6
+        let width = max(button, frame.width - titleStart())
+        func centered(_ height: CGFloat) -> CGFloat { ((28 - height) / 2).rounded() }
+        openButton.frame.origin = NSPoint(x: width - button + 4, y: centered(openButton.frame.height))
+        let height = titleLabel.fittingSize.height
+        titleLabel.frame = NSRect(x: 0, y: centered(height), width: max(openButton.frame.minX - 8, 0), height: height)
+        openButton.superview?.frame.size.width = width
+    }
+
+    /// Where AppKit would start the title: past the sidebar when one shows, else past the window's buttons.
+    private func titleStart() -> CGFloat {
+        let sidebar = (contentViewController as? NSSplitViewController)?.splitViewItems.first { $0.behavior == .sidebar && !$0.isCollapsed }
+        if let sidebar { return sidebar.viewController.view.frame.maxX + 12 }
+        return (standardWindowButton(.zoomButton)?.frame.maxX ?? 60) + 12
+    }
+
+    /// The file's name: the window's title, for VoiceOver and the Window menu, and the label that shows it.
+    func showTitle(_ name: String) {
+        title = name
+        titleLabel.stringValue = name
+        layOutTitlebarButtons()
+    }
+
+    @objc private func sidebarResized(_ notification: Notification) {
+        if (notification.object as? NSView)?.window === self { layOutTitlebarButtons() }
     }
 
     @objc func showFileInFinder(_ sender: Any?) {
@@ -98,7 +131,7 @@ final class PeekPanel: NSPanel {
     func show(_ document: DocumentViewController) {
         self.document?.close()
         self.document = document
-        title = document.url.lastPathComponent
+        showTitle(document.url.lastPathComponent)
         updateOpenButton(for: document.url)
         document.onFollowLink = { [weak self] document, link in Task { await self?.follow(link, from: document) } }
         // A visible panel keeps its frame while arrow keys and links change the file; a hidden one is placed afresh.
@@ -107,6 +140,7 @@ final class PeekPanel: NSPanel {
             contentViewController = document
             setFrame(frame, display: false)
         }
+        layOutTitlebarButtons()  // the sidebar, if any, now decides where the name starts
         orderFrontRegardless()
         Task.immediate { await document.load() }
     }
@@ -144,6 +178,7 @@ final class PeekPanel: NSPanel {
     /// A move or resize the panel didn't make itself is the user's (a drag, a resize, Accessibility), so it's what the
     /// panel opens with next time.
     @objc private func frameChanged(_ notification: Notification) {
+        if notification.name == NSWindow.didResizeNotification { layOutTitlebarButtons() }
         if !arranging { defaults.set(NSStringFromRect(frame), forKey: Self.frameKey) }
     }
 

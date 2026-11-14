@@ -17,8 +17,7 @@ final class RecentFiles: NSObject, NSMenuDelegate {
             let item = NSMenuItem(title: url.lastPathComponent, action: #selector(openRecent(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = url
-            item.image = NSWorkspace.shared.icon(forFile: url.path)
-            item.image?.size = NSSize(width: 16, height: 16)
+            item.showIcon(ofFileAt: url)
             menu.addItem(item)
         }
         if !menu.items.isEmpty { menu.addItem(.separator()) }

@@ -119,4 +119,19 @@ import Testing
         recent.menuNeedsUpdate(menu)
         #expect(menu.items.count == 4, "filling it again replaces the items")
     }
+
+    @Test func recentFilesShowTheirIcons() {
+        let recent = RecentFiles(urls: { [URL(filePath: "/tmp/a.md")] }, open: { _ in })
+        let menu = NSMenu(title: "Open Recent")
+        recent.menuNeedsUpdate(menu)
+        #expect(menu.items[0].image != nil)
+        #expect(asksToShowImage(menu.items[0]))
+    }
+}
+
+/// True when the item asks to show its image: on macOS 27, where AppKit hides menu images by default, that's
+/// `preferredImageVisibility` set to visible (1); before macOS 27 images always show.
+@MainActor func asksToShowImage(_ item: NSMenuItem) -> Bool {
+    guard item.responds(to: NSSelectorFromString("preferredImageVisibility")) else { return true }
+    return (item.value(forKey: "preferredImageVisibility") as? Int) == 1
 }
