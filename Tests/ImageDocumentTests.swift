@@ -439,3 +439,28 @@ private func open(_ url: URL, editing: Bool = true) async throws -> ImageDocumen
         #expect(document.contentScrollView.frame.minY >= top)
     }
 }
+
+/// At any zoom, the image's corner lands on a whole screen pixel, so Actual Size shows each image pixel as one screen
+/// pixel instead of blending neighbours.
+@Suite(.serialized) struct ImagePixelAlignment {
+    @Test func aZoomedImageStartsOnAWholeScreenPixel() throws {
+        let canvas = ImageCanvas(image: try cornerImage(width: 3000, height: 2000))
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 701, height: 433))
+        scroll.contentView = CenteringClipView()
+        scroll.documentView = canvas
+        scroll.allowsMagnification = true
+        scroll.maxMagnification = 16
+        canvas.autoresizingMask = [.width, .height]
+        let window = offscreenWindow(holding: scroll, width: 701, height: 433)
+        defer { window.close() }
+        let scale = window.backingScaleFactor
+        #expect(canvas.imageRect.minX.rounded() != canvas.imageRect.minX, "fitted by height, so the image starts between pixels")
+        for magnification in [1.0, 2.37, 4.1] {
+            scroll.setMagnification(magnification, centeredAt: NSPoint(x: canvas.bounds.midX, y: canvas.bounds.midY))
+            let clip = scroll.contentView.bounds
+            let x = (canvas.imageRect.minX - clip.minX) * scroll.magnification * scale
+            let y = (canvas.imageRect.minY - clip.minY) * scroll.magnification * scale
+            #expect(abs(x - x.rounded()) < 0.01 && abs(y - y.rounded()) < 0.01, "at \(magnification): \(x), \(y)")
+        }
+    }
+}
