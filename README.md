@@ -1,11 +1,26 @@
-# Peeker
+<p align="center">
+  <img src="docs/images/icon.png" width="96" alt="Peeker icon">
+</p>
 
-An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and the Peek panel on Space. Every format is a plugin, a Swift module built into the app that owns its views and its file reading and writing. Plugins come from contributions to this repo; users turn them on and off and choose which file extensions each one opens.
+<h1 align="center">Peeker</h1>
 
 <p align="center">
-  <img src="docs/images/peek-panel.gif" width="800" alt="The Peek panel showing a JSON file, a CSV table, a PDF, a photo, a screenshot, Swift code, a PDF form and a Markdown file in turn">
+  <em>See it. Fix it.</em>
 </p>
-<p align="center"><sub>Space on a file in Finder opens the Peek panel. The arrow keys move to the next file.</sub></p>
+
+<p align="center">
+  <a href="https://github.com/oribarilan/peeker/actions/workflows/tests.yml"><img src="https://github.com/oribarilan/peeker/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+  &nbsp;
+  <img src="https://img.shields.io/badge/macOS-26%2B-blue?logo=apple&logoColor=white" alt="macOS 26 or later">
+  &nbsp;
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo.gif" width="800" alt="Space on Trip plan.md in Finder opens it in the Peek panel; Open in Peeker moves it to a window, where a typo is fixed">
+</p>
+
+Peeker is an open-source replacement for Preview.app. Press Space on a file in Finder to see it in the Peek panel, then open it in a window to fix what you spotted: fill in and sign a PDF, mark up a screenshot, edit a CSV table, a JSON file or Markdown. It's as fast as Preview, and with some files much faster ([numbers](#benchmarks)).
 
 <table>
   <tr>
@@ -18,22 +33,7 @@ An open-source, plugin-based replacement for Preview.app. The app is only a host
   </tr>
 </table>
 
-The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Raw research is in [research/](research).
-
-## Performance
-
-<!-- bench:start -->
-| Opening, app not running | Apple | Peeker | |
-|---|---|---|---|
-| PDF, 2,000 pages | Preview 661 ms | 305 ms | **2.2× faster** |
-| JPEG, 12 MP | Preview 394 ms | 368 ms | about the same |
-| PNG, 48 MP | Preview 1102 ms | 675 ms | **1.6× faster** |
-| Markdown, 1 KB | TextEdit 286 ms | 285 ms | about the same |
-
-The Peek panel shows a PDF in 14 ms and a 12 MP photo in 125 ms.
-
-Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Peeker until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
-<!-- bench:end -->
+Every format is a plugin, a Swift module built into the app that owns its views and its file reading and writing; the app around them is only a host for windows, tabs, config and the Peek panel. You turn plugins on and off and choose which file extensions each one opens. The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Raw research is in [research/](research).
 
 ## Install
 
@@ -123,7 +123,20 @@ Unsaved edits are copied to `~/Library/Application Support/<bundle id>/Recovery/
 
 `bench/ppbench.py` serves two purposes:
 
-- **Published numbers.** `bench/ppbench.py run` measures the current build on this Mac (quit Preview and TextEdit first; it relaunches them between runs). `bench/ppbench.py publish` then writes the highlights above and the full results in [BENCHMARKS.md](BENCHMARKS.md). It refuses CI or partial results. In Claude Code, the repo's `publishing-benchmarks` skill runs the whole flow.
+- **Published numbers.** `bench/ppbench.py run` measures the current build on this Mac (quit Preview and TextEdit first; it relaunches them between runs). `bench/ppbench.py publish` then writes the highlights below and the full results in [BENCHMARKS.md](BENCHMARKS.md). It refuses CI or partial results. In Claude Code, the repo's `publishing-benchmarks` skill runs the whole flow.
 - **Regression gate.** `scripts/bench-ab.sh <base-ref>` builds the base in a git worktree, measures base and head interleaved on the same machine, and fails if any Peeker metric got worse by more than 15% and 10 ms (5 MB for memory). CI runs exactly that on every pull request (`.github/workflows/bench.yml`).
+
+<!-- bench:start -->
+| Opening, app not running | Apple | Peeker | |
+|---|---|---|---|
+| PDF, 2,000 pages | Preview 661 ms | 305 ms | **2.2× faster** |
+| JPEG, 12 MP | Preview 394 ms | 368 ms | about the same |
+| PNG, 48 MP | Preview 1102 ms | 675 ms | **1.6× faster** |
+| Markdown, 1 KB | TextEdit 286 ms | 285 ms | about the same |
+
+The Peek panel shows a PDF in 14 ms and a 12 MP photo in 125 ms.
+
+Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Peeker until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
+<!-- bench:end -->
 
 Fixtures are generated (`bench/make-fixtures.swift`), not committed. `bench/spacebench.swift` times pressing Space in Finder for Quick Look and for Peeker; it needs Accessibility for the app running it, so it stays out of CI.
