@@ -2,6 +2,22 @@
 
 An open-source, plugin-based replacement for Preview.app. The app is only a host: windows, tabs, routing, config and the Peek panel on Space. Every format is a plugin, a Swift module built into the app that owns its views and its file reading and writing. Plugins come from contributions to this repo; users turn them on and off and choose which file extensions each one opens.
 
+<p align="center">
+  <img src="docs/images/peek-panel.gif" width="800" alt="The Peek panel showing a JSON file, a CSV table, a PDF, a photo, a screenshot, Swift code, a PDF form and a Markdown file in turn">
+</p>
+<p align="center"><sub>Space on a file in Finder opens the Peek panel. The arrow keys move to the next file.</sub></p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/pdf-sign.png" alt="A signature placed on the signature line of a PDF form"><br>Fill in PDF forms and sign them</td>
+    <td width="50%"><img src="docs/images/image-markup.png" alt="A screenshot marked up with a red box, an arrow and the note Try this one"><br>Mark up screenshots</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/markdown.png" alt="A Markdown file with headings, lists and bold text styled in the editor"><br>Markdown styles as you type</td>
+    <td><img src="docs/images/table-copy.png" alt="A CSV file in a table, with six rows being copied as a Markdown table"><br>Edit CSV tables and copy rows as Markdown</td>
+  </tr>
+</table>
+
 The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Raw research is in [research/](research).
 
 ## Performance
