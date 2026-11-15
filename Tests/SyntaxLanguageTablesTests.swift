@@ -154,9 +154,9 @@ import Testing
         ]
         for (language, line) in samples {
             let text = String(repeating: line, count: 1_000_000 / line.utf8.count)
-            _ = SyntaxScanner.spans(in: text, language: language)
+            // The median of five scans, so one slow moment on a shared CI runner doesn't fail the test.
             let clock = ContinuousClock()
-            let took = clock.measure { _ = SyntaxScanner.spans(in: text, language: language) }
+            let took = (0..<5).map { _ in clock.measure { _ = SyntaxScanner.spans(in: text, language: language) } }.sorted()[2]
             // About three times what a scan takes on a recent Mac (6-8 ms), leaving room for CI's slower runner
             // (11-15 ms) while still catching a scanner that got several times slower.
             #expect(took < .milliseconds(25), "\(language): \(took)")
