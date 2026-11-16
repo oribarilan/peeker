@@ -6,7 +6,7 @@ Measured on Apple M6, macOS 27.0.1 on 2026-10-29 at commit `ff9c632`. Each numbe
 
 ## Opening a file with the app not running
 
-From the `open` command. Apple's app is timed until its window appears; its content may arrive later. Peeker is timed until its content is drawn. Both are warm launches (not the first after a reboot).
+From the `open` command. **Apple's app is timed until its window appears; its content may arrive later. Peeker is timed until its content is drawn.** Both are warm launches (not the first after a reboot).
 
 | File | Apple's app | Apple: window | Peeker: content | |
 |---|---|---|---|---|

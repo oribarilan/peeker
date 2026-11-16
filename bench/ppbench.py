@@ -272,8 +272,8 @@ def readme_highlights(results):
     pdf, photo = m.get("inapp.panel.small.pdf.warm_open"), m.get("inapp.panel.photo.jpg.warm_open")
     if pdf and photo:
         lines += ["", f"The Peek panel shows a PDF in {pdf:.0f} ms and a 12 MP photo in {photo:.0f} ms."]
-    lines += ["", f"{results['machine']}, {results['date']}. Apple's apps are timed until their window appears, Peeker "
-                  "until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md)."]
+    lines += ["", f"{results['machine']}, {results['date']}. **Apple's apps are timed until their window appears, Peeker "
+                  "until its content is drawn.** Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md)."]
     return "\n".join(lines)
 
 
@@ -285,8 +285,8 @@ def benchmarks_page(results):
         f"Measured on {results['machine']} on {results['date']} at commit `{results['commit']}`. Each number is the median "
         f"of {results['launches']} launches after a warm-up launch.", "",
         "## Opening a file with the app not running", "",
-        "From the `open` command. Apple's app is timed until its window appears; its content may arrive later. Peeker is "
-        "timed until its content is drawn. Both are warm launches (not the first after a reboot).", "",
+        "From the `open` command. **Apple's app is timed until its window appears; its content may arrive later. Peeker is "
+        "timed until its content is drawn.** Both are warm launches (not the first after a reboot).", "",
         "| File | Apple's app | Apple: window | Peeker: content | |", "|---|---|---|---|---|",
     ]
     for file in FILES:

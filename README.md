@@ -70,7 +70,7 @@ open build/dd/Build/Products/Release/Peeker.app
 
 The Peek panel shows a PDF in 14 ms and a 12 MP photo in 125 ms.
 
-Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Peeker until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
+Apple M6, macOS 27.0.1, 2026-10-29. **Apple's apps are timed until their window appears, Peeker until its content is drawn.** Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
 <!-- bench:end -->
 
 </details>
