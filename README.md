@@ -21,8 +21,8 @@
 </p>
 
 <p align="center">
-  Press Space on a file in Finder to see it. Open it to fix it.<br>
-  Free and open source, as fast as Preview and sometimes much faster.
+  One Space away from signing a PDF, marking up a screenshot or editing a spreadsheet.<br>
+  Free, fast and open source.
 </p>
 
 <table>
