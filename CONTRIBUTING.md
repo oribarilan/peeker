@@ -27,7 +27,7 @@ The Xcode project is generated from `project.yml`. Edit `project.yml`, never `Pe
 
 ## How the code fits together
 
-The app is a host, and every format is a plugin. The host owns windows, tabs, routing, menus, the Peek panel, save prompts and crash recovery, and knows nothing about formats. Each plugin is a Swift module in `Plugins/<id>/` that opens, shows and saves its own files through the contract in `Sources/PeekerKit/Plugin.swift`. A plugin may import only `PeekerKit` and Apple frameworks (plus its declared packages), never another plugin; code two plugins need goes into `PeekerKit`. The README's [Plugins](README.md#plugins) section and the code layout in [AGENTS.md](AGENTS.md#code-layout) say more.
+The app is a host, and every format is a plugin. The host owns windows, tabs, routing, menus, the Peek panel, save prompts and crash recovery, and knows nothing about formats. Each plugin is a Swift module in `Plugins/<id>/` that opens, shows and saves its own files through the contract in `Sources/PeekerKit/Plugin.swift`. A plugin may import only `PeekerKit` and Apple frameworks (plus its declared packages), never another plugin; code two plugins need goes into `PeekerKit`. The code layout in [AGENTS.md](AGENTS.md#code-layout) and the specs in [openspec/specs](openspec/specs) say more.
 
 A few rules hold everywhere:
 

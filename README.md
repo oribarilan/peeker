@@ -20,111 +20,45 @@
   <img src="docs/images/demo.gif" width="800" alt="Space on Trip plan.md in Finder opens it in the Peek panel; Open in Peeker moves it to a window, where a typo is fixed">
 </p>
 
-Peeker is an open-source replacement for Preview.app. Press Space on a file in Finder to see it in the Peek panel, then open it in a window to fix what you spotted: fill in and sign a PDF, mark up a screenshot, edit a CSV table, a JSON file or Markdown. It's as fast as Preview, and with some files much faster ([numbers](#benchmarks)).
+<p align="center">
+  Press Space on a file in Finder to see it. Open it to fix it.<br>
+  Free and open source, as fast as Preview and sometimes much faster.
+</p>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/pdf-sign.png" alt="A signature placed on the signature line of a PDF form"><br>Fill in PDF forms and sign them</td>
+    <td width="50%"><img src="docs/images/pdf-sign.png" alt="A signature placed on the signature line of a PDF form"><br>Fill in and sign PDFs</td>
     <td width="50%"><img src="docs/images/image-markup.png" alt="A screenshot marked up with a red box, an arrow and the note Try this one"><br>Mark up screenshots</td>
   </tr>
   <tr>
-    <td><img src="docs/images/markdown.png" alt="A Markdown file with headings, lists and bold text styled in the editor"><br>Markdown styles as you type</td>
-    <td><img src="docs/images/table-copy.png" alt="A CSV file in a table, with six rows being copied as a Markdown table"><br>Edit CSV tables and copy rows as Markdown</td>
+    <td><img src="docs/images/markdown.png" alt="A Markdown file with headings, lists and bold text styled in the editor"><br>Write Markdown</td>
+    <td><img src="docs/images/table-copy.png" alt="A CSV file in a table, with six rows being copied as a Markdown table"><br>Edit CSV tables</td>
   </tr>
 </table>
 
-Every format is a plugin, a Swift module built into the app that owns its views and its file reading and writing; the app around them is only a host for windows, tabs, config and the Peek panel. You turn plugins on and off and choose which file extensions each one opens. The study behind it is in [REPORT.md](REPORT.md) and [decisions/](decisions). Raw research is in [research/](research).
-
 ## Install
 
-Coming with the first release, 0.1.0:
+Coming with the first release:
 
 ```sh
 brew install --cask oribarilan/tap/peeker
 ```
 
-or the DMG from [Releases](https://github.com/oribarilan/peeker/releases). Peeker checks for a new version once a day and shows what's new before installing it; turn that off in Settings > General. Until then, build it yourself as below. Maintainers: [docs/releasing.md](docs/releasing.md).
-
-## Build and run
-
-Needs Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+or the DMG from [Releases](https://github.com/oribarilan/peeker/releases). Until then, build it with Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen):
 
 ```sh
-scripts/build.sh                     # Release build into build/dd; scripts/build.sh test runs the unit tests
+scripts/build.sh
 open build/dd/Build/Products/Release/Peeker.app
 ```
 
-[CONTRIBUTING.md](CONTRIBUTING.md) covers how the code fits together, tests, the changelog and versions.
+## More
 
-## Use it every day
+- [Config file](docs/config.md), for settings you'd rather edit by hand
+- [CONTRIBUTING.md](CONTRIBUTING.md), to add a format or fix something
+- [BENCHMARKS.md](BENCHMARKS.md), for how fast it opens files
 
-1. Build, then copy the app: `cp -R build/dd/Build/Products/Release/Peeker.app /Applications/`.
-2. In Finder, select a `.txt` file, press Cmd+I, pick Peeker under Open With and click Change All. Repeat for `.pdf` and the image types you want. Peeker stays an alternate handler, so nothing changes until you do this.
-3. Launch it from /Applications. macOS asks for Accessibility (to see the Peek panel key) and, on first use of Space, for permission to control Finder (to read the selection). `scripts/build.sh` signs with your Apple Development certificate when you have one, so those grants survive rebuilds.
-4. Turn on Open at Login in Settings > General (or from Peeker's menu bar icon). The Peek panel only works while the app is running; Settings > Permissions shows whether Peeker has the permissions it needs.
-
-Space on a supported file in Finder opens a panel. Open there moves it into a window, where text files are editable and Cmd+S saves.
-
-## Config
-
-Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change them in the Settings window (from the menu bar icon, or Cmd+,) or edit the file by hand. Every key is optional, and a missing one keeps its default. Saving the file applies it at once, open windows included; there's nothing to reload.
-
-```json
-{
-  "$schema": "schema.json",
-  "peekPanel": { "key": "space" },
-  "updates": { "automatic": "check", "showWhatsNew": true },
-  "textTheme": "paper",
-  "appearance": "system",
-  "textAppearance": "light",
-  "showShortcuts": true,
-  "plugins": {
-    "image": { "enabled": false },
-    "markdown": { "extensions": ["markdown", "mdown"] },
-    "text": { "extensions": ["txt", "md", "conf", "noExtension"] },
-    "pdf": { "tools": { "highlight": { "shortcut": "cmd+shift+h" } } }
-  }
-}
-```
-
-- `peekPanel.key`: the key that opens the Peek panel. A bare key works only in Finder and not while typing; one with modifiers works anywhere; `"off"` turns the Peek panel off.
-- `updates.automatic`: `"check"` (the default) looks for a new version once a day and offers it with its release notes; `"download"` also downloads it and installs it, relaunching quietly once no Peeker window is open; `"off"` checks only when you choose Check for Updates…. An update found while you work in another app waits behind a dot on the menu bar icon instead of opening a window.
-- `updates.showWhatsNew`: `false` stops the window that lists what's new after Peeker updates.
-- `textTheme`: the colors of Markdown and text files, in windows and the Peek panel: `system` (the default), `paper`, `slate`, `graphite`, `ink`, `catppuccin`, `tokyo-night` or `high-contrast`. Each has a light and a dark look. Settings > Appearance shows them as cards to pick from. Catppuccin and Tokyo Night use their projects' colors under the MIT license ([notices](THIRD_PARTY_NOTICES.md)).
-- `appearance`: `system` (the default) follows the Mac; `light` or `dark` holds Peeker's windows in that look.
-- `textAppearance`: which look of the text theme Markdown and text files use: `app` (the default) matches Peeker's appearance, and `light` or `dark` holds it, so a page can stay light in a dark app.
-- `showShortcuts`: `false` takes the keys off the toolbar buttons; they stay in the tooltips, the menus and Settings.
-- `plugins.<id>.enabled`: `false` turns a plugin off. Its files then open nowhere; no other plugin takes them.
-- `plugins.<id>.extensions`: every extension the plugin opens, without the dot, replacing its default list (`schema.json` lists each default). `noExtension` matches files with none, such as `.zshrc` and `Makefile`, and is on Plain Text's list. An extension belongs to one plugin: listed twice, it stays with the plugin that has it by default (above, `md` moves to Plain Text because Markdown's list drops it). Open With in a window can still switch one tab to another enabled plugin that reads the file, such as Plain Text for a Markdown file.
-- `plugins.<id>.tools.<tool>.shortcut` rebinds a tool; `"off"` leaves it without one. Besides letters and digits, keys can be `space`, `esc`, `tab`, `enter`, `pageup` and `pagedown`.
-
-Peeker writes `schema.json` next to the config at launch, so editors that read `$schema` autocomplete and check the keys. A key it doesn't know or a value it can't use is skipped and listed under Settings > Config file, and the menu bar icon shows a red dot until it's fixed; a file that isn't valid JSON changes nothing. Settings > Open in Editor creates the file when there's none.
-
-Peeker never writes `config.json` on its own. A change made in the Settings window rewrites the whole file: every setting, defaults included, with sorted keys, so hand formatting and keys Peeker doesn't know are dropped then. A symlinked config stays a symlink. While the file isn't valid JSON, Settings locks until it's fixed.
-
-Peeker lives in the menu bar while no files are open and gets a Dock icon and menus while they are.
-
-## Plugins
-
-A plugin is a Swift module in `Plugins/<id>/`. Its entry type conforms to `Plugin` in `Sources/PeekerKit/Plugin.swift`: it lists the file extensions it opens by default and opens a file into a `PluginDocument`, which provides the content view, sidebar panels and tools, and handles edits, saving and reloading. Plugins read and decode off the main thread, and the plugin that owns a format writes it, so it also owns the encoding and line endings. A plugin can import only `PeekerKit`, Apple frameworks and its own packages; `scripts/build.sh test` checks that.
-
-- `Plugins/text` opens plain text, logs, XML, YAML, TOML, config files, common source code and files with no extension. Edits keep the file's encoding and line endings. Files over 10 MB open read-only, and files over 16 MB show only their first 16 MB (4 MB when a line is over 1 MB, which text layout handles slowly). Saving asks first if the file changed on disk or was deleted since you opened it. Source code up to 1 MB is colored by its syntax in the text theme's colors, by extension or a `#!` first line (`Sources/PeekerSyntax`).
-- `Plugins/table` shows CSV and TSV files as a table, guessing the delimiter (comma, semicolon, tab or pipe) and whether the first row is a header, both switchable in View. In a window you edit cells, add, delete and move rows and columns, and save in the file's own delimiter, encoding and line endings, with rows you didn't change written as they were. Clicking a column title sorts the view without changing the file. Files over 50 MB open as a read-only table.
-- `Plugins/data` shows JSON, JSONC, YAML, TOML, XML and property lists (binary ones too) as a collapsible tree, with the top-level keys in the sidebar and View > Show Text for the colored, editable text. In a window you edit values and keys, add, delete and move items in the tree, and each edit changes only its own part of the file, keeping comments and formatting. YAML, TOML, XML and property lists change in their text for now. A file with a syntax error opens in the text with the line and the problem above it.
-- `Plugins/pdf` shows pages with thumbnails, and Cmd+F searches them. A password-protected PDF asks for its password and then opens view-only. A PDF window is ready to edit: fill in form fields, add text boxes (click where the text goes; double-click one to change it), sign (draw with the trackpad or mouse, then click where the signature goes), highlight, and rotate, delete or drag pages in the sidebar to reorder them. Peeker's own marks can be moved, resized and deleted, and Undo reaches back to when the window opened. Cmd+S saves them as standard annotations and field values that Preview and other PDF apps read; forms are never flattened. A signature is kept in memory until Peeker quits and never written anywhere else. XFA forms, digitally signed PDFs and PDFs whose permissions forbid comments or form filling open read-only, with the edit tools greyed out and the reason in a note under the toolbar.
-- `Plugins/markdown` shows Markdown rendered in the Peek panel. In a window it edits the source, styled as you type: larger headings, bold and italic, code in a monospaced font, and the `#`, `**` and list markers dimmed. Clicking a task box ticks it as an edit, Cmd-click opens a link, and the outline follows your typing. Fenced code blocks tagged with a language are colored. It reads and writes files the way Plain Text does, with the same limits; above 1 MB the source opens unstyled.
-- `Plugins/image` shows the common image formats and camera RAW (not SVG) fitted to the window, with zoom (Cmd+0 for actual size, and out below fit) and the photo's details. Animated GIFs, PNGs and WebPs play; a click pauses them. In a window, C crops (drag a rectangle, then Return) and the Rotate & Resize button opens a panel where L, R, H and V rotate and flip. Cmd+S saves at full resolution in the file's own format with its metadata; rotating a JPEG, HEIC or TIFF only changes its orientation tag. Formats macOS can't write, images with several frames and images over 100 megapixels open read-only, with the reason in a note under the toolbar.
-
-File > Print (Cmd+P) prints any of them, unsaved edits included: text black on white and Markdown rendered, both with the file name and page numbers, images at their own size or shrunk to fit the page, and PDFs page by page.
-
-Unsaved edits are copied to `~/Library/Application Support/<bundle id>/Recovery/` two seconds after the last change. After a crash or force quit, the next launch reopens them; if the file is gone, the text goes to the clipboard.
-
-## Benchmarks
-
-`bench/ppbench.py` serves two purposes:
-
-- **Published numbers.** `bench/ppbench.py run` measures the current build on this Mac (quit Preview and TextEdit first; it relaunches them between runs). `bench/ppbench.py publish` then writes the highlights below and the full results in [BENCHMARKS.md](BENCHMARKS.md). It refuses CI or partial results. In Claude Code, the repo's `publishing-benchmarks` skill runs the whole flow.
-- **Regression gate.** `scripts/bench-ab.sh <base-ref>` builds the base in a git worktree, measures base and head interleaved on the same machine, and fails if any Peeker metric got worse by more than 15% and 10 ms (5 MB for memory). CI runs exactly that on every pull request (`.github/workflows/bench.yml`).
+<details>
+<summary>Benchmark highlights</summary>
 
 <!-- bench:start -->
 | Opening, app not running | Apple | Peeker | |
@@ -139,4 +73,4 @@ The Peek panel shows a PDF in 14 ms and a 12 MP photo in 125 ms.
 Apple M6, macOS 27.0.1, 2026-10-29. Apple's apps are timed until their window appears, Peeker until its content is drawn. Every file, method and caveat: [BENCHMARKS.md](BENCHMARKS.md).
 <!-- bench:end -->
 
-Fixtures are generated (`bench/make-fixtures.swift`), not committed. `bench/spacebench.swift` times pressing Space in Finder for Quick Look and for Peeker; it needs Accessibility for the app running it, so it stays out of CI.
+</details>
