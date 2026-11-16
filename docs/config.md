@@ -2,6 +2,8 @@
 
 Settings live in `~/.config/peeker/config.json` (or `$PEEKER_CONFIG`). Change them in the Settings window (from the menu bar icon, or Cmd+,) or edit the file by hand. Every key is optional, and a missing one keeps its default. Saving the file applies it at once, open windows included; there's nothing to reload.
 
+An agent can edit it for you too. Point it at `schema.json` in the same folder, which lists every key with its allowed values, its default and what it does.
+
 ```json
 {
   "$schema": "schema.json",

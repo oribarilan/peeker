@@ -53,7 +53,7 @@ open build/dd/Build/Products/Release/Peeker.app
 
 ## More
 
-- [Config file](docs/config.md), for settings you'd rather edit by hand
+- [Config file](docs/config.md), for settings you'd rather edit by hand or hand to an agent, with `schema.json` beside it describing every key
 - [CONTRIBUTING.md](CONTRIBUTING.md), to add a format or fix something
 - [BENCHMARKS.md](BENCHMARKS.md), for how fast it opens files
 
