@@ -6,104 +6,13 @@ update window. Add to Unreleased as you go; a release moves it into a section of
 
 ## [Unreleased]
 
-- The Peek panel shows a spinner while a slow file opens, as Editor windows do, instead of staying empty.
-- Images fit below the title bar in the Peek panel and below the toolbar in Editor windows; a photo or GIF used to run under the file name and the buttons.
-- CSV and TSV tables copy. Cmd+C, Edit > Copy or Copy in the right-click menu copies one selected cell at once; for more, a sheet previews the text and offers Tabs, Commas, Semicolons or a Markdown table, with or without the header row, and remembers the choice so Return copies the same way next time. Copies follow the table's sort. In the Peek panel, Cmd+C copies the cells you clicked or dragged over, or text you selected, instead of Finder copying the file.
-- File > Open With in Editor windows lists the other apps that open the file, with their icons, and Other… for any app, below Peeker's own plugins. If the file has unsaved changes, Peeker asks first whether to save them, open the file as last saved, or cancel; the window stays open either way.
-- The Peek panel cuts a long file name in the middle, as Finder does, instead of running it under its buttons. On macOS 27, the apps in its Open With menu and the files in File > Open Recent show their icons again.
-- Undoing a page delete in a PDF, or inserting pages from a file, scrolls to those pages when they'd land out of view, as they could on macOS 26.
-- On macOS 26, Peeker no longer quits when a text or Markdown file's text changes while the find bar shows a match, as Revert to Saved can do.
-- CSV and TSV tables work more like a spreadsheet. Columns open sized to their content, and number columns line up on the right. A current cell moves with the arrow keys and Tab, Return edits it, and typing replaces it. Click a column title or row number to select it, Shift-click or drag for a block, Cmd+A for everything, and Delete clears what's selected. Sorting moves to an arrow on the column title, shown when the pointer is over it, and to Sort Ascending, Sort Descending and Original Order in Tools and the title's right-click menu.
-- The Peek panel has keys: Cmd+O opens the file as the main button does, and Cmd+R shows it in Finder, while the panel is up over Finder. The button shows its key, as does Show in Finder in its menu, and Settings > General changes or clears them (`peekPanel.openKey` and `peekPanel.showInFinderKey` in the config).
-- Show in Finder opens a Finder window with the file selected: File > Show in Finder and a folder button in the toolbar in Editor windows, and in the Peek panel an item at the end of the Open in Peeker menu.
-- CSV and TSV tables get Find and Print. Cmd+F shows the find bar PDFs have; cells containing the search, ignoring case and accents, are tinted, and Cmd+G steps through them in the order shown. Cmd+P prints the table as shown, unsaved edits included, shrunk to the page width with the header row on every page; a Table section in the print panel adds row numbers and picks the columns.
-- The Peek panel's button gets an arrow listing the other apps that open the file, with Other… for any app. Other… can also make an app the panel's default for that kind of file, so the button reads, say, Open in Xcode for `.swift` files; Always Open in Peeker in the same menu goes back. The default only changes the panel, not what a double-click in Finder opens, and lives in the config as `peekPanel.openWith`.
-- Peeker no longer quits sometimes when a PDF window closes right after a page was rotated, as Don't Save can do, or soon after deleting a page while the pointer rests on the last thumbnail.
-- Every format zooms, now including CSV tables and JSON, YAML, TOML, XML and property-list files, with Cmd+=, Cmd+- and Cmd+0. Cmd+scroll and pinch zoom too, in windows and the Peek panel. In Editor windows, while the pointer is over a document, a small control at its bottom right shows the zoom, steps it with − and +, and offers Actual Size, Zoom to Fit and a few fixed sizes.
-- Password-protected PDFs can be edited once unlocked, within what the file allows: fill fields, mark up, sign, highlight and change pages. Saving keeps them locked, with the same passwords and limits. A file locked with AES-256 (Acrobat's default) is saved with older 128-bit encryption, which Peeker says once, and may ask for its other password at the first save. If Peeker quits unexpectedly, the unsaved changes are kept encrypted with the password and come back once the PDF is unlocked again.
-- A signature placed in a PDF but not yet saved no longer goes into the crash-recovery copy of your edits, nor does one on a deleted page you put back. After a crash, the other edits come back and the signature has to be placed again.
-- A box or ellipse on an image is selected by clicking its outline, as in PDFs, so an arrow, number or text can start inside it, and a mark under a box can still be selected; a click inside used to grab the box. Pixelate and Spotlight are still selected anywhere in their area.
-- PDFs get Markup (M), which replaces Text Box in the toolbar and shows the strip image markup has: Text Box (T), Pen (P), Line (L), Arrow (A) and Box (B, an ellipse with Option) draw by dragging, and the stamps X (X), Check (V), Circle (O) and Dot (D) drop on a click or fit a dragged rectangle. Drawings and stamps save as ink, which every PDF app shows, and can be selected, moved, resized, recolored and deleted later. Their color and size are remembered. Text Box keeps its T and its style, now in the same strip.
-- Cmd+C and Cmd+V copy a selected text box, drawing or stamp in a PDF, also into another PDF; the copy lands a little below and right. Signatures and highlights aren't copied.
-- PDF text boxes have a style: a strip under the toolbar, shown while Text Box waits and while a box is typed or selected, picks Sans, Serif or Mono (Helvetica, Times and Courier, which every PDF app shows the same), Bold, Italic, six colors and Box, which fills the box with the color. The box's size moved into the strip. The style is remembered for new boxes, and a saved box keeps it.
-- Image markup text has a style: an Aa menu in the strip, beside the size, picks System, Serif, Rounded or Mono, Bold and Italic, and Plain, Outline, Shadow or Label. It's remembered and restyles the selected text.
-- Open in Peeker in the Peek panel brings the Editor to the front; it used to open behind Finder.
-- A click on an image with Spotlight armed no longer flashes the image darker, and a spotlight being drawn lights its area as you drag.
-- Image marks stay sharp at any zoom, also on small images; before, they were drawn in the image's own pixels and looked blocky when enlarged. The saved file still holds them at full resolution.
-- The markup strip shows each tool's key beside its icon. Pixelate has a Strength slider, from fine to coarse blocks, and Spotlight lights a rectangle or an oval; both are remembered like the color and size, and change the selected mark.
-- Rotate & Resize in images no longer opens with Cmd+R by default, since rotating is rare: use its toolbar button or Tools > Rotate & Resize, or set a key in Settings. L, R, H and V still work while it's open.
-- YAML, TOML, XML and property list files open as a collapsible tree too, with the outline and Show Text that JSON has. Their tree is read-only for now: edit them in the text, and the tree follows. A binary property list shows as a tree, and Show Text shows its XML form, read-only. Plain Text still opens them through Open With.
-- JSON files open as a collapsible tree, with the top-level keys in the sidebar and View > Show Text for the text. In a window you can edit values and keys, add, delete and move items, and only the edited part of the file changes, comments and formatting included. A file with a syntax error opens in the text, with the line and the problem shown. Plain Text still opens JSON through Open With.
-- CSV and TSV files open as a table, with the delimiter and header row guessed and switchable in View. In a window you can edit cells, add, delete and move rows and columns, and sort by clicking a column title without changing the file; saving keeps the file's format and writes untouched rows as they were. Plain Text still opens them through Open With.
-- PDF highlights come in yellow, green, blue, pink and purple: pick one from the arrow on the Highlight button or Tools > Highlight Color, and Peeker highlights the selected text in it and remembers it for every PDF.
-- Save As… on a text or Markdown file whose new text its encoding can't hold, such as an emoji in a Windows-1252 file, offers to save the copy as UTF-8, as Save does, instead of failing.
-- PDF thumbnails show rotated pages turned, including scans the file already marks as rotated, number the pages in order after one is added, deleted or moved, and keep the selected pages selected after Rotate.
-- PDFs gain File > Insert Pages from File… (or drop PDFs and images onto the pages), Save Selected Pages As… and Split…, also in the thumbnails' right-click menu. Combine PDFs by inserting them and choosing Save As….
-- Images can be marked up: Markup (M) shows a strip with Arrow (A), Line (L), Box (B), Text (T), Pixelate (X), Steps (N), Pen (P), Marker (H) and Spotlight (S), one remembered color and size, and marks you can move, resize and delete until the window closes, saved or not. Cmd+C copies the marked image. Undo in images now reaches past saves.
-- File > Save As… (Shift+Cmd+S) writes the file, with your unsaved changes, to a new name or folder and keeps working on it there; the original stays as it was. Read-only files are copied as they are.
-- In a PDF window, a rotated page turns into place, a deleted page shrinks away, and Undo grows it back; nothing moves with Reduce Motion on.
-- Plain text remembers its text size and Wrap Lines, and Markdown its text size, for every file opened after, in windows and the Peek panel, across launches. Actual Size (Cmd+0) goes back to the default size.
-- The menu bar icon's menu has Open…, so a file can be opened in Peeker with no window open.
-- The first Space after Peeker starts shows the Peek panel about twice as fast as before: Peeker gets it ready a second after launch, without asking for any permission early.
-- Page thumbnails in PDFs and multi-page TIFFs, the trail under the toolbar and the Markdown outline show a faint tint of the accent color under the pointer, so it's clear what can be clicked. The outline's tint replaces its gray.
-- Cmd+F opens Find in a PDF after you click a page thumbnail; before, it did nothing until you clicked the page.
-- With Open at Login on, Peeker starts quietly at login instead of opening Settings, and after an update it waits for your first window to say what's new.
-- A shortcut refused in Settings or the config names the menu item without its ellipsis: "⌘P is used by Print."
-- Animated images open paused on their first frame when Reduce Motion is on, and View > Play Animation plays and pauses them from the menu, checked while they play.
-- The PDF tools have single-letter keys: T for Text Box, S for Sign and H for Highlight, like C for Crop in images; they type as usual while a form field or text box has the keyboard. Rotate Left and Rotate Right no longer have keys by default. A key set in Settings or the config stays as it is.
-- Each toolbar tool sits on its own capsule with its key beside the icon, and the tool in use fills with the accent color; turn that off with "Show shortcuts in the toolbar" in Settings > Appearance or `"showShortcuts": false`. Every toolbar button and icon-only button has a tooltip with its name and key.
-- The first time you use Highlight, Text Box, Sign or Crop, a short tip from its button says what to do next. Settings > General has Show Tips Again.
-- With "Show scroll bars" set to Always, Markdown files, images, the outline and the page thumbnails no longer show an empty scroll bar track when there's nothing to scroll; in the Peek panel it sat under the Open in Peeker button.
-- The Peek panel remembers its size and position, and opens on the display with the pointer. Its first size is capped at 900 × 700 points, so it's no longer a tall column on a portrait display, and it can't be made smaller than 400 × 300. Settings > General has Reset Panel Size to go back to the default.
-- Updates found by the daily check no longer pop up behind your work: the menu bar icon shows a dot and its menu offers "Update to" the new version. Peeker can also download and install updates by itself, relaunching once no window is open: pick Download and Install in Settings > General, or `"updates": {"automatic": "download"}` in the config, which replaces `updates.check`. After an update, a window lists what's new; turn it off with "Show what's new after updating" or `updates.showWhatsNew`.
-- Multi-page TIFFs show every page: thumbnails in the sidebar, Next Page and Previous Page in the View menu (Page Down and Page Up), the zoom kept from page to page, and every page printed. The Peek panel still shows the first page. Shortcuts in the config and in Settings can now be `pageup` and `pagedown`.
-- Space no longer waits on a busy Finder: if Finder doesn't say what's selected within half a second, the key goes to Finder's Quick Look, and the arrow keys leave the Peek panel as it is.
-- Open With in a window lists only the plugins that can show the file: Markdown and Plain Text for a Markdown file, but no longer Image or PDF. When only one can, the toolbar leaves Open With out and File > Open With is greyed out.
-- Links in Markdown to other files and to headings work. A heading link scrolls to the heading, a link to another Markdown file opens it in the same tab, and any other file opens in a tab of its own. Back and Forward (Cmd-[ and Cmd-], in the toolbar and in a new Go menu) return to where you were, and a trail under the toolbar lists the places you've been. In the Peek panel, a link to a file opens it in a window.
-- The Peek panel and printing show images stored on your Mac in Markdown files; web images still show their alt text, so nothing is fetched.
-- Photos stay sharp when zoomed in or at Actual Size.
-- PDFs gain Actual Size (Cmd+0) and Zoom to Fit (Cmd+9) in the View menu, as images have. Plain text and Markdown windows gain Actual Size (Cmd+0), which puts the text back at the size it opened at.
-- Wrap Lines no longer takes Opt+Cmd+W, the standard key for closing all windows; set a shortcut for it in Settings if you want one. A config saved from Settings keeps Opt+Cmd+W on Wrap Lines until you clear it in Settings > Plain Text.
-- The signature pad's line and edge show in dark mode.
-- Text boxes and signatures in PDFs stay sharp when zoomed in.
-- A PDF text box's size buttons stay in place while you click them.
-- Code is colored by its syntax: Python, JavaScript and TypeScript, Swift, C and C++, Go, Rust, Java, Kotlin, Ruby, shell scripts, SQL, CSS, JSON, YAML, TOML and config files, plus code blocks in Markdown tagged with a language. Each text theme has its own code colors, and printing keeps them.
-- Large Markdown files open in a window several times faster, styled from the top while the rest follows.
-- Markdown and text files open with the cursor at the start instead of the end.
-- Dragging a PDF page's thumbnail shows a bar where the page will land.
-- The Wrap Lines button shows lines of text instead of an arrow that looked like Back.
-- The sidebar button sits over the sidebar next to the window buttons, as in Finder.
-- The Markdown outline highlights a heading under the pointer and marks the section the cursor is in.
-- Find in Markdown and text files marks matches in the text theme's find color, without dimming the rest of the text.
-- Settings has an Appearance pane: pick the text theme from cards that show what each one looks like, hold Peeker light or dark whatever the Mac uses, and set the text's look on its own, such as a light page in a dark app. The same choices are `appearance` and `textAppearance` in the config.
-- Markdown and text files can use a text theme: System, Paper, Slate, Graphite, Ink, Catppuccin, Tokyo Night or High Contrast, each with a light and a dark look. Pick one in Settings > General or with `textTheme` in the config; windows and the Peek panel change at once, and printing stays black on white.
-- Markdown files open in a window ready to edit, as source styled while you type: headings larger, bold and italic shown, code in a monospaced font, and the Markdown markers dimmed. The Peek panel on Space still shows them rendered, and printing prints them rendered.
-- Ticking a Markdown task is now an edit: click the box in a window, then save with Cmd+S. The Peek panel's task boxes no longer react to clicks. In a window, Cmd-click opens a link.
-- Markdown files saved in Windows-1252, Mac Roman or UTF-16 open, and saving keeps their encoding and line endings.
-- Windows open every file ready to edit: there's no Edit button, Edit Mode item or Cmd+E any more. PDF form fields fill in directly, as in Preview, and C crops an image right after it opens. The Peek panel on Space still only views.
-- A file Peeker can't edit, such as a digitally signed PDF or an animated GIF, shows its edit tools greyed out with the reason, and a note under the toolbar says why.
-- The Peek panel's button reads Open in Peeker, so it's easy to tell from Finder's Quick Look.
-- With no edit tools for the file in front, the Tools menu shows No Tools.
-- Plugin shortcuts in the config moved from `plugins.<id>.commands` to `plugins.<id>.tools`, and Settings lists them under Tools. A config that still says `commands` reports it as an unknown key until it's renamed.
-- Peeker has its own icon, and the menu bar icon is a viewfinder.
-- A Markdown link that isn't a web page or email address asks before it opens another app.
-- Highlights, text boxes and signatures saved in a PDF no longer carry your Mac account's name as their author.
-- The PDF find bar sits below the toolbar instead of under it.
-- Rotate & Resize opens below the toolbar instead of covering it.
-- Crop and Cancel buttons appear next to a crop rectangle, so a crop can be finished with the mouse.
-- A file that takes a moment to open shows a spinner instead of an empty window.
-- The Commands menu is gone: zoom and Wrap Lines are in a new View menu, and the edit tools in a new Tools menu.
-- View shows and hides the sidebar (Ctrl+Cmd+S), the toolbar and full screen, and the toolbar has a sidebar button. Whether the sidebar shows, and its width, are remembered for every window.
-- File has Open Recent, Open With and Revert to Saved…; the Peeker menu has Hide Others and Show All, Window has Zoom and Bring All to Front, and Help opens the project page.
-- Wrap Lines shows whether it's on, with a checkmark in View and a pressed toolbar button.
-- Sign no longer has a default shortcut, since Ctrl+Cmd+S now shows and hides the sidebar. A shortcut in the config that a menu item already uses is reported as a problem.
-- The panel that opens on Space in Finder is now called the Peek panel, and its config key is `peekPanel` (it was `quickLook`). A config that still says `quickLook` reports it as an unknown key until it's renamed.
-- Settings reopens on the pane you last had open, shows an icon for each plugin, and no longer has a zoom button.
-- Open at Login and the Default app list moved from Permissions to General.
-- The field for adding an extension shows "Add an extension".
-- When the shortcut recorder refuses a key, the reason stays on screen until you record again, and VoiceOver reads it.
-- The toolbar keeps view commands and edit tools apart, and zoom moved to the View menu only, so a PDF in Edit mode fits the toolbar.
-- Opening a file is a little faster: its toolbar buttons are added just after the file shows.
-- Document windows can't be shrunk below a usable size.
-- When no plugin opens a file, the alert offers Open Settings, which shows where to add its extension.
-- Alerts about recovered edits and failed saves have short titles, with the details below.
+The first public release of Peeker.
+
+- **Press Space in Finder** to see a file in the Peek panel, and the arrow keys to move through the folder. Open in Peeker moves it into a window to edit; its arrow lists the other apps that open the file.
+- **PDFs:** fill in forms, sign, add text boxes, highlight and draw marks, and rotate, delete, reorder, insert or split pages. Password-protected PDFs open after their password.
+- **Images:** crop, rotate, flip and resize, mark up screenshots with boxes, arrows, text and pixelation, and play animated GIFs.
+- **Markdown** styles as you type, with an outline in the sidebar and task boxes you can tick.
+- **CSV and TSV** open as a table you can edit, sort, search and print, and copy as a Markdown table.
+- **JSON, YAML, TOML, XML and property lists** open as a tree; JSON edits in place and keeps your comments and formatting.
+- **Text and code** get syntax colors in eight themes, each with a light and a dark look.
+- Edits save in the file's own format and encoding, unsaved work comes back after a crash, and Peeker updates itself.
