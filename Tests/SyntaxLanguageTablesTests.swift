@@ -154,9 +154,13 @@ import Testing
         ]
         for (language, line) in samples {
             let text = String(repeating: line, count: 1_000_000 / line.utf8.count)
-            // The median of five scans, so one slow moment on a shared CI runner doesn't fail the test.
-            let clock = ContinuousClock()
-            let took = (0..<5).map { _ in clock.measure { _ = SyntaxScanner.spans(in: text, language: language) } }.sorted()[2]
+            // The CPU time the scan's thread used, median of five: wall-clock time also counts the time this thread
+            // waits while the other suites, which run in parallel, hold the CPU, and that failed on CI's small runner.
+            let took = (0..<5).map { _ in
+                let start = clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)
+                _ = SyntaxScanner.spans(in: text, language: language)
+                return Duration.nanoseconds(Int64(clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) - start))
+            }.sorted()[2]
             // About three times what a scan takes on a recent Mac (6-8 ms), leaving room for CI's slower runner
             // (11-15 ms) while still catching a scanner that got several times slower.
             #expect(took < .milliseconds(25), "\(language): \(took)")
