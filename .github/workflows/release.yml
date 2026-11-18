@@ -42,16 +42,16 @@ jobs:
       - name: Check the secrets
         if: env.PUBLISH == 'true'
         env:
-          DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
-          DEVELOPER_ID_PASSWORD: ${{ secrets.DEVELOPER_ID_PASSWORD }}
-          NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
-          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
-          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
         run: |
           missing=()
-          for name in DEVELOPER_ID_P12 DEVELOPER_ID_PASSWORD NOTARY_KEY NOTARY_KEY_ID NOTARY_ISSUER SPARKLE_PRIVATE_KEY TAP_TOKEN; do
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_API_KEY_PATH APPLE_API_KEY APPLE_API_ISSUER SPARKLE_PRIVATE_KEY TAP_DEPLOY_KEY; do
             [ -n "${!name}" ] || missing+=("$name")
           done
           [ ${#missing[@]} -eq 0 ] || { echo "::error::A release needs these secrets: ${missing[*]} (docs/releasing.md)"; exit 1; }
@@ -65,27 +65,27 @@ jobs:
       - name: Import the signing certificate and notarization key
         if: env.PUBLISH == 'true'
         env:
-          DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
-          DEVELOPER_ID_PASSWORD: ${{ secrets.DEVELOPER_ID_PASSWORD }}
-          NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
         run: |
           keychain="$RUNNER_TEMP/release.keychain-db"
           password=$(uuidgen)
           security create-keychain -p "$password" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$password" "$keychain"
-          printf '%s' "$DEVELOPER_ID_P12" | base64 --decode > "$RUNNER_TEMP/id.p12"
-          security import "$RUNNER_TEMP/id.p12" -k "$keychain" -P "$DEVELOPER_ID_PASSWORD" -T /usr/bin/codesign
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/id.p12"
+          security import "$RUNNER_TEMP/id.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           rm "$RUNNER_TEMP/id.p12"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" > /dev/null
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
-          printf '%s' "$NOTARY_KEY" > "$RUNNER_TEMP/notary.p8"
+          printf '%s' "$APPLE_API_KEY_PATH" | base64 --decode > "$RUNNER_TEMP/notary.p8"
           echo "NOTARY_KEY_PATH=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
 
       - name: Build, sign and notarize
         env:
-          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
-          NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY }}
+          NOTARY_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: |
           set -o pipefail
           scripts/release.sh "$TAG" | tee "$RUNNER_TEMP/release.txt"
@@ -127,10 +127,14 @@ jobs:
       - name: Update the Homebrew cask
         if: env.PUBLISH == 'true'
         env:
-          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
         run: |
-          tap="$RUNNER_TEMP/tap"
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/oribarilan/homebrew-tap.git" "$tap"
+          tap="$RUNNER_TEMP/tap" key="$RUNNER_TEMP/tap-key"
+          printf '%s\n' "$TAP_DEPLOY_KEY" > "$key"
+          chmod 600 "$key"
+          # A deploy key on the tap repo, so this job can push there and nowhere else.
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          git clone git@github.com:oribarilan/homebrew-tap.git "$tap"
           mkdir -p "$tap/Casks"
           scripts/fill-cask.sh "$VERSION" "$DMG" > "$tap/Casks/peeker.rb"
           cd "$tap"

@@ -31,7 +31,7 @@ settings:
     MARKETING_VERSION: 0.40.0-dev
     CURRENT_PROJECT_VERSION: 0
     # Sparkle's public EdDSA key for update signatures (docs/releasing.md); empty means updates can't install.
-    SPARKLE_PUBLIC_KEY: ""
+    SPARKLE_PUBLIC_KEY: "DCyODhEVNeTYCFfL85S1rSJKh0u+szGrpVOi1VYS9ws="
 
 targetTemplates:
   # An in-app plugin: a static framework that sees only PeekerKit. Testable, because the unit tests check plugin
