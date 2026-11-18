@@ -56,8 +56,8 @@ jobs:
           done
           [ ${#missing[@]} -eq 0 ] || { echo "::error::A release needs these secrets: ${missing[*]} (docs/releasing.md)"; exit 1; }
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Install XcodeGen and ShellCheck
+        run: brew install xcodegen shellcheck
 
       - name: Unit tests
         run: scripts/build.sh test
