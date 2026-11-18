@@ -10,18 +10,20 @@ enum ConfigSchema {
                 (
                     plugin.id,
                     object(
-                        "Settings for the \(plugin.name) plugin.",
+                        "Settings for the \(plugin.name) format.",
                         [
-                            "enabled": ["type": "boolean", "description": "False turns the plugin off: it opens no files. Default: true."],
+                            "enabled": [
+                                "type": "boolean", "description": "False turns the format off: Peeker opens none of its files. Default: true.",
+                            ],
                             "extensions": [
                                 "type": "array",
                                 "items": ["type": "string"],
                                 "default": plugin.defaultExtensions,
                                 "description":
-                                    "Every extension the plugin opens (no dot; noExtension for files without one), replacing its default list: \(plugin.defaultExtensions.joined(separator: ", ")).",
+                                    "Every extension the format opens (no dot; noExtension for files without one), replacing its default list: \(plugin.defaultExtensions.joined(separator: ", ")).",
                             ],
                             "tools": object(
-                                "Shortcuts for the plugin's tools.",
+                                "Shortcuts for the format's tools.",
                                 Dictionary(
                                     uniqueKeysWithValues: plugin.tools.map { command in
                                         (
@@ -68,7 +70,7 @@ enum ConfigSchema {
                                 "The key that shows the Peek panel's file in Finder and closes the panel, while it's up and Finder is in front. Needs Command, Option or Control; \"off\" for none.",
                         ],
                     ]),
-                "plugins": object("Per-plugin settings, by plugin id.", pluginProperties),
+                "plugins": object("Settings for each format, by its id.", pluginProperties),
                 "textTheme": [
                     "type": "string", "enum": TextTheme.ids, "default": "system",
                     "description":

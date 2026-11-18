@@ -176,7 +176,7 @@ struct SettingsView: View {
             List(selection: $model.selection) {
                 Label("General", systemImage: "gearshape").tag(SettingsPane.general)
                 Label("Appearance", systemImage: "paintpalette").tag(SettingsPane.appearance)
-                Section("Plugins") {
+                Section("Formats") {
                     ForEach(model.plugins, id: \.id) { plugin in
                         Label(plugin.name, systemImage: plugin.symbol).tag(SettingsPane.plugin(plugin.id))
                     }
@@ -236,7 +236,7 @@ struct ConfigLockedSection: View {
                     Label("config.json can't be used, so these settings are locked until it's fixed.", systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                     if let problem = store.problems.first { Text(problem.message).foregroundStyle(.secondary).textSelection(.enabled) }
-                    Button("Open in Editor") { ConfigFile.openInEditor(store.url, plugins: store.plugins) }
+                    Button("Open in Text Editor") { ConfigFile.openInEditor(store.url, plugins: store.plugins) }
                 }
             }
         }

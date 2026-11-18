@@ -2,7 +2,7 @@ import AppKit
 import PeekerKit
 import SwiftUI
 
-/// One plugin's settings, all host rows: on/off, its extensions, its tools' shortcuts.
+/// One plugin's settings, all host rows: on/off, its extensions, the app that opens them in Finder, its tools' shortcuts.
 struct PluginPane: View {
     @Bindable var model: SettingsModel
     let plugin: PluginEntry
@@ -15,13 +15,15 @@ struct PluginPane: View {
             Group {
                 Section {
                     Toggle(
-                        "Open files with \(plugin.name)",
+                        "Open \(plugin.name) files in Peeker",
                         isOn: Binding(
                             get: { !store.config.disabled.contains(plugin.id) },
                             set: { on in model.save { if on { $0.disabled.remove(plugin.id) } else { $0.disabled.insert(plugin.id) } } }))
                 } footer: {
-                    Text("Off, \(plugin.name) opens nothing: its files go to Finder's Quick Look on Space, and no other plugin takes them.")
-                        .foregroundStyle(.secondary)
+                    Text(
+                        "When this is off, Peeker opens no \(plugin.name) files and no other format takes them. Space shows Finder's Quick Look instead."
+                    )
+                    .foregroundStyle(.secondary)
                 }
                 Section {
                     ExtensionTokens(model: model, plugin: plugin)
@@ -31,13 +33,18 @@ struct PluginPane: View {
                     Text("Without the dot. noExtension stands for files that have none, such as Makefile or .zshrc.")
                         .foregroundStyle(.secondary)
                 }
-                if !plugin.tools.isEmpty {
-                    Section("Tools") {
-                        ForEach(plugin.tools, id: \.id) { tool in toolRow(tool) }
-                    }
-                }
             }
             .disabled(!store.isUsable)
+            // Outside the lock: it doesn't change the config.
+            if !store.config.disabled.contains(plugin.id) {
+                DefaultAppSection(model: model, plugin: plugin)
+            }
+            if !plugin.tools.isEmpty {
+                Section("Tools") {
+                    ForEach(plugin.tools, id: \.id) { tool in toolRow(tool) }
+                }
+                .disabled(!store.isUsable)
+            }
         }
         .formStyle(.grouped)
     }

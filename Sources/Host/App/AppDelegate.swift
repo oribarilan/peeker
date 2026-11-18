@@ -411,8 +411,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         guard let entry = plugin(for: url, restoring: record) else {
             NSApp.activate()  // with no windows open, Peeker isn't the frontmost app
             let alert = NSAlert()
-            alert.messageText = "No enabled plugin opens “\(url.lastPathComponent)”"
-            alert.informativeText = "Add its extension to a plugin in Settings, or turn on the plugin that has it."
+            alert.messageText = "Peeker doesn't open “\(url.lastPathComponent)”"
+            let token = url.pathExtension.isEmpty ? noExtension : url.pathExtension.lowercased()
+            alert.informativeText = "Add \(token) to a format's extensions in Settings, or turn on the format that has it."
             alert.addButton(withTitle: "Open Settings")
             alert.addButton(withTitle: "OK")
             if alert.runModal() == .alertFirstButtonReturn { showSettings(pane: Self.settingsPane(forUnopenable: url, in: catalog)) }

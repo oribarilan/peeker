@@ -38,12 +38,12 @@ struct RecoveryRestore {
                 let name = "“\(record.url.lastPathComponent)”"
                 tell(
                     exists
-                        ? "No enabled plugin opens \(name). Its unsaved changes couldn't be restored."
+                        ? "Peeker doesn't open \(name). Its unsaved changes couldn't be restored."
                         : "\(name) no longer exists. Its unsaved changes couldn't be restored.")
             }
         }
         copyToClipboard(missingText) { names, count in "\(names) \(count == 1 ? "no longer exists" : "no longer exist")." }
-        copyToClipboard(unopenableText) { names, _ in "No enabled plugin opens \(names)." }
+        copyToClipboard(unopenableText) { names, _ in "Peeker doesn't open \(names)." }
     }
 
     /// Puts the records' text on the clipboard and says why; the records stay if the clipboard refuses.

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Peek panel key (on or off, and which key), Open at Login, the default app per plugin, and update checks.
+/// The Peek panel key (on or off, and which key), Open at Login and update checks.
 struct GeneralPane: View {
     @Bindable var model: SettingsModel
 
@@ -41,7 +41,6 @@ struct GeneralPane: View {
             }
             .disabled(!store.isUsable)
             LoginSection()
-            DefaultAppSection(model: model)
             Section {
                 Group {
                     Picker("Automatic updates", selection: $model.automaticUpdates) {

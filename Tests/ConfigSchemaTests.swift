@@ -30,6 +30,20 @@ import Testing
         #expect(Set((plugins["properties"] as? [String: Any])?.keys ?? [:].keys) == ["pdf", "text"])
     }
 
+    @Test func noDescriptionSaysPlugin() throws {
+        func descriptions(_ value: Any) -> [String] {
+            switch value {
+            case let object as [String: Any]:
+                [object["description"] as? String].compactMap { $0 } + object.values.flatMap(descriptions)
+            case let array as [Any]: array.flatMap(descriptions)
+            default: []
+            }
+        }
+        let found = try descriptions(schema())
+        #expect(!found.isEmpty)
+        #expect(found.filter { $0.localizedCaseInsensitiveContains("plugin") } == [], "Settings calls them formats")
+    }
+
     @Test func eachPluginsExtensionsDefaultToItsList() throws {
         let plugins = try #require(properties(try schema(), "plugins")?["properties"] as? [String: Any])
         for plugin in self.plugins {

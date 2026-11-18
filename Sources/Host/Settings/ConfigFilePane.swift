@@ -12,7 +12,7 @@ struct ConfigFilePane: View {
                         .textSelection(.enabled)
                         .truncationMode(.middle)
                 }
-                Button("Open in Editor") { ConfigFile.openInEditor(store.url, plugins: store.plugins) }
+                Button("Open in Text Editor") { ConfigFile.openInEditor(store.url, plugins: store.plugins) }
             }
             Section("Problems") {
                 if store.problems.isEmpty {

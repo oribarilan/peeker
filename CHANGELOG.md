@@ -16,3 +16,4 @@ The first public release of Peeker.
 - **JSON, YAML, TOML, XML and property lists** open as a tree; JSON edits in place and keeps your comments and formatting.
 - **Text and code** get syntax colors in eight themes, each with a light and a dark look.
 - Edits save in the file's own format and encoding, unsaved work comes back after a crash, and Peeker updates itself.
+- Each format's pane in Settings can make Peeker the default app for its files.

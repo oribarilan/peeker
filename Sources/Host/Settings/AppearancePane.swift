@@ -34,7 +34,7 @@ struct AppearancePane: View {
             } header: {
                 Text("Toolbar")
             } footer: {
-                Text("Each toolbar tool shows its key beside its icon. Off, the keys stay in tooltips, the menus and the plugin panes.")
+                Text("Each toolbar tool shows its key beside its icon. Off, the keys stay in tooltips, the menus and the format panes.")
                     .foregroundStyle(.secondary)
             }
             .disabled(!model.store.isUsable)

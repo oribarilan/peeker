@@ -100,7 +100,7 @@ struct Config: Equatable {
                 problems.append(
                     ConfigProblem(
                         path: "plugins.\(loser.id).extensions",
-                        message: "“\(ext)” belongs to the \(winner.name) plugin, so \(loser.name) doesn't open it."))
+                        message: "“\(ext)” belongs to the \(winner.name) format, so \(loser.name) doesn't open it."))
             }
         }
         return (owners.mapValues(\.id), problems)
@@ -285,7 +285,7 @@ private struct ConfigReader {
         for (id, value) in sorted(entries) {
             let path = "plugins.\(id)"
             guard let plugin = plugins.first(where: { $0.id == id }) else {
-                problem(path, "There's no plugin “\(id)”. Plugins: \(plugins.map(\.id).sorted().joined(separator: ", ")).")
+                problem(path, "There's no format “\(id)”. Formats: \(plugins.map(\.id).sorted().joined(separator: ", ")).")
                 continue
             }
             guard let settings = object(value, at: path) else { continue }
@@ -311,7 +311,7 @@ private struct ConfigReader {
                 let known = plugin.tools.map(\.id)
                 problem(
                     path,
-                    "The \(plugin.name) plugin has no tool “\(command)”" + (known.isEmpty ? "." : ". Its tools: \(known.joined(separator: ", "))."))
+                    "The \(plugin.name) format has no tool “\(command)”" + (known.isEmpty ? "." : ". Its tools: \(known.joined(separator: ", "))."))
                 continue
             }
             guard let settings = object(value, at: path) else { continue }

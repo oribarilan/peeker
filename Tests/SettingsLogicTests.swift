@@ -211,17 +211,34 @@ private let plugins = [PluginEntry(StubPDF.self), PluginEntry(StubText.self)]
 }
 
 @Suite struct DefaultAppSummaries {
-    private func ext(_ name: String, _ isPeeker: Bool?) -> ExtensionDefault {
+    /// `app` nil: the system has no file type for the extension. "" stands for a type with no app.
+    private func ext(_ name: String, _ app: String?) -> ExtensionDefault {
         ExtensionDefault(
-            ext: name, type: isPeeker == nil ? nil : .plainText, appName: isPeeker == true ? "Peeker" : "TextEdit", isPeeker: isPeeker ?? false)
+            ext: name, type: app == nil ? nil : .plainText, appName: app?.isEmpty == false ? app : nil, isPeeker: app == "Peeker")
     }
 
-    @Test func allSomeOrNoneCountOnlyExtensionsThatCanBeSet() {
-        #expect(DefaultAppSummary(of: [ext("md", true), ext("markdown", true)]) == .all)
-        #expect(DefaultAppSummary(of: [ext("md", true), ext("markdown", false)]) == .some(1, of: 2))
-        #expect(DefaultAppSummary(of: [ext("md", false), ext("conf", nil)]) == .none)
-        #expect(DefaultAppSummary(of: [ext("md", true), ext("conf", nil)]) == .all)
+    @Test func namesTheOneAppCountingOnlyExtensionsThatCanBeSet() {
+        #expect(DefaultAppSummary(of: [ext("md", "Peeker"), ext("markdown", "Peeker")]) == .peeker)
+        #expect(DefaultAppSummary(of: [ext("md", "Typora"), ext("markdown", "Typora")]) == .app("Typora"))
+        #expect(DefaultAppSummary(of: [ext("md", "Peeker"), ext("conf", nil)]) == .peeker)
+        #expect(DefaultAppSummary(of: [ext("md", "")]) == .app("No app"))
+    }
+
+    @Test func differentAppsAreSeveral() {
+        #expect(DefaultAppSummary(of: [ext("md", "Peeker"), ext("markdown", "Typora")]) == .several)
+        #expect(DefaultAppSummary(of: [ext("md", "TextEdit"), ext("markdown", "Typora")]) == .several)
+    }
+
+    @Test func noTypeToSetIsCantSet() {
         #expect(DefaultAppSummary(of: [ext("conf", nil)]) == .cantSet)
+        #expect(DefaultAppSummary(of: []) == .cantSet)
+    }
+
+    @Test func expandsForSeveralAppsOrAnExtensionThatCantBeSet() {
+        #expect(DefaultAppSummary.expands([ext("md", "Peeker"), ext("markdown", "Typora")]))
+        #expect(DefaultAppSummary.expands([ext("txt", "Peeker"), ext("conf", nil)]))
+        #expect(!DefaultAppSummary.expands([ext("md", "Typora"), ext("markdown", "Typora")]))
+        #expect(!DefaultAppSummary.expands([ext("pdf", "Preview")]))
     }
 }
 

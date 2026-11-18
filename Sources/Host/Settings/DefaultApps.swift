@@ -9,24 +9,29 @@ struct ExtensionDefault: Equatable {
     let type: UTType?
     let appName: String?
     let isPeeker: Bool
+
+    static let peekerName = "Peeker"
+
+    /// The app's name as Settings shows it.
+    var displayApp: String { isPeeker ? Self.peekerName : appName ?? "No app" }
 }
 
-/// Whether Peeker is the default app for a plugin's extensions, counting only the ones that can be set.
+/// Which app opens a plugin's extensions by default, counting only the ones that can be set.
 enum DefaultAppSummary: Equatable {
-    case all, some(Int, of: Int), none, cantSet
+    case peeker, app(String), several, cantSet
 
     init(of extensions: [ExtensionDefault]) {
-        let settable = extensions.filter { $0.type != nil }
-        let peeker = settable.count { $0.isPeeker }
-        if settable.isEmpty {
-            self = .cantSet
-        } else if peeker == settable.count {
-            self = .all
-        } else if peeker == 0 {
-            self = .none
+        let apps = Set(extensions.filter { $0.type != nil }.map(\.displayApp))
+        if let app = apps.first, apps.count == 1 {
+            self = app == ExtensionDefault.peekerName ? .peeker : .app(app)
         } else {
-            self = .some(peeker, of: settable.count)
+            self = apps.isEmpty ? .cantSet : .several
         }
+    }
+
+    /// Whether the row lists each extension: when they open in different apps, or one can't be set.
+    static func expands(_ extensions: [ExtensionDefault]) -> Bool {
+        Self(of: extensions) == .several || extensions.contains { $0.type == nil }
     }
 }
 

@@ -3,10 +3,11 @@
 # panel on Space in Finder for files Peeker opens, Finder's Quick Look for files it leaves alone, the panel's capped
 # first size, a move that sticks and Settings' Reset Panel Size, Open With in an Editor window (the toolbar and File
 # menu) and Revert to Saved…, a config clash in the menu bar icon, its Open… with no window open, and changes made in
-# Settings (a plugin off and on, moving an extension and Reset, the Peek panel key recorder and Off, the update controls
+# Settings (a format off and on, moving an extension and Reset, the Peek panel key recorder and Off, the update controls
 # and a development build's Check for Updates…, a new PDF shortcut, clearing a shortcut and Reset, one recorder
-# listening at a time, reopening on the last pane, General holding Open at Login and Default app, the add-extension
-# field's placeholder), and the no-plugin alert's Open Settings. Writes screenshots and results.txt (one ok/FAIL line
+# listening at a time, reopening on the last pane, General holding Open at Login, a format pane's Default App
+# section and its hiding while the format is off, the add-extension field's placeholder), and Open Settings in
+# the alert for a file Peeker doesn't open. Writes screenshots and results.txt (one ok/FAIL line
 # per check) to its evidence folder, plus a screen recording with SCREEN_RECORD=1; scripts/screen-test.sh runs it with
 # the other flows.
 #
@@ -217,20 +218,25 @@ cfg() { python3 -c 'import json, sys; c = json.load(open(sys.argv[1])); print(ev
 "$DRIVE" menuextra Peeker "Settings…"
 "$DRIVE" wait Peeker window Settings
 "$DRIVE" shot Peeker "$OUT/9-settings-general.png"
-# General names the Peek panel and holds Open at Login and the Default app list.
+# General names the Peek panel and holds Open at Login; the default apps live in each format's pane.
 check "General's toggle reads Peek panel" "$("$DRIVE" enabled Peeker "Peek panel" 2>/dev/null)" true
 general=$("$DRIVE" tree Peeker 16)
-check "General has Open at Login and Default app" "$(grep -c 'Open at Login' <<< "$general" | awk '{print ($1 > 0) ? "yes" : "no"}')$(grep -c 'Default app' <<< "$general" | awk '{print ($1 > 0) ? "yes" : "no"}')" yesyes
+check "General has Open at Login and no default apps" "$(grep -c 'Open at Login' <<< "$general" | awk '{print ($1 > 0) ? "yes" : "no"}')$(grep -c -E 'Default app|Default App' <<< "$general" | awk '{print ($1 > 0) ? "yes" : "no"}')" yesno
+defaultapp() { "$DRIVE" tree Peeker 16 | grep -c 'Default App' | awk '{print ($1 > 0) ? "shown" : "hidden"}'; }
 "$DRIVE" row Peeker Image && sleep 0.8
-"$DRIVE" press Peeker "Open files with Image" && sleep 1
+check "The Image pane shows Default App" "$(defaultapp)" shown
+"$DRIVE" shot Peeker "$OUT/9b-settings-image-default-app.png"
+"$DRIVE" press Peeker "Open Image files in Peeker" && sleep 1
 check "Turning Image off writes enabled false" "$(cfg "c['plugins']['image']['enabled']")" False
+check "Off, the Image pane hides Default App" "$(defaultapp)" hidden
 "$DRIVE" shot Peeker "$OUT/10-settings-image-off.png"
-"$DRIVE" press Peeker "Open files with Image" && sleep 1
+"$DRIVE" press Peeker "Open Image files in Peeker" && sleep 1
 check "Turning it back on" "$(cfg "c['plugins']['image']['enabled']")" True
+check "On again, it shows Default App" "$(defaultapp)" shown
 # Image off sends Space on an image to Finder's Quick Look; on again, Peeker takes it back.
-"$DRIVE" press Peeker "Open files with Image" && sleep 1
+"$DRIVE" press Peeker "Open Image files in Peeker" && sleep 1
 space 10b-space-image-off "$F/pixel.png" "Quick Look"
-"$DRIVE" press Peeker "Open files with Image" && sleep 1
+"$DRIVE" press Peeker "Open Image files in Peeker" && sleep 1
 space 10c-space-image-on "$F/pixel.png" Peeker
 front() { osascript -e "tell application \"$APP\" to activate" >/dev/null 2>&1; sleep 0.8; }
 
@@ -328,7 +334,7 @@ front
 "$DRIVE" menu Peeker File Close && "$DRIVE" wait Peeker window Settings --gone
 "$DRIVE" menuextra Peeker "Settings…"
 "$DRIVE" wait Peeker window Settings
-check "Settings reopens on the PDF pane" "$("$DRIVE" enabled Peeker "Open files with PDF" 2>/dev/null)" true
+check "Settings reopens on the PDF pane" "$("$DRIVE" enabled Peeker "Open PDF files in Peeker" 2>/dev/null)" true
 
 # Only one shortcut recorder listens at a time, the key goes to its command, and switching apps stops it, so Space
 # reaches the panel again either way.
@@ -348,7 +354,7 @@ front
 
 "$DRIVE" row Peeker Permissions && sleep 2
 "$DRIVE" shot Peeker "$OUT/12-settings-permissions.png"
-check "Permissions holds only the permissions" "$("$DRIVE" tree Peeker 16 | grep -c -E 'Open at Login|Default app')" 0
+check "Permissions holds only the permissions" "$("$DRIVE" tree Peeker 16 | grep -c -E 'Open at Login|Default app|Default App')" 0
 "$DRIVE" row Peeker General && sleep 0.8
 printf '{"plugins": ' > "$CONFIG"
 sleep 1.5
@@ -358,12 +364,14 @@ echo '{}' > "$CONFIG"
 sleep 1.5
 check "Fixing the file unlocks them" "$("$DRIVE" enabled Peeker "Peek panel")" true
 
-# A file no plugin opens: the alert's Open Settings shows the Plain Text pane, where its extension can be added.
+# A file no format opens: the alert says Peeker doesn't open it, and Open Settings shows the Plain Text pane, where
+# its extension can be added.
 open -a "$APP" "$F/movie.mp4"
 "$DRIVE" wait Peeker control "Open Settings"
-"$DRIVE" shot Peeker "$OUT/14-no-plugin-alert.png"
+"$DRIVE" shot Peeker "$OUT/14-no-format-alert.png"
+check "The alert says Peeker doesn't open it" "$("$DRIVE" tree Peeker 8 | grep -c "Peeker doesn't open “movie.mp4”" | awk '{print ($1 > 0) ? "yes" : "no"}')" yes
 "$DRIVE" press Peeker "Open Settings" && sleep 1
-check "Open Settings shows the Plain Text pane" "$("$DRIVE" enabled Peeker "Open files with Plain Text" 2>/dev/null)" true
+check "Open Settings shows the Plain Text pane" "$("$DRIVE" enabled Peeker "Open Plain Text files in Peeker" 2>/dev/null)" true
 
 echo '{}' > "$CONFIG"
 finish
