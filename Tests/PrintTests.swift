@@ -30,7 +30,8 @@ import Testing
         let view = try #require(TextPrinting.job(for: NSAttributedString(string: "x"), info: info).view as? NSTextView)
         #expect(view.appearance?.name == .aqua)
         #expect(view.backgroundColor == .white)
-        #expect(view.frame.width == 612 - info.leftMargin - info.rightMargin)
+        // AppKit can leave the frame a hair under the paper's width, such as 467.9999990 for 468.
+        #expect(abs(view.frame.width - (612 - info.leftMargin - info.rightMargin)) < 0.01)
     }
 }
 
@@ -108,7 +109,7 @@ import Testing
         #expect(attachment.isDecoded)
         #expect(width > 0 && width <= view.frame.width)
         let pixels = try #require(attachment.image?.cgImage(forProposedRect: nil, context: nil, hints: nil)?.width)
-        #expect(pixels < 3000 && pixels <= Int(view.frame.width * 2))
+        #expect(pixels < 3000 && pixels <= Int((view.frame.width * 2).rounded()))
         #expect(!view.string.contains("[chart]"))
     }
 
