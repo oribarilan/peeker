@@ -2,10 +2,10 @@ import AppKit
 import PDFKit
 import PeekerKit
 
-/// Holds the PDF view and, under the toolbar, from the first Cmd+F the find bar above it, and the markup strip while
-/// it shows. The strip floats over the pages rather than pushing them down, which would move them under the pointer
-/// between the two clicks of a double-click. It answers the Find menu items for the view and the find bar, being in
-/// the responder chain of each.
+/// Holds the PDF view, below the toolbar or title bar so pages never run under them (the Peek panel's title bar is
+/// see-through), and from the first Cmd+F the find bar above it, and the markup strip while it shows. The strip floats
+/// over the pages rather than pushing them down, which would move them under the pointer between the two clicks of a
+/// double-click. It answers the Find menu items for the view and the find bar, being in the responder chain of each.
 final class PDFFindContainer: NSView, NSMenuItemValidation {
     let finder: PDFFinder
     private(set) var bar: FindBar?
@@ -26,7 +26,7 @@ final class PDFFindContainer: NSView, NSMenuItemValidation {
         super.init(frame: .zero)
         pdfView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(pdfView)
-        pagesAtTop = pdfView.topAnchor.constraint(equalTo: topAnchor)
+        pagesAtTop = pdfView.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor)
         NSLayoutConstraint.activate([
             pagesAtTop,
             pdfView.leadingAnchor.constraint(equalTo: leadingAnchor),
